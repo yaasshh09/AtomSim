@@ -88,3 +88,31 @@ def test_error_estimate_bounds_true_error():
         true_err = abs(q.value - exact_energy(k + 1).value)
         assert true_err <= 2.0 * est + 1e-12, (k, true_err, est)
         assert est < 1e-3 * abs(q.value)  # and the estimate itself is small
+
+
+def _observed_order(potential, exact, l, r_max, n_list, **kw):
+    errs = [
+        abs(solve_radial(potential, l=l, r_max=r_max, n_points=n, n_states=1, **kw)
+            .energies[0].value - exact)
+        for n in n_list
+    ]
+    return [np.log2(errs[i] / errs[i + 1]) for i in range(len(errs) - 1)], errs
+
+
+def test_convergence_order_harmonic_is_second_order():
+    orders, _ = _observed_order(
+        lambda r: 0.5 * r**2, exact=1.5, l=0, r_max=12.0, n_list=[600, 1200, 2400]
+    )
+    for p in orders:
+        assert 1.7 < p < 2.3, orders
+
+
+def test_convergence_order_coulomb_documented():
+    # The r=0 Coulomb cusp can reduce the observed order below 2 — that finding
+    # is recorded in docs/phase0-convergence.md, and the floor asserted here.
+    orders, errs = _observed_order(
+        lambda r: -1.0 / r, exact=-0.5, l=0, r_max=60.0, n_list=[3000, 6000, 12000]
+    )
+    assert errs[-1] < 1e-4  # absolute accuracy still good
+    for p in orders:
+        assert p > 1.3, orders
