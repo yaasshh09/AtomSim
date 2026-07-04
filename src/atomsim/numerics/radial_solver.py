@@ -8,6 +8,7 @@ This one engine powers real Coulomb physics, screened multi-electron models,
 and counterfactual force laws alike.
 """
 
+import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -76,3 +77,33 @@ def solve_radial(
         for k, e in enumerate(eigvals)
     )
     return RadialSolution(r=r, u=u, energies=energies, l=l, mu_ratio=mu_ratio)
+
+
+def solve_radial_with_error(
+    potential: Callable[[np.ndarray], np.ndarray],
+    l: int = 0,
+    mu_ratio: float = 1.0,
+    r_max: float = 120.0,
+    n_points: int = 24000,
+    n_states: int = 3,
+) -> RadialSolution:
+    """Solve at n_points and 2*n_points; attach |E_fine - E_coarse| as error estimate.
+
+    Grid-halving is a conservative estimate for this O(h^2)-convergent scheme:
+    the reported fine-grid error is smaller than the difference itself.
+    """
+    coarse = solve_radial(potential, l, mu_ratio, r_max, n_points, n_states)
+    fine = solve_radial(potential, l, mu_ratio, r_max, 2 * n_points, n_states)
+
+    energies = tuple(
+        dataclasses.replace(
+            q,
+            provenance=dataclasses.replace(
+                q.provenance,
+                error_estimate=abs(q.value - coarse.energies[k].value),
+                refinement="increase n_points further; estimate from grid-halving",
+            ),
+        )
+        for k, q in enumerate(fine.energies)
+    )
+    return dataclasses.replace(fine, energies=energies)
