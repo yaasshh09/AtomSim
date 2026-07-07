@@ -335,3 +335,34 @@ button.primary:disabled {
   stroke: #fbbf24;
   stroke-dasharray: 4 4;
 }
+
+.levels-svg {
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+
+.rung {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+.rung-active {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.arrow line {
+  stroke: #fbbf24;
+}
+
+.arrow path {
+  fill: #fbbf24;
+}
+
+.arrow text {
+  fill: #fbbf24;
+  font-size: 10px;
+}

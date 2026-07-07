@@ -10,6 +10,7 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "cloud", label: "3D point cloud" },
   { value: "plane", label: "2D cross-section" },
   { value: "radial", label: "Radial R(r), P(r)" },
+  { value: "levels", label: "Energy levels" },
 ];
 
 export function Controls() {
