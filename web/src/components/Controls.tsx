@@ -11,6 +11,7 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "plane", label: "2D cross-section" },
   { value: "radial", label: "Radial R(r), P(r)" },
   { value: "levels", label: "Energy levels" },
+  { value: "spectrum", label: "Spectrum vs NIST" },
 ];
 
 export function Controls() {

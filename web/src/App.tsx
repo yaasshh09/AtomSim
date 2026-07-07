@@ -4,6 +4,7 @@ import { InfoPanel } from "./components/InfoPanel";
 import { LevelsView } from "./components/LevelsView";
 import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
+import { SpectrumView } from "./components/SpectrumView";
 import { useAppStore } from "./state/store";
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         {view === "plane" && <PlaneView />}
         {view === "radial" && <RadialView />}
         {view === "levels" && <LevelsView />}
+        {view === "spectrum" && <SpectrumView />}
       </main>
       <Controls />
     </div>

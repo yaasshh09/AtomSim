@@ -366,3 +366,22 @@ button.primary:disabled {
   fill: #fbbf24;
   font-size: 10px;
 }
+
+.legend-inline {
+  display: flex;
+  gap: 0.8rem;
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.ref-ok {
+  fill: #4ade80;
+}
+
+.ref-bad {
+  fill: #f87171;
+}
+
+.tol-band {
+  fill: rgb(124 255 178 / 0.08);
+}
