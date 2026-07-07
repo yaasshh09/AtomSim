@@ -292,3 +292,46 @@ button.primary:disabled {
   background: var(--edge);
   color: var(--text);
 }
+
+.plot {
+  margin: 0;
+}
+
+.plot svg {
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+
+.plot figcaption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.axis {
+  stroke: var(--edge);
+}
+
+.tick {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.curve {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.zero {
+  stroke: var(--muted);
+  stroke-dasharray: 2 4;
+}
+
+.marker {
+  stroke: #fbbf24;
+  stroke-dasharray: 4 4;
+}

@@ -9,6 +9,7 @@ const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "cloud", label: "3D point cloud" },
   { value: "plane", label: "2D cross-section" },
+  { value: "radial", label: "Radial R(r), P(r)" },
 ];
 
 export function Controls() {

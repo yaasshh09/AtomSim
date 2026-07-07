@@ -12,12 +12,14 @@
   "dependencies": {
     "@react-three/drei": "^10.7.0",
     "@react-three/fiber": "^9.3.0",
+    "d3-scale": "^4.0.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.180.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/d3-scale": "^4.0.9",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@types/three": "^0.180.0",
