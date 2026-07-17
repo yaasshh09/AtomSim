@@ -83,4 +83,17 @@ export const PHYSICS_CONTENT: Record<
       },
     ],
   },
+  forcelaw: {
+    title: "What if Coulomb weren't 1/r?",
+    blocks: [
+      {
+        tex: String.raw`V_p(r) = -\frac{Z}{r^{\,p}},\qquad 0.5 \le p \le 1.5`,
+        note: "A counterfactual central potential with no closed form away from p = 1, solved on a radial grid (NUMERICAL badge: each level carries a grid-halving error estimate). p stays well below the fall-to-center threshold at p → 2.",
+      },
+      {
+        tex: String.raw`p = 1 \;\Rightarrow\; E_{n\ell} = -\frac{Z^2}{2n^2}\,\frac{\mu}{m_e}\,E_h \quad\text{for every } \ell`,
+        note: "Only the exact 1/r Coulomb shape hides l from the energy (the accidental degeneracy). Bending p away from 1 lifts it, so the counterfactual ladder splits against the EXACT hydrogen reference it is drawn beside.",
+      },
+    ],
+  },
 };

@@ -135,3 +135,23 @@ describe("store transitions", () => {
     expect(s.stateInfo).not.toBeNull();
   });
 });
+
+describe("force-law slice", () => {
+  it("changing p or l clears stale force-law data", () => {
+    useAppStore.setState({ forceLaw: { p: 1, l: 0 } as never, forceStatus: "ready" });
+    useAppStore.getState().setForceP(1.2);
+    expect(useAppStore.getState().forceLaw).toBeNull();
+    expect(useAppStore.getState().forceStatus).toBe("idle");
+
+    useAppStore.setState({ forceLaw: { p: 1 } as never, forceStatus: "ready" });
+    useAppStore.getState().setForceL(1);
+    expect(useAppStore.getState().forceLaw).toBeNull();
+  });
+
+  it("setForceP clamps into [0.5, 1.5]", () => {
+    useAppStore.getState().setForceP(9);
+    expect(useAppStore.getState().forceP).toBe(1.5);
+    useAppStore.getState().setForceP(0);
+    expect(useAppStore.getState().forceP).toBe(0.5);
+  });
+});

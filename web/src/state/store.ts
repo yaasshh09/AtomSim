@@ -4,6 +4,7 @@ import type { Basis, ConstMultipliers, PlaneQuantity } from "../api/client";
 import type {
   ClassicalGhost,
   ConstantsReport,
+  ForceLawResult,
   LevelsResponse,
   PlaneMeta,
   RadialResponse,
@@ -17,7 +18,14 @@ import { clampState } from "../lib/quantum";
 import { isAlphaValid } from "../lib/whatif";
 
 export type SampleStatus = "idle" | "sampling" | "ready" | "error";
-export type ViewMode = "cloud" | "plane" | "radial" | "levels" | "spectrum" | "whatif";
+export type ViewMode =
+  | "cloud"
+  | "plane"
+  | "radial"
+  | "levels"
+  | "spectrum"
+  | "whatif"
+  | "forcelaw";
 export type ColorMode = "solid" | "density" | "phase";
 
 const N_MAX_DIAGRAM = 6;
@@ -61,6 +69,13 @@ interface AppState {
   ghost: boolean;
   classicalGhost: ClassicalGhost | null;
   classicalStatus: SampleStatus;
+  forceP: number;
+  forceL: number;
+  forceLaw: ForceLawResult | null;
+  forceStatus: SampleStatus;
+  setForceP: (p: number) => void;
+  setForceL: (l: number) => void;
+  loadForceLaw: () => Promise<void>;
   setGhost: (on: boolean) => void;
   loadClassical: () => Promise<void>;
   setLabConst: (partial: Partial<ConstMultipliers>) => void;
@@ -124,13 +139,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   ghost: false,
   classicalGhost: null,
   classicalStatus: "idle",
+  forceP: 1.0,
+  forceL: 0,
+  forceLaw: null,
+  forceStatus: "idle",
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
   setQuantumNumbers: (n, l, m) =>
     set({ ...clampState(n, l, m), ...INVALIDATED, classicalGhost: null, classicalStatus: "idle" }),
   setSystem: (system) =>
-    set({ system, ...INVALIDATED, classicalGhost: null, classicalStatus: "idle" }),
+    set({
+      system,
+      ...INVALIDATED,
+      classicalGhost: null,
+      classicalStatus: "idle",
+      forceLaw: null,
+      forceStatus: "idle",
+    }),
   setBasis: (basis) =>
     set((s) => ({
       basis,
@@ -159,6 +185,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   setGhost: (on) => {
     set({ ghost: on });
     if (on && get().classicalStatus === "idle") void get().loadClassical();
+  },
+  // force-law slice: its own axis (forceP, forceL) — independent of the main
+  // (n,l,m,system) physics, so it is never in INVALIDATED; changing p or l
+  // clears only the force-law data. System changes clear it too (Z/mu change).
+  setForceP: (p) =>
+    set({
+      forceP: Math.min(Math.max(p, 0.5), 1.5),
+      forceLaw: null,
+      forceStatus: "idle",
+    }),
+  setForceL: (l) =>
+    set({ forceL: Math.max(0, Math.round(l)), forceLaw: null, forceStatus: "idle" }),
+  loadForceLaw: async () => {
+    const { forceP, forceL, system } = get();
+    set({ forceStatus: "sampling", error: null });
+    try {
+      const forceLaw = await client.getForceLaw(system, forceP, forceL);
+      set({ forceLaw, forceStatus: "ready" });
+    } catch (err) {
+      set({ forceStatus: "error", error: err instanceof Error ? err.message : String(err) });
+    }
   },
   loadClassical: async () => {
     const { n, system } = get();
