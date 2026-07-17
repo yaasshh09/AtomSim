@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { defaultParams } from "../lib/forceLaw";
 import { useAppStore } from "./store";
 
 const initial = useAppStore.getState();
@@ -137,21 +138,38 @@ describe("store transitions", () => {
 });
 
 describe("force-law slice", () => {
-  it("changing p or l clears stale force-law data", () => {
-    useAppStore.setState({ forceLaw: { p: 1, l: 0 } as never, forceStatus: "ready" });
-    useAppStore.getState().setForceP(1.2);
+  it("changing a param or l clears stale force-law data", () => {
+    useAppStore.setState({ forceLaw: { preset: "powerlaw" } as never, forceStatus: "ready" });
+    useAppStore.getState().setForceParam("p", 1.2);
     expect(useAppStore.getState().forceLaw).toBeNull();
     expect(useAppStore.getState().forceStatus).toBe("idle");
 
-    useAppStore.setState({ forceLaw: { p: 1 } as never, forceStatus: "ready" });
+    useAppStore.setState({ forceLaw: { preset: "powerlaw" } as never, forceStatus: "ready" });
     useAppStore.getState().setForceL(1);
     expect(useAppStore.getState().forceLaw).toBeNull();
   });
 
-  it("setForceP clamps into [0.5, 1.5]", () => {
-    useAppStore.getState().setForceP(9);
-    expect(useAppStore.getState().forceP).toBe(1.5);
-    useAppStore.getState().setForceP(0);
-    expect(useAppStore.getState().forceP).toBe(0.5);
+  it("setForcePreset swaps params to that preset's defaults and clears data", () => {
+    const s = useAppStore.getState();
+    s.setForcePreset("yukawa");
+    const st = useAppStore.getState();
+    expect(st.forcePreset).toBe("yukawa");
+    expect(st.forceParams).toEqual(defaultParams("yukawa"));
+    expect(st.forceLaw).toBeNull();
+    expect(st.forceStatus).toBe("idle");
+  });
+
+  it("setForceParam clamps and clears force-law data", () => {
+    useAppStore.getState().setForcePreset("yukawa");
+    useAppStore.getState().setForceParam("lambda", 999);
+    expect(useAppStore.getState().forceParams.lambda).toBe(20); // spec max
+    expect(useAppStore.getState().forceLaw).toBeNull();
+  });
+
+  it("setForceViz is presentational: it does not clear force-law data", () => {
+    useAppStore.setState({ forceLaw: { preset: "powerlaw" } as never, forceStatus: "ready" });
+    useAppStore.getState().setForceViz("ladder");
+    expect(useAppStore.getState().forceViz).toBe("ladder");
+    expect(useAppStore.getState().forceLaw).not.toBeNull(); // untouched
   });
 });

@@ -24,7 +24,10 @@ useAppStore.subscribe((s) => {
     planeQuantity: s.planeQuantity,
     labConst: s.labConst,
     labZ: s.labZ,
-    forceP: s.forceP,
+    // TODO(Task 8): urlState's force-law fields are being generalized from a
+    // single power-law exponent to per-preset params; forceP is a shim until
+    // that lands, mirroring the powerlaw "p" param when present.
+    forceP: s.forceParams.p ?? 1.0,
     forceL: s.forceL,
   });
   const next = window.location.pathname + qs;

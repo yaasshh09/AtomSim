@@ -13,6 +13,7 @@ import type {
   StateResponse,
   SystemInfo,
 } from "../api/types";
+import { PRESET_PARAMS, clampParam, defaultParams, type ForcePreset } from "../lib/forceLaw";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
 import { isAlphaValid } from "../lib/whatif";
@@ -69,12 +70,16 @@ interface AppState {
   ghost: boolean;
   classicalGhost: ClassicalGhost | null;
   classicalStatus: SampleStatus;
-  forceP: number;
+  forcePreset: ForcePreset;
+  forceParams: Record<string, number>;
   forceL: number;
+  forceViz: "well" | "ladder";
   forceLaw: ForceLawResult | null;
   forceStatus: SampleStatus;
-  setForceP: (p: number) => void;
+  setForcePreset: (preset: ForcePreset) => void;
+  setForceParam: (name: string, value: number) => void;
   setForceL: (l: number) => void;
+  setForceViz: (viz: "well" | "ladder") => void;
   loadForceLaw: () => Promise<void>;
   setGhost: (on: boolean) => void;
   loadClassical: () => Promise<void>;
@@ -139,8 +144,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   ghost: false,
   classicalGhost: null,
   classicalStatus: "idle",
-  forceP: 1.0,
+  forcePreset: "powerlaw",
+  forceParams: defaultParams("powerlaw"),
   forceL: 0,
+  forceViz: "well",
   forceLaw: null,
   forceStatus: "idle",
   ...INVALIDATED,
@@ -186,22 +193,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ ghost: on });
     if (on && get().classicalStatus === "idle") void get().loadClassical();
   },
-  // force-law slice: its own axis (forceP, forceL) — independent of the main
-  // (n,l,m,system) physics, so it is never in INVALIDATED; changing p or l
-  // clears only the force-law data. System changes clear it too (Z/mu change).
-  setForceP: (p) =>
+  // force-law slice: its own axis (preset, params, l) — independent of the main
+  // (n,l,m,system) physics, so never in INVALIDATED. Changing the preset, a
+  // param, or l clears only the force-law data. forceViz is presentational and
+  // clears nothing (store invariant). System changes clear it too (Z/mu change).
+  setForcePreset: (preset) =>
     set({
-      forceP: Math.min(Math.max(p, 0.5), 1.5),
+      forcePreset: preset,
+      forceParams: defaultParams(preset),
       forceLaw: null,
       forceStatus: "idle",
     }),
+  setForceParam: (name, value) => {
+    const { forcePreset, forceParams } = get();
+    const spec = PRESET_PARAMS[forcePreset].find((s) => s.name === name);
+    if (spec === undefined) return;
+    set({
+      forceParams: { ...forceParams, [name]: clampParam(spec, value) },
+      forceLaw: null,
+      forceStatus: "idle",
+    });
+  },
   setForceL: (l) =>
     set({ forceL: Math.max(0, Math.round(l)), forceLaw: null, forceStatus: "idle" }),
+  setForceViz: (viz) => set({ forceViz: viz }),
   loadForceLaw: async () => {
-    const { forceP, forceL, system } = get();
+    const { forcePreset, forceParams, forceL, system } = get();
     set({ forceStatus: "sampling", error: null });
     try {
-      const forceLaw = await client.getForceLaw(system, forceP, forceL);
+      const forceLaw = await client.getForceLaw(system, forcePreset, forceParams, forceL);
       set({ forceLaw, forceStatus: "ready" });
     } catch (err) {
       set({ forceStatus: "error", error: err instanceof Error ? err.message : String(err) });
