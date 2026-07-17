@@ -8,7 +8,7 @@ honest EXACT-vs-COUNTERFACTUAL one. p is clamped to [0.5, 1.5], comfortably insi
 the fall-to-center threshold (p -> 2), so every returned state is box-converged.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -63,8 +63,20 @@ def force_law_levels(
         return -z / r**p
 
     sol = solve_radial_with_error(potential, l=l, mu_ratio=mu, n_states=n_states)
+
+    # Stamp the counterfactual potential into each level's provenance so the
+    # NUMERICAL Quantity is self-describing in isolation: the solver only records
+    # its own finite-difference method, not that V(r) was bent away from Coulomb.
+    note = f"; counterfactual power-law potential V=-Z/r^{p:g}"
+
+    def _tag(energy: Quantity) -> Quantity:
+        return replace(
+            energy,
+            provenance=replace(energy.provenance, method=energy.provenance.method + note),
+        )
+
     counterfactual = tuple(
-        ForceLawLevel(radial_index=k, energy=sol.energies[k]) for k in range(n_states)
+        ForceLawLevel(radial_index=k, energy=_tag(sol.energies[k])) for k in range(n_states)
     )
     # radial index k <-> hydrogen level n = l + 1 + k (since n_r = n - l - 1 = k)
     reference = tuple(

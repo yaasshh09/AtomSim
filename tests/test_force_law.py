@@ -20,6 +20,14 @@ def test_provenance_tiers_are_distinct():
     assert all(x.energy.provenance.fidelity.value == "exact" for x in res.reference)
     # numerical levels carry a grid-halving error estimate
     assert all(x.energy.provenance.error_estimate is not None for x in res.counterfactual)
+    # the counterfactual is self-describing: its provenance names the bent potential,
+    # not just the generic solver method (prime directive — honest in isolation)
+    assert all(
+        "counterfactual power-law potential V=-Z/r^1.2" in x.energy.provenance.method
+        for x in res.counterfactual
+    )
+    # the EXACT reference is the genuine Coulomb closed form — never tagged counterfactual
+    assert all("counterfactual" not in r.energy.provenance.method for r in res.reference)
 
 
 def test_reference_gated_to_n_ge_l_plus_1():

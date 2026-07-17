@@ -59,9 +59,8 @@ export function ForceLawView() {
       </div>
 
       {forceStatus === "error" && <p className="error">{error}</p>}
-      {forceLaw === null ? (
-        <p className="hint-block">solving force law…</p>
-      ) : (
+      {forceStatus === "sampling" && <p className="hint-block">solving force law…</p>}
+      {forceLaw !== null && (
         <>
           <div className="forcelaw-legend">
             {cfProv && (
