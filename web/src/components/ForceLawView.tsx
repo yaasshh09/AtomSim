@@ -1,51 +1,82 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
+import { allowedSpan, PRESET_LABELS, PRESET_PARAMS, type ForcePreset } from "../lib/forceLaw";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 
-const W = 640;
+const W = 680;
 const H = 460;
-const PAD = { top: 32, right: 24, bottom: 40, left: 64 };
+const PAD = { top: 32, right: 24, bottom: 44, left: 64 };
 const L_CHOICES = [0, 1, 2, 3];
+const PRESETS: ForcePreset[] = ["powerlaw", "yukawa", "harmonic", "finitewell", "coulombcore"];
 
 export function ForceLawView() {
-  const { forceP, forceL, forceLaw, forceStatus, error, setForceP, setForceL, loadForceLaw } =
-    useAppStore();
+  const {
+    forcePreset,
+    forceParams,
+    forceL,
+    forceViz,
+    forceLaw,
+    forceStatus,
+    error,
+    setForcePreset,
+    setForceParam,
+    setForceL,
+    setForceViz,
+    loadForceLaw,
+  } = useAppStore();
 
   useEffect(() => {
     if (forceLaw === null && forceStatus === "idle") void loadForceLaw();
   }, [forceLaw, forceStatus, loadForceLaw]);
 
   const cfProv = forceLaw?.counterfactual[0]?.energy.provenance ?? null;
-  const refProv = forceLaw?.reference[0]?.energy.provenance ?? null;
+  const refProv = forceLaw?.reference.items[0]?.energy.provenance ?? null;
 
-  // Energy axis spans both sides (eV). Guard against an empty payload.
-  const evs =
-    forceLaw === null
-      ? []
-      : [
-          ...forceLaw.counterfactual.map((x) => x.energy_ev.value),
-          ...forceLaw.reference.map((x) => x.energy_ev.value),
-        ];
-  const emin = evs.length ? Math.min(...evs) : -14;
-  const emax = evs.length ? Math.max(...evs, -0.1) : 0;
+  const levelsEv = forceLaw ? forceLaw.counterfactual.map((c) => c.energy_ev.value) : [];
+  const refEv = forceLaw ? forceLaw.reference.items.map((i) => i.energy_ev.value) : [];
+  const curveEv = forceLaw ? forceLaw.potential_curve.v_ev : [];
+  const curveR = forceLaw ? forceLaw.potential_curve.r : [];
+
+  const allEv = [...levelsEv, ...refEv, ...curveEv];
+  const emin = allEv.length ? Math.min(...allEv) : -14;
+  const emax = allEv.length ? Math.max(...allEv, 0.1) : 0;
   const y = scaleLinear([emin, emax], [H - PAD.bottom, PAD.top]);
+  const rmax = curveR.length ? curveR[curveR.length - 1] : 1;
+  const x = scaleLinear([0, rmax], [PAD.left, W - PAD.right]);
+
+  const shortfall = forceLaw !== null && forceLaw.bound_count < forceLaw.requested_count;
 
   return (
     <div className="forcelaw">
       <div className="whatif-controls">
         <label>
-          Force-law exponent p = {forceP.toFixed(2)}
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={forceP}
-            onChange={(e) => setForceP(Number(e.target.value))}
-          />
-          <span className="hint-block">V(r) = −Z / r^p — p = 1 is real hydrogen</span>
+          Potential
+          <select
+            value={forcePreset}
+            onChange={(e) => setForcePreset(e.target.value as ForcePreset)}
+          >
+            {PRESETS.map((p) => (
+              <option key={p} value={p}>
+                {PRESET_LABELS[p]}
+              </option>
+            ))}
+          </select>
         </label>
+        {PRESET_PARAMS[forcePreset].map((spec) => (
+          <label key={spec.name}>
+            {spec.name} = {(forceParams[spec.name] ?? spec.default).toFixed(2)}
+            {spec.unit ? ` ${spec.unit}` : ""}
+            <input
+              type="range"
+              min={spec.min}
+              max={spec.max}
+              step={spec.step}
+              value={forceParams[spec.name] ?? spec.default}
+              onChange={(e) => setForceParam(spec.name, Number(e.target.value))}
+            />
+          </label>
+        ))}
         <label>
           Orbital l
           <select value={forceL} onChange={(e) => setForceL(Number(e.target.value))}>
@@ -56,68 +87,143 @@ export function ForceLawView() {
             ))}
           </select>
         </label>
+        <label>
+          View
+          <select
+            value={forceViz}
+            onChange={(e) => setForceViz(e.target.value as "well" | "ladder")}
+          >
+            <option value="well">Potential well</option>
+            <option value="ladder">Energy ladder</option>
+          </select>
+        </label>
       </div>
 
       {forceStatus === "error" && <p className="error">{error}</p>}
       {forceStatus === "sampling" && <p className="hint-block">solving force law…</p>}
+      {shortfall && (
+        <p className="hint-block">
+          Only {forceLaw!.bound_count} bound state
+          {forceLaw!.bound_count === 1 ? "" : "s"} at these parameters
+          {forceLaw!.bound_count === 0 ? " — the potential is too shallow to bind." : "."}
+        </p>
+      )}
+
       {forceLaw !== null && (
         <>
           <div className="forcelaw-legend">
             {cfProv && (
               <span>
-                counterfactual V=−Z/r^{forceP.toFixed(2)} <Badge provenance={cfProv} />
+                counterfactual {forcePreset} <Badge provenance={cfProv} />
               </span>
             )}
             {refProv && (
               <span>
-                real hydrogen (reference) <Badge provenance={refProv} />
+                reference ({forceLaw.reference.kind}) <Badge provenance={refProv} />
               </span>
             )}
           </div>
-          <svg viewBox={`0 0 ${W} ${H}`} className="forcelaw-svg" role="img"
-               aria-label="energy levels under the counterfactual force law versus real hydrogen">
-            {/* reference (exact hydrogen) — ghosted, left column */}
-            {forceLaw.reference.map((r) => (
-              <g key={`ref-${r.n}`}>
+
+          {forceViz === "well" ? (
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              className="forcelaw-svg"
+              role="img"
+              aria-label="potential energy curve with bound levels and reference"
+            >
+              <path
+                className="forcelaw-curve"
+                d={curveR
+                  .map((r, i) => `${i === 0 ? "M" : "L"} ${x(r)} ${y(curveEv[i])}`)
+                  .join(" ")}
+                fill="none"
+              />
+              {forceLaw.reference.items.map((item, i) => (
                 <line
-                  x1={PAD.left}
-                  x2={W / 2 - 8}
-                  y1={y(r.energy_ev.value)}
-                  y2={y(r.energy_ev.value)}
+                  key={`ref-${i}`}
                   className="forcelaw-ref"
-                />
-                <text x={PAD.left} y={y(r.energy_ev.value) - 4} className="forcelaw-label">
-                  n={r.n}
-                </text>
-              </g>
-            ))}
-            {/* counterfactual (numerical) — solid, right column */}
-            {forceLaw.counterfactual.map((c) => (
-              <g key={`cf-${c.radial_index}`}>
-                <line
-                  x1={W / 2 + 8}
+                  x1={PAD.left}
                   x2={W - PAD.right}
-                  y1={y(c.energy_ev.value)}
-                  y2={y(c.energy_ev.value)}
-                  className="forcelaw-cf"
+                  y1={y(item.energy_ev.value)}
+                  y2={y(item.energy_ev.value)}
                 />
-                <text x={W - PAD.right} y={y(c.energy_ev.value) - 4} textAnchor="end"
-                      className="forcelaw-label">
-                  {c.energy_ev.value.toFixed(2)} eV
-                </text>
-              </g>
-            ))}
-            <text x={W / 4} y={PAD.top - 12} textAnchor="middle" className="forcelaw-col">
-              real hydrogen
-            </text>
-            <text x={(3 * W) / 4} y={PAD.top - 12} textAnchor="middle" className="forcelaw-col">
-              V = −Z / r^{forceP.toFixed(2)}
-            </text>
-          </svg>
+              ))}
+              {forceLaw.counterfactual.map((c) => {
+                const span = allowedSpan(curveR, curveEv, c.energy_ev.value);
+                const x1 = span ? x(span[0]) : PAD.left;
+                const x2 = span ? x(span[1]) : W - PAD.right;
+                return (
+                  <g key={`cf-${c.radial_index}`}>
+                    <line
+                      className="forcelaw-cf"
+                      x1={x1}
+                      x2={x2}
+                      y1={y(c.energy_ev.value)}
+                      y2={y(c.energy_ev.value)}
+                    />
+                    <text x={x2 + 4} y={y(c.energy_ev.value) - 4} className="forcelaw-label">
+                      {c.energy_ev.value.toFixed(2)} eV
+                    </text>
+                  </g>
+                );
+              })}
+              <text x={PAD.left} y={PAD.top - 12} className="forcelaw-col">
+                V(r) and bound levels — {PRESET_LABELS[forcePreset]}
+              </text>
+            </svg>
+          ) : (
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              className="forcelaw-svg"
+              role="img"
+              aria-label="energy levels versus reference"
+            >
+              {forceLaw.reference.items.map((item, i) => (
+                <g key={`ref-${i}`}>
+                  <line
+                    className="forcelaw-ref"
+                    x1={PAD.left}
+                    x2={W / 2 - 8}
+                    y1={y(item.energy_ev.value)}
+                    y2={y(item.energy_ev.value)}
+                  />
+                  <text x={PAD.left} y={y(item.energy_ev.value) - 4} className="forcelaw-label">
+                    {item.label}
+                  </text>
+                </g>
+              ))}
+              {forceLaw.counterfactual.map((c) => (
+                <g key={`cf-${c.radial_index}`}>
+                  <line
+                    className="forcelaw-cf"
+                    x1={W / 2 + 8}
+                    x2={W - PAD.right}
+                    y1={y(c.energy_ev.value)}
+                    y2={y(c.energy_ev.value)}
+                  />
+                  <text
+                    x={W - PAD.right}
+                    y={y(c.energy_ev.value) - 4}
+                    textAnchor="end"
+                    className="forcelaw-label"
+                  >
+                    {c.energy_ev.value.toFixed(2)} eV
+                  </text>
+                </g>
+              ))}
+              <text x={W / 4} y={PAD.top - 12} textAnchor="middle" className="forcelaw-col">
+                reference
+              </text>
+              <text x={(3 * W) / 4} y={PAD.top - 12} textAnchor="middle" className="forcelaw-col">
+                {forcePreset}
+              </text>
+            </svg>
+          )}
+
           <p className="hint-block">
-            At p = 1 the numerical levels land on the exact hydrogen levels (solver
-            calibration). Away from 1, states of the same n but different l split — the
-            accidental Coulomb degeneracy is gone.
+            The numerical levels (NUMERICAL) are drawn against this preset's honest
+            reference (EXACT). Screened and finite potentials bind only finitely many
+            states; the missing upper reference rungs are the states they cannot hold.
           </p>
         </>
       )}
