@@ -598,9 +598,10 @@ def test_spectrum_screened_sodium_returns_dipole_lines(client):
     for ln in body["lines"]:
         assert abs(ln["l_upper"] - ln["l_lower"] ) == 1
         assert ln["energy_ev"]["provenance"]["fidelity"] == "approximation"
-    # NIST reference data for screened atoms is vendored separately; until then the
-    # comparison is honestly absent rather than fabricated.
-    assert "comparison" in body
+    # Na I NIST reference is vendored: the comparison + citation reach the client.
+    assert body["reference_citation"] is not None and "NIST" in body["reference_citation"]
+    assert body["comparison"]  # the D line and other transitions are associated
+    assert body["tolerance_relative"] == 0.05
 
 
 def test_spectrum_hydrogenic_unchanged(client):

@@ -1,0 +1,19 @@
+{
+  "species": "Li I",
+  "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database (ver. 5.12), https://physics.nist.gov/asd",
+  "retrieved": "2026-07-19",
+  "medium": "air",
+  "note": "Strong persistent Li I lines from the ASD Lines query (observed air wavelengths, 200-2000 nm, Aki-ranked). Lithium is a one-valence-electron (alkali) atom, the natural showcase for the GSZ central field. The 2p fine-structure doublet (670.776/670.791 nm) is unresolved by the model's single 2p orbital; both map onto the one computed 2p->2s transition. Compared at the disclosed 5% tolerance.",
+  "lines": [
+    {"wavelength_nm": 256.231, "uncertainty_nm": null, "label": "5p->2s"},
+    {"wavelength_nm": 274.120, "uncertainty_nm": null, "label": "4p->2s"},
+    {"wavelength_nm": 323.266, "uncertainty_nm": null, "label": "3p->2s"},
+    {"wavelength_nm": 413.256, "uncertainty_nm": null, "label": "5d->2p"},
+    {"wavelength_nm": 460.283, "uncertainty_nm": null, "label": "4d->2p"},
+    {"wavelength_nm": 497.166, "uncertainty_nm": null, "label": "4s->2p"},
+    {"wavelength_nm": 610.354, "uncertainty_nm": null, "label": "3d->2p"},
+    {"wavelength_nm": 670.776, "uncertainty_nm": null, "label": "2p->2s (D2)"},
+    {"wavelength_nm": 670.791, "uncertainty_nm": null, "label": "2p->2s (D1)"},
+    {"wavelength_nm": 812.623, "uncertainty_nm": null, "label": "3s->2p"}
+  ]
+}

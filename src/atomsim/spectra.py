@@ -22,7 +22,10 @@ from atomsim.systems import System
 
 _EV_NM = _sc.h * _sc.c / _sc.e * 1e9  # photon wavelength(nm) = _EV_NM / E(eV)
 
-_REFERENCE_FILES = {"h": "nist_h_i.json", "d": "nist_d_i.json", "he+": "nist_he_ii.json"}
+_REFERENCE_FILES = {
+    "h": "nist_h_i.json", "d": "nist_d_i.json", "he+": "nist_he_ii.json",
+    "he": "nist_he_i.json", "li": "nist_li_i.json", "na": "nist_na_i.json",
+}
 
 _DEFAULT_TOL = {False: 3e-5, True: 1e-5}  # relative, per fidelity tier
 
@@ -222,8 +225,19 @@ def compare_lines(
     line_list: LineList,
     reference: ReferenceData,
     tolerance_relative: float | None = None,
+    window_relative: float = 0.01,
 ) -> tuple[LineComparison, ...]:
-    """Match each reference line to the nearest computed line; report residuals."""
+    """Match each reference line to the nearest computed line; report residuals.
+
+    Two separate scales: `window_relative` decides whether a reference line's
+    transition is present in the computed set at all (a coarse association cut);
+    `tolerance_relative` decides whether the matched pair passes (the disclosed
+    accuracy bar, used only for the within_tolerance flag). They differ for
+    approximate models: a GSZ valence line may sit several percent off the real
+    wavelength yet be the correct transition — kept and reported as a residual —
+    whereas a reference line with no nearby computed transition is dropped. The
+    0.01 default preserves the exact hydrogenic behavior.
+    """
     tol = tolerance_relative if tolerance_relative is not None else _DEFAULT_TOL[
         line_list.fine_structure
     ]
@@ -236,8 +250,8 @@ def compare_lines(
         )
         delta = nearest.wavelength.value - ref.wavelength_nm
         rel = abs(delta) / ref.wavelength_nm
-        if rel > 0.01:
-            continue  # reference line outside the computed n_max window
+        if rel > window_relative:
+            continue  # no computed transition near this reference line: not in the set
         out.append(
             LineComparison(
                 line=nearest,

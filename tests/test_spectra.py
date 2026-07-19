@@ -157,6 +157,20 @@ def test_screened_lines_are_emission_and_dipole():
         assert ln.energy.provenance.fidelity is Fidelity.APPROXIMATION
 
 
+def test_screened_he_reference_registered_and_compares():
+    from atomsim.atoms import aufbau_configuration
+    from atomsim.screened_atom import solve_screened_atom
+    from atomsim.spectra import screened_transition_lines
+
+    ref = load_reference("he")
+    assert ref is not None and ref.species == "He I"
+    assert "NIST" in ref.citation
+    res = solve_screened_atom(z=2, n_electrons=2, config=aufbau_configuration(2))
+    comps = compare_lines(screened_transition_lines(res), ref, tolerance_relative=0.05)
+    assert comps  # at least one NIST line matched a computed line
+    assert all(c.within_tolerance for c in comps)  # GSZ He within the disclosed 5%
+
+
 def test_screened_na_has_line_near_589nm():
     from atomsim.atoms import aufbau_configuration
     from atomsim.screened_atom import solve_screened_atom
@@ -166,3 +180,37 @@ def test_screened_na_has_line_near_589nm():
     lines = screened_transition_lines(res)
     nearest = min(lines.lines, key=lambda ln: abs(ln.wavelength.value - 589.0))
     assert abs(nearest.wavelength.value - 589.0) < 120.0  # GSZ valence class
+
+
+def test_screened_alkali_references_registered():
+    for key, species in (("li", "Li I"), ("na", "Na I")):
+        ref = load_reference(key)
+        assert ref is not None and ref.species == species and "NIST" in ref.citation
+
+
+def test_screened_na_d_line_compares_in_valence_class():
+    # The Na 3p->3s resonance line: the GSZ model gets it to a few percent, the
+    # honest ~10% valence class. A wide association window keeps the (shifted)
+    # correct transition rather than dropping it.
+    from atomsim.atoms import aufbau_configuration
+    from atomsim.screened_atom import solve_screened_atom
+    from atomsim.spectra import screened_transition_lines
+
+    res = solve_screened_atom(z=11, n_electrons=11, config=aufbau_configuration(11))
+    comps = compare_lines(
+        screened_transition_lines(res), load_reference("na"),
+        tolerance_relative=0.05, window_relative=0.25,
+    )
+    assert comps  # the real transitions are associated, not silently dropped
+    d_line = min(comps, key=lambda c: abs(c.reference_nm - 588.995))
+    assert d_line.relative_error < 0.10  # within the GSZ valence class
+
+
+def test_compare_lines_window_defaults_preserve_hydrogen():
+    # The default 1% window must not change hydrogen's tight comparison.
+    sys_ = get_system("h")
+    lines = transition_lines(sys_, n_max=4)
+    ref = load_reference("h")
+    default = compare_lines(lines, ref)
+    explicit = compare_lines(lines, ref, window_relative=0.01)
+    assert [c.reference_nm for c in default] == [c.reference_nm for c in explicit]

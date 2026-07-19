@@ -1,0 +1,19 @@
+{
+  "species": "He I",
+  "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database (ver. 5.12), https://physics.nist.gov/asd",
+  "retrieved": "2026-07-19",
+  "medium": "air",
+  "note": "Strong persistent He I lines from the ASD Lines query (observed air wavelengths, 200-2000 nm, Aki-ranked). The GSZ model is a single central field with no exchange (singlet/triplet) splitting, so its one (n,l) orbital set is compared coarsely against these real lines at the disclosed 5% tolerance; the singlet/triplet members of a given n,l -> n',l' both map onto the model's single transition.",
+  "lines": [
+    {"wavelength_nm": 388.8648, "uncertainty_nm": null, "label": "3p->2s (3P->3S)"},
+    {"wavelength_nm": 447.14802, "uncertainty_nm": null, "label": "4d->2p (3D->3P)"},
+    {"wavelength_nm": 471.31457, "uncertainty_nm": null, "label": "4s->2p (3S->3P)"},
+    {"wavelength_nm": 492.19313, "uncertainty_nm": null, "label": "4d->2p (1D->1P)"},
+    {"wavelength_nm": 501.56783, "uncertainty_nm": null, "label": "3p->2s (1P->1S)"},
+    {"wavelength_nm": 587.5621, "uncertainty_nm": null, "label": "3d->2p (3D->3P, D3)"},
+    {"wavelength_nm": 667.8151, "uncertainty_nm": null, "label": "3d->2p (1D->1P)"},
+    {"wavelength_nm": 706.5190, "uncertainty_nm": null, "label": "3s->2p (3S->3P)"},
+    {"wavelength_nm": 728.1349, "uncertainty_nm": null, "label": "3s->2p (1S->1P)"},
+    {"wavelength_nm": 1083.033978, "uncertainty_nm": null, "label": "2p->2s (3P->3S)"}
+  ]
+}

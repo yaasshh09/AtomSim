@@ -1,0 +1,19 @@
+{
+  "species": "Na I",
+  "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database (ver. 5.12), https://physics.nist.gov/asd",
+  "retrieved": "2026-07-19",
+  "medium": "air",
+  "note": "Strong persistent Na I lines from the ASD Lines query (observed air wavelengths, 200-2000 nm, Aki-ranked). Sodium is a one-valence-electron (alkali) atom, the canonical GSZ showcase; the resonance D doublet (588.995/589.592 nm, 3p->3s) is unresolved by the model's single 3p orbital and both map onto the one computed 3p->3s transition. Compared at the disclosed 5% tolerance.",
+  "lines": [
+    {"wavelength_nm": 285.2811, "uncertainty_nm": null, "label": "5p->3s"},
+    {"wavelength_nm": 330.2369, "uncertainty_nm": null, "label": "4p->3s"},
+    {"wavelength_nm": 330.2979, "uncertainty_nm": null, "label": "4p->3s"},
+    {"wavelength_nm": 498.28134, "uncertainty_nm": null, "label": "5d->3p"},
+    {"wavelength_nm": 568.82046, "uncertainty_nm": null, "label": "4d->3p"},
+    {"wavelength_nm": 588.995095, "uncertainty_nm": 0.000001, "label": "3p->3s (D2)"},
+    {"wavelength_nm": 589.592424, "uncertainty_nm": 0.000001, "label": "3p->3s (D1)"},
+    {"wavelength_nm": 818.32556, "uncertainty_nm": null, "label": "3d->3p"},
+    {"wavelength_nm": 819.48237, "uncertainty_nm": null, "label": "3d->3p"},
+    {"wavelength_nm": 1140.3766, "uncertainty_nm": null, "label": "4s->3p"}
+  ]
+}
