@@ -120,6 +120,53 @@ def transition_lines(
     )
 
 
+def screened_transition_lines(result) -> LineList:
+    """Dipole-allowed emission lines among a screened atom's orbital energies.
+
+    `result` is a screened_atom.ScreenedAtomResult (untyped here to avoid a
+    circular import). Lines are (n_u, l_u) -> (n_l, l_l) with Delta l = +/-1 and
+    E_upper > E_lower; energies eV, vacuum wavelengths nm, all APPROXIMATION.
+    """
+    levels = [(o.n, o.l, o.energy) for o in result.orbitals]
+    lines: list[SpectralLine] = []
+    for (nu, lu, eu), (nl, ll_, el) in itertools.permutations(levels, 2):
+        if eu.value <= el.value or abs(lu - ll_) != 1:
+            continue
+        de_ev = (eu.value - el.value) * HARTREE_EV
+        prov = Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method=(
+                f"screened orbital difference: [{eu.provenance.method}] minus "
+                f"[{el.provenance.method}]; photon lambda = hc/dE (vacuum)"
+            ),
+            assumptions=eu.provenance.assumptions
+            + ("electric-dipole selection rule (Delta l = +/-1)",),
+            error_estimate=(
+                None if eu.provenance.error_estimate is None
+                else (eu.provenance.error_estimate + (el.provenance.error_estimate or 0.0))
+                * HARTREE_EV
+            ),
+        )
+        label = f"{nu}{'spdfgh'[lu]}->{nl}{'spdfgh'[ll_]}"
+        lines.append(SpectralLine(
+            n_upper=nu, l_upper=lu, j_upper=None, n_lower=nl, l_lower=ll_, j_lower=None,
+            energy=Quantity(de_ev, "eV", f"dE {label}", prov),
+            wavelength=Quantity(_EV_NM / de_ev, "nm (vacuum)", f"lambda {label}", prov),
+        ))
+    lines.sort(key=lambda ln: ln.wavelength.value)
+    return LineList(
+        system_key=result.key,
+        n_max=max((o.n for o in result.orbitals), default=1),
+        fine_structure=False, lines=tuple(lines),
+        provenance=Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method="dipole-allowed screened orbital differences (see per-line provenance)",
+            assumptions=("emission lines only (E_upper > E_lower)",
+                         "independent-particle transition energies"),
+        ),
+    )
+
+
 @dataclass(frozen=True)
 class ReferenceLine:
     wavelength_nm: float

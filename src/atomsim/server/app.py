@@ -62,7 +62,12 @@ from atomsim.server.schemas import (
     SystemModel,
 )
 from atomsim.server.thumbnails import render_thumbnail
-from atomsim.spectra import compare_lines, load_reference, transition_lines
+from atomsim.spectra import (
+    compare_lines,
+    load_reference,
+    screened_transition_lines,
+    transition_lines,
+)
 from atomsim.systems import get_system, hydrogen_like, list_systems
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
@@ -561,7 +566,31 @@ def create_app() -> FastAPI:
 
     @app.get("/api/spectrum", response_model=SpectrumResponse)
     def spectrum(system: str = "h", n_max: int = 6,
-                 fine_structure: bool = False) -> SpectrumResponse:
+                 fine_structure: bool = False,
+                 config: str | None = None) -> SpectrumResponse:
+        if _is_screened(system):
+            element = atom_for_key(system)
+            cfg = _resolve_config(system, config)
+            result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
+            lines = screened_transition_lines(result)
+            reference = load_reference(system)
+            comparison = citation = tol = None
+            if reference is not None:
+                tol = 0.05  # 5% — the screened valence class; disclosed, not hidden
+                comparison = [
+                    ComparisonModel.from_comparison(c)
+                    for c in compare_lines(lines, reference, tolerance_relative=tol)
+                ]
+                citation = reference.citation
+            return SpectrumResponse(
+                system=SystemModel.from_atom(
+                    element, element.z,
+                    f"{element.name}: GSZ screened central-field model (APPROXIMATION).",
+                ),
+                n_max=lines.n_max, fine_structure=False,
+                lines=[LineModel.from_line(ln) for ln in lines.lines],
+                comparison=comparison, reference_citation=citation, tolerance_relative=tol,
+            )
         if not 2 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
         sys_ = _resolve_system(system)

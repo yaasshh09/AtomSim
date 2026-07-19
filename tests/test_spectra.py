@@ -139,3 +139,30 @@ def test_fine_structure_improves_lyman_alpha():
 def test_unknown_system_reference_is_none():
     assert load_reference("ps") is None
     assert load_reference("he+") is None  # He II vendoring skipped in M2 (no ASD aggregates)
+
+
+# --- Phase 6: screened-atom transitions ---
+
+def test_screened_lines_are_emission_and_dipole():
+    from atomsim.atoms import aufbau_configuration
+    from atomsim.screened_atom import solve_screened_atom
+    from atomsim.spectra import screened_transition_lines
+
+    res = solve_screened_atom(z=3, n_electrons=3, config=aufbau_configuration(3))
+    lines = screened_transition_lines(res)
+    assert lines.lines  # non-empty
+    for ln in lines.lines:
+        assert abs(ln.l_upper - ln.l_lower) == 1        # electric-dipole rule
+        assert ln.energy.value > 0                       # emission (E_upper > E_lower)
+        assert ln.energy.provenance.fidelity is Fidelity.APPROXIMATION
+
+
+def test_screened_na_has_line_near_589nm():
+    from atomsim.atoms import aufbau_configuration
+    from atomsim.screened_atom import solve_screened_atom
+    from atomsim.spectra import screened_transition_lines
+
+    res = solve_screened_atom(z=11, n_electrons=11, config=aufbau_configuration(11))
+    lines = screened_transition_lines(res)
+    nearest = min(lines.lines, key=lambda ln: abs(ln.wavelength.value - 589.0))
+    assert abs(nearest.wavelength.value - 589.0) < 120.0  # GSZ valence class

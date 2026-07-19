@@ -588,3 +588,22 @@ def test_radial_hydrogenic_unchanged(client):
     body = client.get("/api/radial/2/1?system=h&points=200").json()
     assert body["system"]["kind"] == "hydrogenic"
     assert body["r_wavefunction"]["provenance"]["fidelity"] == "exact"
+
+
+def test_spectrum_screened_sodium_returns_dipole_lines(client):
+    body = client.get("/api/spectrum?system=na").json()
+    assert body["system"]["kind"] == "screened"
+    assert body["fine_structure"] is False
+    assert body["lines"]  # non-empty dipole-allowed set
+    for ln in body["lines"]:
+        assert abs(ln["l_upper"] - ln["l_lower"] ) == 1
+        assert ln["energy_ev"]["provenance"]["fidelity"] == "approximation"
+    # NIST reference data for screened atoms is vendored separately; until then the
+    # comparison is honestly absent rather than fabricated.
+    assert "comparison" in body
+
+
+def test_spectrum_hydrogenic_unchanged(client):
+    body = client.get("/api/spectrum?system=h&n_max=3").json()
+    assert body["system"]["kind"] == "hydrogenic"
+    assert body["reference_citation"] is not None  # H I NIST data still compared
