@@ -539,3 +539,37 @@ def test_plane_job_rejects_screened_atom(client):
     )
     assert r.status_code == 422
     assert "screened" in r.json()["detail"].lower()
+
+
+def test_levels_screened_lithium_lifts_degeneracy(client):
+    body = client.get("/api/levels?system=li").json()
+    assert body["system"]["kind"] == "screened"
+    assert body["is_ground"] is True
+    e = {(o["n"], o["l"]): o["energy"]["value"] for o in body["orbitals"]}
+    assert e[(2, 0)] < e[(2, 1)]  # 2s below 2p
+    assert any(o["occupancy"] > 0 for o in body["orbitals"])
+    # Orbital energies are APPROXIMATION and carry an eV conversion.
+    val = next(o for o in body["orbitals"] if o["occupancy"] > 0)
+    assert val["energy"]["provenance"]["fidelity"] == "approximation"
+    assert val["energy_ev"]["unit"] == "eV"
+
+
+def test_levels_screened_bad_config_422(client):
+    assert client.get("/api/levels?system=li&config=1s5").status_code == 422
+
+
+def test_levels_screened_wrong_electron_count_422(client):
+    # A valid config but wrong electron count for the element.
+    assert client.get("/api/levels?system=li&config=1s2").status_code == 422
+
+
+def test_levels_screened_excited_config_not_ground(client):
+    body = client.get("/api/levels?system=na&config=1s2 2s2 2p6 3p1").json()
+    assert body["is_ground"] is False
+    assert body["config"] == "1s2 2s2 2p6 3p1"
+
+
+def test_levels_hydrogenic_unchanged(client):
+    body = client.get("/api/levels?system=h&n_max=3").json()
+    assert body["system"]["kind"] == "hydrogenic"
+    assert body["gross"][0]["degeneracy"] == 2

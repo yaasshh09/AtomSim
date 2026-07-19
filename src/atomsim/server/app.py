@@ -28,6 +28,7 @@ from atomsim.atoms import (
     ATOM_KEYS,
     atom_for_key,
     aufbau_configuration,
+    format_config,
     is_atom_key,
     parse_config,
     total_electrons,
@@ -40,6 +41,7 @@ from atomsim.numerics.force_law import PRESETS, force_law_levels
 from atomsim.plane import PlaneGrid, plane_grid
 from atomsim.provenance import Field, Quantity
 from atomsim.sampling import SampleCloud, sample_density
+from atomsim.screened_atom import solve_screened_atom
 from atomsim.server.jobs import Job, JobStatus, JobStore
 from atomsim.server.schemas import (
     ChannelModel,
@@ -55,6 +57,8 @@ from atomsim.server.schemas import (
     QuantityModel,
     ReferenceItemModel,
     ReferenceModel,
+    ScreenedLevelsModel,
+    ScreenedOrbitalModel,
     SystemModel,
 )
 from atomsim.server.thumbnails import render_thumbnail
@@ -356,10 +360,33 @@ def create_app() -> FastAPI:
             levels=levels,
         )
 
-    @app.get("/api/levels", response_model=LevelsResponse)
+    @app.get("/api/levels", response_model=LevelsResponse | ScreenedLevelsModel)
     def levels_endpoint(system: str = "h", n_max: int = 6,
                         fine_structure: bool = False,
-                        alpha: float | None = None) -> LevelsResponse:
+                        alpha: float | None = None,
+                        config: str | None = None):
+        if _is_screened(system):
+            element = atom_for_key(system)
+            cfg = _resolve_config(system, config)
+            result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
+            return ScreenedLevelsModel(
+                system=SystemModel.from_atom(
+                    element, element.z,
+                    f"{element.name}: GSZ screened central-field model (APPROXIMATION).",
+                ),
+                config=format_config(cfg), is_ground=result.is_ground,
+                orbitals=[
+                    ScreenedOrbitalModel(
+                        n=o.n, l=o.l, label=f"{o.n}{'spdfgh'[o.l]}",
+                        occupancy=o.occupancy,
+                        energy=QuantityModel.from_quantity(o.energy),
+                        energy_ev=QuantityModel.from_quantity(_to_ev(o.energy)),
+                    )
+                    for o in result.orbitals
+                ],
+                total_energy=QuantityModel.from_quantity(result.total_energy),
+                total_energy_ev=QuantityModel.from_quantity(_to_ev(result.total_energy)),
+            )
         if not 1 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [1, 10]")
         if alpha is not None and not 0.0 < alpha <= 0.5:
