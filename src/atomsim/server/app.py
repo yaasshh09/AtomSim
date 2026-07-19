@@ -24,6 +24,15 @@ from atomsim.analytic.hydrogen import (
     validate_quantum_numbers,
 )
 from atomsim.analytic.wavefunction import WavefunctionValues, evaluate_state
+from atomsim.atoms import (
+    ATOM_KEYS,
+    atom_for_key,
+    aufbau_configuration,
+    is_atom_key,
+    parse_config,
+    total_electrons,
+    validate_config,
+)
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
@@ -268,13 +277,46 @@ def create_app() -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    def _is_screened(key: str) -> bool:
+        return is_atom_key(key)
+
+    def _resolve_config(system_key: str, config: str | None):
+        element = atom_for_key(system_key)
+        if config is None:
+            return aufbau_configuration(element.z)
+        try:
+            cfg = parse_config(config)
+            validate_config(cfg)
+        except (ValueError, IndexError) as exc:
+            raise HTTPException(status_code=422, detail=f"bad config: {exc}") from exc
+        if total_electrons(cfg) != element.z:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"config has {total_electrons(cfg)} electrons; "
+                    f"{element.symbol} needs {element.z}"
+                ),
+            )
+        return cfg
+
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": atomsim.__version__}
 
     @app.get("/api/systems", response_model=SystemsResponse)
     def systems() -> SystemsResponse:
-        return SystemsResponse(systems=[SystemModel.from_system(s) for s in list_systems()])
+        hydrogenic = [SystemModel.from_system(s) for s in list_systems()]
+        screened = [
+            SystemModel.from_atom(
+                atom_for_key(k), n_electrons=atom_for_key(k).z,
+                description=(
+                    f"{atom_for_key(k).name}: GSZ screened central-field model "
+                    "(APPROXIMATION)."
+                ),
+            )
+            for k in ATOM_KEYS
+        ]
+        return SystemsResponse(systems=hydrogenic + screened)
 
     @app.get("/api/state/{n}/{l}/{m}", response_model=StateResponse)
     def state(n: int, l: int, m: int, system: str = "h",
@@ -523,6 +565,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/jobs/sample", response_model=JobModel)
     async def create_sample_job(req: SampleRequest) -> JobModel:
+        if _is_screened(req.system):
+            raise HTTPException(
+                status_code=422,
+                detail="screened-atom orbitals: 3-D cloud / 2-D plane arrive in a later phase",
+            )
         _validate_state(req.n, req.l, req.m)
         sys_ = _resolve_system(req.system)
         job = jobs.create()
@@ -547,6 +594,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
+        if _is_screened(req.system):
+            raise HTTPException(
+                status_code=422,
+                detail="screened-atom orbitals: 3-D cloud / 2-D plane arrive in a later phase",
+            )
         _validate_state(req.n, req.l, req.m)
         sys_ = _resolve_system(req.system)
         job = jobs.create()

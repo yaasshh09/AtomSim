@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from atomsim.classical import BohrOrbit, ClassicalGhost
 from atomsim.constants import BOHR_RADIUS_FM
 from atomsim.constants_lab import ConstantsReport, DerivedObservable
-from atomsim.provenance import Field, Provenance, Quantity
+from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.spectra import LineComparison, SpectralLine
 from atomsim.systems import System
 
@@ -181,6 +181,9 @@ class SystemModel(BaseModel):
     # None = honestly absent (point lepton or unidentified nucleus), never zero
     nuclear_radius: QuantityModel | None
     nuclear_radius_fm: QuantityModel | None
+    # Hydrogenic presets stay exactly as before; screened atoms set kind/n_electrons.
+    kind: Literal["hydrogenic", "screened"] = "hydrogenic"
+    n_electrons: int | None = None
 
     @classmethod
     def from_system(cls, s: System) -> "SystemModel":
@@ -195,6 +198,40 @@ class SystemModel(BaseModel):
             nuclear_radius=None if r is None else QuantityModel.from_quantity(r),
             nuclear_radius_fm=None if r is None else QuantityModel.from_quantity(_to_fm(r)),
         )
+
+    @classmethod
+    def from_atom(cls, element, n_electrons: int, description: str) -> "SystemModel":
+        mu = Quantity(
+            1.0, "m_e", f"mu/m_e ({element.name})",
+            Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="infinite nuclear mass (screened-atom model)",
+            ),
+        )
+        return cls(
+            key=element.symbol.lower(), name=element.name, z=element.z,
+            mu_ratio=QuantityModel.from_quantity(mu), m_over_m_nucleus=0.0,
+            description=description, nuclear_radius=None, nuclear_radius_fm=None,
+            kind="screened", n_electrons=n_electrons,
+        )
+
+
+class ScreenedOrbitalModel(BaseModel):
+    n: int
+    l: int
+    label: str
+    occupancy: int
+    energy: QuantityModel
+    energy_ev: QuantityModel
+
+
+class ScreenedLevelsModel(BaseModel):
+    system: SystemModel
+    config: str
+    is_ground: bool
+    orbitals: list[ScreenedOrbitalModel]
+    total_energy: QuantityModel
+    total_energy_ev: QuantityModel
 
 
 class ForceLawLevelModel(BaseModel):

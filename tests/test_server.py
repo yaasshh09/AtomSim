@@ -132,7 +132,8 @@ def test_job_error_surfaces_via_status(client):
 def test_systems_endpoint_lists_presets(client):
     body = client.get("/api/systems").json()
     keys = [s["key"] for s in body["systems"]]
-    assert keys == ["h", "d", "t", "mu-h", "ps", "he+"]
+    # Hydrogenic presets stay first and unchanged; screened atoms are appended.
+    assert keys[:6] == ["h", "d", "t", "mu-h", "ps", "he+"]
     mu = body["systems"][0]["mu_ratio"]
     assert mu["provenance"]["fidelity"] == "exact"
     assert "CODATA" in mu["provenance"]["method"]
@@ -504,3 +505,37 @@ def test_forcelaw_rejects_out_of_range_param(client):
 
 def test_forcelaw_rejects_negative_l(client):
     assert client.get("/api/forcelaw?preset=harmonic&omega=0.5&l=-1").status_code == 422
+
+
+# --- Phase 6: screened atoms ---
+
+def test_systems_list_includes_screened_atoms(client):
+    body = client.get("/api/systems").json()
+    keys = {s["key"]: s for s in body["systems"]}
+    assert "na" in keys
+    assert keys["na"]["kind"] == "screened"
+    assert keys["na"]["n_electrons"] == 11
+    assert keys["h"]["kind"] == "hydrogenic"
+
+
+def test_systems_list_excludes_unsourced_sulfur_chlorine(client):
+    keys = {s["key"] for s in client.get("/api/systems").json()["systems"]}
+    assert "s" not in keys and "cl" not in keys  # no published GSZ parameters
+
+
+def test_cloud_job_rejects_screened_atom(client):
+    r = client.post(
+        "/api/jobs/sample",
+        json={"n": 3, "l": 0, "m": 0, "system": "na", "count": 1000},
+    )
+    assert r.status_code == 422
+    assert "screened" in r.json()["detail"].lower()
+
+
+def test_plane_job_rejects_screened_atom(client):
+    r = client.post(
+        "/api/jobs/plane",
+        json={"n": 3, "l": 0, "m": 0, "system": "na", "quantity": "psi"},
+    )
+    assert r.status_code == 422
+    assert "screened" in r.json()["detail"].lower()
