@@ -33,7 +33,7 @@
 - Consumes: `screened_radial(z, n_electrons, n, l, points) -> tuple[Field, Field]` (first `Field` has `.grid` and `.values` = numerical `R_nl`, `.provenance.error_estimate`); `screening_provenance(z, n_electrons) -> Provenance`; existing `_costheta_inverse_cdf(l, m)`, `_phi_inverse_cdf(m)`.
 - Produces: `sample_screened_density(z, n_electrons, n, l, m, count, *, seed=0, progress=None, n_chunks=10, basis="complex") -> SampleCloud` with `provenance.fidelity == Fidelity.APPROXIMATION`. Also the private helpers `_radial_inverse_cdf_tabulated(r_grid, R_values)` and `_draw_positions(...)` used by both samplers.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_sampling.py`:
 
@@ -83,12 +83,12 @@ def test_screened_cloud_is_approximation_and_sane():
     assert 1.0 < float(r.mean()) < 20.0
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_sampling.py -k screened -q`
 Expected: FAIL — `ImportError: cannot import name 'sample_screened_density'`.
 
-- [ ] **Step 3: Refactor the radial CDF + chunk loop into reusable helpers**
+- [x] **Step 3: Refactor the radial CDF + chunk loop into reusable helpers**
 
 In `src/atomsim/sampling.py`, add a tabulated-radial helper and rewrite `_radial_inverse_cdf` to delegate (behavior identical — `r_grid[-1] == r_max`):
 
@@ -154,7 +154,7 @@ Now replace the body of `sample_density` (from the `rng = ...` line through the 
 
 (Keep the existing `phi_desc`, `provenance`, and `return SampleCloud(...)` block exactly as-is below this.)
 
-- [ ] **Step 4: Add `sample_screened_density`**
+- [x] **Step 4: Add `sample_screened_density`**
 
 Add near the top of `src/atomsim/sampling.py` (with the other imports):
 
@@ -229,12 +229,12 @@ def sample_screened_density(
     )
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_sampling.py -q`
 Expected: PASS (new screened tests + all existing hydrogen sampling tests, which the refactor must not change).
 
-- [ ] **Step 6: Lint + commit**
+- [x] **Step 6: Lint + commit**
 
 Run: `& "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m ruff check src/atomsim/sampling.py tests/test_sampling.py`
 Expected: clean.
@@ -256,7 +256,7 @@ git commit -m "Sample screened-atom orbital clouds from the numerical radial fun
 - Consumes: `screened_radial(...)`; `spherical_harmonic(l, m, theta, phi, basis) -> AngularValues` (`.values`, `.provenance`); `WavefunctionValues` dataclass from `atomsim.analytic.wavefunction`; `screening_provenance(z, n_electrons)`.
 - Produces: `evaluate_screened_state(z, n_electrons, n, l, m, positions, *, basis="complex") -> WavefunctionValues` (`.values` complex ndarray, `.provenance.fidelity == APPROXIMATION`). Also module constant `_SCREENED_EVAL_POINTS = 4096`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_screened_atom.py`:
 
@@ -303,12 +303,12 @@ def test_evaluate_screened_state_node_count_along_ray():
     assert sign_changes == 2
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_screened_atom.py -k evaluate -q`
 Expected: FAIL — `ImportError: cannot import name 'evaluate_screened_state'`.
 
-- [ ] **Step 3: Implement `evaluate_screened_state`**
+- [x] **Step 3: Implement `evaluate_screened_state`**
 
 Add imports at the top of `src/atomsim/screened_atom.py`:
 
@@ -372,12 +372,12 @@ def evaluate_screened_state(
 
 Note: `screening_provenance` is already imported in `screened_atom.py` (used by `screened_radial`). If not, add `from atomsim.numerics.screening import screening_provenance`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_screened_atom.py -q`
 Expected: PASS (new evaluate tests + existing screened-atom tests).
 
-- [ ] **Step 5: Lint + commit**
+- [x] **Step 5: Lint + commit**
 
 Run: `& "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m ruff check src/atomsim/screened_atom.py tests/test_screened_atom.py`
 Expected: clean.
@@ -399,7 +399,7 @@ git commit -m "Evaluate screened orbitals at arbitrary positions for cloud/plane
 - Consumes: `evaluate_screened_state(...)` (Task 2), `evaluate_state(...)`, `default_half_extent(n, Z, mu_ratio)`, `validate_quantum_numbers`, `validate_angular`, `_ROW_CHUNKS`.
 - Produces: `screened_plane_grid(z, n_electrons, n, l, m, quantity="density", basis="complex", resolution=512, half_extent=None, progress=None) -> PlaneGrid` (`provenance.fidelity == APPROXIMATION`). Also the private helper `_plane_values(evaluator, quantity, resolution, half_extent, progress) -> tuple[np.ndarray, np.ndarray, tuple[str, ...]]`. Hydrogen `plane_grid` output is unchanged (still `EXACT`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/test_plane.py`:
 
@@ -435,12 +435,12 @@ def test_hydrogen_plane_unchanged_exact():
     assert pg.values.shape == (32, 32)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_plane.py -k screened -q`
 Expected: FAIL — `ImportError: cannot import name 'screened_plane_grid'`.
 
-- [ ] **Step 3: Extract `_plane_values` and route `plane_grid` through it**
+- [x] **Step 3: Extract `_plane_values` and route `plane_grid` through it**
 
 In `src/atomsim/plane.py`, add the shared grid-evaluation helper (this is the current loop body of `plane_grid`, lines ~69–88, with the evaluator abstracted out):
 
@@ -484,7 +484,7 @@ Replace the loop in `plane_grid` (the `axis = ...` through the `progress(i1 / re
     )
 ```
 
-- [ ] **Step 4: Add `screened_plane_grid`**
+- [x] **Step 4: Add `screened_plane_grid`**
 
 Add the import at the top of `src/atomsim/plane.py`:
 
@@ -554,12 +554,12 @@ def screened_plane_grid(
     )
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_plane.py -q`
 Expected: PASS (screened tests + all existing hydrogen plane tests unchanged).
 
-- [ ] **Step 6: Lint + commit**
+- [x] **Step 6: Lint + commit**
 
 Run: `& "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m ruff check src/atomsim/plane.py tests/test_plane.py`
 Expected: clean.
@@ -581,7 +581,7 @@ git commit -m "Render screened-atom orbitals on the y=0 plane"
 - Consumes: `sample_screened_density(...)`, `evaluate_screened_state(...)`, `screened_plane_grid(...)`, existing `_is_screened(key)`, `_validate_state(...)`, `atom_for_key(key)`, `SampleJobResult`.
 - Produces: `POST /api/jobs/sample` and `POST /api/jobs/plane` return `200` + a running job for screened systems; downstream `meta` reports `fidelity == "approximation"`.
 
-- [ ] **Step 1: Rewrite the failing tests**
+- [x] **Step 1: Rewrite the failing tests**
 
 Replace `test_cloud_job_rejects_screened_atom` and `test_plane_job_rejects_screened_atom` in `tests/test_server.py` with end-to-end acceptance tests (reuse the existing `_wait_done` helper):
 
@@ -622,12 +622,12 @@ def test_plane_job_screened_atom_end_to_end(client):
     assert np.isfinite(grid).all()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_server.py -k "screened_atom_end_to_end" -q`
 Expected: FAIL — POST returns `422` ("arrive in a later phase"), so the `200` assertion fails.
 
-- [ ] **Step 3: Add imports and swap the sample-job branch**
+- [x] **Step 3: Add imports and swap the sample-job branch**
 
 In `src/atomsim/server/app.py`, extend the existing engine imports:
 
@@ -692,7 +692,7 @@ Replace the `create_sample_job` refusal (currently lines 641-645) so screened sy
 
 (`atom_for_key` is already imported/used by the levels/radial/spectrum branches; confirm the name matches what those branches call and reuse it.)
 
-- [ ] **Step 4: Swap the plane-job branch**
+- [x] **Step 4: Swap the plane-job branch**
 
 Replace the `create_plane_job` refusal (currently lines 670-673) so screened systems build a screened plane:
 
@@ -730,12 +730,12 @@ Replace the `create_plane_job` refusal (currently lines 670-673) so screened sys
         return _job_model(job)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest tests/test_server.py -q`
 Expected: PASS, including the two new end-to-end screened tests. (No other server test asserted the old 422 for screened clouds/planes — verify none remain by searching for `rejects_screened`.)
 
-- [ ] **Step 6: Lint + commit**
+- [x] **Step 6: Lint + commit**
 
 Run: `& "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m ruff check src/atomsim/server/app.py tests/test_server.py`
 Expected: clean.
@@ -759,11 +759,11 @@ git commit -m "Serve screened-atom clouds and planes from the sample/plane jobs"
 - Consumes: existing store `(n, l, m, system, systems, basis, plane, planeStatus, loadPlane, ...)`.
 - Produces: screened systems render the normal Cloud/Plane path; the `Badge` shows the job's `APPROXIMATION` provenance automatically.
 
-- [ ] **Step 1: Remove the CloudView placeholder**
+- [x] **Step 1: Remove the CloudView placeholder**
 
 In `web/src/components/CloudView.tsx`, delete the entire `if (isScreened) { return ( ... ); }` block (lines ~90-102). Then delete the now-unused `isScreened` line (~66) **only if** `isScreened` is referenced nowhere else in the file — otherwise leave it. Remove the `SCREENED_ORBITAL_PLACEHOLDER` import if it is no longer referenced in this file.
 
-- [ ] **Step 2: Remove the PlaneView placeholder and its fetch gate**
+- [x] **Step 2: Remove the PlaneView placeholder and its fetch gate**
 
 In `web/src/components/PlaneView.tsx`:
 - Delete the `if (isScreened) { return ( ... ); }` block (lines ~19-32). This is required for correctness: it currently sits before a second `useEffect`, so removing it also fixes a conditional-hook order issue.
@@ -777,11 +777,11 @@ In `web/src/components/PlaneView.tsx`:
 
 - Delete the now-unused `isScreened` line (~13), the `systems` destructure entry if unused elsewhere, and the `SCREENED_ORBITAL_PLACEHOLDER` import.
 
-- [ ] **Step 3: Drop the now-dead liberty if unused**
+- [x] **Step 3: Drop the now-dead liberty if unused**
 
 Run: `cd web; npx grep -rn "SCREENED_ORBITAL_PLACEHOLDER" src` (or use ripgrep). If the only remaining hit is the definition in `src/lib/liberties.ts`, delete that export. If any component still imports it, leave it.
 
-- [ ] **Step 4: Write a minimal render test**
+- [x] **Step 4: Write a minimal render test**
 
 Create `web/src/components/PlaneView.test.tsx` asserting a screened system no longer shows the placeholder copy:
 
@@ -806,7 +806,7 @@ describe("PlaneView screened", () => {
 
 (If the repo's existing component tests use a different render/setup helper, mirror that pattern — check a sibling `*.test.tsx` first. Keep the assertion: the placeholder text is gone.)
 
-- [ ] **Step 5: Run the frontend suite + typecheck/build**
+- [x] **Step 5: Run the frontend suite + typecheck/build**
 
 Run: `cd web; npm test`
 Expected: PASS (new test + existing suite).
@@ -814,7 +814,7 @@ Expected: PASS (new test + existing suite).
 Run: `cd web; npm run build`
 Expected: `tsc --noEmit` clean (catches any unused imports/vars left behind) + vite build succeeds.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/CloudView.tsx web/src/components/PlaneView.tsx web/src/components/PlaneView.test.tsx web/src/lib/liberties.ts
@@ -827,17 +827,17 @@ git commit -m "Render real Cloud and Plane views for screened atoms"
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Backend suite + lint**
+- [x] **Step 1: Backend suite + lint**
 
 Run: `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m pytest -q; & "C:\Users\yashg\.conda\envs\atomsim\python.exe" -m ruff check .`
 Expected: all green; ruff clean.
 
-- [ ] **Step 2: Frontend suite + build**
+- [x] **Step 2: Frontend suite + build**
 
 Run: `cd web; npm test; npm run build`
 Expected: all green; build clean; `web/dist` regenerated.
 
-- [ ] **Step 3: Live smoke test** — start the server and exercise screened Cloud + Plane.
+- [x] **Step 3: Live smoke test** — start the server and exercise screened Cloud + Plane.
 
 Run (background): `$env:MKL_THREADING_LAYER="SEQUENTIAL"; & "C:\Users\yashg\.conda\envs\atomsim\Scripts\atomsim.exe" serve --port 8013 --no-browser`
 
@@ -861,7 +861,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "http://127.0.0.1:8013/api/jobs
 
 Expected: both screened POSTs return `200`; their completed `meta` reports `fidelity == "approximation"`; hydrogen sample still `200`. Stop the server (`TaskStop`) when done.
 
-- [ ] **Step 4: Final commit (docs/tidy if any)**
+- [x] **Step 4: Final commit (docs/tidy if any)**
 
 ```bash
 git add -A
