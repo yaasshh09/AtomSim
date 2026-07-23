@@ -647,3 +647,28 @@ def test_forcelaw_custom_rejects_unsafe_expr(client):
     r = client.get("/api/forcelaw", params={"preset": "custom", "expr": "r.__class__"})
     assert r.status_code == 422
     assert "not allowed" in r.json()["detail"]
+
+
+def test_levels_dirac_is_exact_and_degenerate(client):
+    r = client.get("/api/levels", params={"system": "h", "n_max": 3, "dirac": "true"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["dirac"] is True
+    fine = body["fine"]
+    assert fine[0]["energy"]["provenance"]["fidelity"] == "exact"
+    # 2s1/2 (l=0,j=0.5) and 2p1/2 (l=1,j=0.5) must share one Dirac energy
+    n2 = [f for f in fine if f["n"] == 2 and f["j"] == 0.5]
+    assert len(n2) == 2
+    assert n2[0]["energy"]["value"] == pytest.approx(n2[1]["energy"]["value"], abs=1e-14)
+
+
+def test_levels_perturbative_still_default(client):
+    r = client.get("/api/levels", params={"system": "h", "n_max": 2, "fine_structure": "true"})
+    body = r.json()
+    assert body["dirac"] is False
+    assert body["fine"][0]["energy"]["provenance"]["fidelity"] == "approximation"
+
+
+def test_levels_dirac_supercritical_is_422(client):
+    r = client.get("/api/levels", params={"system": "z200", "n_max": 1, "dirac": "true"})
+    assert r.status_code == 422

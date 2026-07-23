@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from pydantic import Field as PydanticField
 
 import atomsim
+from atomsim.analytic.dirac import dirac_energy
 from atomsim.analytic.fine_structure import fine_structure_shift, level_energy
 from atomsim.analytic.hydrogen import (
     angular_momentum_magnitude,
@@ -111,6 +112,7 @@ class LevelsResponse(BaseModel):
     alpha: float
     gross: list[GrossLevelModel]
     fine: list[FineLevelModel] | None
+    dirac: bool = False
 
 
 class StateResponse(BaseModel):
@@ -374,7 +376,8 @@ def create_app() -> FastAPI:
     def levels_endpoint(system: str = "h", n_max: int = 6,
                         fine_structure: bool = False,
                         alpha: float | None = None,
-                        config: str | None = None):
+                        config: str | None = None,
+                        dirac: bool = False):
         if _is_screened(system):
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
@@ -413,19 +416,33 @@ def create_app() -> FastAPI:
                 energy_ev=QuantityModel.from_quantity(_to_ev(e)),
             ))
         fine = None
-        if fine_structure:
+        if dirac or fine_structure:
             fine = []
             for n in range(1, n_max + 1):
                 for l in range(n):
                     for j in ([0.5] if l == 0 else [l - 0.5, l + 0.5]):
-                        le = level_energy(
-                            n, l, j, Z=sys_.Z, mu_ratio=mu,
-                            m_over_M=sys_.m_over_M, alpha=alpha_used,
-                        )
-                        sh = fine_structure_shift(
-                            n, l, j, Z=sys_.Z, mu_ratio=mu,
-                            m_over_M=sys_.m_over_M, alpha=alpha_used,
-                        )
+                        if dirac:
+                            try:
+                                le = dirac_energy(
+                                    n, j, Z=sys_.Z, mu_ratio=mu, alpha=alpha_used
+                                )
+                            except ValueError as exc:
+                                raise HTTPException(status_code=422, detail=str(exc)) from exc
+                            e_bohr = energy(n, Z=sys_.Z, mu_ratio=mu)
+                            sh = dataclasses.replace(
+                                le,
+                                value=le.value - e_bohr.value,
+                                label=f"dE_Dirac {n},{l},j={j:g}",
+                            )
+                        else:
+                            le = level_energy(
+                                n, l, j, Z=sys_.Z, mu_ratio=mu,
+                                m_over_M=sys_.m_over_M, alpha=alpha_used,
+                            )
+                            sh = fine_structure_shift(
+                                n, l, j, Z=sys_.Z, mu_ratio=mu,
+                                m_over_M=sys_.m_over_M, alpha=alpha_used,
+                            )
                         fine.append(FineLevelModel(
                             n=n, l=l, j=j,
                             energy=QuantityModel.from_quantity(le),
@@ -436,6 +453,7 @@ def create_app() -> FastAPI:
         return LevelsResponse(
             system=SystemModel.from_system(sys_), n_max=n_max,
             fine_structure=fine_structure, alpha=alpha_used, gross=gross, fine=fine,
+            dirac=dirac,
         )
 
     @app.get("/api/constants", response_model=ConstantsReportModel)
