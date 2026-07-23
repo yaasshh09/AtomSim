@@ -76,12 +76,13 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
 
 export function LevelsView() {
   const {
-    n, l, system, fineStructure, dirac, setDirac, levels, spectrum, loadLevels, loadSpectrum,
+    n, l, system, fineStructure, dirac, setDirac, bField, setBField,
+    levels, spectrum, loadLevels, loadSpectrum,
   } = useAppStore();
   useEffect(() => {
     void loadLevels();
     void loadSpectrum();
-  }, [system, fineStructure, dirac, loadLevels, loadSpectrum]);
+  }, [system, fineStructure, dirac, bField, loadLevels, loadSpectrum]);
   if (!levels) return <p className="hint-block">loading levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
@@ -111,6 +112,21 @@ export function LevelsView() {
             <input type="checkbox" checked={dirac} onChange={(e) => setDirac(e.target.checked)} />
             Dirac (exact)
           </label>
+        )}
+        {fineStructure && (
+          <label className="levels-field">
+            B{" "}
+            <input
+              type="range" min={0} max={20} step={0.1} value={bField}
+              onChange={(e) => setBField(Number(e.target.value))}
+            />
+            {bField > 0
+              ? ` ${bField.toFixed(1)} T (µ_B·B = ${(bField * 0.5 / 2.35051757e5 * 27.211386245e6).toFixed(1)} µeV)`
+              : " 0 T"}
+          </label>
+        )}
+        {!fineStructure && (
+          <span className="levels-field-hint">turn on fine structure to add a field</span>
         )}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
@@ -149,34 +165,78 @@ export function LevelsView() {
         })}
         {fineStructure && fineForN.length > 0 &&
           (() => {
+            const bohrN = grossE.get(n) ?? 0;
             const shifts = fineForN.map((f) => f.shift_ev.value);
-            const lo = Math.min(...shifts);
-            const hi = Math.max(...shifts);
+            const subShifts = bField > 0
+              ? fineForN.flatMap((f) =>
+                  (f.sublevels ?? []).map((s) => s.energy_ev.value - bohrN),
+                )
+              : [];
+            const allValues = [...shifts, ...subShifts];
+            const lo = Math.min(...allValues);
+            const hi = Math.max(...allValues);
             const pad = (hi - lo || 1e-9) * 0.15;
             const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
             const zx1 = 470;
             const zx2 = 590;
+            const sx1 = 610;
+            const sx2 = 660;
             return (
               <g>
                 <text x={(zx1 + zx2) / 2} y={26} textAnchor="middle" className="tick">
-                  n={n} shifts [µeV] — zoomed, {dirac ? "EXACT" : "APPROXIMATION"}
+                  {bField > 0
+                    ? `n=${n} Zeeman split [µeV] — APPROXIMATION`
+                    : `n=${n} shifts [µeV] — zoomed, ${dirac ? "EXACT" : "APPROXIMATION"}`}
                 </text>
-                {fineForN.map((f, idx) => (
-                  <g key={`${f.l}-${f.j}`}>
-                    <line
-                      x1={zx1} x2={zx2}
-                      y1={yz(f.shift_ev.value)} y2={yz(f.shift_ev.value)}
-                      className={f.l === l ? "rung rung-active" : "rung"}
-                    />
-                    <text
-                      x={zx2 + 6}
-                      y={yz(f.shift_ev.value) + (idx % 2 ? 12 : 0)}
-                      dy="0.32em" className="tick"
-                    >
-                      l={f.l}, j={f.j} · {(f.shift_ev.value * 1e6).toFixed(1)}
-                    </text>
-                  </g>
-                ))}
+                {fineForN.map((f, idx) => {
+                  const subs = bField > 0 ? f.sublevels ?? [] : [];
+                  const maxAbsMj = subs.length > 0
+                    ? Math.max(...subs.map((s) => Math.abs(s.m_j)))
+                    : 0;
+                  return (
+                    <g key={`${f.l}-${f.j}`}>
+                      <line
+                        x1={zx1} x2={zx2}
+                        y1={yz(f.shift_ev.value)} y2={yz(f.shift_ev.value)}
+                        className={f.l === l ? "rung rung-active" : "rung"}
+                        opacity={bField > 0 ? 0.35 : 1}
+                      />
+                      {bField === 0 && (
+                        <text
+                          x={zx2 + 6}
+                          y={yz(f.shift_ev.value) + (idx % 2 ? 12 : 0)}
+                          dy="0.32em" className="tick"
+                        >
+                          l={f.l}, j={f.j} · {(f.shift_ev.value * 1e6).toFixed(1)}
+                        </text>
+                      )}
+                      {subs.map((s) => {
+                        const yS = yz(s.energy_ev.value - bohrN);
+                        const extreme = Math.abs(s.m_j) === maxAbsMj;
+                        return (
+                          <g key={`${f.l}-${f.j}-${s.m_j}-${s.branch}`}>
+                            <line
+                              x1={zx2} x2={sx1}
+                              y1={yz(f.shift_ev.value)} y2={yS}
+                              className="rung"
+                              opacity={0.25}
+                            />
+                            <line
+                              x1={sx1} x2={sx2}
+                              y1={yS} y2={yS}
+                              className={f.l === l ? "rung-active" : "rung"}
+                            />
+                            {extreme && (
+                              <text x={sx2 + 6} y={yS} dy="0.32em" className="tick">
+                                m_j={s.m_j}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
               </g>
             );
           })()}
@@ -188,6 +248,14 @@ export function LevelsView() {
         {dirac
           ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits — see the badge assumptions."
           : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂ — the Lamb shift is beyond α² and honestly absent here)."}
+        {bField > 0 && (
+          <>
+            {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels (anomalous
+            Zeeman, spacing g_J·µ_B·B); as B rises they reorganize toward the Paschen-Back
+            pattern where (m_l, m_s) become the good labels. Linear model — the diamagnetic
+            B² term is omitted.
+          </>
+        )}
       </p>
     </div>
   );
