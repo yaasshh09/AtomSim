@@ -99,6 +99,7 @@ describe("serializeAppUrl", () => {
       forceParams: { p: 1.0 },
       forceL: 0,
       forceExpr: "-1/r",
+      dirac: false,
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
@@ -191,5 +192,22 @@ describe("force-law url state", () => {
   it("omits config when null and drops a malformed config", () => {
     expect(serializeAppUrl({ ...URL_DEFAULTS })).not.toContain("config=");
     expect(parseAppUrl("?config=not-a-config").config).toBeUndefined();
+  });
+});
+
+describe("dirac level-model url state", () => {
+  it("round-trips the dirac toggle with fine structure", () => {
+    const s = { ...URL_DEFAULTS, view: "levels" as const, fineStructure: true, dirac: true };
+    const q = serializeAppUrl(s);
+    expect(q).toContain("dirac=1");
+    const back = { ...URL_DEFAULTS, ...parseAppUrl(q) };
+    expect(back.dirac).toBe(true);
+  });
+
+  it("omits dirac when off, or when fine structure is off", () => {
+    expect(serializeAppUrl({ ...URL_DEFAULTS, dirac: false })).not.toContain("dirac");
+    expect(
+      serializeAppUrl({ ...URL_DEFAULTS, fineStructure: false, dirac: true }),
+    ).not.toContain("dirac");
   });
 });

@@ -70,11 +70,13 @@ export function getLevels(
   fineStructure: boolean,
   alpha?: number,
   config?: string | null,
+  dirac = false,
 ): Promise<LevelsResponse | ScreenedLevels> {
   const a = alpha === undefined ? "" : `&alpha=${alpha}`;
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
+  const d = dirac ? "&dirac=true" : "";
   return getJson(
-    `/api/levels?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}`,
+    `/api/levels?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}${d}`,
   );
 }
 

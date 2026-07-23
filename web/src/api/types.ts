@@ -98,6 +98,7 @@ export interface LevelsResponse {
   alpha: number;
   gross: GrossLevel[];
   fine: FineLevel[] | null;
+  dirac: boolean;
 }
 
 export interface ScreenedOrbital {
