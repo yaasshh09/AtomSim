@@ -24,6 +24,7 @@ from atomsim.analytic.hydrogen import (
     radial_wavefunction,
     validate_quantum_numbers,
 )
+from atomsim.analytic.hyperfine import hyperfine_report
 from atomsim.analytic.stark import stark_sublevels
 from atomsim.analytic.wavefunction import WavefunctionValues, evaluate_state
 from atomsim.analytic.zeeman import zeeman_sublevels
@@ -127,6 +128,26 @@ class FineLevelModel(BaseModel):
     sublevels: list[ZeemanSublevelModel] | None = None
 
 
+class HyperfineLevelModel(BaseModel):
+    F: float
+    energy: QuantityModel
+    energy_ev: QuantityModel
+    shift: QuantityModel
+    shift_ev: QuantityModel
+
+
+class HyperfineShellModel(BaseModel):
+    n: int
+    available: bool
+    nucleus: str | None = None
+    I: float | None = None
+    A: QuantityModel | None = None       # coupling constant, hartree
+    A_ev: QuantityModel | None = None
+    levels: list[HyperfineLevelModel] = []
+    note: str | None = None              # e.g. spin-0: available but no split
+    reason: str | None = None            # why hyperfine is unavailable
+
+
 class LevelsResponse(BaseModel):
     system: SystemModel
     n_max: int
@@ -137,6 +158,8 @@ class LevelsResponse(BaseModel):
     dirac: bool = False
     b_field: float = 0.0
     e_field: float = 0.0
+    hyperfine: bool = False
+    hyperfine_shells: list[HyperfineShellModel] | None = None
 
 
 class StateResponse(BaseModel):
@@ -262,6 +285,29 @@ def _to_ev(q: Quantity) -> Quantity:
             q.provenance,
             method=q.provenance.method + "; converted to eV via CODATA Hartree-eV factor",
         ),
+    )
+
+
+def _hyperfine_shell_model(rep) -> "HyperfineShellModel":
+    """Map an available HyperfineReport to its response model (with eV display)."""
+    return HyperfineShellModel(
+        n=rep.n,
+        available=True,
+        nucleus=rep.nucleus_name,
+        I=rep.I,
+        A=QuantityModel.from_quantity(rep.A) if rep.A is not None else None,
+        A_ev=QuantityModel.from_quantity(_to_ev(rep.A)) if rep.A is not None else None,
+        levels=[
+            HyperfineLevelModel(
+                F=lv.F,
+                energy=QuantityModel.from_quantity(lv.energy),
+                energy_ev=QuantityModel.from_quantity(_to_ev(lv.energy)),
+                shift=QuantityModel.from_quantity(lv.shift),
+                shift_ev=QuantityModel.from_quantity(_to_ev(lv.shift)),
+            )
+            for lv in rep.levels
+        ],
+        note=rep.note,
     )
 
 
@@ -403,7 +449,8 @@ def create_app() -> FastAPI:
                         config: str | None = None,
                         dirac: bool = False,
                         b_field: float = 0.0,
-                        e_field: float = 0.0):
+                        e_field: float = 0.0,
+                        hyperfine: bool = False):
         if _is_screened(system):
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
@@ -511,10 +558,24 @@ def create_app() -> FastAPI:
                             shift_ev=QuantityModel.from_quantity(_to_ev(sh)),
                             sublevels=subs,
                         ))
+        hf_shells = None
+        if hyperfine:
+            first = hyperfine_report(1, sys_)
+            if not first.available:
+                # availability is n-independent: one honest reason, not n_max copies.
+                hf_shells = [HyperfineShellModel(
+                    n=1, available=False, reason=first.reason,
+                )]
+            else:
+                hf_shells = [
+                    _hyperfine_shell_model(hyperfine_report(n, sys_))
+                    for n in range(1, n_max + 1)
+                ]
         return LevelsResponse(
             system=SystemModel.from_system(sys_), n_max=n_max,
             fine_structure=fine_structure, alpha=alpha_used, gross=gross, fine=fine,
             dirac=dirac, b_field=b_field, e_field=e_field,
+            hyperfine=hyperfine, hyperfine_shells=hf_shells,
         )
 
     @app.get("/api/constants", response_model=ConstantsReportModel)

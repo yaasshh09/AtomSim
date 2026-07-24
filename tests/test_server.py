@@ -744,3 +744,49 @@ def test_levels_stark_ignored_for_screened(client):
     r = client.get("/api/levels?system=he&e_field=50")
     assert r.status_code == 200
     assert "orbitals" in r.json()  # ScreenedLevelsModel, no sublevels
+
+
+def test_levels_hyperfine_splits_hydrogen_ground_state(client):
+    r = client.get("/api/levels?system=h&n_max=2&hyperfine=true")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["hyperfine"] is True
+    shells = body["hyperfine_shells"]
+    assert shells is not None
+    s1 = next(s for s in shells if s["n"] == 1)
+    assert s1["available"] is True
+    assert s1["nucleus"] == "proton" and s1["I"] == 0.5
+    assert sorted(lv["F"] for lv in s1["levels"]) == [0.0, 1.0]
+    assert s1["A"]["provenance"]["fidelity"] == "approximation"
+    # F=1 -> F=0 is the 21 cm line, ~5.87e-6 eV.
+    split_ev = (max(lv["energy_ev"]["value"] for lv in s1["levels"])
+                - min(lv["energy_ev"]["value"] for lv in s1["levels"]))
+    assert split_ev == pytest.approx(5.874e-6, rel=2e-2)
+
+
+def test_levels_hyperfine_absent_without_flag(client):
+    body = client.get("/api/levels?system=h&n_max=2").json()
+    assert body["hyperfine"] is False
+    assert body["hyperfine_shells"] is None
+
+
+def test_levels_hyperfine_spin_zero_nucleus_does_not_split(client):
+    # he+ is He-4 (alpha, I=0): available but a single unsplit level.
+    body = client.get("/api/levels?system=he%2B&n_max=1&hyperfine=true").json()
+    s1 = body["hyperfine_shells"][0]
+    assert s1["available"] is True and s1["I"] == 0.0
+    assert len(s1["levels"]) == 1
+    assert "spin" in (s1["note"] or "").lower()
+
+
+def test_levels_hyperfine_unavailable_for_positronium(client):
+    body = client.get("/api/levels?system=ps&n_max=2&hyperfine=true").json()
+    shells = body["hyperfine_shells"]
+    assert shells is not None and shells[0]["available"] is False
+    assert shells[0]["reason"]
+
+
+def test_levels_hyperfine_ignored_for_screened(client):
+    r = client.get("/api/levels?system=he&hyperfine=true")
+    assert r.status_code == 200
+    assert "orbitals" in r.json()
