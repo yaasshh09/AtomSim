@@ -74,15 +74,20 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   );
 }
 
+// h in eV per MHz (h = 4.135667696e-15 eV·s, times 1e6 Hz/MHz), for turning a
+// hyperfine energy split into its transition frequency — the payoff number.
+const EV_PER_MHZ = 4.135667696e-9;
+
 export function LevelsView() {
   const {
     n, l, system, fineStructure, dirac, setDirac, bField, setBField,
-    eField, setEField, levels, spectrum, loadLevels, loadSpectrum,
+    eField, setEField, hyperfine, setHyperfine, levels, spectrum,
+    loadLevels, loadSpectrum,
   } = useAppStore();
   useEffect(() => {
     void loadLevels();
     void loadSpectrum();
-  }, [system, fineStructure, dirac, bField, eField, loadLevels, loadSpectrum]);
+  }, [system, fineStructure, dirac, bField, eField, hyperfine, loadLevels, loadSpectrum]);
   if (!levels) return <p className="hint-block">loading levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
@@ -93,6 +98,12 @@ export function LevelsView() {
   const arrows = spectrum ? arrowsFor(spectrum.lines, n, l) : [];
   const grossE = new Map(levels.gross.map((g) => [g.n, g.energy_ev.value]));
   const fineForN = levels.fine?.filter((f) => f.n === n) ?? [];
+  // hyperfine shell for the selected n; the unavailable case is a single
+  // sentinel entry (availability does not depend on n), so fall back to it.
+  const hfShells = levels.hyperfine_shells ?? [];
+  const hfShell =
+    hfShells.find((s) => s.n === n) ??
+    (hfShells.length === 1 && !hfShells[0].available ? hfShells[0] : undefined);
 
   return (
     <div className="view-wrap">
@@ -138,6 +149,19 @@ export function LevelsView() {
           />
           {eField > 0 ? ` ${eField.toFixed(1)} MV/m` : " 0 MV/m"}
         </label>
+        <label className="levels-model">
+          <input
+            type="checkbox" checked={hyperfine}
+            onChange={(e) => setHyperfine(e.target.checked)}
+          />
+          hyperfine
+        </label>
+        {hyperfine && hfShell?.available && hfShell.A && (
+          <span className="plot-title">
+            · hyperfine of {n}s ({hfShell.nucleus}){" "}
+            <Badge provenance={hfShell.A.provenance} />
+          </span>
+        )}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         {levels.gross.map((g) => (
@@ -173,7 +197,7 @@ export function LevelsView() {
             </g>
           );
         })}
-        {eField === 0 && fineStructure && fineForN.length > 0 &&
+        {eField === 0 && !hyperfine && fineStructure && fineForN.length > 0 &&
           (() => {
             const bohrN = grossE.get(n) ?? 0;
             const shifts = fineForN.map((f) => f.shift_ev.value);
@@ -291,6 +315,62 @@ export function LevelsView() {
               </g>
             );
           })()}
+        {eField === 0 && hyperfine && hfShell &&
+          (() => {
+            const zx1 = 470;
+            const zx2 = 610;
+            const titleY = 26;
+            if (!hfShell.available) {
+              return (
+                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
+                  n={n}: no hyperfine (see caption)
+                </text>
+              );
+            }
+            const lv = hfShell.levels;
+            if (lv.length < 2) {
+              return (
+                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
+                  {hfShell.nucleus}: I=0, no splitting
+                </text>
+              );
+            }
+            const shifts = lv.map((x) => x.shift_ev.value);
+            const lo = Math.min(...shifts);
+            const hi = Math.max(...shifts);
+            const pad = (hi - lo || 1e-9) * 0.25;
+            const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 60]);
+            const dnuMHz = (hi - lo) / EV_PER_MHZ;
+            const is21cm = hfShell.nucleus === "proton" && n === 1;
+            return (
+              <g>
+                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
+                  n={n}s hyperfine ({hfShell.nucleus}) — APPROXIMATION
+                </text>
+                <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
+                <text x={zx1 - 6} y={yz(0)} dy="0.32em" textAnchor="end" className="tick">
+                  centroid
+                </text>
+                {lv.map((x) => {
+                  const yS = yz(x.shift_ev.value);
+                  return (
+                    <g key={x.F}>
+                      <line
+                        x1={zx1} x2={zx2} y1={yS} y2={yS}
+                        className="rung rung-active"
+                      />
+                      <text x={zx2 + 6} y={yS} dy="0.32em" className="tick">
+                        F={x.F}
+                      </text>
+                    </g>
+                  );
+                })}
+                <text x={(zx1 + zx2) / 2} y={H - 40} textAnchor="middle" className="tick">
+                  Δν = {dnuMHz.toFixed(1)} MHz{is21cm ? " · 21 cm line" : ""}
+                </text>
+              </g>
+            );
+          })()}
       </svg>
       <p className="caption">
         Gross levels are reduced-mass exact. The right column magnifies the{" "}
@@ -315,6 +395,29 @@ export function LevelsView() {
             first-order shift appears here that non-degenerate atoms (quadratic only) never
             get. Second-order model on the gross shells; the perturbation series is
             asymptotic and breaks down near field ionization, so read the badge.
+          </>
+        )}
+        {hyperfine && hfShell && (
+          <>
+            {" "}Hyperfine: the nuclear spin I couples to the electron's angular
+            momentum J, splitting the {n}s level (J=½) into F = I+J states through the
+            Fermi contact interaction.{" "}
+            {hfShell.available
+              ? hfShell.levels.length > 1
+                ? (
+                  <>
+                    The right column magnifies the split and gives the transition
+                    frequency Δν.{" "}
+                    {hfShell.nucleus === "proton" && n === 1
+                      ? "This 1s F=1→0 line is 1420 MHz, the 21 cm line — radio astronomy's fingerprint of neutral hydrogen. "
+                      : ""}
+                    s-states only (contact term); the l&gt;0 orbital+dipolar channel is
+                    deferred. Non-relativistic — bound-state QED and nuclear structure
+                    (~0.01%) are omitted, see the badge.
+                  </>
+                )
+                : hfShell.note
+              : hfShell.reason}
           </>
         )}
       </p>

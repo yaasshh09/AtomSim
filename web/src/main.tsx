@@ -22,6 +22,7 @@ useAppStore.subscribe((s) => {
     dirac: s.dirac,
     bField: s.bField,
     eField: s.eField,
+    hyperfine: s.hyperfine,
     ghost: s.ghost,
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,

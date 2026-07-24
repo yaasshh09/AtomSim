@@ -27,6 +27,7 @@ export interface UrlState {
   dirac: boolean;
   bField: number;
   eField: number;
+  hyperfine: boolean;
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
@@ -53,6 +54,7 @@ export const URL_DEFAULTS: UrlState = {
   dirac: false,
   bField: 0,
   eField: 0,
+  hyperfine: false,
   ghost: false,
   nucleusMode: "marker",
   planeQuantity: "density",
@@ -158,6 +160,8 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   const ef = Number(q.get("ef"));
   if (Number.isFinite(ef) && ef > 0) out.eField = ef;
 
+  if (q.get("hf") === "1") out.hyperfine = true;
+
   const ghost = q.get("ghost");
   if (ghost === "1" || ghost === "true") out.ghost = true;
   else if (ghost === "0" || ghost === "false") out.ghost = false;
@@ -223,6 +227,7 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.dirac && state.fineStructure) q.set("dirac", "1");
   if (state.bField > 0 && state.fineStructure) q.set("b", String(state.bField));
   if (state.eField > 0) q.set("ef", String(state.eField));
+  if (state.hyperfine) q.set("hf", "1");
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);
   if (state.planeQuantity !== URL_DEFAULTS.planeQuantity) q.set("plane", state.planeQuantity);

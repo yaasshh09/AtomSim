@@ -73,14 +73,16 @@ export function getLevels(
   dirac = false,
   bField = 0,
   eField = 0,
+  hyperfine = false,
 ): Promise<LevelsResponse | ScreenedLevels> {
   const a = alpha === undefined ? "" : `&alpha=${alpha}`;
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
   const d = dirac ? "&dirac=true" : "";
   const b = bField > 0 ? `&b_field=${bField}` : "";
   const e = eField > 0 ? `&e_field=${eField}` : "";
+  const h = hyperfine ? "&hyperfine=true" : "";
   return getJson(
-    `/api/levels?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}${d}${b}${e}`,
+    `/api/levels?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}${d}${b}${e}${h}`,
   );
 }
 

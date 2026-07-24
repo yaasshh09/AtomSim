@@ -202,4 +202,11 @@ describe("force-law slice", () => {
     expect(useAppStore.getState().eField).toBe(25);
     expect(useAppStore.getState().levels).toBeNull();
   });
+
+  it("setHyperfine toggles the flag and clears cached levels", () => {
+    useAppStore.setState({ levels: { fake: true } as never, hyperfine: false });
+    useAppStore.getState().setHyperfine(true);
+    expect(useAppStore.getState().hyperfine).toBe(true);
+    expect(useAppStore.getState().levels).toBeNull();
+  });
 });

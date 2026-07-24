@@ -50,6 +50,7 @@ interface AppState {
   dirac: boolean;
   bField: number;
   eField: number;
+  hyperfine: boolean;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -111,6 +112,7 @@ interface AppState {
   setDirac: (dirac: boolean) => void;
   setBField: (bField: number) => void;
   setEField: (eField: number) => void;
+  setHyperfine: (hyperfine: boolean) => void;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -154,6 +156,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   dirac: false,
   bField: 0,
   eField: 0,
+  hyperfine: false,
   nucleusMode: "marker",
   count: 100_000,
   systems: [],
@@ -206,6 +209,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDirac: (dirac) => set({ dirac, levels: null }),
   setBField: (bField) => set({ bField, levels: null }),
   setEField: (eField) => set({ eField, levels: null }),
+  setHyperfine: (hyperfine) => set({ hyperfine, levels: null }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -358,10 +362,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ radial: await client.getRadial(n, l, system) });
   },
   loadLevels: async () => {
-    const { system, fineStructure, config, dirac, bField, eField } = get();
+    const { system, fineStructure, config, dirac, bField, eField, hyperfine } = get();
     set({
       levels: await client.getLevels(
-        system, N_MAX_DIAGRAM, fineStructure, undefined, config, dirac, bField, eField,
+        system, N_MAX_DIAGRAM, fineStructure, undefined, config, dirac,
+        bField, eField, hyperfine,
       ),
     });
   },

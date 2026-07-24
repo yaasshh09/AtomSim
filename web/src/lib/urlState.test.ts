@@ -102,10 +102,22 @@ describe("serializeAppUrl", () => {
       dirac: false,
       bField: 0,
       eField: 0,
+      hyperfine: true,
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
+  });
+
+  it("round-trips the hyperfine toggle", () => {
+    const url = serializeAppUrl({ ...URL_DEFAULTS, hyperfine: true });
+    expect(url).toContain("hf=1");
+    expect(parseAppUrl(url).hyperfine).toBe(true);
+  });
+
+  it("omits hf when hyperfine is off", () => {
+    const url = serializeAppUrl({ ...URL_DEFAULTS, hyperfine: false });
+    expect(url).not.toContain("hf=");
   });
 
   it("round-trips the e_field", () => {

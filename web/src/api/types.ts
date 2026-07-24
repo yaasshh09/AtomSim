@@ -111,6 +111,26 @@ export interface FineLevel {
   sublevels?: ZeemanSublevel[] | null;
 }
 
+export interface HyperfineLevel {
+  F: number;
+  energy: Quantity;
+  energy_ev: Quantity;
+  shift: Quantity;
+  shift_ev: Quantity;
+}
+
+export interface HyperfineShell {
+  n: number;
+  available: boolean;
+  nucleus?: string | null;
+  I?: number | null;
+  A?: Quantity | null;
+  A_ev?: Quantity | null;
+  levels: HyperfineLevel[];
+  note?: string | null;
+  reason?: string | null;
+}
+
 export interface LevelsResponse {
   system: SystemInfo;
   n_max: number;
@@ -121,6 +141,8 @@ export interface LevelsResponse {
   dirac: boolean;
   b_field: number;
   e_field: number;
+  hyperfine: boolean;
+  hyperfine_shells?: HyperfineShell[] | null;
 }
 
 export interface ScreenedOrbital {
