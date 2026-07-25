@@ -12,6 +12,8 @@ import math
 import pytest
 
 from atomsim.analytic.transitions import (
+    _dipole_quadrature,
+    _gauss_laguerre_nodes,
     dipole_radial_integral,
     einstein_A,
     lifetime,
@@ -20,14 +22,24 @@ from atomsim.analytic.transitions import (
 from atomsim.provenance import Fidelity
 
 
-def test_dipole_integral_1s_2p_value_and_symmetry():
-    r1 = dipole_radial_integral(1, 0, 2, 1).value
-    r2 = dipole_radial_integral(2, 1, 1, 0).value
+def test_dipole_integral_1s_2p_matches_the_closed_form():
     # R_10 R_21 r^3 = (1/sqrt6) r^4 exp(-3r/2), so the integral is exactly
     # 4! / ((3/2)^5 sqrt 6) = 1.290266201959863... bohr (30-digit Decimal check).
     # The rule is exact for this integrand, so demand near-machine agreement.
-    assert r1 == pytest.approx(1.2902662019598634, rel=1e-12)
-    assert r1 == pytest.approx(r2, rel=1e-12)  # matrix element is symmetric
+    assert dipole_radial_integral(1, 0, 2, 1).value == pytest.approx(
+        1.2902662019598634, rel=1e-12
+    )
+
+
+def test_dipole_integral_is_symmetric_under_swapping_the_states():
+    """Checked below the cache: dipole_radial_integral canonicalizes its key, so
+    calling it both ways would hit one entry and assert nothing."""
+    for n, l, n2, l2 in [(1, 0, 2, 1), (3, 2, 5, 1), (4, 3, 6, 2)]:
+        nodes = _gauss_laguerre_nodes(n, n2)
+        forward = _dipole_quadrature(n, l, n2, l2, 1.0, nodes)
+        backward = _dipole_quadrature(n2, l2, n, l, 1.0, nodes)
+        assert forward == pytest.approx(backward, rel=1e-12)
+        assert forward != 0.0
 
 
 def test_oscillator_strength_1s_2p():
