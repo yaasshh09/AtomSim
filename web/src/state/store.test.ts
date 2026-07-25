@@ -209,4 +209,15 @@ describe("force-law slice", () => {
     expect(useAppStore.getState().hyperfine).toBe(true);
     expect(useAppStore.getState().levels).toBeNull();
   });
+
+  it("intensities default on, so the spectrum is never silently uniform", () => {
+    expect(useAppStore.getInitialState().intensities).toBe(true);
+  });
+
+  it("setIntensities clears the cached spectrum, which was fetched without rates", () => {
+    useAppStore.setState({ spectrum: { fake: true } as never, intensities: true });
+    useAppStore.getState().setIntensities(false);
+    expect(useAppStore.getState().intensities).toBe(false);
+    expect(useAppStore.getState().spectrum).toBeNull();
+  });
 });

@@ -51,6 +51,9 @@ interface AppState {
   bField: number;
   eField: number;
   hyperfine: boolean;
+  /** Show real line strengths in the Spectrum view. On by default: uniform bars
+   *  silently assert that every line is equally strong, which is false. */
+  intensities: boolean;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -113,6 +116,7 @@ interface AppState {
   setBField: (bField: number) => void;
   setEField: (eField: number) => void;
   setHyperfine: (hyperfine: boolean) => void;
+  setIntensities: (intensities: boolean) => void;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -157,6 +161,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   bField: 0,
   eField: 0,
   hyperfine: false,
+  intensities: true,
   nucleusMode: "marker",
   count: 100_000,
   systems: [],
@@ -210,6 +215,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBField: (bField) => set({ bField, levels: null }),
   setEField: (eField) => set({ eField, levels: null }),
   setHyperfine: (hyperfine) => set({ hyperfine, levels: null }),
+  setIntensities: (intensities) => set({ intensities, spectrum: null }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -371,7 +377,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   loadSpectrum: async () => {
-    const { system, fineStructure, config } = get();
-    set({ spectrum: await client.getSpectrum(system, N_MAX_DIAGRAM, fineStructure, config) });
+    const { system, fineStructure, config, intensities } = get();
+    set({
+      spectrum: await client.getSpectrum(
+        system, N_MAX_DIAGRAM, fineStructure, config, intensities,
+      ),
+    });
   },
 }));

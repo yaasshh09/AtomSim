@@ -45,6 +45,27 @@ export const CLASSICAL_SLOWMO: Provenance = {
   refinement: "the slow-motion factor is stated live in the ghost HUD",
 };
 
+/**
+ * The trap here: a bar chart of spectral lines looks exactly like an observed
+ * spectrum, so shading it by A invites the reading "this is how bright the line
+ * is". It is not. Observed brightness is N_upper * A * h nu and depends on level
+ * populations (temperature, density, optical depth), none of which this project
+ * models. What the bars show is the spontaneous emission rate, log-compressed
+ * because A spans about four decades across a hydrogen line list.
+ */
+export const SPECTRUM_INTENSITY_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "bar height and opacity scaled by log10 of the Einstein A coefficient",
+  assumptions: [
+    "A (spontaneous emission rate, s^-1) is engine-computed and exact to quadrature roundoff",
+    "bar height/opacity is a log-compressed rate, NOT a predicted observed intensity",
+    "no level populations are modelled: no temperature, density or optical depth",
+    "log compression is presentation; the decade range is printed in the caption",
+  ],
+  error_estimate: null,
+  refinement: "population modelling (Boltzmann/Saha) would turn rates into observable intensities",
+};
+
 export const THUMBNAIL_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "server-rendered inferno PNG of |psi|^2 on the y=0 plane (navigation aid)",

@@ -103,10 +103,24 @@ describe("serializeAppUrl", () => {
       bField: 0,
       eField: 0,
       hyperfine: true,
+      intensities: false,
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
+  });
+
+  it("round-trips the intensities toggle, which defaults on", () => {
+    expect(URL_DEFAULTS.intensities).toBe(true);
+    const off = serializeAppUrl({ ...URL_DEFAULTS, intensities: false });
+    expect(off).toContain("int=0");
+    expect(parseAppUrl(off).intensities).toBe(false);
+  });
+
+  it("omits int when intensities are on, since that is the default", () => {
+    const url = serializeAppUrl({ ...URL_DEFAULTS, intensities: true });
+    expect(url).not.toContain("int=");
+    expect({ ...URL_DEFAULTS, ...parseAppUrl(url) }.intensities).toBe(true);
   });
 
   it("round-trips the hyperfine toggle", () => {

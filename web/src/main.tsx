@@ -23,6 +23,7 @@ useAppStore.subscribe((s) => {
     bField: s.bField,
     eField: s.eField,
     hyperfine: s.hyperfine,
+    intensities: s.intensities,
     ghost: s.ghost,
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,

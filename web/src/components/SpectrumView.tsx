@@ -1,5 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { useEffect } from "react";
+import type { SpectralLineInfo } from "../api/types";
+import { SPECTRUM_INTENSITY_LIBERTY } from "../lib/liberties";
 import { seriesColor, seriesName } from "../lib/spectrum";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -9,11 +11,39 @@ const LINES_H = 190;
 const RES_H = 150;
 const M = { left: 56, right: 16 };
 
+const TOP = 28;
+const BOTTOM = LINES_H - 30;
+
+/**
+ * Map Einstein A onto a drawable [0, 1]. A spans ~4 decades across a hydrogen
+ * line list, so a linear map would leave everything but the top few lines
+ * invisible; the compression is logarithmic and disclosed in the caption and
+ * the SPECTRUM_INTENSITY_LIBERTY badge.
+ */
+export function intensityScale(lines: SpectralLineInfo[]) {
+  const rates = lines
+    .map((ln) => ln.einstein_a_s?.value)
+    .filter((a): a is number => typeof a === "number" && a > 0);
+  if (rates.length === 0) return null;
+  const lo = Math.log10(Math.min(...rates));
+  const hi = Math.log10(Math.max(...rates));
+  // A degenerate range (one line, or all equal) would divide by zero; draw those
+  // at full strength rather than inventing a spread that is not there.
+  const span = hi - lo;
+  return {
+    lo,
+    hi,
+    t: (a: number | undefined) =>
+      typeof a !== "number" || a <= 0 || span <= 0 ? 1 : (Math.log10(a) - lo) / span,
+  };
+}
+
 export function SpectrumView() {
-  const { system, fineStructure, spectrum, loadSpectrum } = useAppStore();
+  const { system, fineStructure, intensities, spectrum, loadSpectrum, setIntensities } =
+    useAppStore();
   useEffect(() => {
     void loadSpectrum();
-  }, [system, fineStructure, loadSpectrum]);
+  }, [system, fineStructure, intensities, loadSpectrum]);
   if (!spectrum) return <p className="hint-block">loading spectrum…</p>;
 
   const wls = spectrum.lines.map((ln) => ln.wavelength_nm.value);
@@ -29,12 +59,27 @@ export function SpectrumView() {
   const yRes = tol ? scaleLinear([-3 * tol, 3 * tol], [RES_H - 30, 14]) : null;
   const clampY = (v: number) => Math.min(Math.max(v, 14), RES_H - 30);
 
+  const strength = intensities ? intensityScale(spectrum.lines) : null;
+  // Shortest bar still reaches 18% of the panel: a weak line must stay visible
+  // and clickable, and hiding it would be its own kind of lie.
+  const barTop = (ln: SpectralLineInfo) =>
+    strength ? BOTTOM - (0.18 + 0.82 * strength.t(ln.einstein_a_s?.value)) * (BOTTOM - TOP)
+             : TOP;
+  const barOpacity = (ln: SpectralLineInfo) =>
+    strength ? 0.3 + 0.7 * strength.t(ln.einstein_a_s?.value) : 0.9;
+
   return (
     <div className="view-wrap">
       <div className="view-header">
         <span className="plot-title">
           Emission lines λ [nm]{" "}
           <Badge provenance={spectrum.lines[0].wavelength_nm.provenance} />
+          {strength && (
+            <>
+              {" "}
+              <Badge provenance={SPECTRUM_INTENSITY_LIBERTY} />
+            </>
+          )}
         </span>
         <span className="legend-inline">
           {nLowers.map((nl) => (
@@ -44,6 +89,14 @@ export function SpectrumView() {
           ))}
         </span>
       </div>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={intensities}
+          onChange={(e) => setIntensities(e.target.checked)}
+        />
+        scale bars by line strength (Einstein A)
+      </label>
       <svg viewBox={`0 0 ${W} ${LINES_H}`} role="img" className="levels-svg">
         <line
           x1={M.left} x2={W - M.right} y1={LINES_H - 24} y2={LINES_H - 24}
@@ -61,9 +114,19 @@ export function SpectrumView() {
           <line
             key={i}
             x1={x(ln.wavelength_nm.value)} x2={x(ln.wavelength_nm.value)}
-            y1={28} y2={LINES_H - 30}
-            stroke={seriesColor(ln.n_lower)} strokeWidth={1.5} opacity={0.9}
-          />
+            y1={barTop(ln)} y2={BOTTOM}
+            stroke={seriesColor(ln.n_lower)} strokeWidth={1.5} opacity={barOpacity(ln)}
+          >
+            <title>
+              {`${ln.n_upper}→${ln.n_lower}  λ=${ln.wavelength_nm.value.toFixed(2)} nm` +
+                (ln.einstein_a_s
+                  ? `  A=${ln.einstein_a_s.value.toExponential(2)} s⁻¹` +
+                    (ln.oscillator_strength
+                      ? `  f=${ln.oscillator_strength.value.toExponential(2)}`
+                      : "")
+                  : "")}
+            </title>
+          </line>
         ))}
         {comp?.map((c, i) => (
           <circle
@@ -92,6 +155,17 @@ export function SpectrumView() {
             (λ_computed − λ_NIST)/λ_NIST — shaded band = stated tolerance ±{tol.toExponential(0)}
           </text>
         </svg>
+      )}
+      {strength && (
+        <p className="caption">
+          Bar height and opacity ∝ log₁₀ A over{" "}
+          {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`} — that is
+          the spontaneous emission <em>rate</em>, not a predicted observed brightness. No
+          level populations (temperature, density, optical depth) are modelled here.
+        </p>
+      )}
+      {spectrum.intensity_note && (
+        <p className="caption">{spectrum.intensity_note}</p>
       )}
       <p className="caption">
         {spectrum.reference_citation

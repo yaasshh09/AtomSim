@@ -128,10 +128,12 @@ export function getSpectrum(
   nMax: number,
   fineStructure: boolean,
   config?: string | null,
+  intensities = false,
 ): Promise<SpectrumResponse> {
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
   return getJson(
-    `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${c}`,
+    `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}` +
+      `&intensities=${intensities}${c}`,
   );
 }
 

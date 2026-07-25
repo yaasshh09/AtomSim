@@ -193,6 +193,11 @@ export interface SpectralLineInfo {
   j_lower: number | null;
   energy_ev: Quantity;
   wavelength_nm: Quantity;
+  /** Spontaneous emission rate [s^-1]; null when strengths were not asked for
+   *  or cannot be given honestly — see SpectrumResponse.intensity_note. */
+  einstein_a_s: Quantity | null;
+  /** Absorption oscillator strength (dimensionless); null on the same terms. */
+  oscillator_strength: Quantity | null;
 }
 
 export interface ComparisonInfo {
@@ -212,6 +217,8 @@ export interface SpectrumResponse {
   comparison: ComparisonInfo[] | null;
   reference_citation: string | null;
   tolerance_relative: number | null;
+  /** Set when strengths were requested but withheld; states which case applies. */
+  intensity_note: string | null;
 }
 
 export interface BohrOrbit {

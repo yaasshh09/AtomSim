@@ -12,6 +12,8 @@ function line(nu: number, lu: number, nl: number): SpectralLineInfo {
     j_lower: null,
     energy_ev: {} as never,
     wavelength_nm: {} as never,
+    einstein_a_s: null,
+    oscillator_strength: null,
   };
 }
 
