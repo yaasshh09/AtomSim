@@ -197,6 +197,8 @@ class SpectrumResponse(BaseModel):
     comparison: list[ComparisonModel] | None
     reference_citation: str | None
     tolerance_relative: float | None
+    #: Why the lines carry no strengths, when they were asked for and withheld.
+    intensity_note: str | None = None
 
 
 class SampleRequest(BaseModel):
@@ -724,6 +726,7 @@ def create_app() -> FastAPI:
     @app.get("/api/spectrum", response_model=SpectrumResponse)
     def spectrum(system: str = "h", n_max: int = 6,
                  fine_structure: bool = False,
+                 intensities: bool = False,
                  config: str | None = None) -> SpectrumResponse:
         if _is_screened(system):
             element = atom_for_key(system)
@@ -752,11 +755,14 @@ def create_app() -> FastAPI:
                 n_max=lines.n_max, fine_structure=False,
                 lines=[LineModel.from_line(ln) for ln in lines.lines],
                 comparison=comparison, reference_citation=citation, tolerance_relative=tol,
+                intensity_note=lines.intensity_note if intensities else None,
             )
         if not 2 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
         sys_ = _resolve_system(system)
-        lines = transition_lines(sys_, n_max=n_max, fine_structure=fine_structure)
+        lines = transition_lines(
+            sys_, n_max=n_max, fine_structure=fine_structure, intensities=intensities
+        )
         reference = load_reference(sys_.key)
         comparison = None
         citation = None
@@ -776,6 +782,7 @@ def create_app() -> FastAPI:
             comparison=comparison,
             reference_citation=citation,
             tolerance_relative=tol,
+            intensity_note=lines.intensity_note,
         )
 
     @app.get("/api/thumbnail/{n}/{l}/{m}")

@@ -281,6 +281,10 @@ class LineModel(BaseModel):
     j_lower: float | None
     energy_ev: QuantityModel
     wavelength_nm: QuantityModel
+    #: Null unless intensities were asked for and can be given honestly; the
+    #: line list's `intensity_note` then says which case applies.
+    einstein_a_s: QuantityModel | None = None
+    oscillator_strength: QuantityModel | None = None
 
     @classmethod
     def from_line(cls, ln: SpectralLine) -> "LineModel":
@@ -289,6 +293,14 @@ class LineModel(BaseModel):
             n_lower=ln.n_lower, l_lower=ln.l_lower, j_lower=ln.j_lower,
             energy_ev=QuantityModel.from_quantity(ln.energy),
             wavelength_nm=QuantityModel.from_quantity(ln.wavelength),
+            einstein_a_s=(
+                None if ln.einstein_a is None
+                else QuantityModel.from_quantity(ln.einstein_a)
+            ),
+            oscillator_strength=(
+                None if ln.oscillator_strength is None
+                else QuantityModel.from_quantity(ln.oscillator_strength)
+            ),
         )
 
 
