@@ -21,6 +21,7 @@ docs/superpowers/specs/2026-07-24-phase13-transition-strengths-design.md.
 """
 
 import math
+from functools import lru_cache
 
 import numpy as np
 from scipy import constants as _sc
@@ -55,6 +56,23 @@ def _gauss_laguerre_nodes(n: int, n2: int) -> int:
     return (n + n2 + 3) // 2
 
 
+@lru_cache(maxsize=4096)
+def _dipole_value_and_error(
+    n: int, l: int, n2: int, l2: int, kappa: float
+) -> tuple[float, float, int]:
+    """Cached (value, roundoff estimate, node count). Keyed on the ordered pair.
+
+    The integrand is symmetric under swapping the two states, so the caller
+    canonicalizes the key and one entry serves both directions. A spectrum asks
+    for the same handful of integrals for f and for A, and again on every
+    redraw, so this turns the second and later asks into a dict lookup.
+    """
+    nodes = _gauss_laguerre_nodes(n, n2)
+    coarse = _dipole_quadrature(n, l, n2, l2, kappa, nodes)
+    fine = _dipole_quadrature(n, l, n2, l2, kappa, 2 * nodes)
+    return fine, abs(fine - coarse), 2 * nodes
+
+
 def _dipole_quadrature(n: int, l: int, n2: int, l2: int, kappa: float, nodes: int) -> float:
     """Gauss-Laguerre evaluation of int R_{n2 l2}(r) r^3 R_{n l}(r) dr, in bohr."""
     a = kappa * (1.0 / n + 1.0 / n2)
@@ -74,9 +92,9 @@ def dipole_radial_integral(
     validate_quantum_numbers(n2, l2)
     _validate_physical(Z, mu_ratio)
     kappa = Z * mu_ratio
-    nodes = _gauss_laguerre_nodes(n, n2)
-    coarse = _dipole_quadrature(n, l, n2, l2, kappa, nodes)
-    value = _dipole_quadrature(n, l, n2, l2, kappa, 2 * nodes)
+    # Symmetric in the two states: canonicalize so both directions share a cache entry.
+    a, b = sorted(((n, l), (n2, l2)))
+    value, err, nodes = _dipole_value_and_error(a[0], a[1], b[0], b[1], kappa)
     return Quantity(
         value=value,
         unit="bohr",
@@ -85,11 +103,11 @@ def dipole_radial_integral(
             fidelity=Fidelity.NUMERICAL,
             method=(
                 f"Gauss-Laguerre quadrature of the exact R_nl dipole integral "
-                f"({2 * nodes} nodes; the integrand is exp(-a r) times a degree-"
+                f"({nodes} nodes; the integrand is exp(-a r) times a degree-"
                 f"{n + n2 + 1} polynomial, so the rule is exact bar roundoff)"
             ),
             assumptions=_ONE_ELECTRON,
-            error_estimate=abs(value - coarse),
+            error_estimate=err,
             refinement="closed-form Gordon hypergeometric dipole integral",
         ),
     )

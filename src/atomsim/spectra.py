@@ -16,6 +16,7 @@ from scipy import constants as _sc
 
 from atomsim.analytic.fine_structure import level_energy
 from atomsim.analytic.hydrogen import energy
+from atomsim.analytic.transitions import einstein_A, oscillator_strength
 from atomsim.constants import HARTREE_EV
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System
@@ -40,6 +41,8 @@ class SpectralLine:
     j_lower: float | None
     energy: Quantity      # eV
     wavelength: Quantity  # nm, vacuum
+    einstein_a: Quantity | None = None           # s^-1, spontaneous emission rate
+    oscillator_strength: Quantity | None = None  # dimensionless, absorption f
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,29 @@ class LineList:
     fine_structure: bool
     lines: tuple[SpectralLine, ...]
     provenance: Provenance
+    #: Set only when strengths were wanted but cannot be given honestly; it says
+    #: which case applies and what is missing, so the view never has to guess
+    #: why every bar is the same height.
+    intensity_note: str | None = None
+
+
+#: Splitting a gross rate across fine-structure components needs the 6j factor
+#: {j 1 j'; l' 1/2 l}, which this project has no implementation for. Handing each
+#: j component the unsplit multiplet rate would misstate every one of them.
+_NO_FINE_STRUCTURE_INTENSITIES = (
+    "Line strengths are not shown for fine-structure components: splitting the "
+    "multiplet rate across j needs the 6j branching factor {j 1 j'; l' 1/2 l}, "
+    "which is not implemented. Turn fine structure off for strengths."
+)
+
+#: The Phase 13 dipole engine integrates closed-form hydrogenic R_nl. A screened
+#: atom's radial functions come from the numerical solver instead, so the
+#: integral would have to be redone over those.
+_NO_SCREENED_INTENSITIES = (
+    "Line strengths are not shown for screened atoms: the dipole integral is "
+    "implemented over closed-form hydrogenic radial functions, and these "
+    "orbitals come from the numerical screened-potential solver."
+)
 
 
 def _levels(system: System, n_max: int, fine_structure: bool):
@@ -67,11 +93,18 @@ def _levels(system: System, n_max: int, fine_structure: bool):
 
 
 def transition_lines(
-    system: System, n_max: int, fine_structure: bool = False
+    system: System, n_max: int, fine_structure: bool = False, intensities: bool = False
 ) -> LineList:
-    """All dipole-allowed emission lines among levels with n <= n_max."""
+    """All dipole-allowed emission lines among levels with n <= n_max.
+
+    With `intensities`, each line also carries its Einstein A (s^-1) and its
+    absorption oscillator strength, from the closed-form dipole engine. That is
+    only honest for gross-structure hydrogen-like levels; with `fine_structure`
+    the strengths are withheld and `intensity_note` says why.
+    """
     if n_max < 2:
         raise ValueError(f"n_max must be >= 2 to have any transition, got {n_max}")
+    strengths = intensities and not fine_structure
     levels = list(_levels(system, n_max, fine_structure))
     lines: list[SpectralLine] = []
     for (nu, lu, ju, eu), (nl, ll_, jl, el) in itertools.permutations(levels, 2):
@@ -100,12 +133,19 @@ def transition_lines(
             refinement=eu.provenance.refinement,
         )
         label = f"{nu}->{nl}"
+        a_coeff = f_value = None
+        if strengths:
+            kw = {"Z": system.Z, "mu_ratio": system.mu_ratio.value}
+            a_coeff = einstein_A(nu, lu, nl, ll_, **kw)
+            f_value = oscillator_strength(nl, ll_, nu, lu, **kw)
         lines.append(
             SpectralLine(
                 n_upper=nu, l_upper=lu, j_upper=ju,
                 n_lower=nl, l_lower=ll_, j_lower=jl,
                 energy=Quantity(de_ev, "eV", f"dE {label}", prov),
                 wavelength=Quantity(_EV_NM / de_ev, "nm (vacuum)", f"lambda {label}", prov),
+                einstein_a=a_coeff,
+                oscillator_strength=f_value,
             )
         )
     lines.sort(key=lambda ln: ln.wavelength.value)
@@ -119,6 +159,9 @@ def transition_lines(
             method="dipole-allowed level differences (see per-line provenance)",
             assumptions=("emission lines only (E_upper > E_lower)",
                          "vacuum wavelengths in nm, energies in eV"),
+        ),
+        intensity_note=(
+            _NO_FINE_STRUCTURE_INTENSITIES if intensities and fine_structure else None
         ),
     )
 
@@ -167,6 +210,7 @@ def screened_transition_lines(result) -> LineList:
             assumptions=("emission lines only (E_upper > E_lower)",
                          "independent-particle transition energies"),
         ),
+        intensity_note=_NO_SCREENED_INTENSITIES,
     )
 
 
