@@ -33,6 +33,7 @@ from atomsim.analytic.hydrogen import (
     energy,
     validate_quantum_numbers,
 )
+from atomsim.analytic.wigner import wigner_6j
 from atomsim.constants import ALPHA
 from atomsim.provenance import Fidelity, Provenance, Quantity
 
@@ -188,6 +189,153 @@ def einstein_A(
             assumptions=_ONE_ELECTRON,
             error_estimate=a_err,
             refinement=R.provenance.refinement,
+        ),
+    )
+
+
+def _validate_j(l: int, j: float, name: str) -> None:
+    """A one-electron level has j = l +/- 1/2 only (and j = 1/2 when l = 0)."""
+    allowed = [l - 0.5, l + 0.5] if l > 0 else [0.5]
+    if not any(abs(j - a) < 1e-9 for a in allowed):
+        raise ValueError(
+            f"{name}: j must be l +/- 1/2 for l = {l} (allowed {allowed}), got {j}"
+        )
+
+
+def _fine_branching(l_up: int, j_up: float, l_low: int, j_low: float) -> float:
+    """(2 j_low + 1) {j_low 1 j_up; l_up 1/2 l_low}^2, the j-branching factor.
+
+    Summed over j_low this equals 1 / (2 l_up + 1), which is exactly the factor
+    the gross-structure rate carries -- so the components always add back up to
+    the unresolved rate. Forbidden combinations give 0 through the 6j's triangle
+    conditions, with no separate Delta j test.
+    """
+    return (2.0 * j_low + 1.0) * wigner_6j(j_low, 1, j_up, l_up, 0.5, l_low) ** 2
+
+
+_FINE_METHOD = (
+    "A = (4/3) alpha^3 dE^3 (2j+1) {j 1 j'; l' 1/2 l}^2 l_max |R|^2 / t_au; "
+    "the 6j symbol splits the multiplet rate across j (spin is a spectator)"
+)
+
+
+def einstein_A_fine(
+    n_up: int, l_up: int, j_up: float,
+    n_low: int, l_low: int, j_low: float,
+    Z: int = 1, mu_ratio: float = 1.0,
+) -> Quantity:
+    """Spontaneous emission rate for one fine-structure component, in s^-1.
+
+    Energies are the gross (n-only) values, so this resolves the *rate* by j
+    without pretending to resolve the transition energy; the fine-structure
+    splitting of the line itself comes from `fine_structure.level_energy`.
+    """
+    validate_quantum_numbers(n_up, l_up)
+    validate_quantum_numbers(n_low, l_low)
+    _validate_j(l_up, j_up, "upper level")
+    _validate_j(l_low, j_low, "lower level")
+    dE = energy(n_up, Z=Z, mu_ratio=mu_ratio).value - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    label = f"A {n_up}{l_up}(j={j_up})->{n_low}{l_low}(j={j_low})"
+    if abs(l_up - l_low) != 1 or dE <= 0.0:
+        return _forbidden("no E1 decay channel", label, "s^-1")
+    branch = _fine_branching(l_up, j_up, l_low, j_low)
+    if branch == 0.0:
+        return _forbidden("6j triangle rule (Delta j = 0, +/-1)", label, "s^-1")
+    R = dipole_radial_integral(n_up, l_up, n_low, l_low, Z=Z, mu_ratio=mu_ratio)
+    l_max = max(l_up, l_low)
+    a_s = (4.0 / 3.0) * ALPHA**3 * dE**3 * branch * l_max * R.value**2 / _T_AU
+    rerr = R.provenance.error_estimate or 0.0
+    return Quantity(
+        value=a_s,
+        unit="s^-1",
+        label=label,
+        provenance=Provenance(
+            fidelity=Fidelity.NUMERICAL,
+            method=_FINE_METHOD,
+            assumptions=_ONE_ELECTRON
+            + ("rate resolved by j; transition energy is the gross (n-only) value",),
+            error_estimate=2.0 * abs(a_s) * (rerr / abs(R.value)) if R.value else 0.0,
+            refinement=R.provenance.refinement,
+        ),
+    )
+
+
+def oscillator_strength_fine(
+    n_low: int, l_low: int, j_low: float,
+    n_up: int, l_up: int, j_up: float,
+    Z: int = 1, mu_ratio: float = 1.0,
+) -> Quantity:
+    """Absorption oscillator strength for one fine-structure component."""
+    validate_quantum_numbers(n_low, l_low)
+    validate_quantum_numbers(n_up, l_up)
+    _validate_j(l_low, j_low, "lower level")
+    _validate_j(l_up, j_up, "upper level")
+    dE = energy(n_up, Z=Z, mu_ratio=mu_ratio).value - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    if dE <= 0.0:
+        raise ValueError(
+            "absorption requires the upper level above the lower "
+            f"(got E({n_up}) <= E({n_low}))"
+        )
+    label = f"f {n_low}{l_low}(j={j_low})->{n_up}{l_up}(j={j_up})"
+    if abs(l_up - l_low) != 1:
+        return _forbidden("Delta l != +/-1", label, "dimensionless")
+    # Same 6j, columns swapped: here the upper level's degeneracy is the weight.
+    branch = _fine_branching(l_low, j_low, l_up, j_up)
+    if branch == 0.0:
+        return _forbidden("6j triangle rule (Delta j = 0, +/-1)", label, "dimensionless")
+    R = dipole_radial_integral(n_low, l_low, n_up, l_up, Z=Z, mu_ratio=mu_ratio)
+    l_max = max(l_low, l_up)
+    f = (2.0 / 3.0) * dE * branch * l_max * R.value**2
+    rerr = R.provenance.error_estimate or 0.0
+    return Quantity(
+        value=f,
+        unit="dimensionless",
+        label=label,
+        provenance=Provenance(
+            fidelity=Fidelity.NUMERICAL,
+            method=(
+                "f = (2/3) dE (2j'+1) {j' 1 j; l 1/2 l'}^2 l_max |R|^2; "
+                "the 6j symbol splits the multiplet strength across j"
+            ),
+            assumptions=_ONE_ELECTRON
+            + ("strength resolved by j; transition energy is the gross (n-only) value",),
+            error_estimate=2.0 * abs(f) * (rerr / abs(R.value)) if R.value else 0.0,
+            refinement=R.provenance.refinement,
+        ),
+    )
+
+
+def lifetime_fine(
+    n: int, l: int, j: float, Z: int = 1, mu_ratio: float = 1.0
+) -> Quantity:
+    """Radiative lifetime of the fine-structure level (n, l, j), in seconds."""
+    validate_quantum_numbers(n, l)
+    _validate_j(l, j, "level")
+    total = 0.0
+    var = 0.0
+    for n2 in range(1, n):
+        for l2 in (l - 1, l + 1):
+            if not 0 <= l2 < n2:
+                continue
+            for j2 in ([l2 - 0.5, l2 + 0.5] if l2 > 0 else [0.5]):
+                a = einstein_A_fine(n, l, j, n2, l2, j2, Z=Z, mu_ratio=mu_ratio)
+                total += a.value
+                var += (a.provenance.error_estimate or 0.0) ** 2
+    if total <= 0.0:
+        value, err = math.inf, 0.0
+    else:
+        value, err = 1.0 / total, math.sqrt(var) / total**2
+    return Quantity(
+        value=value,
+        unit="s",
+        label=f"tau {n}{l}(j={j}) (Z={Z}, mu/m_e={mu_ratio:g})",
+        provenance=Provenance(
+            fidelity=Fidelity.NUMERICAL,
+            method="tau = 1 / sum A(n l j -> n' l' j'), E1 channels only",
+            assumptions=_ONE_ELECTRON
+            + ("sum over all lower dipole-allowed fine levels (n' < n)",),
+            error_estimate=err,
+            refinement="include higher multipoles and QED corrections to the rate",
         ),
     )
 
