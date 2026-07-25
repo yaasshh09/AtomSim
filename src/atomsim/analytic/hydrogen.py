@@ -52,6 +52,22 @@ def energy(n: int, Z: int = 1, mu_ratio: float = 1.0) -> Quantity:
     )
 
 
+def _radial_eval(n: int, l: int, r: np.ndarray, kappa: float) -> np.ndarray:
+    """Bare R_nl(r) values, no Field wrapper -- the one copy of the closed form.
+
+    Callers must have validated (n, l, Z, mu_ratio) already. `transitions.py`
+    uses this directly inside its quadrature inner loop, so the normalization
+    lives here once rather than being transcribed per module.
+    """
+    rho = 2.0 * kappa * r / n
+    norm = math.sqrt(
+        (2.0 * kappa / n) ** 3
+        * math.factorial(n - l - 1)
+        / (2.0 * n * math.factorial(n + l))
+    )
+    return norm * np.exp(-rho / 2.0) * rho**l * eval_genlaguerre(n - l - 1, 2 * l + 1, rho)
+
+
 def radial_wavefunction(
     n: int, l: int, r: np.ndarray, Z: int = 1, mu_ratio: float = 1.0
 ) -> Field:
@@ -61,15 +77,8 @@ def radial_wavefunction(
     """
     validate_quantum_numbers(n, l)
     _validate_physical(Z, mu_ratio)
-    kappa = Z * mu_ratio
     grid = np.asarray(r, dtype=float)
-    rho = 2.0 * kappa * grid / n
-    norm = math.sqrt(
-        (2.0 * kappa / n) ** 3
-        * math.factorial(n - l - 1)
-        / (2.0 * n * math.factorial(n + l))
-    )
-    values = norm * np.exp(-rho / 2.0) * rho**l * eval_genlaguerre(n - l - 1, 2 * l + 1, rho)
+    values = _radial_eval(n, l, grid, Z * mu_ratio)
     return Field(
         values=values,
         grid=grid,
