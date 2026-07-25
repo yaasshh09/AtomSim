@@ -114,6 +114,31 @@ def dipole_radial_integral(
     )
 
 
+def f_from_radial_dipole(
+    dE_hartree: float, l_low: int, l_up: int, dipole_bohr: float
+) -> float:
+    """f = (2/3) dE (l_max / (2l+1)) |R|^2, from a dipole integral of any origin.
+
+    Kept here, and used by the numerical screened path too, so the formula has
+    exactly one copy the way R_nl does in `hydrogen._radial_eval`.
+    """
+    return (
+        (2.0 / 3.0) * dE_hartree
+        * (max(l_low, l_up) / (2.0 * l_low + 1.0)) * dipole_bohr**2
+    )
+
+
+def A_from_radial_dipole(
+    dE_hartree: float, l_up: int, l_low: int, dipole_bohr: float
+) -> float:
+    """A = (4/3) alpha^3 dE^3 (l_max / (2l'+1)) |R|^2 / t_au, in s^-1."""
+    a_au = (
+        (4.0 / 3.0) * ALPHA**3 * dE_hartree**3
+        * (max(l_up, l_low) / (2.0 * l_up + 1.0)) * dipole_bohr**2
+    )
+    return a_au / _T_AU
+
+
 def _forbidden(kind: str, label: str, unit: str) -> Quantity:
     """An exact zero from the E1 selection rule (disclosed, never silent)."""
     return Quantity(
@@ -145,8 +170,7 @@ def oscillator_strength(
     if abs(l_up - l_low) != 1:
         return _forbidden("Delta l != +/-1", label, "dimensionless")
     R = dipole_radial_integral(n_low, l_low, n_up, l_up, Z=Z, mu_ratio=mu_ratio)
-    l_max = max(l_low, l_up)
-    f = (2.0 / 3.0) * dE * (l_max / (2.0 * l_low + 1.0)) * R.value**2
+    f = f_from_radial_dipole(dE, l_low, l_up, R.value)
     rerr = (R.provenance.error_estimate or 0.0)
     f_err = 2.0 * abs(f) * (rerr / abs(R.value)) if R.value != 0.0 else 0.0
     return Quantity(
@@ -174,9 +198,7 @@ def einstein_A(
     if abs(l_up - l_low) != 1 or dE <= 0.0:
         return _forbidden("no E1 decay channel", label, "s^-1")
     R = dipole_radial_integral(n_up, l_up, n_low, l_low, Z=Z, mu_ratio=mu_ratio)
-    l_max = max(l_up, l_low)
-    a_au = (4.0 / 3.0) * ALPHA**3 * dE**3 * (l_max / (2.0 * l_up + 1.0)) * R.value**2
-    a_s = a_au / _T_AU
+    a_s = A_from_radial_dipole(dE, l_up, l_low, R.value)
     rerr = (R.provenance.error_estimate or 0.0)
     a_err = 2.0 * abs(a_s) * (rerr / abs(R.value)) if R.value != 0.0 else 0.0
     return Quantity(
