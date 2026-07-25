@@ -223,18 +223,26 @@ def einstein_A_fine(
     n_up: int, l_up: int, j_up: float,
     n_low: int, l_low: int, j_low: float,
     Z: int = 1, mu_ratio: float = 1.0,
+    dE_hartree: float | None = None,
 ) -> Quantity:
     """Spontaneous emission rate for one fine-structure component, in s^-1.
 
-    Energies are the gross (n-only) values, so this resolves the *rate* by j
-    without pretending to resolve the transition energy; the fine-structure
-    splitting of the line itself comes from `fine_structure.level_energy`.
+    `dE_hartree` is the true transition energy. It matters: A scales as dE^3,
+    and a within-n component such as 2p_3/2 -> 2s_1/2 has *no* gross energy
+    difference at all, so falling back to the n-only value would divide a real
+    microwave transition down to zero. Callers that know the fine-structure
+    energies (the spectrum builder does) should pass them. Omitting it uses the
+    gross difference, which is right to order alpha^2 for a genuine n -> n' line.
     """
     validate_quantum_numbers(n_up, l_up)
     validate_quantum_numbers(n_low, l_low)
     _validate_j(l_up, j_up, "upper level")
     _validate_j(l_low, j_low, "lower level")
-    dE = energy(n_up, Z=Z, mu_ratio=mu_ratio).value - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    dE = (
+        dE_hartree if dE_hartree is not None
+        else energy(n_up, Z=Z, mu_ratio=mu_ratio).value
+        - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    )
     label = f"A {n_up}{l_up}(j={j_up})->{n_low}{l_low}(j={j_low})"
     if abs(l_up - l_low) != 1 or dE <= 0.0:
         return _forbidden("no E1 decay channel", label, "s^-1")
@@ -264,13 +272,22 @@ def oscillator_strength_fine(
     n_low: int, l_low: int, j_low: float,
     n_up: int, l_up: int, j_up: float,
     Z: int = 1, mu_ratio: float = 1.0,
+    dE_hartree: float | None = None,
 ) -> Quantity:
-    """Absorption oscillator strength for one fine-structure component."""
+    """Absorption oscillator strength for one fine-structure component.
+
+    `dE_hartree` is the true transition energy; see `einstein_A_fine` for why
+    the gross value will not do for a within-n component.
+    """
     validate_quantum_numbers(n_low, l_low)
     validate_quantum_numbers(n_up, l_up)
     _validate_j(l_low, j_low, "lower level")
     _validate_j(l_up, j_up, "upper level")
-    dE = energy(n_up, Z=Z, mu_ratio=mu_ratio).value - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    dE = (
+        dE_hartree if dE_hartree is not None
+        else energy(n_up, Z=Z, mu_ratio=mu_ratio).value
+        - energy(n_low, Z=Z, mu_ratio=mu_ratio).value
+    )
     if dE <= 0.0:
         raise ValueError(
             "absorption requires the upper level above the lower "

@@ -54,12 +54,16 @@ def test_every_served_line_has_a_positive_rate(client):
     assert all(ln["einstein_a_s"]["value"] > 0.0 for ln in body["lines"])
 
 
-def test_fine_structure_returns_null_intensities_with_a_reason(client):
+def test_fine_structure_serves_j_resolved_intensities(client):
     body = client.get(
         "/api/spectrum?system=h&n_max=4&fine_structure=true&intensities=true"
     ).json()
-    assert all(ln["einstein_a_s"] is None for ln in body["lines"])
-    assert body["intensity_note"] and "6j" in body["intensity_note"]
+    assert body["lines"] and all(ln["einstein_a_s"] is not None for ln in body["lines"])
+    assert all(ln["einstein_a_s"]["value"] > 0.0 for ln in body["lines"])
+    assert body["intensity_note"] is None
+    # Every line is j-resolved on both ends, and the 6j is named in provenance.
+    assert all(ln["j_upper"] is not None for ln in body["lines"])
+    assert "6j" in body["lines"][0]["einstein_a_s"]["provenance"]["method"]
 
 
 def test_screened_atom_returns_null_intensities_with_a_reason(client):

@@ -16,7 +16,12 @@ from scipy import constants as _sc
 
 from atomsim.analytic.fine_structure import level_energy
 from atomsim.analytic.hydrogen import energy
-from atomsim.analytic.transitions import einstein_A, oscillator_strength
+from atomsim.analytic.transitions import (
+    einstein_A,
+    einstein_A_fine,
+    oscillator_strength,
+    oscillator_strength_fine,
+)
 from atomsim.constants import HARTREE_EV
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System
@@ -58,15 +63,6 @@ class LineList:
     intensity_note: str | None = None
 
 
-#: Splitting a gross rate across fine-structure components needs the 6j factor
-#: {j 1 j'; l' 1/2 l}, which this project has no implementation for. Handing each
-#: j component the unsplit multiplet rate would misstate every one of them.
-_NO_FINE_STRUCTURE_INTENSITIES = (
-    "Line strengths are not shown for fine-structure components: splitting the "
-    "multiplet rate across j needs the 6j branching factor {j 1 j'; l' 1/2 l}, "
-    "which is not implemented. Turn fine structure off for strengths."
-)
-
 #: The Phase 13 dipole engine integrates closed-form hydrogenic R_nl. A screened
 #: atom's radial functions come from the numerical solver instead, so the
 #: integral would have to be redone over those.
@@ -98,13 +94,12 @@ def transition_lines(
     """All dipole-allowed emission lines among levels with n <= n_max.
 
     With `intensities`, each line also carries its Einstein A (s^-1) and its
-    absorption oscillator strength, from the closed-form dipole engine. That is
-    only honest for gross-structure hydrogen-like levels; with `fine_structure`
-    the strengths are withheld and `intensity_note` says why.
+    absorption oscillator strength, from the closed-form dipole engine. With
+    `fine_structure` the rates are resolved by j through the 6j branching
+    factor, so the components of a multiplet add back up to the gross rate.
     """
     if n_max < 2:
         raise ValueError(f"n_max must be >= 2 to have any transition, got {n_max}")
-    strengths = intensities and not fine_structure
     levels = list(_levels(system, n_max, fine_structure))
     lines: list[SpectralLine] = []
     for (nu, lu, ju, eu), (nl, ll_, jl, el) in itertools.permutations(levels, 2):
@@ -134,10 +129,19 @@ def transition_lines(
         )
         label = f"{nu}->{nl}"
         a_coeff = f_value = None
-        if strengths:
+        if intensities:
             kw = {"Z": system.Z, "mu_ratio": system.mu_ratio.value}
-            a_coeff = einstein_A(nu, lu, nl, ll_, **kw)
-            f_value = oscillator_strength(nl, ll_, nu, lu, **kw)
+            if fine_structure:
+                # Pass the real fine-structure energy: a within-n component like
+                # 2p_3/2 -> 2s_1/2 has no gross difference, and A scales as dE^3.
+                dE_h = eu.value - el.value
+                a_coeff = einstein_A_fine(nu, lu, ju, nl, ll_, jl, dE_hartree=dE_h, **kw)
+                f_value = oscillator_strength_fine(
+                    nl, ll_, jl, nu, lu, ju, dE_hartree=dE_h, **kw
+                )
+            else:
+                a_coeff = einstein_A(nu, lu, nl, ll_, **kw)
+                f_value = oscillator_strength(nl, ll_, nu, lu, **kw)
         lines.append(
             SpectralLine(
                 n_upper=nu, l_upper=lu, j_upper=ju,
@@ -159,9 +163,6 @@ def transition_lines(
             method="dipole-allowed level differences (see per-line provenance)",
             assumptions=("emission lines only (E_upper > E_lower)",
                          "vacuum wavelengths in nm, energies in eV"),
-        ),
-        intensity_note=(
-            _NO_FINE_STRUCTURE_INTENSITIES if intensities and fine_structure else None
         ),
     )
 

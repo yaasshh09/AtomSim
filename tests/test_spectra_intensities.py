@@ -96,10 +96,33 @@ def test_intensity_provenance_is_numerical():
     assert a.provenance.error_estimate is not None
 
 
-def test_fine_structure_withholds_intensities_and_says_why():
+def test_fine_structure_lines_now_carry_j_resolved_strengths():
     ll = transition_lines(H, n_max=4, fine_structure=True, intensities=True)
-    assert all(ln.einstein_a is None for ln in ll.lines)
-    assert ll.intensity_note and "6j" in ll.intensity_note
+    assert ll.lines and all(ln.einstein_a is not None for ln in ll.lines)
+    assert all(ln.einstein_a.value > 0.0 for ln in ll.lines)
+    assert ll.intensity_note is None
+
+
+def test_fine_structure_components_sum_to_the_gross_line_rate():
+    """The multiplet adds back up to the unresolved rate, per upper j.
+
+    Not to machine precision, and it should not: each component carries its own
+    fine-structure transition energy, which differs from the gross value by
+    O(alpha^2), and A goes as dE^3. The residual here is ~4e-5, the size of
+    alpha^2 = 5.3e-5. The exact form of the sum rule, with one shared dE, is
+    tested against the 6j in test_transitions_fine.py.
+    """
+    gross = transition_lines(H, n_max=4, intensities=True)
+    fine = transition_lines(H, n_max=4, fine_structure=True, intensities=True)
+    for g in gross.lines:
+        key = (g.n_upper, g.l_upper, g.n_lower, g.l_lower)
+        by_upper_j: dict[float, float] = {}
+        for f in fine.lines:
+            if (f.n_upper, f.l_upper, f.n_lower, f.l_lower) == key:
+                by_upper_j[f.j_upper] = by_upper_j.get(f.j_upper, 0.0) + f.einstein_a.value
+        assert by_upper_j, f"no fine components for {key}"
+        for total in by_upper_j.values():
+            assert total == pytest.approx(g.einstein_a.value, rel=1e-3)
 
 
 def test_gross_structure_intensities_carry_no_apology_note():
