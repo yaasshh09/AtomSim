@@ -23,8 +23,10 @@ from atomsim.provenance import Fidelity
 def test_dipole_integral_1s_2p_value_and_symmetry():
     r1 = dipole_radial_integral(1, 0, 2, 1).value
     r2 = dipole_radial_integral(2, 1, 1, 0).value
-    # analytic <2p|r|1s> = (2/sqrt6) * 4!/(3/2)^5 = 1.290271 bohr
-    assert r1 == pytest.approx(1.290271, rel=1e-4)
+    # R_10 R_21 r^3 = (1/sqrt6) r^4 exp(-3r/2), so the integral is exactly
+    # 4! / ((3/2)^5 sqrt 6) = 1.290266201959863... bohr (30-digit Decimal check).
+    # The rule is exact for this integrand, so demand near-machine agreement.
+    assert r1 == pytest.approx(1.2902662019598634, rel=1e-12)
     assert r1 == pytest.approx(r2, rel=1e-12)  # matrix element is symmetric
 
 
@@ -126,9 +128,13 @@ def test_radiative_lifetimes_match_nist_sums(n, l, tau_ns):
     assert lifetime(n, l).value == pytest.approx(tau_ns * 1e-9, rel=5e-3)
 
 
-def test_lifetime_error_estimate_is_small_and_positive():
+def test_quadrature_error_estimate_is_tracked_and_at_roundoff():
+    """Node-doubling must agree to roundoff: the rule is exact for this integrand."""
+    for n, l, n2, l2 in [(1, 0, 2, 1), (3, 2, 5, 1), (6, 5, 7, 6)]:
+        q = dipole_radial_integral(n, l, n2, l2)
+        assert 0.0 <= q.provenance.error_estimate < 1e-10 * abs(q.value)
     tau = lifetime(2, 1)
-    assert 0.0 < tau.provenance.error_estimate < 1e-3 * tau.value
+    assert 0.0 <= tau.provenance.error_estimate < 1e-9 * tau.value
 
 
 def test_rejects_unphysical_Z_and_mass_ratio():

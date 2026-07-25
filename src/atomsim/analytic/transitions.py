@@ -5,8 +5,9 @@ radial functions R_nl we integrate the radial dipole matrix element
 
     R = integral_0^inf  R_{n'l'}(r) * r * R_{nl}(r) * r^2 dr   [bohr]
 
-by adaptive quadrature (NUMERICAL: the wavefunctions are exact, the integral
-carries its quadrature error), then form the absorption oscillator strength, the
+by Gauss-Laguerre quadrature (NUMERICAL: the wavefunctions are exact and the
+rule is exact for this integrand, but the residual roundoff is measured by
+node-doubling and reported), then form the absorption oscillator strength, the
 Einstein A (spontaneous emission rate), and the radiative lifetime:
 
     f_abs(nl -> n'l') = (2/3) dE (l_max / (2l+1)) |R|^2
@@ -23,7 +24,7 @@ import math
 
 import numpy as np
 from scipy import constants as _sc
-from scipy.integrate import quad
+from scipy.special import roots_laguerre
 
 from atomsim.analytic.hydrogen import (
     _radial_eval,
@@ -43,30 +44,52 @@ _ONE_ELECTRON = (
 )
 
 
-def _radial_func(n: int, l: int, Z: int, mu_ratio: float):
-    """Closure R_nl(r) over hydrogen's own closed form (identical normalization)."""
-    validate_quantum_numbers(n, l)
-    _validate_physical(Z, mu_ratio)
-    kappa = Z * mu_ratio
-    return lambda r: _radial_eval(n, l, r, kappa)
+def _gauss_laguerre_nodes(n: int, n2: int) -> int:
+    """Node count that makes the dipole integral exact up to float64 roundoff.
+
+    R_{n'l'}(r) r^3 R_nl(r) = exp(-a r) * P(r) with a = kappa (1/n + 1/n') and P
+    a polynomial of degree (n-l-1) + (n'-l'-1) + l + l' + 3 = n + n' + 1. That is
+    exactly the Gauss-Laguerre weight, and N nodes integrate degree 2N-1 exactly,
+    so N = ceil((n + n' + 2) / 2) leaves no truncation error -- only roundoff.
+    """
+    return (n + n2 + 3) // 2
+
+
+def _dipole_quadrature(n: int, l: int, n2: int, l2: int, kappa: float, nodes: int) -> float:
+    """Gauss-Laguerre evaluation of int R_{n2 l2}(r) r^3 R_{n l}(r) dr, in bohr."""
+    a = kappa * (1.0 / n + 1.0 / n2)
+    x, w = roots_laguerre(nodes)
+    r = x / a
+    # The rule carries an exp(-x) weight; the wavefunctions already supply
+    # exp(-a r) = exp(-x), so undo it once to leave the polynomial part.
+    integrand = _radial_eval(n, l, r, kappa) * _radial_eval(n2, l2, r, kappa) * r**3 * np.exp(x)
+    return float(np.dot(w, integrand) / a)
 
 
 def dipole_radial_integral(
     n: int, l: int, n2: int, l2: int, Z: int = 1, mu_ratio: float = 1.0,
 ) -> Quantity:
     """Radial dipole matrix element <n2 l2 | r | n l> in bohr (symmetric in the pair)."""
-    r1 = _radial_func(n, l, Z, mu_ratio)
-    r2 = _radial_func(n2, l2, Z, mu_ratio)
-    value, abserr = quad(lambda r: r1(r) * r2(r) * r**3, 0.0, np.inf, limit=200)
+    validate_quantum_numbers(n, l)
+    validate_quantum_numbers(n2, l2)
+    _validate_physical(Z, mu_ratio)
+    kappa = Z * mu_ratio
+    nodes = _gauss_laguerre_nodes(n, n2)
+    coarse = _dipole_quadrature(n, l, n2, l2, kappa, nodes)
+    value = _dipole_quadrature(n, l, n2, l2, kappa, 2 * nodes)
     return Quantity(
         value=value,
         unit="bohr",
         label=f"<{n2},{l2}|r|{n},{l}> (Z={Z}, mu/m_e={mu_ratio:g})",
         provenance=Provenance(
             fidelity=Fidelity.NUMERICAL,
-            method="adaptive quadrature of the exact R_nl dipole integral (scipy quad)",
+            method=(
+                f"Gauss-Laguerre quadrature of the exact R_nl dipole integral "
+                f"({2 * nodes} nodes; the integrand is exp(-a r) times a degree-"
+                f"{n + n2 + 1} polynomial, so the rule is exact bar roundoff)"
+            ),
             assumptions=_ONE_ELECTRON,
-            error_estimate=abserr,
+            error_estimate=abs(value - coarse),
             refinement="closed-form Gordon hypergeometric dipole integral",
         ),
     )
