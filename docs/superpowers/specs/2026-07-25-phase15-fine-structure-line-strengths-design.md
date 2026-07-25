@@ -86,8 +86,36 @@ each `(n l j -> n' l' j')` line gets its own A and f. `intensity_note` becomes
 `None` for that case. The Spectrum view needs no change beyond that, since it
 already scales by whatever A arrives, and the screened-atom note stays.
 
+## Found while building: the fine-structure spectrum spans two regimes
+
+Not fixed here, and not caused here, but it should not stay invisible.
+
+A fine-structure line list contains within-n components (2p_3/2 -> 2s_1/2 and
+friends) alongside the ordinary n -> n' lines. They are real E1 transitions, and
+the two groups do not overlap at all. At n_max = 6:
+
+| group | lines | Einstein A | wavelength |
+|-------|-------|-----------|------------|
+| across-n (optical) | 140 | 10^2.5 .. 10^8.8 s^-1 | 94 nm .. 7.5 um |
+| within-n (microwave) | 25 | 10^-12.2 .. 10^-6.1 s^-1 | 27 mm .. 11 m |
+
+Consequences for the Spectrum view, both of which predate this phase since those
+lines were always in the list:
+
+- the log-lambda axis runs to 11 m, so every optical line is squeezed into a
+  sliver at the left;
+- the log-A bar scale now spans 21 decades, so the 140 optical lines occupy only
+  t = 0.70 .. 1.00 of the available bar height.
+
+Options, none taken yet because each is a product decision rather than a physics
+one: split the view by regime, put a disclosed wavelength-range control on it,
+or scale bars within the displayed range. Dropping the microwave lines silently
+is **not** an option; they are real, and hiding them to tidy an axis is exactly
+the kind of quiet lie the prime directive forbids.
+
 ## Deferred
 
+- The two-regime axis problem above.
 - Screened-atom dipole integrals (still the numerical-radials gap).
 - Hyperfine-resolved line strengths (another 6j layer, on F rather than j).
 - Population modelling, unchanged from Phase 14.
