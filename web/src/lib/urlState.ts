@@ -37,6 +37,15 @@ export interface UrlState {
    *  control is a log slider and round-tripping 1e13 as a decimal string is
    *  needless precision loss. */
   logNe: number;
+  /** Voigt line-profile synthesis in the Spectrum view; defaults off. */
+  profile: boolean;
+  /** log10 of the spectrograph resolving power, or null for no instrument.
+   *  Log for the same reason as logNe: the control is a log slider. */
+  logResolvingPower: number | null;
+  /** Wavelength window [nm] a profile is zoomed to, or null for full range.
+   *  Carried so a link can point at one line's shape, which is the whole
+   *  reason the zoom exists. */
+  profileZoom: [number, number] | null;
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
@@ -66,6 +75,9 @@ export const URL_DEFAULTS: UrlState = {
   hyperfine: false,
   intensities: true,
   thermal: false,
+  profile: false,
+  logResolvingPower: null,
+  profileZoom: null,
   // A stellar photosphere: warm enough that the excited levels are populated
   // at all, dense enough that hydrogen is not yet mostly ionized.
   temperatureK: 10000,
@@ -186,6 +198,19 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   const ne = pickFloat(q.get("ne"));
   if (ne !== undefined && ne >= 4 && ne <= 22) out.logNe = ne;
 
+  if (q.get("prof") === "1") out.profile = true;
+  const rp = pickFloat(q.get("rp"));
+  if (rp !== undefined && rp >= 2 && rp <= 7) out.logResolvingPower = rp;
+  const zoom = q.get("zoom");
+  if (zoom) {
+    const [lo, hi] = zoom.split(",").map(Number);
+    // Both ends, both real light, and in order: a malformed window would ask
+    // the engine for a spectrum that cannot exist.
+    if (Number.isFinite(lo) && Number.isFinite(hi) && lo > 0 && hi > lo) {
+      out.profileZoom = [lo, hi];
+    }
+  }
+
   const ghost = q.get("ghost");
   if (ghost === "1" || ghost === "true") out.ghost = true;
   else if (ghost === "0" || ghost === "false") out.ghost = false;
@@ -259,6 +284,15 @@ export function serializeAppUrl(state: UrlState): string {
       q.set("tk", String(state.temperatureK));
     }
     if (state.logNe !== URL_DEFAULTS.logNe) q.set("ne", String(state.logNe));
+  }
+  if (state.profile) {
+    q.set("prof", "1");
+    if (state.logResolvingPower !== null) {
+      q.set("rp", String(state.logResolvingPower));
+    }
+    if (state.profileZoom) {
+      q.set("zoom", `${state.profileZoom[0]},${state.profileZoom[1]}`);
+    }
   }
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);

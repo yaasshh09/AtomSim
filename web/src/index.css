@@ -393,6 +393,45 @@ button.primary:disabled {
   fill: rgb(124 255 178 / 0.08);
 }
 
+/* The synthesized spectrum trace. Drawn as a stroke over the bars rather than
+   a filled area: the bars are the engine's line list and stay readable. */
+.profile-curve {
+  fill: none;
+  stroke: #7dd3fc;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Where the FWHM is defined: across the profile at half its peak. */
+.fwhm-bar {
+  stroke: #fbbf24;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.line-clickable {
+  cursor: pointer;
+}
+
+.line-clickable:hover {
+  stroke-width: 3;
+}
+
+.warn-note {
+  color: #fbbf24;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent, #7dd3fc);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
 .gallery {
   border-top: 1px solid var(--edge);
   padding: 0.5rem 1rem;

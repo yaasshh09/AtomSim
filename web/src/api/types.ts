@@ -224,6 +224,40 @@ export interface ComparisonInfo {
   within_tolerance: boolean;
 }
 
+/** The width budget of one line, so the view can say what set it. */
+export interface LineWidthInfo {
+  label: string;
+  wavelength_nm: number;
+  n_upper: number;
+  n_lower: number;
+  /** Gaussian sigma [nm]: Doppler and instrument added in quadrature. */
+  sigma_nm: number;
+  /** Lorentzian half-width at half maximum [nm]: natural (lifetime) width. */
+  gamma_nm: number;
+  fwhm_nm: number;
+  /** Which mechanisms contributed, e.g. ["natural", "Doppler"]. */
+  terms: string[];
+}
+
+/** A synthesized spectrum: the curve, its widths, and what it leaves out. */
+export interface ProfileInfo {
+  wavelength_nm: number[];
+  intensity: number[];
+  unit: string;
+  /** What the area under a line means; mirrors the bar quantity exactly. */
+  weight_kind: "emissivity" | "rate" | "uniform";
+  resolving_power: number | null;
+  /** Curve integral over summed line strengths. The engine's own measured
+   *  quadrature error, not an assumption — 1.0 means nothing was lost. */
+  flux_closure: number;
+  widths: LineWidthInfo[];
+  /** The collisional broadening that is NOT in this curve, sized. */
+  stark_span_nm: Quantity | null;
+  /** Set only when that missing width rivals the modelled one. */
+  stark_note: string | null;
+  provenance: Provenance;
+}
+
 export interface SpectrumResponse {
   system: SystemInfo;
   n_max: number;
@@ -236,6 +270,11 @@ export interface SpectrumResponse {
   intensity_note: string | null;
   /** Present exactly when the lines carry an emissivity. */
   thermal: ThermalInfo | null;
+  /** The synthesized curve, when one was asked for and could be built. */
+  profile: ProfileInfo | null;
+  /** Why there is no curve, when one was asked for. Names the missing knob
+   *  rather than inventing a width to draw. */
+  profile_note: string | null;
 }
 
 export interface BohrOrbit {

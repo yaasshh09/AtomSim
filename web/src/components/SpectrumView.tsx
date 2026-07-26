@@ -1,9 +1,11 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { useEffect, useState } from "react";
-import type { SpectralLineInfo } from "../api/types";
+import type { LineWidthInfo, ProfileInfo, SpectralLineInfo } from "../api/types";
 import {
+  PROFILE_DECADES,
   SPECTRUM_EMISSIVITY_LIBERTY,
   SPECTRUM_INTENSITY_LIBERTY,
+  SPECTRUM_PROFILE_LIBERTY,
 } from "../lib/liberties";
 import { seriesColor, seriesName } from "../lib/spectrum";
 import { useAppStore } from "../state/store";
@@ -63,6 +65,95 @@ export function intensityScale(
 }
 
 /**
+ * Map a synthesized curve onto [0, 1] for the full-range trace.
+ *
+ * Log-compressed for the same reason the bars are: an LTE emissivity spans
+ * more decades than a panel has pixels, so a linear trace would be one spike
+ * over a flat floor. Everything below `decades` under the peak is drawn at the
+ * floor rather than at zero, so a faint line stays visible as a faint line.
+ * The zoomed panel plots the same numbers linearly, which is where a profile's
+ * actual shape lives.
+ */
+export function profileScale(intensity: number[], decades = PROFILE_DECADES) {
+  let max = 0;
+  for (const v of intensity) if (v > max) max = v;
+  if (!(max > 0)) return null;
+  const hi = Math.log10(max);
+  const lo = hi - decades;
+  return {
+    lo,
+    hi,
+    max,
+    decades,
+    t: (v: number) =>
+      v <= 0 ? 0 : Math.max(0, Math.min(1, (Math.log10(v) - lo) / decades)),
+  };
+}
+
+/** SVG polyline through a curve, given axis mappings. */
+export function profilePath(
+  wavelength: number[],
+  intensity: number[],
+  x: (lambda: number) => number,
+  y: (t: number) => number,
+  t: (v: number) => number,
+): string {
+  const parts: string[] = [];
+  for (let i = 0; i < wavelength.length; i++) {
+    parts.push(`${i === 0 ? "M" : "L"}${x(wavelength[i]).toFixed(2)} ${y(t(intensity[i])).toFixed(2)}`);
+  }
+  return parts.join(" ");
+}
+
+/**
+ * The window to synthesize a single line over when it is clicked.
+ *
+ * Wide enough that the wings are visibly wings (a Voigt is still 1e-3 of its
+ * peak at 8 half-widths out) and narrow enough that the shape fills the panel.
+ */
+export function zoomWindow(
+  wavelengthNm: number,
+  fwhmNm: number,
+  halfWidths = 8,
+): [number, number] {
+  // A zero-width line would collapse the window to a point and return nothing.
+  const half = Math.max(fwhmNm * halfWidths, wavelengthNm * 1e-7);
+  return [wavelengthNm - half, wavelengthNm + half];
+}
+
+/** The width entry nearest a wavelength, or null when the curve has none. */
+export function widthAt(
+  widths: LineWidthInfo[],
+  wavelengthNm: number,
+): LineWidthInfo | null {
+  let best: LineWidthInfo | null = null;
+  let bestGap = Infinity;
+  for (const w of widths) {
+    const gap = Math.abs(w.wavelength_nm - wavelengthNm);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = w;
+    }
+  }
+  return best;
+}
+
+/** Which mechanism dominates a line's width, for the caption to name. */
+export function dominantTerm(w: LineWidthInfo): string {
+  // Gaussian and Lorentzian are not comparable term by term, but the question
+  // being answered is coarse: is the shape set by the gas or by the lifetime?
+  const gaussFwhm = 2.3548 * w.sigma_nm;
+  const lorentzFwhm = 2 * w.gamma_nm;
+  if (gaussFwhm === 0 && lorentzFwhm === 0) return "nothing";
+  if (gaussFwhm >= lorentzFwhm) {
+    return w.terms.includes("instrumental") && !w.terms.includes("Doppler")
+      ? "the spectrograph"
+      : "thermal motion";
+  }
+  return "the upper level's lifetime";
+}
+
+/**
  * The wavelength window the axis covers, and what it leaves out.
  *
  * A fine-structure line list puts within-n components (2p_3/2 -> 2s_1/2 and
@@ -98,15 +189,137 @@ export function wavelengthWindow(lines: SpectralLineInfo[], full: boolean) {
   };
 }
 
+const ZOOM_H = 210;
+
+/**
+ * One line, plotted linearly on both axes: the only place in the app where a
+ * profile's actual shape is visible rather than implied. The full-range trace
+ * has a log wavelength axis and a log intensity axis, so a line there is a
+ * spike no matter what it really looks like.
+ */
+function ZoomPanel({
+  prof,
+  window_,
+  onClear,
+}: {
+  prof: ProfileInfo;
+  window_: [number, number];
+  onClear: () => void;
+}) {
+  const w = prof.widths.length > 0 ? prof.widths[0] : null;
+  const max = Math.max(...prof.intensity, 0);
+  const x = scaleLinear(window_, [M.left, W - M.right]);
+  const y = scaleLinear([0, max > 0 ? max : 1], [ZOOM_H - 30, 16]);
+  const path = profilePath(
+    prof.wavelength_nm, prof.intensity, x, (t) => t, (v) => y(v),
+  );
+  const half = w ? w.fwhm_nm / 2 : 0;
+  return (
+    <>
+      <div className="view-header">
+        <span className="plot-title">
+          {w ? `${w.label} line profile` : "line profile"} — linear λ, linear
+          intensity{" "}
+          <Badge provenance={prof.provenance} />
+        </span>
+        <button className="link-button" onClick={onClear} type="button">
+          back to full range
+        </button>
+      </div>
+      <svg viewBox={`0 0 ${W} ${ZOOM_H}`} role="img" className="levels-svg">
+        <line
+          x1={M.left} x2={W - M.right} y1={ZOOM_H - 24} y2={ZOOM_H - 24}
+          className="axis"
+        />
+        {x.ticks(6).map((t) => (
+          <g key={t} transform={`translate(${x(t)},${ZOOM_H - 24})`}>
+            <line y2="5" className="axis" />
+            <text y="17" textAnchor="middle" className="tick">
+              {t.toFixed(3)}
+            </text>
+          </g>
+        ))}
+        {w && max > 0 && (
+          <>
+            {/* FWHM drawn where it is defined: across the profile at half its
+                peak. A number in a caption is not the same as seeing it. */}
+            <line
+              x1={x(w.wavelength_nm - half)} x2={x(w.wavelength_nm + half)}
+              y1={y(max / 2)} y2={y(max / 2)} className="fwhm-bar"
+            />
+            <text
+              x={x(w.wavelength_nm)} y={y(max / 2) - 6}
+              textAnchor="middle" className="tick"
+            >
+              FWHM {w.fwhm_nm.toExponential(2)} nm
+            </text>
+          </>
+        )}
+        <path d={path} className="profile-curve" />
+      </svg>
+      {w && (
+        <p className="caption">
+          Width set mostly by <strong>{dominantTerm(w)}</strong>. Gaussian σ ={" "}
+          {w.sigma_nm.toExponential(2)} nm ({w.terms.filter((t) => t !== "natural").join(" + ") || "none"}
+          ), Lorentzian γ = {w.gamma_nm.toExponential(2)} nm (natural). They do not
+          add: the shape is their convolution, a Voigt, with a Gaussian core and
+          Lorentzian wings — which is why the far wings sit above where a
+          Gaussian would put them.
+        </p>
+      )}
+    </>
+  );
+}
+
 export function SpectrumView() {
   const {
     system, fineStructure, intensities, spectrum, loadSpectrum, setIntensities,
     thermal, temperatureK, logNe, setThermal, setTemperatureK, setLogNe,
+    profile, logResolvingPower, profileZoom,
+    setProfile, setLogResolvingPower, setProfileZoom,
   } = useAppStore();
   const [fullRange, setFullRange] = useState(false);
+  // Set when the user deliberately backs out of a zoom, so the auto-zoom below
+  // does not immediately drag them back into it.
+  const [keepFull, setKeepFull] = useState(false);
   useEffect(() => {
     void loadSpectrum();
-  }, [system, fineStructure, intensities, thermal, temperatureK, logNe, loadSpectrum]);
+  }, [
+    system, fineStructure, intensities, thermal, temperatureK, logNe,
+    profile, logResolvingPower, profileZoom, loadSpectrum,
+  ]);
+  const prof0 = spectrum?.profile ?? null;
+  // Read off the already-subscribed `spectrum` rather than a second selector.
+  // A selector returning `s.spectrum?.lines ?? []` mints a fresh array on every
+  // call, so its identity never matches and the effect below re-runs forever.
+  const lines0 = spectrum?.lines;
+  // Turning profiles on with no window selected lands on the strongest line.
+  //
+  // Without this the toggle looks broken, and for a defensible reason: on a log
+  // axis covering 90 to 8000 nm, a line at R = 1000 is 0.14 px wide. No
+  // instrument setting makes a full-range trace show a line's shape, so the
+  // shape only exists in the zoomed panel, and the view should open on it.
+  useEffect(() => {
+    if (
+      !profile || profileZoom || keepFull || !prof0
+      || prof0.widths.length === 0 || !lines0
+    ) {
+      return;
+    }
+    let best = prof0.widths[0];
+    let bestWeight = -Infinity;
+    for (const w of prof0.widths) {
+      const ln = lines0.find(
+        (l) => Math.abs(l.wavelength_nm.value - w.wavelength_nm) < 1e-9,
+      );
+      const weight = ln?.emissivity?.value ?? ln?.einstein_a_s?.value ?? 0;
+      if (weight > bestWeight) {
+        bestWeight = weight;
+        best = w;
+      }
+    }
+    setProfileZoom(zoomWindow(best.wavelength_nm, best.fwhm_nm));
+  }, [profile, profileZoom, keepFull, prof0, lines0, setProfileZoom]);
   if (!spectrum) return <p className="hint-block">loading spectrum…</p>;
 
   const window_ = wavelengthWindow(spectrum.lines, fullRange);
@@ -136,6 +349,25 @@ export function SpectrumView() {
   const barOpacity = (ln: SpectralLineInfo) =>
     strength ? 0.3 + 0.7 * strength.t(strength.value(ln)) : 0.9;
   const ionized = spectrum.thermal?.ionized_fraction.value ?? 0;
+
+  const prof = spectrum.profile;
+  // A zoomed curve belongs in its own linear panel, not smeared across a log
+  // axis covering hundreds of nm where it would be one pixel wide.
+  const trace = prof && !profileZoom ? profileScale(prof.intensity) : null;
+  const tracePath =
+    prof && trace
+      ? profilePath(
+          prof.wavelength_nm, prof.intensity, x,
+          (t) => BOTTOM - t * (BOTTOM - TOP), trace.t,
+        )
+      : null;
+  const zoomLine = (ln: SpectralLineInfo) => {
+    if (!prof) return;
+    const w = widthAt(prof.widths, ln.wavelength_nm.value);
+    if (!w) return;
+    setKeepFull(false);
+    setProfileZoom(zoomWindow(ln.wavelength_nm.value, w.fwhm_nm));
+  };
 
   return (
     <div className="view-wrap">
@@ -218,6 +450,41 @@ export function SpectrumView() {
           </p>
         </>
       )}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={profile}
+          onChange={(e) => {
+            setProfile(e.target.checked);
+            setKeepFull(false);
+            if (!e.target.checked) setProfileZoom(null);
+          }}
+        />
+        synthesize line profiles (Voigt: natural + Doppler)
+      </label>
+      {profile && (
+        <label className="levels-field">
+          R{" "}
+          <input
+            type="range" min={2} max={7} step={0.05}
+            value={logResolvingPower ?? 2}
+            disabled={logResolvingPower === null}
+            onChange={(e) => setLogResolvingPower(Number(e.target.value))}
+          />
+          {logResolvingPower === null
+            ? " no instrument"
+            : ` ${(10 ** logResolvingPower).toExponential(1)} (λ/Δλ)`}
+          <button
+            className="link-button"
+            type="button"
+            onClick={() =>
+              setLogResolvingPower(logResolvingPower === null ? 4 : null)
+            }
+          >
+            {logResolvingPower === null ? "add a spectrograph" : "remove it"}
+          </button>
+        </label>
+      )}
       {window_.splittable && (
         <label className="check">
           <input
@@ -247,6 +514,8 @@ export function SpectrumView() {
             x1={x(ln.wavelength_nm.value)} x2={x(ln.wavelength_nm.value)}
             y1={barTop(ln)} y2={BOTTOM}
             stroke={seriesColor(ln.n_lower)} strokeWidth={1.5} opacity={barOpacity(ln)}
+            className={prof ? "line-clickable" : undefined}
+            onClick={prof ? () => zoomLine(ln) : undefined}
           >
             <title>
               {`${ln.n_upper}→${ln.n_lower}  λ=${ln.wavelength_nm.value.toFixed(2)} nm` +
@@ -262,6 +531,10 @@ export function SpectrumView() {
             </title>
           </line>
         ))}
+        {/* Over the bars, not under them: at this scale a line is far narrower
+            than a pixel, so the curve lands on exactly the same columns as the
+            bars and would otherwise be completely hidden by them. */}
+        {tracePath && <path d={tracePath} className="profile-curve" />}
         {comp?.map((c, i) => (
           <circle
             key={i} cx={x(c.reference_nm)} cy={LINES_H - 27} r={2.5}
@@ -272,6 +545,43 @@ export function SpectrumView() {
           computed lines (bars) · NIST reference (dots on axis; log-λ)
         </text>
       </svg>
+      {prof && profileZoom && (
+        <ZoomPanel
+          prof={prof}
+          window_={profileZoom}
+          onClear={() => {
+            setKeepFull(true);
+            setProfileZoom(null);
+          }}
+        />
+      )}
+      {spectrum.profile_note && (
+        <p className="caption">
+          No profile drawn: {spectrum.profile_note}
+        </p>
+      )}
+      {prof && trace && (
+        <p className="caption">
+          Curve: engine-synthesized Voigt profiles summed onto an adaptive grid,
+          drawn on log₁₀ intensity over {trace.decades} decades below the peak{" "}
+          <Badge provenance={SPECTRUM_PROFILE_LIBERTY} />. It integrates to{" "}
+          {prof.flux_closure.toFixed(4)}× the summed line strengths, which is the
+          grid's own quadrature error, measured rather than assumed. On this log
+          wavelength axis every line is a spike regardless of its real shape —{" "}
+          <strong>click a line</strong> to plot it linearly and see the profile
+          itself.
+        </p>
+      )}
+      {prof?.stark_note && (
+        <p className="caption warn-note">{prof.stark_note}</p>
+      )}
+      {prof && !prof.stark_note && prof.stark_span_nm && (
+        <p className="caption">
+          Collisional broadening is not in this curve. At this density its linear
+          Stark span would be {prof.stark_span_nm.value.toExponential(2)} nm,
+          comfortably under the widths modelled here, so the shape stands.
+        </p>
+      )}
       {comp && yRes && tol && (
         <svg viewBox={`0 0 ${W} ${RES_H}`} role="img" className="levels-svg">
           <rect

@@ -107,10 +107,41 @@ describe("serializeAppUrl", () => {
       thermal: true,
       temperatureK: 12000,
       logNe: 15,
+      profile: true,
+      logResolvingPower: 4.5,
+      profileZoom: [656.1, 656.5] as [number, number],
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
+  });
+
+  it("carries the profile controls only when the profile is on", () => {
+    // R and a zoom window describe a curve; without the curve they would be
+    // dead parameters that reopen into nothing.
+    const off = serializeAppUrl({
+      ...URL_DEFAULTS, profile: false, logResolvingPower: 4, profileZoom: [1, 2],
+    });
+    expect(off).not.toContain("rp=");
+    expect(off).not.toContain("zoom=");
+    const on = serializeAppUrl({
+      ...URL_DEFAULTS, profile: true, logResolvingPower: 4, profileZoom: [656.1, 656.5],
+    });
+    expect(parseAppUrl(on).profile).toBe(true);
+    expect(parseAppUrl(on).logResolvingPower).toBe(4);
+    expect(parseAppUrl(on).profileZoom).toEqual([656.1, 656.5]);
+  });
+
+  it("rejects a zoom window that is not real light in order", () => {
+    for (const bad of ["0,500", "-5,500", "700,600", "abc", "600"]) {
+      expect(parseAppUrl(`?prof=1&zoom=${bad}`).profileZoom).toBeUndefined();
+    }
+  });
+
+  it("rejects a resolving power outside the slider's range", () => {
+    expect(parseAppUrl("?prof=1&rp=1").logResolvingPower).toBeUndefined();
+    expect(parseAppUrl("?prof=1&rp=9").logResolvingPower).toBeUndefined();
+    expect(parseAppUrl("?prof=1&rp=4.5").logResolvingPower).toBe(4.5);
   });
 
   it("round-trips the intensities toggle, which defaults on", () => {

@@ -53,6 +53,29 @@ export const CLASSICAL_SLOWMO: Provenance = {
  * bars show without it is the spontaneous emission rate, log-compressed because
  * A spans about four decades across a hydrogen line list.
  */
+/**
+ * The synthesized curve is engine physics; the *y axis* it is drawn on is not.
+ * A spectral emissivity spans many decades across a hydrogen line list, so a
+ * linear trace shows Lyman-alpha and a flat floor. The full-range curve is
+ * therefore log-compressed and clipped a fixed number of decades below its own
+ * peak, which is a reading aid and has to say so: the zoomed panel plots the
+ * same data linearly, where a line's true shape is the whole point.
+ */
+export const PROFILE_DECADES = 6;
+
+export const SPECTRUM_PROFILE_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: `full-range profile drawn on log10 intensity, clipped ${PROFILE_DECADES} decades below the peak`,
+  assumptions: [
+    "the curve itself is engine-synthesized: Voigt profiles at engine widths",
+    `anything fainter than 1e-${PROFILE_DECADES} of the peak is drawn at the floor, not at zero`,
+    "log compression is a reading aid; zoom a line to see it plotted linearly",
+    "wavelength axis is logarithmic, so a line's drawn width is not its shape",
+  ],
+  error_estimate: null,
+  refinement: "the zoomed panel plots intensity linearly on a linear wavelength axis",
+};
+
 export const SPECTRUM_INTENSITY_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "bar height and opacity scaled by log10 of the Einstein A coefficient",

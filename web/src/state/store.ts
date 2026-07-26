@@ -61,6 +61,16 @@ interface AppState {
   temperatureK: number;
   /** log10(n_e / cm^-3). The control is logarithmic, so the state is too. */
   logNe: number;
+  /** Synthesize a line-profile curve instead of leaving lines as bars. Off by
+   *  default: it costs a wider request and only means something once a width
+   *  mechanism is switched on. */
+  profile: boolean;
+  /** log10 of the spectrograph resolving power R = lambda/dlambda, or null for
+   *  no instrument at all. A model of a machine, never of the atom. */
+  logResolvingPower: number | null;
+  /** Wavelength window [nm] the profile is synthesized over, or null for the
+   *  full across-n range. Set by clicking a line. */
+  profileZoom: [number, number] | null;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -127,6 +137,9 @@ interface AppState {
   setThermal: (thermal: boolean) => void;
   setTemperatureK: (temperatureK: number) => void;
   setLogNe: (logNe: number) => void;
+  setProfile: (profile: boolean) => void;
+  setLogResolvingPower: (logResolvingPower: number | null) => void;
+  setProfileZoom: (profileZoom: [number, number] | null) => void;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -156,6 +169,10 @@ const INVALIDATED = {
   radial: null,
   levels: null,
   spectrum: null,
+  // A zoom window names a wavelength, and a wavelength names a line of one
+  // particular system. Carrying it across a system change would point the
+  // profile at empty spectrum and quietly return nothing.
+  profileZoom: null as [number, number] | null,
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -175,6 +192,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   thermal: false,
   temperatureK: 10000,
   logNe: 13,
+  profile: false,
+  logResolvingPower: null,
+  // profileZoom's default lives in INVALIDATED, which is spread below.
   nucleusMode: "marker",
   count: 100_000,
   systems: [],
@@ -234,6 +254,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setThermal: (thermal) => set({ thermal, spectrum: null }),
   setTemperatureK: (temperatureK) => set({ temperatureK, spectrum: null }),
   setLogNe: (logNe) => set({ logNe, spectrum: null }),
+  // The profile is synthesized server-side, so every knob that changes its
+  // shape invalidates the cached response exactly like the thermal ones.
+  setProfile: (profile) => set({ profile, spectrum: null }),
+  setLogResolvingPower: (logResolvingPower) =>
+    set({ logResolvingPower, spectrum: null }),
+  setProfileZoom: (profileZoom) => set({ profileZoom, spectrum: null }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -395,12 +421,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   loadSpectrum: async () => {
-    const { system, fineStructure, config, intensities, thermal, temperatureK, logNe } =
-      get();
+    const {
+      system, fineStructure, config, intensities, thermal, temperatureK, logNe,
+      profile, logResolvingPower, profileZoom,
+    } = get();
     set({
       spectrum: await client.getSpectrum(
         system, N_MAX_DIAGRAM, fineStructure, config, intensities,
         thermal ? { temperatureK, electronDensityCm3: 10 ** logNe } : null,
+        {
+          on: profile,
+          resolvingPower: logResolvingPower === null ? null : 10 ** logResolvingPower,
+          window: profileZoom,
+        },
       ),
     });
   },

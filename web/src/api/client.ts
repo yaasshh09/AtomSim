@@ -130,6 +130,15 @@ export interface ThermalParams {
   electronDensityCm3: number;
 }
 
+/** Line-profile synthesis: off unless `on`, and zoomed only if a window is set. */
+export interface ProfileParams {
+  on: boolean;
+  /** Gaussian slit function R = lambda/dlambda; null means no instrument. */
+  resolvingPower?: number | null;
+  /** Wavelength window [nm]; null uses the across-n range the bars use. */
+  window?: [number, number] | null;
+}
+
 export function getSpectrum(
   system: string,
   nMax: number,
@@ -137,15 +146,24 @@ export function getSpectrum(
   config?: string | null,
   intensities = false,
   thermal?: ThermalParams | null,
+  profile?: ProfileParams | null,
 ): Promise<SpectrumResponse> {
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
   const t = thermal
     ? `&temperature_k=${thermal.temperatureK}` +
       `&electron_density_cm3=${thermal.electronDensityCm3}`
     : "";
+  let p = "";
+  if (profile?.on) {
+    p = "&profile=true";
+    if (profile.resolvingPower != null) p += `&resolving_power=${profile.resolvingPower}`;
+    if (profile.window) {
+      p += `&lambda_min=${profile.window[0]}&lambda_max=${profile.window[1]}`;
+    }
+  }
   return getJson(
     `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}` +
-      `&intensities=${intensities}${c}${t}`,
+      `&intensities=${intensities}${c}${t}${p}`,
   );
 }
 
