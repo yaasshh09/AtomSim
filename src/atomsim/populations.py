@@ -25,8 +25,11 @@ from atomsim.provenance import Fidelity, Provenance, Quantity
 
 __all__ = [
     "Level",
+    "ThermalConditions",
+    "ThermalState",
     "boltzmann_fractions",
     "hydrogen_levels",
+    "level_degeneracy",
     "line_emissivity",
     "partition_function",
     "saha_ionization_fraction",
@@ -74,6 +77,38 @@ class Level:
     degeneracy: int
 
 
+@dataclass(frozen=True)
+class ThermalConditions:
+    """The two knobs. Kept together so a caller cannot supply half of them."""
+
+    temperature_k: float
+    electron_density_cm3: float
+
+
+@dataclass(frozen=True)
+class ThermalState:
+    """What the conditions produced, carried alongside a line list.
+
+    The view needs all of this to be honest about what it is drawing: how much
+    of the gas is even neutral, and what the partition function came to with
+    its cutoff attached.
+    """
+
+    conditions: ThermalConditions
+    ionized_fraction: Quantity
+    partition_function: Quantity
+
+
+def level_degeneracy(l: int, j: float | None) -> int:
+    """Statistical weight of a level: 2j+1 when j is resolved, else 2(2l+1).
+
+    One definition, shared by the hydrogen constructor here and by whatever
+    builds levels from a system's own energies, so the two schemes cannot drift
+    apart. Both sum to 2n^2 per shell.
+    """
+    return int(round(2.0 * j + 1.0)) if j is not None else 2 * (2 * l + 1)
+
+
 def hydrogen_levels(n_max: int, fine_structure: bool = False) -> tuple[Level, ...]:
     """Hydrogen levels up to `n_max`, with statistical weights.
 
@@ -97,12 +132,12 @@ def hydrogen_levels(n_max: int, fine_structure: bool = False) -> tuple[Level, ..
                 for j in ([0.5] if l == 0 else [l - 0.5, l + 0.5]):
                     levels.append(Level(
                         n=n, label=f"{n}{_l_symbol(l)}{j:g}",
-                        energy_ev=energy, degeneracy=int(round(2 * j + 1)),
+                        energy_ev=energy, degeneracy=level_degeneracy(l, j),
                     ))
             else:
                 levels.append(Level(
                     n=n, label=f"{n}{_l_symbol(l)}",
-                    energy_ev=energy, degeneracy=2 * (2 * l + 1),
+                    energy_ev=energy, degeneracy=level_degeneracy(l, None),
                 ))
     return tuple(levels)
 

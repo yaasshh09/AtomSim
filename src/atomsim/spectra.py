@@ -25,6 +25,16 @@ from atomsim.analytic.transitions import (
     oscillator_strength_fine,
 )
 from atomsim.constants import HARTREE_EV
+from atomsim.populations import (
+    Level,
+    ThermalConditions,
+    ThermalState,
+    boltzmann_fractions,
+    level_degeneracy,
+    line_emissivity,
+    partition_function,
+    saha_ionization_fraction,
+)
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System
 
@@ -50,6 +60,9 @@ class SpectralLine:
     wavelength: Quantity  # nm, vacuum
     einstein_a: Quantity | None = None           # s^-1, spontaneous emission rate
     oscillator_strength: Quantity | None = None  # dimensionless, absorption f
+    #: eV/s per atom of the element. Set only when thermal conditions were
+    #: given: it is a modelled emission rate, not a measured brightness.
+    emissivity: Quantity | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +76,10 @@ class LineList:
     #: which case applies and what is missing, so the view never has to guess
     #: why every bar is the same height.
     intensity_note: str | None = None
+    #: Present exactly when the lines carry an emissivity. Holds the conditions
+    #: that produced them plus how much of the gas is ionized, so the view can
+    #: say what it is showing rather than just showing it.
+    thermal: ThermalState | None = None
 
 
 def _strength_provenance(dipole: Quantity, formula: str, value: float) -> Provenance:
@@ -84,6 +101,76 @@ def _strength_provenance(dipole: Quantity, formula: str, value: float) -> Proven
     )
 
 
+def _thermal_state(
+    levels: tuple[Level, ...],
+    keys: tuple[tuple, ...],
+    chi_ev: float,
+    thermal: ThermalConditions,
+    chi_assumptions: tuple[str, ...] = (),
+) -> tuple[ThermalState, dict[tuple, float]]:
+    """Run the LTE chain over a level list, indexed by the caller's own keys.
+
+    The levels are built from whatever produced the line list rather than from
+    a second source of energies, so the populations and the transition energies
+    cannot disagree about where the levels are.
+
+    `chi_ev` has to be supplied, not read off the list: the highest level in a
+    list truncated at n_max is nowhere near the continuum, so taking it as the
+    ionization energy would understate chi badly and ionize the gas far too
+    easily.
+
+    `chi_assumptions` lets a caller whose chi is itself an estimate say so on
+    the quantity that used it, rather than leaving it to look exact.
+
+    Returns the state to hang on the LineList, plus a key -> occupation lookup
+    for the per-line loop.
+    """
+    u = partition_function(levels, thermal.temperature_k)
+    ionized = saha_ionization_fraction(
+        thermal.temperature_k,
+        thermal.electron_density_cm3,
+        chi_ev,
+        u_neutral=u.value,
+    )
+    if chi_assumptions:
+        ionized = Quantity(
+            ionized.value, ionized.unit, ionized.label,
+            Provenance(
+                fidelity=ionized.provenance.fidelity,
+                method=ionized.provenance.method,
+                assumptions=ionized.provenance.assumptions + chi_assumptions,
+                error_estimate=ionized.provenance.error_estimate,
+                refinement=ionized.provenance.refinement,
+            ),
+        )
+    fractions = boltzmann_fractions(levels, thermal.temperature_k)
+    return (
+        ThermalState(conditions=thermal, ionized_fraction=ionized, partition_function=u),
+        {k: f.value for k, f in zip(keys, fractions, strict=True)},
+    )
+
+
+def _hydrogenic_thermal(levels: list, thermal: ThermalConditions):
+    """Build the population levels for a hydrogen-like system's own level list.
+
+    Energies come straight from the level Quantities the line list is built
+    from, shifted so the ground level sits at zero, and chi is that ground
+    level's binding energy.
+    """
+    ground_h = min(e.value for _, _, _, e in levels)
+    specs = tuple(
+        Level(
+            n=n,
+            label=f"{n},{l},{j}",
+            energy_ev=(e.value - ground_h) * HARTREE_EV,
+            degeneracy=level_degeneracy(l, j),
+        )
+        for n, l, j, e in levels
+    )
+    keys = tuple((n, l, j) for n, l, j, _ in levels)
+    return _thermal_state(specs, keys, -ground_h * HARTREE_EV, thermal)
+
+
 def _levels(system: System, n_max: int, fine_structure: bool):
     """Yield (n, l, j, E_hartree Quantity) for all levels up to n_max."""
     for n in range(1, n_max + 1):
@@ -100,7 +187,11 @@ def _levels(system: System, n_max: int, fine_structure: bool):
 
 
 def transition_lines(
-    system: System, n_max: int, fine_structure: bool = False, intensities: bool = False
+    system: System,
+    n_max: int,
+    fine_structure: bool = False,
+    intensities: bool = False,
+    thermal: ThermalConditions | None = None,
 ) -> LineList:
     """All dipole-allowed emission lines among levels with n <= n_max.
 
@@ -108,10 +199,17 @@ def transition_lines(
     absorption oscillator strength, from the closed-form dipole engine. With
     `fine_structure` the rates are resolved by j through the 6j branching
     factor, so the components of a multiplet add back up to the gross rate.
+
+    With `thermal`, each line additionally carries an LTE emissivity, and the
+    list carries the ionization fraction those conditions produced. Thermal
+    implies intensities, since emissivity is built on A.
     """
     if n_max < 2:
         raise ValueError(f"n_max must be >= 2 to have any transition, got {n_max}")
     levels = list(_levels(system, n_max, fine_structure))
+    if thermal is not None:
+        intensities = True
+    state, occupation = _hydrogenic_thermal(levels, thermal) if thermal else (None, {})
     lines: list[SpectralLine] = []
     for (nu, lu, ju, eu), (nl, ll_, jl, el) in itertools.permutations(levels, 2):
         if eu.value <= el.value:
@@ -153,6 +251,14 @@ def transition_lines(
             else:
                 a_coeff = einstein_A(nu, lu, nl, ll_, **kw)
                 f_value = oscillator_strength(nl, ll_, nu, lu, **kw)
+        eps = None
+        if state is not None and a_coeff is not None:
+            eps = line_emissivity(
+                upper_fraction=occupation[(nu, lu, ju)],
+                neutral_fraction=1.0 - state.ionized_fraction.value,
+                einstein_a=a_coeff.value,
+                photon_energy_ev=de_ev,
+            )
         lines.append(
             SpectralLine(
                 n_upper=nu, l_upper=lu, j_upper=ju,
@@ -161,6 +267,7 @@ def transition_lines(
                 wavelength=Quantity(_EV_NM / de_ev, "nm (vacuum)", f"lambda {label}", prov),
                 einstein_a=a_coeff,
                 oscillator_strength=f_value,
+                emissivity=eps,
             )
         )
     lines.sort(key=lambda ln: ln.wavelength.value)
@@ -175,10 +282,46 @@ def transition_lines(
             assumptions=("emission lines only (E_upper > E_lower)",
                          "vacuum wavelengths in nm, energies in eV"),
         ),
+        thermal=state,
     )
 
 
-def screened_transition_lines(result, intensities: bool = False) -> LineList:
+def _screened_thermal(result, levels: list, thermal: ThermalConditions):
+    """Population levels for a screened atom, with a Koopmans ionization energy.
+
+    chi is taken as the binding energy of the outermost *occupied* orbital,
+    which is Koopmans' theorem: it assumes the remaining orbitals do not relax
+    when the electron leaves. That is a further approximation stacked on a GSZ
+    model that is already only good to a few percent on valence energies, so it
+    is named in the assumptions rather than presented as the ionization energy.
+    """
+    ground_h = min(e.value for _, _, e in levels)
+    specs = tuple(
+        Level(
+            n=n, label=f"{n},{l}",
+            energy_ev=(e.value - ground_h) * HARTREE_EV,
+            degeneracy=level_degeneracy(l, None),
+        )
+        for n, l, e in levels
+    )
+    keys = tuple((n, l) for n, l, _ in levels)
+    occupied = [o for o in result.orbitals if o.occupancy > 0]
+    # Outermost occupied = least bound = highest energy among the occupied.
+    chi_ev = -max(o.energy.value for o in occupied) * HARTREE_EV
+    return _thermal_state(
+        specs, keys, chi_ev, thermal,
+        chi_assumptions=(
+            f"ionization energy chi = {chi_ev:.4g} eV from Koopmans' theorem "
+            "(binding energy of the outermost occupied GSZ orbital, with no "
+            "relaxation of the remaining orbitals), stacked on a screening "
+            "model already only good to a few percent on valence energies",
+        ),
+    )
+
+
+def screened_transition_lines(
+    result, intensities: bool = False, thermal: ThermalConditions | None = None
+) -> LineList:
     """Dipole-allowed emission lines among a screened atom's orbital energies.
 
     `result` is a screened_atom.ScreenedAtomResult (untyped here to avoid a
@@ -187,6 +330,8 @@ def screened_transition_lines(result, intensities: bool = False) -> LineList:
 
     With `intensities`, each line also carries an Einstein A and an oscillator
     strength built from a dipole integral over the numerically solved radials.
+    With `thermal`, it also carries an LTE emissivity, whose ionization step
+    leans on a Koopmans estimate of chi (see `_screened_thermal`).
     """
     from atomsim.screened_atom import screened_dipole_integral  # circular at module scope
 
@@ -194,6 +339,11 @@ def screened_transition_lines(result, intensities: bool = False) -> LineList:
     # One box for the whole list, sized by its most extended state, so every
     # line reuses the same handful of solved l channels.
     n_box = max((n for n, _, _ in levels), default=1)
+    if thermal is not None:
+        intensities = True
+    state, occupation = (
+        _screened_thermal(result, levels, thermal) if thermal else (None, {})
+    )
     lines: list[SpectralLine] = []
     for (nu, lu, eu), (nl, ll_, el) in itertools.permutations(levels, 2):
         if eu.value <= el.value or abs(lu - ll_) != 1:
@@ -232,18 +382,28 @@ def screened_transition_lines(result, intensities: bool = False) -> LineList:
                 f_val, "dimensionless", f"f {label}",
                 _strength_provenance(R, "f = (2/3) dE (l_max/(2l+1)) |R|^2", f_val),
             )
+        eps = None
+        if state is not None and a_coeff is not None:
+            eps = line_emissivity(
+                upper_fraction=occupation[(nu, lu)],
+                neutral_fraction=1.0 - state.ionized_fraction.value,
+                einstein_a=a_coeff.value,
+                photon_energy_ev=de_ev,
+            )
         lines.append(SpectralLine(
             n_upper=nu, l_upper=lu, j_upper=None, n_lower=nl, l_lower=ll_, j_lower=None,
             energy=Quantity(de_ev, "eV", f"dE {label}", prov),
             wavelength=Quantity(_EV_NM / de_ev, "nm (vacuum)", f"lambda {label}", prov),
             einstein_a=a_coeff,
             oscillator_strength=f_value,
+            emissivity=eps,
         ))
     lines.sort(key=lambda ln: ln.wavelength.value)
     return LineList(
         system_key=result.key,
         n_max=max((o.n for o in result.orbitals), default=1),
         fine_structure=False, lines=tuple(lines),
+        thermal=state,
         provenance=Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method="dipole-allowed screened orbital differences (see per-line provenance)",
