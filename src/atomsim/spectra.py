@@ -30,6 +30,7 @@ from atomsim.populations import (
     ThermalConditions,
     ThermalState,
     boltzmann_fractions,
+    level_column_fraction,
     level_degeneracy,
     line_emissivity,
     partition_function,
@@ -63,6 +64,11 @@ class SpectralLine:
     #: eV/s per atom of the element. Set only when thermal conditions were
     #: given: it is a modelled emission rate, not a measured brightness.
     emissivity: Quantity | None = None
+    #: Fraction of all atoms of the element in this line's **lower** level.
+    #: Set alongside the emissivity, from the same Boltzmann pass. This is what
+    #: turns a single column density for the gas into a per-line optical depth,
+    #: and without it an absorption spectrum cannot be built at all.
+    lower_fraction: Quantity | None = None
 
 
 @dataclass(frozen=True)
@@ -258,13 +264,19 @@ def transition_lines(
                 a_coeff = einstein_A(nu, lu, nl, ll_, **kw)
                 f_value = oscillator_strength(nl, ll_, nu, lu, **kw)
         eps = None
-        if state is not None and a_coeff is not None:
-            eps = line_emissivity(
-                upper_fraction=occupation[(nu, lu, ju)],
-                neutral_fraction=1.0 - state.ionized_fraction.value,
-                einstein_a=a_coeff.value,
-                photon_energy_ev=de_ev,
-            )
+        lower_frac = None
+        if state is not None:
+            neutral = 1.0 - state.ionized_fraction.value
+            # A population, not a strength: it exists as soon as there are
+            # conditions, whether or not the dipole integrals were wanted.
+            lower_frac = level_column_fraction(occupation[(nl, ll_, jl)], neutral)
+            if a_coeff is not None:
+                eps = line_emissivity(
+                    upper_fraction=occupation[(nu, lu, ju)],
+                    neutral_fraction=neutral,
+                    einstein_a=a_coeff.value,
+                    photon_energy_ev=de_ev,
+                )
         lines.append(
             SpectralLine(
                 n_upper=nu, l_upper=lu, j_upper=ju,
@@ -274,6 +286,7 @@ def transition_lines(
                 einstein_a=a_coeff,
                 oscillator_strength=f_value,
                 emissivity=eps,
+                lower_fraction=lower_frac,
             )
         )
     lines.sort(key=lambda ln: ln.wavelength.value)
@@ -389,13 +402,17 @@ def screened_transition_lines(
                 _strength_provenance(R, "f = (2/3) dE (l_max/(2l+1)) |R|^2", f_val),
             )
         eps = None
-        if state is not None and a_coeff is not None:
-            eps = line_emissivity(
-                upper_fraction=occupation[(nu, lu)],
-                neutral_fraction=1.0 - state.ionized_fraction.value,
-                einstein_a=a_coeff.value,
-                photon_energy_ev=de_ev,
-            )
+        lower_frac = None
+        if state is not None:
+            neutral = 1.0 - state.ionized_fraction.value
+            lower_frac = level_column_fraction(occupation[(nl, ll_)], neutral)
+            if a_coeff is not None:
+                eps = line_emissivity(
+                    upper_fraction=occupation[(nu, lu)],
+                    neutral_fraction=neutral,
+                    einstein_a=a_coeff.value,
+                    photon_energy_ev=de_ev,
+                )
         lines.append(SpectralLine(
             n_upper=nu, l_upper=lu, j_upper=None, n_lower=nl, l_lower=ll_, j_lower=None,
             energy=Quantity(de_ev, "eV", f"dE {label}", prov),
@@ -403,6 +420,7 @@ def screened_transition_lines(
             einstein_a=a_coeff,
             oscillator_strength=f_value,
             emissivity=eps,
+            lower_fraction=lower_frac,
         ))
     lines.sort(key=lambda ln: ln.wavelength.value)
     return LineList(

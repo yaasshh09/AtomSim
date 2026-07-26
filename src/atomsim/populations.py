@@ -29,6 +29,7 @@ __all__ = [
     "ThermalState",
     "boltzmann_fractions",
     "hydrogen_levels",
+    "level_column_fraction",
     "level_degeneracy",
     "line_emissivity",
     "partition_function",
@@ -277,6 +278,47 @@ def saha_ionization_fraction(
             refinement=(
                 "solving n_e together with the ionization, and lowering chi for "
                 "the plasma environment, would remove both idealizations"
+            ),
+        ),
+    )
+
+
+def level_column_fraction(
+    lower_fraction: float,
+    neutral_fraction: float,
+) -> Quantity:
+    """Fraction of all atoms of the element sitting in a transition's lower level.
+
+        N_l / N_element = (1 - x) * (N_l / N_neutral)
+
+    The absorption twin of `line_emissivity`, and the one number an absorption
+    spectrum cannot be built without. A line only absorbs out of the level it
+    starts in, so a total column density says nothing on its own: the same
+    cloud is opaque in Lyman-alpha and transparent in Balmer-alpha purely
+    because this fraction differs by orders of magnitude between 1s and 2s.
+
+    Normalized per atom of the *element* for the same reason the emissivity is:
+    it makes a column density a property of the gas rather than of how ionized
+    it happens to be, so one N can be handed to every line in a list.
+    """
+    value = neutral_fraction * lower_fraction
+    return Quantity(
+        value=value,
+        unit="dimensionless",
+        label="lower-level fraction",
+        provenance=Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method="N_l/N_element = (1 - x) (N_l/N_neutral)",
+            assumptions=_LTE + (
+                f"neutral fraction 1 - x = {neutral_fraction:.4g} from Saha; a "
+                "fully ionized gas has no bound electrons left to absorb",
+                "per atom of the element (neutral + ionized), so a column "
+                "density counts the whole element and this fraction selects "
+                "the absorbing level",
+            ),
+            refinement=(
+                "departures from LTE would set the lower level's population "
+                "independently of the temperature that sets the profile width"
             ),
         ),
     )
