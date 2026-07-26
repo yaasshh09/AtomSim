@@ -30,6 +30,13 @@ export interface UrlState {
   hyperfine: boolean;
   /** Line strengths in the Spectrum view; defaults on, so the URL marks it off. */
   intensities: boolean;
+  /** LTE weighting in the Spectrum view; defaults off, so the URL marks it on. */
+  thermal: boolean;
+  temperatureK: number;
+  /** log10 of the electron density in cm^-3. Held as the log because the
+   *  control is a log slider and round-tripping 1e13 as a decimal string is
+   *  needless precision loss. */
+  logNe: number;
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
@@ -58,6 +65,11 @@ export const URL_DEFAULTS: UrlState = {
   eField: 0,
   hyperfine: false,
   intensities: true,
+  thermal: false,
+  // A stellar photosphere: warm enough that the excited levels are populated
+  // at all, dense enough that hydrogen is not yet mostly ionized.
+  temperatureK: 10000,
+  logNe: 13,
   ghost: false,
   nucleusMode: "marker",
   planeQuantity: "density",
@@ -168,6 +180,12 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   // Defaults on, so only the off state is carried: "int=0".
   if (q.get("int") === "0") out.intensities = false;
 
+  if (q.get("lte") === "1") out.thermal = true;
+  const tk = pickFloat(q.get("tk"));
+  if (tk !== undefined && tk >= 1e2 && tk <= 1e6) out.temperatureK = tk;
+  const ne = pickFloat(q.get("ne"));
+  if (ne !== undefined && ne >= 4 && ne <= 22) out.logNe = ne;
+
   const ghost = q.get("ghost");
   if (ghost === "1" || ghost === "true") out.ghost = true;
   else if (ghost === "0" || ghost === "false") out.ghost = false;
@@ -235,6 +253,13 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.eField > 0) q.set("ef", String(state.eField));
   if (state.hyperfine) q.set("hf", "1");
   if (!state.intensities) q.set("int", "0");
+  if (state.thermal) {
+    q.set("lte", "1");
+    if (state.temperatureK !== URL_DEFAULTS.temperatureK) {
+      q.set("tk", String(state.temperatureK));
+    }
+    if (state.logNe !== URL_DEFAULTS.logNe) q.set("ne", String(state.logNe));
+  }
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);
   if (state.planeQuantity !== URL_DEFAULTS.planeQuantity) q.set("plane", state.planeQuantity);

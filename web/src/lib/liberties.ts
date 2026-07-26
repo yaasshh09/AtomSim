@@ -49,9 +49,9 @@ export const CLASSICAL_SLOWMO: Provenance = {
  * The trap here: a bar chart of spectral lines looks exactly like an observed
  * spectrum, so shading it by A invites the reading "this is how bright the line
  * is". It is not. Observed brightness is N_upper * A * h nu and depends on level
- * populations (temperature, density, optical depth), none of which this project
- * models. What the bars show is the spontaneous emission rate, log-compressed
- * because A spans about four decades across a hydrogen line list.
+ * populations, which are not modelled unless the LTE control is on. What the
+ * bars show without it is the spontaneous emission rate, log-compressed because
+ * A spans about four decades across a hydrogen line list.
  */
 export const SPECTRUM_INTENSITY_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
@@ -59,11 +59,33 @@ export const SPECTRUM_INTENSITY_LIBERTY: Provenance = {
   assumptions: [
     "A (spontaneous emission rate, s^-1) is engine-computed and exact to quadrature roundoff",
     "bar height/opacity is a log-compressed rate, NOT a predicted observed intensity",
-    "no level populations are modelled: no temperature, density or optical depth",
+    "no level populations are modelled: turn on LTE weighting for those",
     "log compression is presentation; the decade range is printed in the caption",
   ],
   error_estimate: null,
-  refinement: "population modelling (Boltzmann/Saha) would turn rates into observable intensities",
+  refinement: "LTE weighting (the temperature and density controls) turns rates into emissivities",
+};
+
+/**
+ * With LTE weighting on, the bars are a modelled emissivity rather than a bare
+ * rate, so the old "no populations here" disclosure no longer applies. What is
+ * still a presentational choice is the log compression, and what is still not
+ * an observed brightness is the number itself: the model is optically thin, so
+ * a strong line in a thick medium would not really look like this. The physics
+ * assumptions ride on each line's own emissivity provenance; this covers only
+ * what the drawing adds on top.
+ */
+export const SPECTRUM_EMISSIVITY_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "bar height and opacity scaled by log10 of the LTE emissivity",
+  assumptions: [
+    "emissivity (eV/s per atom) is engine-computed from Boltzmann populations and Saha ionization",
+    "an emissivity is still not an observed brightness: the model is optically thin",
+    "log compression is presentation; the decade range is printed in the caption",
+    "lines too faint to reach the floor of the scale are drawn at the floor, not dropped",
+  ],
+  error_estimate: null,
+  refinement: "radiative transfer through a finite optical depth would give a predicted brightness",
 };
 
 export const THUMBNAIL_LIBERTY: Provenance = {

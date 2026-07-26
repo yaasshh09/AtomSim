@@ -198,6 +198,21 @@ export interface SpectralLineInfo {
   einstein_a_s: Quantity | null;
   /** Absorption oscillator strength (dimensionless); null on the same terms. */
   oscillator_strength: Quantity | null;
+  /** LTE emission rate [eV/s per atom of the element]; null unless thermal
+   *  conditions were given. A modelled rate, not a measured brightness. */
+  emissivity: Quantity | null;
+}
+
+/** The LTE conditions a spectrum was computed at, and what they produced. */
+export interface ThermalInfo {
+  temperature_k: number;
+  electron_density_cm3: number;
+  /** Fraction of the element that is ionized. Once this nears 1 the whole
+   *  spectrum is faint because there are no neutrals left to emit, which is
+   *  why it is shown rather than folded silently into the scale. */
+  ionized_fraction: Quantity;
+  /** Truncated at n_max; the cutoff is in its provenance assumptions. */
+  partition_function: Quantity;
 }
 
 export interface ComparisonInfo {
@@ -219,6 +234,8 @@ export interface SpectrumResponse {
   tolerance_relative: number | null;
   /** Set when strengths were requested but withheld; states which case applies. */
   intensity_note: string | null;
+  /** Present exactly when the lines carry an emissivity. */
+  thermal: ThermalInfo | null;
 }
 
 export interface BohrOrbit {

@@ -104,6 +104,9 @@ describe("serializeAppUrl", () => {
       eField: 0,
       hyperfine: true,
       intensities: false,
+      thermal: true,
+      temperatureK: 12000,
+      logNe: 15,
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
@@ -115,6 +118,39 @@ describe("serializeAppUrl", () => {
     const off = serializeAppUrl({ ...URL_DEFAULTS, intensities: false });
     expect(off).toContain("int=0");
     expect(parseAppUrl(off).intensities).toBe(false);
+  });
+
+  it("round-trips the LTE toggle, which defaults off", () => {
+    expect(URL_DEFAULTS.thermal).toBe(false);
+    const on = serializeAppUrl({ ...URL_DEFAULTS, thermal: true });
+    expect(on).toContain("lte=1");
+    expect(parseAppUrl(on).thermal).toBe(true);
+  });
+
+  it("carries the conditions only when LTE weighting is on", () => {
+    // They describe a model that is not running otherwise, so putting them in
+    // the URL would promise a state the page does not restore.
+    const off = serializeAppUrl({
+      ...URL_DEFAULTS, thermal: false, temperatureK: 25000, logNe: 9,
+    });
+    expect(off).not.toContain("tk=");
+    expect(off).not.toContain("ne=");
+  });
+
+  it("round-trips a temperature and density away from the defaults", () => {
+    const url = serializeAppUrl({
+      ...URL_DEFAULTS, thermal: true, temperatureK: 25000, logNe: 9.5,
+    });
+    const back = { ...URL_DEFAULTS, ...parseAppUrl(url) };
+    expect(back.temperatureK).toBe(25000);
+    expect(back.logNe).toBe(9.5);
+  });
+
+  it("drops conditions outside the range the server accepts", () => {
+    expect(parseAppUrl("?lte=1&tk=5").temperatureK).toBeUndefined();
+    expect(parseAppUrl("?lte=1&tk=1e9").temperatureK).toBeUndefined();
+    expect(parseAppUrl("?lte=1&ne=1").logNe).toBeUndefined();
+    expect(parseAppUrl("?lte=1&ne=40").logNe).toBeUndefined();
   });
 
   it("omits int when intensities are on, since that is the default", () => {

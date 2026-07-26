@@ -54,6 +54,13 @@ interface AppState {
   /** Show real line strengths in the Spectrum view. On by default: uniform bars
    *  silently assert that every line is equally strong, which is false. */
   intensities: boolean;
+  /** Weight the Spectrum view by LTE populations. Off by default: it is a
+   *  model with a temperature in it, and it should be something you switch on
+   *  deliberately rather than the picture you get without asking. */
+  thermal: boolean;
+  temperatureK: number;
+  /** log10(n_e / cm^-3). The control is logarithmic, so the state is too. */
+  logNe: number;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -117,6 +124,9 @@ interface AppState {
   setEField: (eField: number) => void;
   setHyperfine: (hyperfine: boolean) => void;
   setIntensities: (intensities: boolean) => void;
+  setThermal: (thermal: boolean) => void;
+  setTemperatureK: (temperatureK: number) => void;
+  setLogNe: (logNe: number) => void;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -162,6 +172,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   eField: 0,
   hyperfine: false,
   intensities: true,
+  thermal: false,
+  temperatureK: 10000,
+  logNe: 13,
   nucleusMode: "marker",
   count: 100_000,
   systems: [],
@@ -216,6 +229,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEField: (eField) => set({ eField, levels: null }),
   setHyperfine: (hyperfine) => set({ hyperfine, levels: null }),
   setIntensities: (intensities) => set({ intensities, spectrum: null }),
+  // Each of these changes what the engine is asked for, so the cached spectrum
+  // is stale the instant they move. Same rule as setIntensities.
+  setThermal: (thermal) => set({ thermal, spectrum: null }),
+  setTemperatureK: (temperatureK) => set({ temperatureK, spectrum: null }),
+  setLogNe: (logNe) => set({ logNe, spectrum: null }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -377,10 +395,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   loadSpectrum: async () => {
-    const { system, fineStructure, config, intensities } = get();
+    const { system, fineStructure, config, intensities, thermal, temperatureK, logNe } =
+      get();
     set({
       spectrum: await client.getSpectrum(
         system, N_MAX_DIAGRAM, fineStructure, config, intensities,
+        thermal ? { temperatureK, electronDensityCm3: 10 ** logNe } : null,
       ),
     });
   },

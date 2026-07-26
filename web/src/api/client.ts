@@ -123,17 +123,29 @@ export function getForceLaw(
   return getJson(`/api/forcelaw?${q.toString()}`);
 }
 
+/** LTE conditions. Both or neither: ionization depends on the pair, and the
+ *  API rejects half of them rather than inventing the other. */
+export interface ThermalParams {
+  temperatureK: number;
+  electronDensityCm3: number;
+}
+
 export function getSpectrum(
   system: string,
   nMax: number,
   fineStructure: boolean,
   config?: string | null,
   intensities = false,
+  thermal?: ThermalParams | null,
 ): Promise<SpectrumResponse> {
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
+  const t = thermal
+    ? `&temperature_k=${thermal.temperatureK}` +
+      `&electron_density_cm3=${thermal.electronDensityCm3}`
+    : "";
   return getJson(
     `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}` +
-      `&intensities=${intensities}${c}`,
+      `&intensities=${intensities}${c}${t}`,
   );
 }
 
