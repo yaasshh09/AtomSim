@@ -1,6 +1,9 @@
 # Phase 19: Optical depth, absorption, and the curve of growth
 
-Status: design, 2026-07-26.
+Status: implemented 2026-07-26. Three corrections from the build are in
+"What the build changed" at the end. The absorption *spectrum* (a whole
+line list eating a continuum) is deferred; the per-line machinery,
+the endpoint and the curve of growth all landed.
 
 Two phases in a row have ended with the same confession. Phase 17 said the gas
 is **optically thin**: no radiative transfer, no self-absorption, no escape
@@ -124,8 +127,39 @@ continuum) and a curve-of-growth plot with the three regimes marked.
 | Transmission at line centre, large tau | -> 0 | Beer-Lambert |
 | W independent of instrument R | invariant | equivalent width's defining property |
 
+## What the build changed
+
+**Classifying the branches by slope was wrong, and wrong invisibly.** Coming
+off the linear branch the log-log slope falls from 1 to nearly 0 and passes
+straight through 0.5 on the way, so every point on that descent got labelled
+"damping" before saturation had even started. The shipped classifier asks the
+physics instead: linear while `tau_centre < 1`, damping once `a tau_centre > 1`
+with `a = gamma / (sigma sqrt2)` the Voigt damping parameter, saturated in
+between. Those two cross in the right order for any line, because `a < 1`
+whenever the profile has a Gaussian core at all. The slope is still reported,
+as the visible signature of a branch rather than its definition.
+
+**A fixed integration window silently bends the damping slope.** On the third
+branch the line eats outward into wings falling only as `1/x^2`, so a window
+that comfortably held the line at `1e20` absorbers per m^2 clipped it at
+`1e24` — and a clipped line does not announce itself, it just returns a slope
+of 0.46 instead of 0.49. The window now grows until the largest equivalent
+width is under 5 percent of it, and reports the width it settled on.
+
+**The column range has to be built from the line.** The knees sit at
+`tau_centre = 1` and `a tau_centre = 1`, and both move by orders of magnitude
+with `f` and the widths, so a fixed range that shows three branches for
+H-alpha shows one branch for a weak infrared line. `default_columns` anchors on
+the line's own knees and pads either side.
+
+Measured on H-alpha at 10,000 K, the three branches come out at slope **1.000**,
+**0.089** and **0.492** against the textbook 1, ~0 and 1/2.
+
 ## Deferred
 
+- The absorption *spectrum*: a whole line list absorbing against a
+  continuum. Needs a per-line lower-level column threaded through the line
+  list, which the emission path does not currently carry.
 - Line reversal and source functions (needs a stratified atmosphere).
 - Continuous opacity and the true continuum.
 - Stimulated emission correction to the cross-section.
