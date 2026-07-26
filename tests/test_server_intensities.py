@@ -66,10 +66,23 @@ def test_fine_structure_serves_j_resolved_intensities(client):
     assert "6j" in body["lines"][0]["einstein_a_s"]["provenance"]["method"]
 
 
-def test_screened_atom_returns_null_intensities_with_a_reason(client):
+def test_screened_atom_serves_strengths_with_the_model_error_disclosed(client):
+    """Phase 16: the screened path has real strengths now, so there is no note
+    to serve. The GSZ model error rides along in each line's provenance.
+    """
     body = client.get("/api/spectrum?system=he&intensities=true").json()
-    assert all(ln["einstein_a_s"] is None for ln in body["lines"])
-    assert body["intensity_note"] and "screen" in body["intensity_note"].lower()
+    assert body["lines"] and all(ln["einstein_a_s"] is not None for ln in body["lines"])
+    assert all(ln["einstein_a_s"]["value"] > 0.0 for ln in body["lines"])
+    assert body["intensity_note"] is None
+    prov = body["lines"][0]["einstein_a_s"]["provenance"]
+    assert prov["fidelity"] == "approximation"
+    assert "Green-Sellin-Zachor" in prov["method"]
+
+
+def test_screened_atom_withholds_strengths_when_not_asked(client):
+    body = client.get("/api/spectrum?system=he").json()
+    assert body["lines"] and all(ln["einstein_a_s"] is None for ln in body["lines"])
+    assert body["intensity_note"] is None
 
 
 def test_intensities_do_not_change_wavelengths_or_comparison(client):

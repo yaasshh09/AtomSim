@@ -17,8 +17,10 @@ from scipy import constants as _sc
 from atomsim.analytic.fine_structure import level_energy
 from atomsim.analytic.hydrogen import energy
 from atomsim.analytic.transitions import (
+    A_from_radial_dipole,
     einstein_A,
     einstein_A_fine,
+    f_from_radial_dipole,
     oscillator_strength,
     oscillator_strength_fine,
 )
@@ -63,14 +65,23 @@ class LineList:
     intensity_note: str | None = None
 
 
-#: The Phase 13 dipole engine integrates closed-form hydrogenic R_nl. A screened
-#: atom's radial functions come from the numerical solver instead, so the
-#: integral would have to be redone over those.
-_NO_SCREENED_INTENSITIES = (
-    "Line strengths are not shown for screened atoms: the dipole integral is "
-    "implemented over closed-form hydrogenic radial functions, and these "
-    "orbitals come from the numerical screened-potential solver."
-)
+def _strength_provenance(dipole: Quantity, formula: str, value: float) -> Provenance:
+    """Carry the dipole integral's own provenance up to the strength built on it.
+
+    Both f and A go as |R|^2, so R's *relative* error doubles; the number stored
+    is absolute, matching every other error_estimate in the codebase.
+    """
+    rel = (
+        (dipole.provenance.error_estimate or 0.0) / abs(dipole.value)
+        if dipole.value else 0.0
+    )
+    return Provenance(
+        fidelity=Fidelity.APPROXIMATION,
+        method=f"{formula}, R from [{dipole.provenance.method}]",
+        assumptions=dipole.provenance.assumptions,
+        error_estimate=2.0 * rel * abs(value),
+        refinement=dipole.provenance.refinement,
+    )
 
 
 def _levels(system: System, n_max: int, fine_structure: bool):
@@ -167,13 +178,18 @@ def transition_lines(
     )
 
 
-def screened_transition_lines(result) -> LineList:
+def screened_transition_lines(result, intensities: bool = False) -> LineList:
     """Dipole-allowed emission lines among a screened atom's orbital energies.
 
     `result` is a screened_atom.ScreenedAtomResult (untyped here to avoid a
     circular import). Lines are (n_u, l_u) -> (n_l, l_l) with Delta l = +/-1 and
     E_upper > E_lower; energies eV, vacuum wavelengths nm, all APPROXIMATION.
+
+    With `intensities`, each line also carries an Einstein A and an oscillator
+    strength built from a dipole integral over the numerically solved radials.
     """
+    from atomsim.screened_atom import screened_dipole_integral  # circular at module scope
+
     levels = [(o.n, o.l, o.energy) for o in result.orbitals]
     lines: list[SpectralLine] = []
     for (nu, lu, eu), (nl, ll_, el) in itertools.permutations(levels, 2):
@@ -195,10 +211,30 @@ def screened_transition_lines(result) -> LineList:
             ),
         )
         label = f"{nu}{'spdfgh'[lu]}->{nl}{'spdfgh'[ll_]}"
+        a_coeff = f_value = None
+        if intensities:
+            dE_h = eu.value - el.value
+            R = screened_dipole_integral(
+                result.z, result.n_electrons, nl, ll_, nu, lu
+            )
+            a_val = A_from_radial_dipole(dE_h, lu, ll_, R.value)
+            f_val = f_from_radial_dipole(dE_h, ll_, lu, R.value)
+            a_coeff = Quantity(
+                a_val, "s^-1", f"A {label}",
+                _strength_provenance(
+                    R, "A = (4/3) alpha^3 dE^3 (l_max/(2l'+1)) |R|^2 / t_au", a_val
+                ),
+            )
+            f_value = Quantity(
+                f_val, "dimensionless", f"f {label}",
+                _strength_provenance(R, "f = (2/3) dE (l_max/(2l+1)) |R|^2", f_val),
+            )
         lines.append(SpectralLine(
             n_upper=nu, l_upper=lu, j_upper=None, n_lower=nl, l_lower=ll_, j_lower=None,
             energy=Quantity(de_ev, "eV", f"dE {label}", prov),
             wavelength=Quantity(_EV_NM / de_ev, "nm (vacuum)", f"lambda {label}", prov),
+            einstein_a=a_coeff,
+            oscillator_strength=f_value,
         ))
     lines.sort(key=lambda ln: ln.wavelength.value)
     return LineList(
@@ -211,7 +247,6 @@ def screened_transition_lines(result) -> LineList:
             assumptions=("emission lines only (E_upper > E_lower)",
                          "independent-particle transition energies"),
         ),
-        intensity_note=_NO_SCREENED_INTENSITIES,
     )
 
 

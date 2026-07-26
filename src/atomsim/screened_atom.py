@@ -10,13 +10,19 @@ quantified sub-scale. See docs/superpowers/specs/
 
 import dataclasses
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 
 from atomsim.analytic.angular import spherical_harmonic
 from atomsim.analytic.wavefunction import WavefunctionValues
 from atomsim.atoms import Configuration, is_ground
-from atomsim.numerics.radial_solver import solve_radial_with_error
+from atomsim.numerics.dipole import (
+    dipole_box_radius,
+    dipole_from_solutions,
+    grid_points_for,
+)
+from atomsim.numerics.radial_solver import RadialSolution, solve_radial, solve_radial_with_error
 from atomsim.numerics.screening import screened_potential, screening_provenance
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
@@ -146,6 +152,70 @@ def screened_radial(
     p_field = Field(values=grid**2 * R_i**2, grid=grid, unit="bohr^-1",
                     grid_unit="bohr", label=f"P_{n},{l}(r) = r^2 R^2", provenance=prov)
     return r_field, p_field
+
+
+@lru_cache(maxsize=128)
+def _dipole_channel(
+    z: int, n_electrons: int, l: int, r_max: float, n_points: int, n_states: int
+) -> RadialSolution:
+    """One l channel solved for the dipole grid, cached.
+
+    A spectrum asks for many lines but they run over only a handful of l
+    channels, so without this the same eigenproblem is re-solved per line.
+    """
+    return solve_radial(
+        screened_potential(z, n_electrons), l=l, mu_ratio=1.0,
+        r_max=r_max, n_points=n_points, n_states=n_states,
+    )
+
+
+def screened_dipole_integral(
+    z: int, n_electrons: int, n_a: int, l_a: int, n_b: int, l_b: int
+) -> Quantity:
+    """Radial dipole matrix element <b|r|a> in bohr for a screened atom.
+
+    APPROXIMATION, not NUMERICAL: the GSZ model error dominates the grid error,
+    and labelling this by its discretization alone would understate it. The
+    grid-halving figure is still reported as the numerical sub-scale.
+    """
+    for n, l, name in ((n_a, l_a, "a"), (n_b, l_b, "b")):
+        if n <= l:
+            raise ValueError(f"state {name}: n must be > l, got n={n}, l={l}")
+    n_top = max(n_a, n_b)
+    z_net = z - n_electrons + 1
+    r_max = dipole_box_radius(n_top, z_net)
+    n_points = grid_points_for(r_max)
+
+    def overlap(points: int) -> float:
+        # Solve each channel deep enough for every k this atom can ask of it,
+        # so the cache key stays the same across the whole line list.
+        sol_a = _dipole_channel(z, n_electrons, l_a, r_max, points, n_top - l_a)
+        sol_b = _dipole_channel(z, n_electrons, l_b, r_max, points, n_top - l_b)
+        return dipole_from_solutions(sol_a, n_a - l_a - 1, sol_b, n_b - l_b - 1)
+
+    coarse = overlap(n_points)
+    fine = overlap(2 * n_points)
+    model = screening_provenance(z, n_electrons)
+    return Quantity(
+        value=fine,
+        unit="bohr",
+        label=f"<{n_b},{l_b}|r|{n_a},{l_a}> (Z={z}, N={n_electrons})",
+        provenance=Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method=(
+                f"{model.method}; dipole = integral u_a u_b r dr over the "
+                "numerically solved radials (both states on one grid)"
+            ),
+            assumptions=model.assumptions
+            + (
+                f"shared uniform grid: r_max={r_max:g} bohr, N={2 * n_points}",
+                "GSZ model error dominates the quoted grid-halving figure",
+                "independent-particle: no correlation or core polarization",
+            ),
+            error_estimate=abs(fine - coarse),
+            refinement=model.refinement,
+        ),
+    )
 
 
 def evaluate_screened_state(

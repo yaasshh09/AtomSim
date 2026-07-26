@@ -732,7 +732,7 @@ def create_app() -> FastAPI:
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
             result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
-            lines = screened_transition_lines(result)
+            lines = screened_transition_lines(result, intensities=intensities)
             reference = load_reference(system)
             comparison = citation = tol = None
             if reference is not None:
@@ -755,7 +755,7 @@ def create_app() -> FastAPI:
                 n_max=lines.n_max, fine_structure=False,
                 lines=[LineModel.from_line(ln) for ln in lines.lines],
                 comparison=comparison, reference_citation=citation, tolerance_relative=tol,
-                intensity_note=lines.intensity_note if intensities else None,
+                intensity_note=lines.intensity_note,
             )
         if not 2 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")

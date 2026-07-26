@@ -1,6 +1,8 @@
 # Phase 16: Screened-atom line strengths
 
-Status: design approved 2026-07-25. Closes the last gap the intensity work
+Status: implemented 2026-07-26. One anchor below was predicted wrong and is
+corrected in place; see "What measurement changed" at the end. Closes the last
+gap the intensity work
 disclosed: screened atoms (He, Li, Na, ...) still return null strengths plus a
 note saying the dipole integral is only implemented over closed-form hydrogenic
 radial functions. This implements it over the numerical ones.
@@ -71,7 +73,7 @@ reliance on remembered literature values.
 the alkali resonance-line strengths are asserted only to the accuracy the model
 can support, with the residual reported rather than a tight bound asserted:
 
-- Na 3s -> 3p and Li 2s -> 2p are the strongest lines of their spectra;
+- Na 3s -> 3p is the strongest line of its spectrum (corrected below);
 - their `f` lands in the right band for an alkali resonance line (order unity);
 - every listed screened line gets a positive, finite A;
 - He and Li strengths fall monotonically along a Rydberg series.
@@ -84,6 +86,30 @@ No literature `f` value is asserted to a digit I cannot derive here.
 drops `intensity_note` to `None`. `/api/spectrum?system=na&intensities=true`
 then serves them, and the Spectrum view needs no change: it already scales by
 whatever A arrives.
+
+## What measurement changed
+
+**The resonance line is not the strongest line outright.** The anchor above
+assumed it would be. It is not, and the reason is structural rather than a bug:
+`A` goes as `dE^3`, and an independent-particle orbital spectrum contains the
+core transitions (`np -> 1s`, keV scale), which beat every valence line by
+orders of magnitude. Measured: Li 2p->2s ranks 6th of 32 by `A`, Na 3p->3s
+ranks 10th. Restricted to lines that end above the closed core, Na 3p->3s does
+win, and that is what the test asserts.
+
+**The box was four times larger than it needed to be.** `dipole_box_radius`
+was `40 (n+1)^2`, which was free when the grid had a fixed point count and
+expensive once `grid_points_for` held `h` fixed instead: a full screened
+spectrum took 13.4 s. Measured against box size, the hydrogenic `<6p|r|5s>` and
+`<4p|r|1s>` and the screened Na 3s->3p agree to six significant digits down to a
+coefficient of 10, and only move at 2.5. Set to 10: same numbers, 3.1 s.
+
+**GSZ does better on strengths than on wavelengths.** Li 2p->2s comes out at
+`f = 0.725` and Na 3p->3s at `f = 0.956`, both within a few percent of the
+literature, while the same lines' wavelengths are off by 2.5% and 6.3%. The
+tests assert the order-unity band, not the percent agreement, because a
+one-parameter screening model landing that close on `f` is partly luck and
+asserting it would overstate what the model can support.
 
 ## Deferred
 

@@ -130,11 +130,15 @@ def test_gross_structure_intensities_carry_no_apology_note():
     assert ll.intensity_note is None
 
 
-def test_screened_lines_withhold_intensities_and_say_why():
+def test_screened_lines_withhold_intensities_until_asked():
+    """Off by default, as on the hydrogen path. Phase 16 made them available;
+    the screened strengths themselves are validated in
+    test_screened_intensities.py.
+    """
     result = solve_screened_atom(z=2, n_electrons=2, config=aufbau_configuration(2))
     ll = screened_transition_lines(result)
     assert all(ln.einstein_a is None for ln in ll.lines)
-    assert ll.intensity_note and "screen" in ll.intensity_note.lower()
+    assert ll.intensity_note is None
 
 
 def test_intensities_track_the_isotope_through_reduced_mass():
