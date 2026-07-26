@@ -1,6 +1,7 @@
 # Phase 18: Line profiles and the synthetic spectrum
 
-Status: design, 2026-07-26.
+Status: implemented 2026-07-26. Four things the design got wrong are corrected
+in "What the build changed" at the end.
 
 Every spectrum this app has drawn so far is a picket fence. A line is a
 zero-width bar at one wavelength, and its height is whatever quantity Phase 13
@@ -230,6 +231,61 @@ power control, and captions for the width breakdown and the Stark warning.
 | Voigt, sigma -> 0 | Lorentzian | analytic limit |
 | 2s natural width | 0 (with the two-photon note) | no E1 channel |
 | H-beta Stark estimate at 1e14 cm^-3 | ~0.03 nm | Griem scaling, independent |
+
+## What the build changed
+
+**The "no wing cutoff" guarantee did not survive contact with a long line
+list.** The design promised every line evaluated at every grid point, which is
+exact and quadratic: fine structure at `n_max = 10` is 855 lines and would have
+been 1e8 profile evaluations. The first attempt kept the promise and paid by
+coarsening the grid instead, which lost **20 percent of the flux**. The shipped
+version cuts each line at 1e5 of its own FWHM and computes the dropped flux
+from the analytic tail integrals (`2 gamma / (pi d)` plus
+`erfc(d / sigma sqrt2)`), so the cut is a measured number rather than a claim.
+That case now closes to 0.1 percent and runs in 0.56 s instead of 3.3 s: more
+accurate *and* faster than the version that tried to be exact.
+
+**The grid needed to be argued from quadrature error, not drawn by eye.** Two
+separate bugs, both found by making the engine integrate its own curve and
+compare against the summed line strengths:
+
+1. A uniform core stopping at 1.0 FWHM before jumping to sparse wing points put
+   a chord across a still-steep Gaussian and added **0.78 percent** to every
+   line in the spectrum. The core now runs uniformly to 2.5 FWHM, where the
+   Gaussian is at 3e-8 and a uniform grid over a decayed function is
+   spectrally accurate.
+2. Wings stopping at 600 FWHM left a 2.5e-6 nm natural-width spike connected to
+   the next background sample several nm away, worth **9.6 percent** of the
+   flux. That one was never only a quadrature error: a polyline renderer draws
+   that chord, so the spike grows a multi-nm tent at its foot. Wings now run to
+   1e5 FWHM, which costs 60 points because geometric spacing is cheap.
+
+`flux_closure` was added as a result and is now a first-class output: the
+curve's integral over the summed strengths, reported in the response and the
+caption. It is the thing that caught both bugs.
+
+**The full-range trace cannot show a line shape, and no instrument setting
+fixes it.** The design assumed a resolving power control would make lines
+visibly wide. It does not: on a log axis covering 90 to 8000 nm, a line at
+`R = 1000` is **0.14 px** wide. The full-range curve is a spike train that the
+bars already draw better. The view therefore opens directly on a zoomed single
+line when profiles are switched on, and the trace is kept only as confirmation
+that the curve tracks the bars.
+
+**Two zero-denominator cases were real physics, not edge cases.** A gas hot and
+dense enough to be fully ionized has every line strength exactly zero, and
+normalizing the closure against that total raised `ZeroDivisionError` on
+sodium at 1e17 cm^-3. The flat zero curve is the correct answer and now says
+so. Separately, a fine-structure list's widest line is a within-n component at
+metre wavelengths whose thermal width is kilometres; padding the window by it
+walked the blue end past zero and handed `geomspace` a NaN grid.
+
+**The Stark warning earns its place.** It stays quiet on Lyman-alpha at
+1e13 cm^-3 and fires on the 6->3 line at the same conditions, because the
+manifold factor `n(n-1)` is 30 for n = 6 against 2 for n = 2. The user sees the
+same gas produce a trustworthy profile for one line and an untrustworthy one
+for another, which is exactly the distinction a single global caption could not
+have made.
 
 ## Deferred
 
