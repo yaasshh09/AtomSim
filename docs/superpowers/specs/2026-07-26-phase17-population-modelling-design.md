@@ -1,6 +1,7 @@
 # Phase 17: Population modelling
 
-Status: design approved 2026-07-26.
+Status: implemented 2026-07-26. One prediction in the validation anchors was
+wrong and is corrected in "What measurement changed" at the end.
 
 Closes the loudest disclosed liberty in the app. `SPECTRUM_INTENSITY_LIBERTY`
 currently says, in as many words, that bar height "is a log-compressed rate,
@@ -158,11 +159,55 @@ worth stating is qualitative and robust: hydrogen in a stellar photosphere is
 about half ionized in the neighbourhood of 10^4 K, and the test asserts the
 order of magnitude of that crossover, not its value.
 
+## What measurement changed
+
+**Balmer never overtakes Lyman-alpha, and should not.** The anchor above said
+the Balmer/Lyman ratio rises with T, which it does, but the framing above it
+implied Balmer would come to dominate a 10,000 K spectrum. It does not: at
+every temperature tried, Lyman-alpha has both the larger A and the more
+populated upper level, so it wins on emissivity outright. Real nebulae show
+Balmer because Lyman-alpha is optically thick and gets reabsorbed, which is
+exactly the assumption this model discloses it does not make. The optical-depth
+disclosure turned out to be load-bearing rather than boilerplate, and the test
+asserts the ratio's direction rather than a crossover that should not exist
+here.
+
+**The whole spectrum dims past the ionization knee.** Total emissivity rises to
+a peak near 9,000 K at photospheric density and falls after it, because the gas
+runs out of neutrals to emit. This is the behaviour that catches a dropped Saha
+factor, so both directions are pinned.
+
+**The truncation leaks into Saha, and had to be disclosed there too.** Found by
+attacking the design rather than by a failing test: Saha divides by U, so the
+partition function's `n_max` cutoff is a real term in the ionization fraction.
+Stating it on U and dropping it from the number built on U would have left the
+derived quantity looking exact. It is now carried onto the ionized fraction,
+and a test confirms a deeper level list actually lowers ionization at high T,
+so the disclosure describes a real effect rather than decorating a negligible
+one.
+
+**Screened atoms landed cleanly**, so they are in rather than deferred. chi
+comes from Koopmans on the outermost occupied GSZ orbital. The check that this
+is real rather than hardcoded is that lithium, bound by about 5.4 eV against
+hydrogen's 13.6, ionizes far more readily at identical conditions.
+
+**The axis split is structural, not a threshold.** The design left the range
+control's default undefined. The implementation keys it on within-n versus
+across-n, which is a property of the transition rather than a wavelength
+cutoff, so no arbitrary number decides what a user sees. At `n_max = 6` with
+fine structure the axis reads 90 to 900 nm instead of stretching to 10 m, with
+the 25 hidden components counted in the caption and one checkbox away.
+
+**One display behaviour was reversed.** A missing or zero bar value used to
+draw at full height, which was harmless when the only quantity was A and a
+missing A meant "not computed". Under thermal weighting a zero is a real
+physical value (fully ionized), and drawing it at full height would have been
+the most misleading thing the view could do. Zero now draws at the floor.
+
 ## Deferred
 
 - Doppler and pressure line profiles; lines stay as bars.
 - Radiative transfer and optical depth.
 - Non-LTE level kinetics.
 - Recombination and free-free continuum.
-- Screened-atom thermal spectra, if the Koopmans route does not land cleanly.
 - Hyperfine-resolved line strengths, unchanged from Phase 15.

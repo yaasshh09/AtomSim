@@ -132,13 +132,19 @@ def _thermal_state(
         chi_ev,
         u_neutral=u.value,
     )
-    if chi_assumptions:
+    # Saha divides by U, so the truncation that U discloses is inherited by the
+    # ionization fraction. saha_ionization_fraction takes U as a bare float and
+    # cannot know where it came from, so the disclosure is attached here, where
+    # it is known. Without this the cutoff would be stated on the partition
+    # function and silently dropped from the number built on it.
+    extra = tuple(a for a in u.provenance.assumptions if "truncat" in a) + chi_assumptions
+    if extra:
         ionized = Quantity(
             ionized.value, ionized.unit, ionized.label,
             Provenance(
                 fidelity=ionized.provenance.fidelity,
                 method=ionized.provenance.method,
-                assumptions=ionized.provenance.assumptions + chi_assumptions,
+                assumptions=ionized.provenance.assumptions + extra,
                 error_estimate=ionized.provenance.error_estimate,
                 refinement=ionized.provenance.refinement,
             ),

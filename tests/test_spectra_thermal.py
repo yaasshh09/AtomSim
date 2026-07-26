@@ -124,6 +124,30 @@ def test_emissivity_provenance_names_LTE_and_optical_thinness():
     assert eps.unit == "eV/s per atom"
 
 
+def test_the_ionized_fraction_inherits_the_partition_function_cutoff():
+    """Saha divides by U, so the truncation U discloses is inherited by the
+    ionization fraction. Stating the cutoff on U and dropping it from the
+    number built on U would leave the derived quantity looking exact.
+    """
+    ll = _lines(10000.0, n_max=6)
+    assumptions = ll.thermal.ionized_fraction.provenance.assumptions
+    assert any("truncat" in a.lower() and "n_max=6" in a for a in assumptions)
+
+
+def test_the_cutoff_actually_moves_the_ionization_at_high_temperature():
+    """Not a cosmetic disclosure: a deeper level list raises U, which lowers the
+    ionized fraction. The truncation is a real term in the answer.
+    """
+    hot = 40000.0
+    shallow = transition_lines(
+        H, n_max=3, thermal=ThermalConditions(hot, 1e19)
+    ).thermal.ionized_fraction.value
+    deep = transition_lines(
+        H, n_max=10, thermal=ThermalConditions(hot, 1e19)
+    ).thermal.ionized_fraction.value
+    assert deep < shallow
+
+
 def test_fine_structure_components_carry_their_own_emissivity():
     ll = transition_lines(
         H, n_max=3, fine_structure=True,
