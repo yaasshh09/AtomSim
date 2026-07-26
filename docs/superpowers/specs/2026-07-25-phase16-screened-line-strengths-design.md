@@ -104,6 +104,14 @@ spectrum took 13.4 s. Measured against box size, the hydrogenic `<6p|r|5s>` and
 `<4p|r|1s>` and the screened Na 3s->3p agree to six significant digits down to a
 coefficient of 10, and only move at 2.5. Set to 10: same numbers, 3.1 s.
 
+**One box per line list, not one per pair.** Sizing the box from each pair's
+own `n_top` gave five distinct grids per atom, so the channel cache held 26
+entries per atom at ~38 MB and a long-running server would have grown without
+bound as the user visited elements. Since an oversized box is free (the
+spacing sets the error), the whole list now shares one box sized by its most
+extended state: 6 cache entries per atom, and the cache is capped at 16 so what
+is retained stays around 56 MB. Same numbers again, and 1.9 s.
+
 **GSZ does better on strengths than on wavelengths.** Li 2p->2s comes out at
 `f = 0.725` and Na 3p->3s at `f = 0.956`, both within a few percent of the
 literature, while the same lines' wavelengths are off by 2.5% and 6.3%. The

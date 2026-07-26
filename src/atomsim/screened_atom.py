@@ -154,7 +154,16 @@ def screened_radial(
     return r_field, p_field
 
 
-@lru_cache(maxsize=128)
+#: Deliberately small. These entries are not cheap objects: a solved channel on
+#: the fine dipole grid carries n_states * ~1e5 floats, so one atom's worth of
+#: them is ~20 MB. A whole line list needs only about six, so 16 covers any
+#: single spectrum with room for the previous one and still caps what a
+#: long-running server retains at a few tens of MB, instead of growing with
+#: every element the user visits.
+_DIPOLE_CHANNEL_CACHE = 16
+
+
+@lru_cache(maxsize=_DIPOLE_CHANNEL_CACHE)
 def _dipole_channel(
     z: int, n_electrons: int, l: int, r_max: float, n_points: int, n_states: int
 ) -> RadialSolution:
@@ -170,18 +179,26 @@ def _dipole_channel(
 
 
 def screened_dipole_integral(
-    z: int, n_electrons: int, n_a: int, l_a: int, n_b: int, l_b: int
+    z: int, n_electrons: int, n_a: int, l_a: int, n_b: int, l_b: int,
+    n_box: int | None = None,
 ) -> Quantity:
     """Radial dipole matrix element <b|r|a> in bohr for a screened atom.
 
     APPROXIMATION, not NUMERICAL: the GSZ model error dominates the grid error,
     and labelling this by its discretization alone would understate it. The
     grid-halving figure is still reported as the numerical sub-scale.
+
+    `n_box` sizes the shared grid for that principal quantum number instead of
+    the pair's own. A caller working through a whole line list should pass the
+    largest n in it, so every line lands on one grid: the box only has to be
+    big enough, and one box per atom means each l channel is solved once rather
+    than once per distinct pair, which is both faster and bounded in memory.
+    Accuracy is unaffected because the spacing, not the box, sets the error.
     """
     for n, l, name in ((n_a, l_a, "a"), (n_b, l_b, "b")):
         if n <= l:
             raise ValueError(f"state {name}: n must be > l, got n={n}, l={l}")
-    n_top = max(n_a, n_b)
+    n_top = max(n_a, n_b, n_box or 0)
     z_net = z - n_electrons + 1
     r_max = dipole_box_radius(n_top, z_net)
     n_points = grid_points_for(r_max)

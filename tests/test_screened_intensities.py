@@ -138,13 +138,27 @@ def test_provenance_names_both_error_sources_not_just_the_grid(sodium):
 def test_the_strength_error_is_absolute_and_doubles_the_dipole_relative_error(sodium):
     """f and A both go as |R|^2, so R's relative error enters twice. The stored
     figure is absolute, matching every other error_estimate in the codebase.
+
+    n_box has to match what the line list used, or this compares two grids: the
+    integrals agree to six digits either way, but their grid-halving estimates
+    are of the grid each one actually ran on.
     """
     line = _find(sodium.lines, 3, 1, 3, 0)
-    dipole = screened_dipole_integral(11, 11, 3, 0, 3, 1)
+    dipole = screened_dipole_integral(11, 11, 3, 0, 3, 1, n_box=sodium.n_max)
     rel = dipole.provenance.error_estimate / abs(dipole.value)
     for q in (line.einstein_a, line.oscillator_strength):
         assert q.provenance.error_estimate == pytest.approx(2.0 * rel * abs(q.value))
         assert q.provenance.error_estimate < abs(q.value), "error should not swamp the value"
+
+
+def test_a_bigger_shared_box_does_not_move_the_value():
+    """n_box lets a whole line list share one grid, which is only legitimate if
+    an oversized box is free. It is: the spacing sets the error, and the box
+    only has to be big enough to hold the states.
+    """
+    pair = screened_dipole_integral(11, 11, 3, 0, 3, 1)
+    shared = screened_dipole_integral(11, 11, 3, 0, 3, 1, n_box=6)
+    assert shared.value == pytest.approx(pair.value, rel=1e-6)
 
 
 def test_the_dipole_integral_is_symmetric_in_the_two_states():

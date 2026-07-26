@@ -191,6 +191,9 @@ def screened_transition_lines(result, intensities: bool = False) -> LineList:
     from atomsim.screened_atom import screened_dipole_integral  # circular at module scope
 
     levels = [(o.n, o.l, o.energy) for o in result.orbitals]
+    # One box for the whole list, sized by its most extended state, so every
+    # line reuses the same handful of solved l channels.
+    n_box = max((n for n, _, _ in levels), default=1)
     lines: list[SpectralLine] = []
     for (nu, lu, eu), (nl, ll_, el) in itertools.permutations(levels, 2):
         if eu.value <= el.value or abs(lu - ll_) != 1:
@@ -215,7 +218,7 @@ def screened_transition_lines(result, intensities: bool = False) -> LineList:
         if intensities:
             dE_h = eu.value - el.value
             R = screened_dipole_integral(
-                result.z, result.n_electrons, nl, ll_, nu, lu
+                result.z, result.n_electrons, nl, ll_, nu, lu, n_box=n_box
             )
             a_val = A_from_radial_dipole(dE_h, lu, ll_, R.value)
             f_val = f_from_radial_dipole(dE_h, ll_, lu, R.value)
