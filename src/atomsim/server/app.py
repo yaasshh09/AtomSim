@@ -59,6 +59,7 @@ from atomsim.server.schemas import (
     ClassicalGhostModel,
     ComparisonModel,
     ConstantsReportModel,
+    CurveOfGrowthModel,
     FieldModel,
     ForceLawLevelModel,
     ForceLawModel,
@@ -88,6 +89,7 @@ from atomsim.systems import (
     hydrogen_like,
     list_systems,
 )
+from atomsim.transfer import curve_of_growth, default_columns
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -930,6 +932,81 @@ def create_app() -> FastAPI:
                 else ThermalModel.from_state(lines.thermal)
             ),
             profile=prof, profile_note=note,
+        )
+
+    @app.get("/api/curve-of-growth", response_model=CurveOfGrowthModel)
+    def curve_of_growth_endpoint(
+        system: str = "h", n_max: int = 6, fine_structure: bool = False,
+        temperature_k: float = 10000.0, electron_density_cm3: float = 1e13,
+        lambda_nm: float = 656.28, resolving_power: float | None = None,
+        config: str | None = None,
+    ) -> CurveOfGrowthModel:
+        """How much light one line removes, against how much gas is in the way.
+
+        The line is picked by wavelength rather than by quantum numbers so the
+        view can hand back whatever the user clicked. Widths come from the same
+        Phase 18 synthesis that drew the profile, so the curve and the profile
+        beside it describe the same line.
+        """
+        thermal = _resolve_thermal(temperature_k, electron_density_cm3)
+        if lambda_nm <= 0.0:
+            raise HTTPException(status_code=422, detail="lambda_nm must be > 0")
+        if resolving_power is not None and not 1e2 <= resolving_power <= 1e7:
+            raise HTTPException(
+                status_code=422, detail="resolving_power must be in [1e2, 1e7]"
+            )
+        if _is_screened(system):
+            element = atom_for_key(system)
+            cfg = _resolve_config(system, config)
+            result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
+            lines = screened_transition_lines(result, intensities=True, thermal=thermal)
+            mass, hydrogenic = element_emitter_mass(element), False
+        else:
+            if not 2 <= n_max <= 10:
+                raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
+            sys_ = _resolve_system(system)
+            lines = transition_lines(
+                sys_, n_max=n_max, fine_structure=fine_structure,
+                intensities=True, thermal=thermal,
+            )
+            mass, hydrogenic = emitter_mass(sys_), True
+
+        syn = synthesize(
+            lines, emitter_mass=mass, hydrogenic=hydrogenic,
+            resolving_power=resolving_power, max_points=2000,
+        )
+        # Nearest computed line to what was asked for, paired with its own f.
+        # Matched by wavelength rather than by list position: the two lists
+        # happen to run in step today, and a windowed synthesis would silently
+        # break that with no error to notice.
+        if not lines.lines or not syn.profiles:
+            raise HTTPException(status_code=404, detail="no lines in this spectrum")
+        line = min(
+            lines.lines, key=lambda ln: abs(ln.wavelength.value - lambda_nm)
+        )
+        width = min(
+            syn.profiles,
+            key=lambda p: abs(p.wavelength_nm - line.wavelength.value),
+        )
+        if line.oscillator_strength is None or line.oscillator_strength.value <= 0.0:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"the {width.label} line has no oscillator strength, so it "
+                    "has no absorption cross-section and no curve of growth"
+                ),
+            )
+        f = line.oscillator_strength.value
+        try:
+            columns = default_columns(f, width.wavelength_nm, width.sigma_nm,
+                                      width.gamma_nm)
+            curve = curve_of_growth(
+                f, width.wavelength_nm, width.sigma_nm, width.gamma_nm, columns
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return CurveOfGrowthModel.from_curve(
+            curve, width.label, width.sigma_nm, width.gamma_nm
         )
 
     @app.get("/api/thumbnail/{n}/{l}/{m}")

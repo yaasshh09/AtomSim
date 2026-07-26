@@ -31,8 +31,10 @@ from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 __all__ = [
     "CurveOfGrowth",
     "SIGMA_INTEGRAL",
+    "absorption_spectrum",
     "cross_section",
     "curve_of_growth",
+    "default_columns",
     "equivalent_width",
     "optical_depth",
     "transmission",
@@ -210,6 +212,35 @@ def _classify(tau_centre: float, damping_parameter: float) -> str:
     if damping_parameter * tau_centre > 1.0:
         return "damping"
     return "saturated"
+
+
+def default_columns(
+    oscillator_strength: float,
+    wavelength_nm: float,
+    sigma_nm: float,
+    gamma_nm: float,
+    points: int = 70,
+) -> np.ndarray:
+    """Column densities spanning all three branches, for this particular line.
+
+    A fixed range cannot do it. The knees sit where `tau_centre = 1` and where
+    `a tau_centre = 1`, and both move by orders of magnitude with the line's
+    strength and width, so a range that shows all three branches for H-alpha
+    shows one branch for a weak infrared line. This anchors the range on the
+    line's own knees and pads a few decades either side.
+    """
+    from atomsim.broadening import voigt  # circular at module scope
+
+    peak = float(cross_section(
+        oscillator_strength, wavelength_nm,
+        voigt(np.array([0.0]), sigma_nm, gamma_nm),
+    )[0])
+    if peak <= 0.0:
+        raise ValueError("this line has no absorption cross-section")
+    a = gamma_nm / (sigma_nm * math.sqrt(2.0)) if sigma_nm > 0 else 1.0
+    n_thin = 1.0 / peak                      # tau_centre = 1
+    n_damp = n_thin / a if a > 0 else n_thin  # a tau_centre = 1
+    return np.geomspace(n_thin * 1e-5, n_damp * 1e4, points)
 
 
 def curve_of_growth(

@@ -18,6 +18,7 @@ from atomsim.transfer import (
     absorption_spectrum,
     cross_section,
     curve_of_growth,
+    default_columns,
     equivalent_width,
     optical_depth,
     transmission,
@@ -276,3 +277,22 @@ def test_absorption_field_axes_line_up():
     assert f.values.shape == grid.shape
     assert f.unit.startswith("I/I_0")
     assert np.all(f.values <= 1.0)
+
+
+# --- the default column range ---------------------------------------------
+
+def test_default_columns_contain_all_three_branches():
+    """A fixed range cannot serve every line: the knees move by orders of
+    magnitude with f and the widths. The range must be built from the line."""
+    for f, lam, sig, gam in [
+        (F, LAM, SIGMA, GAMMA),
+        (1e-4, 1875.0, 0.06, 3e-6),   # a weak infrared line
+        (0.42, 121.567, 0.0037, 2.5e-6),  # Lyman-alpha
+    ]:
+        c = curve_of_growth(f, lam, sig, gam, default_columns(f, lam, sig, gam))
+        assert set(c.regime) == {"linear", "saturated", "damping"}, (f, lam)
+
+
+def test_default_columns_reject_a_line_that_cannot_absorb():
+    with pytest.raises(ValueError, match="no absorption"):
+        default_columns(0.0, LAM, SIGMA, GAMMA)

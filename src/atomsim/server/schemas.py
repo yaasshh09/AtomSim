@@ -17,6 +17,7 @@ from atomsim.populations import ThermalState
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.spectra import LineComparison, SpectralLine
 from atomsim.systems import System
+from atomsim.transfer import CurveOfGrowth
 
 FidelityName = Literal[
     "exact", "numerical", "approximation", "counterfactual", "visual_liberty"
@@ -400,6 +401,54 @@ class ProfileModel(BaseModel):
             ),
             stark_note=syn.stark_note,
             provenance=ProvenanceModel.from_provenance(syn.spectrum.provenance),
+        )
+
+
+class CurveOfGrowthModel(BaseModel):
+    """How a line's measured strength responds to adding more gas.
+
+    The regime labels are the payload, not the curve. Which branch a line sits
+    on decides whether its strength measures the amount of gas at all, and a
+    plot without that answer would invite exactly the misreading the phase
+    exists to prevent.
+    """
+
+    label: str
+    wavelength_nm: float
+    oscillator_strength: float
+    #: The widths the curve was computed for; the knees sit where they put them.
+    sigma_nm: float
+    gamma_nm: float
+    damping_parameter: float
+    column_density_m2: list[float]
+    equivalent_width_nm: list[float]
+    #: "linear" | "saturated" | "damping", per point.
+    regime: list[str]
+    #: Local log-log slope: 1, then ~0, then 1/2. The visible signature of the
+    #: branch, though not what the branch is decided by.
+    slope: list[float]
+    tau_centre: list[float]
+    window_nm: float
+    provenance: ProvenanceModel
+
+    @classmethod
+    def from_curve(
+        cls, c: CurveOfGrowth, label: str, sigma_nm: float, gamma_nm: float
+    ) -> "CurveOfGrowthModel":
+        return cls(
+            label=label,
+            wavelength_nm=c.wavelength_nm,
+            oscillator_strength=c.oscillator_strength,
+            sigma_nm=sigma_nm,
+            gamma_nm=gamma_nm,
+            damping_parameter=c.damping_parameter,
+            column_density_m2=[float(v) for v in c.column_density],
+            equivalent_width_nm=[float(v) for v in c.equivalent_width],
+            regime=list(c.regime),
+            slope=[float(v) for v in c.slope],
+            tau_centre=[float(v) for v in c.tau_centre],
+            window_nm=c.window_nm,
+            provenance=ProvenanceModel.from_provenance(c.provenance),
         )
 
 
