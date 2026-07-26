@@ -44,6 +44,7 @@ from atomsim.constants_lab import analyze_constants
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
+from atomsim.populations import ThermalConditions
 from atomsim.provenance import Field, Quantity
 from atomsim.sampling import SampleCloud, sample_density, sample_screened_density
 from atomsim.screened_atom import (
@@ -69,6 +70,7 @@ from atomsim.server.schemas import (
     ScreenedLevelsModel,
     ScreenedOrbitalModel,
     SystemModel,
+    ThermalModel,
 )
 from atomsim.server.thumbnails import render_thumbnail
 from atomsim.spectra import (
@@ -199,6 +201,8 @@ class SpectrumResponse(BaseModel):
     tolerance_relative: float | None
     #: Why the lines carry no strengths, when they were asked for and withheld.
     intensity_note: str | None = None
+    #: Present exactly when the lines carry an emissivity.
+    thermal: ThermalModel | None = None
 
 
 class SampleRequest(BaseModel):
@@ -367,6 +371,36 @@ def create_app() -> FastAPI:
 
     def _is_screened(key: str) -> bool:
         return is_atom_key(key)
+
+    def _resolve_thermal(
+        temperature_k: float | None, electron_density_cm3: float | None
+    ) -> ThermalConditions | None:
+        """Both knobs or neither: half of Saha is not a state anyone can read.
+
+        The bounds are display limits, not physics limits. Below ~100 K every
+        excited level is empty and the spectrum is a single dark band; above
+        ~10^6 K hydrogen is long gone. The formulas hold outside; the view has
+        nothing to show there.
+        """
+        if temperature_k is None and electron_density_cm3 is None:
+            return None
+        if temperature_k is None or electron_density_cm3 is None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "temperature_k and electron_density_cm3 must be given "
+                    "together: ionization depends on both"
+                ),
+            )
+        if not 1e2 <= temperature_k <= 1e6:
+            raise HTTPException(
+                status_code=422, detail="temperature_k must be in [1e2, 1e6]"
+            )
+        if not 1e4 <= electron_density_cm3 <= 1e22:
+            raise HTTPException(
+                status_code=422, detail="electron_density_cm3 must be in [1e4, 1e22]"
+            )
+        return ThermalConditions(temperature_k, electron_density_cm3)
 
     def _resolve_config(system_key: str, config: str | None):
         element = atom_for_key(system_key)
@@ -727,12 +761,17 @@ def create_app() -> FastAPI:
     def spectrum(system: str = "h", n_max: int = 6,
                  fine_structure: bool = False,
                  intensities: bool = False,
+                 temperature_k: float | None = None,
+                 electron_density_cm3: float | None = None,
                  config: str | None = None) -> SpectrumResponse:
+        thermal = _resolve_thermal(temperature_k, electron_density_cm3)
         if _is_screened(system):
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
             result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
-            lines = screened_transition_lines(result, intensities=intensities)
+            lines = screened_transition_lines(
+                result, intensities=intensities, thermal=thermal
+            )
             reference = load_reference(system)
             comparison = citation = tol = None
             if reference is not None:
@@ -756,12 +795,17 @@ def create_app() -> FastAPI:
                 lines=[LineModel.from_line(ln) for ln in lines.lines],
                 comparison=comparison, reference_citation=citation, tolerance_relative=tol,
                 intensity_note=lines.intensity_note,
+                thermal=(
+                    None if lines.thermal is None
+                    else ThermalModel.from_state(lines.thermal)
+                ),
             )
         if not 2 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
         sys_ = _resolve_system(system)
         lines = transition_lines(
-            sys_, n_max=n_max, fine_structure=fine_structure, intensities=intensities
+            sys_, n_max=n_max, fine_structure=fine_structure,
+            intensities=intensities, thermal=thermal,
         )
         reference = load_reference(sys_.key)
         comparison = None
@@ -783,6 +827,10 @@ def create_app() -> FastAPI:
             reference_citation=citation,
             tolerance_relative=tol,
             intensity_note=lines.intensity_note,
+            thermal=(
+                None if lines.thermal is None
+                else ThermalModel.from_state(lines.thermal)
+            ),
         )
 
     @app.get("/api/thumbnail/{n}/{l}/{m}")

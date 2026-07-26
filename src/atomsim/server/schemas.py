@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from atomsim.classical import BohrOrbit, ClassicalGhost
 from atomsim.constants import BOHR_RADIUS_FM
 from atomsim.constants_lab import ConstantsReport, DerivedObservable
+from atomsim.populations import ThermalState
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.spectra import LineComparison, SpectralLine
 from atomsim.systems import System
@@ -285,6 +286,10 @@ class LineModel(BaseModel):
     #: line list's `intensity_note` then says which case applies.
     einstein_a_s: QuantityModel | None = None
     oscillator_strength: QuantityModel | None = None
+    #: eV/s per atom of the element. Null unless thermal conditions were given.
+    #: A modelled LTE emission rate, not a measured brightness: see the
+    #: response's `thermal` block for the conditions and their assumptions.
+    emissivity: QuantityModel | None = None
 
     @classmethod
     def from_line(cls, ln: SpectralLine) -> "LineModel":
@@ -301,6 +306,34 @@ class LineModel(BaseModel):
                 None if ln.oscillator_strength is None
                 else QuantityModel.from_quantity(ln.oscillator_strength)
             ),
+            emissivity=(
+                None if ln.emissivity is None
+                else QuantityModel.from_quantity(ln.emissivity)
+            ),
+        )
+
+
+class ThermalModel(BaseModel):
+    """The LTE conditions a spectrum was computed at, and what they produced.
+
+    Carried so the view can state what it is drawing. The ionized fraction in
+    particular is not decoration: once it approaches 1 the whole spectrum is
+    dim because there are no neutrals left, and a view that rescaled to the
+    brightest remaining line without saying so would hide that entirely.
+    """
+
+    temperature_k: float
+    electron_density_cm3: float
+    ionized_fraction: QuantityModel
+    partition_function: QuantityModel
+
+    @classmethod
+    def from_state(cls, state: ThermalState) -> "ThermalModel":
+        return cls(
+            temperature_k=state.conditions.temperature_k,
+            electron_density_cm3=state.conditions.electron_density_cm3,
+            ionized_fraction=QuantityModel.from_quantity(state.ionized_fraction),
+            partition_function=QuantityModel.from_quantity(state.partition_function),
         )
 
 
