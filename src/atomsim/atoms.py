@@ -84,18 +84,27 @@ class Element:
     z: int
     symbol: str
     name: str
+    #: Standard atomic weight, in unified atomic mass units. This is the mass
+    #: of the whole neutral atom for the natural terrestrial isotope mixture,
+    #: which is what a Doppler width needs: the emitter that recoils is the
+    #: atom, not the electron. A mixture is not one mass, and the spread shows
+    #: up in a real spectrum as an isotope shift that this does not model.
+    mass_u: float
 
 
+#: Standard atomic weights, IUPAC/CIAAW 2021 table (abridged to the digits that
+#: matter here: a Doppler width goes as 1/sqrt(m), so the fourth digit moves it
+#: by parts in ten thousand, far below the model's own error).
 ELEMENTS: tuple[Element, ...] = (
-    Element(1, "H", "Hydrogen"), Element(2, "He", "Helium"),
-    Element(3, "Li", "Lithium"), Element(4, "Be", "Beryllium"),
-    Element(5, "B", "Boron"), Element(6, "C", "Carbon"),
-    Element(7, "N", "Nitrogen"), Element(8, "O", "Oxygen"),
-    Element(9, "F", "Fluorine"), Element(10, "Ne", "Neon"),
-    Element(11, "Na", "Sodium"), Element(12, "Mg", "Magnesium"),
-    Element(13, "Al", "Aluminium"), Element(14, "Si", "Silicon"),
-    Element(15, "P", "Phosphorus"), Element(16, "S", "Sulfur"),
-    Element(17, "Cl", "Chlorine"), Element(18, "Ar", "Argon"),
+    Element(1, "H", "Hydrogen", 1.008), Element(2, "He", "Helium", 4.002602),
+    Element(3, "Li", "Lithium", 6.94), Element(4, "Be", "Beryllium", 9.012183),
+    Element(5, "B", "Boron", 10.81), Element(6, "C", "Carbon", 12.011),
+    Element(7, "N", "Nitrogen", 14.007), Element(8, "O", "Oxygen", 15.999),
+    Element(9, "F", "Fluorine", 18.998403), Element(10, "Ne", "Neon", 20.1797),
+    Element(11, "Na", "Sodium", 22.989769), Element(12, "Mg", "Magnesium", 24.305),
+    Element(13, "Al", "Aluminium", 26.981538), Element(14, "Si", "Silicon", 28.085),
+    Element(15, "P", "Phosphorus", 30.973762), Element(16, "S", "Sulfur", 32.06),
+    Element(17, "Cl", "Chlorine", 35.45), Element(18, "Ar", "Argon", 39.95),
 )
 
 _BY_SYMBOL = {e.symbol: e for e in ELEMENTS}

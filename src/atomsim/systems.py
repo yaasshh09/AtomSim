@@ -162,6 +162,72 @@ def get_system(key: str) -> System:
     raise KeyError(f"unknown system {key!r}; available: {[s.key for s in _SYSTEMS]}")
 
 
+def emitter_mass(system: System) -> Quantity:
+    """Mass of the whole radiating atom (orbiter plus nucleus), in kg.
+
+    A Doppler width is set by the mass of the thing that recoils, which is the
+    atom, not the electron. Getting this wrong is a factor of 1836, so it is
+    derived here once rather than at each call site.
+
+    No new data is needed: the mass is already implied by what the preset
+    stores. With `x = m_orb / M_nuc` (the stored `m_over_M`) and the stored
+    reduced mass `mu = m_orb M / (m_orb + M) = m_orb / (1 + x)`,
+
+        m_orb = mu (1 + x)
+        M_nuc = m_orb / x = mu (1 + x) / x
+        M_atom = m_orb + M_nuc = mu (1 + x)^2 / x
+
+    which returns 1837.15 m_e for hydrogen (proton plus electron), exactly
+    2 m_e for positronium, and 2042.8 m_e for muonic hydrogen.
+
+    `m_over_M = 0` is the infinite-nucleus idealization of the generic Z
+    preset. The honest answer there is an infinite mass, and therefore a line
+    with no Doppler width at all, because a nucleus that cannot recoil cannot
+    shift its own photon. That is exact *for the model* and wrong about every
+    real ion, so it is said out loud instead of being served as a sharp line.
+    """
+    x = system.m_over_M
+    mu = system.mu_ratio.value
+    if x <= 0.0:
+        return Quantity(
+            value=float("inf"),
+            unit="kg",
+            label=f"M_atom ({system.key})",
+            provenance=Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="infinite nuclear mass: the model's nucleus cannot recoil",
+                assumptions=(
+                    "this preset carries no nuclear mass (m_over_M = 0), so the "
+                    "atom is infinitely heavy and every thermal velocity is "
+                    "zero; a real ion of this Z has a finite mass and a finite "
+                    "Doppler width",
+                ),
+                refinement="supply a nuclear mass to get a real thermal width",
+            ),
+        )
+    ratio = mu * (1.0 + x) ** 2 / x  # M_atom / m_e
+    return Quantity(
+        value=ratio * _sc.m_e,
+        unit="kg",
+        label=f"M_atom ({system.key})",
+        provenance=Provenance(
+            fidelity=system.mu_ratio.provenance.fidelity,
+            method=(
+                "M_atom = mu (1 + x)^2 / x with x = m_orb/M_nuc, inverted from "
+                f"[{system.mu_ratio.provenance.method}]"
+            ),
+            assumptions=system.mu_ratio.provenance.assumptions
+            + ("mass of the bound system taken as the sum of its parts: the "
+               "binding energy is ~1e-8 of the rest mass and is dropped",),
+            error_estimate=(
+                None if system.mu_ratio.provenance.error_estimate is None
+                else system.mu_ratio.provenance.error_estimate
+                * (1.0 + x) ** 2 / x * _sc.m_e
+            ),
+        ),
+    )
+
+
 def hydrogen_like(Z: int, mu_ratio: float = 1.0) -> System:
     """Generic one-electron ion with charge Z (infinite nuclear mass by default)."""
     if Z < 1:
