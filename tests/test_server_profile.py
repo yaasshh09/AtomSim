@@ -170,6 +170,52 @@ def test_full_range_includes_the_within_n_components(client):
     assert len(wide["widths"]) > len(narrow["widths"])
 
 
+def test_zoom_restricts_the_curve_to_the_requested_window(client):
+    """Where the phase pays off: a profile only shows its shape on an axis
+    narrow enough to resolve it, and the whole grid then lands on one line."""
+    body = _profile(
+        client, intensities=True, temperature_k=1e4, electron_density_cm3=1e12,
+        lambda_min=656.0, lambda_max=657.0,
+    )
+    prof = body["profile"]
+    assert min(prof["wavelength_nm"]) >= 656.0
+    assert max(prof["wavelength_nm"]) <= 657.0
+    # H-alpha and nothing else.
+    assert all(656.0 <= w["wavelength_nm"] <= 657.0 for w in prof["widths"])
+    assert prof["widths"]
+    # A resolved line: many grid points across its own FWHM.
+    fwhm = prof["widths"][0]["fwhm_nm"]
+    inside = [
+        x for x in prof["wavelength_nm"]
+        if abs(x - prof["widths"][0]["wavelength_nm"]) < fwhm / 2
+    ]
+    assert len(inside) > 10
+
+
+def test_zoom_needs_both_ends(client):
+    r = client.get(
+        "/api/spectrum", params={"profile": True, "lambda_min": 600}
+    )
+    assert r.status_code == 422
+
+
+def test_zoom_rejects_an_inverted_or_negative_window(client):
+    for lo, hi in [(700, 600), (-5, 600), (0, 600)]:
+        r = client.get(
+            "/api/spectrum",
+            params={"profile": True, "lambda_min": lo, "lambda_max": hi},
+        )
+        assert r.status_code == 422, (lo, hi)
+
+
+def test_zoom_with_no_lines_inside_reports_it(client):
+    body = _profile(
+        client, intensities=True, lambda_min=1000.0, lambda_max=1001.0
+    )
+    assert body["profile"] is None
+    assert "no lines" in body["profile_note"]
+
+
 def test_positronium_lines_are_dramatically_wider_than_hydrogen(client):
     """The exotic presets get real Doppler widths from their own masses, and
     positronium is 30 times lighter per emitter than hydrogen."""

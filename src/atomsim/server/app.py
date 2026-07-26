@@ -770,6 +770,23 @@ def create_app() -> FastAPI:
             radial_probability=FieldModel.from_field(p),
         )
 
+    def _resolve_zoom(
+        lambda_min: float | None, lambda_max: float | None
+    ) -> tuple[float, float] | None:
+        """Both ends or neither, and the low end has to be real light."""
+        if lambda_min is None and lambda_max is None:
+            return None
+        if lambda_min is None or lambda_max is None:
+            raise HTTPException(
+                status_code=422,
+                detail="lambda_min and lambda_max must be given together",
+            )
+        if not 0.0 < lambda_min < lambda_max:
+            raise HTTPException(
+                status_code=422, detail="need 0 < lambda_min < lambda_max"
+            )
+        return (lambda_min, lambda_max)
+
     def _profile_window(lines) -> tuple[float, float] | None:
         """The wavelength span a synthesized curve should cover.
 
@@ -788,15 +805,19 @@ def create_app() -> FastAPI:
 
     def _synthesize_profile(
         lines, mass, hydrogenic: bool, resolving_power: float | None,
-        full_range: bool,
+        full_range: bool, zoom: tuple[float, float] | None,
     ) -> tuple[ProfileModel | None, str | None]:
         """Build the curve, or say plainly why there is none.
 
         The failure mode is a feature: with no decay rate, no temperature and
         no instrument, every line has zero width, and the only way to draw a
         curve would be to invent one. The note names the knob instead.
+
+        A `zoom` window is where the phase earns its keep: a profile only shows
+        its shape when the axis is narrow enough to resolve it, and the whole
+        point budget then lands on the one line being looked at.
         """
-        window = None if full_range else _profile_window(lines.lines)
+        window = zoom if zoom else (None if full_range else _profile_window(lines.lines))
         try:
             syn = synthesize(
                 lines, emitter_mass=mass, hydrogenic=hydrogenic,
@@ -818,12 +839,15 @@ def create_app() -> FastAPI:
                  profile: bool = False,
                  resolving_power: float | None = None,
                  full_range: bool = False,
+                 lambda_min: float | None = None,
+                 lambda_max: float | None = None,
                  config: str | None = None) -> SpectrumResponse:
         thermal = _resolve_thermal(temperature_k, electron_density_cm3)
         if resolving_power is not None and not 1e2 <= resolving_power <= 1e7:
             raise HTTPException(
                 status_code=422, detail="resolving_power must be in [1e2, 1e7]"
             )
+        zoom = _resolve_zoom(lambda_min, lambda_max)
         if _is_screened(system):
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
@@ -850,6 +874,7 @@ def create_app() -> FastAPI:
                 prof, note = _synthesize_profile(
                     lines, element_emitter_mass(element), hydrogenic=False,
                     resolving_power=resolving_power, full_range=full_range,
+                    zoom=zoom,
                 )
             return SpectrumResponse(
                 system=SystemModel.from_atom(
@@ -889,6 +914,7 @@ def create_app() -> FastAPI:
             prof, note = _synthesize_profile(
                 lines, emitter_mass(sys_), hydrogenic=True,
                 resolving_power=resolving_power, full_range=full_range,
+                zoom=zoom,
             )
         return SpectrumResponse(
             system=SystemModel.from_system(sys_),
