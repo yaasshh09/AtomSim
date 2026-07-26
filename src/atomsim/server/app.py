@@ -38,6 +38,7 @@ from atomsim.atoms import (
     total_electrons,
     validate_config,
 )
+from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
@@ -63,6 +64,7 @@ from atomsim.server.schemas import (
     ForceLawModel,
     LineModel,
     PotentialCurveModel,
+    ProfileModel,
     ProvenanceModel,
     QuantityModel,
     ReferenceItemModel,
@@ -79,7 +81,13 @@ from atomsim.spectra import (
     screened_transition_lines,
     transition_lines,
 )
-from atomsim.systems import get_system, hydrogen_like, list_systems
+from atomsim.systems import (
+    element_emitter_mass,
+    emitter_mass,
+    get_system,
+    hydrogen_like,
+    list_systems,
+)
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -203,6 +211,11 @@ class SpectrumResponse(BaseModel):
     intensity_note: str | None = None
     #: Present exactly when the lines carry an emissivity.
     thermal: ThermalModel | None = None
+    #: The synthesized curve, when one was asked for and could be built. Null
+    #: with `profile_note` set when the request was made but no mechanism gives
+    #: the lines any width, since an invented width would be the lie.
+    profile: ProfileModel | None = None
+    profile_note: str | None = None
 
 
 class SampleRequest(BaseModel):
@@ -757,14 +770,60 @@ def create_app() -> FastAPI:
             radial_probability=FieldModel.from_field(p),
         )
 
+    def _profile_window(lines) -> tuple[float, float] | None:
+        """The wavelength span a synthesized curve should cover.
+
+        Same structural rule the view uses for the bar axis: across-n lines set
+        the range, because a fine-structure list also holds within-n components
+        out at millimetres to metres, and stretching a synthesis over eleven
+        decades of wavelength spends the whole point budget on empty space.
+        None means "no split applies, use the lot".
+        """
+        across = [
+            ln.wavelength.value for ln in lines if ln.n_upper != ln.n_lower
+        ]
+        if not across or len(across) == len(lines):
+            return None
+        return (min(across), max(across))
+
+    def _synthesize_profile(
+        lines, mass, hydrogenic: bool, resolving_power: float | None,
+        full_range: bool,
+    ) -> tuple[ProfileModel | None, str | None]:
+        """Build the curve, or say plainly why there is none.
+
+        The failure mode is a feature: with no decay rate, no temperature and
+        no instrument, every line has zero width, and the only way to draw a
+        curve would be to invent one. The note names the knob instead.
+        """
+        window = None if full_range else _profile_window(lines.lines)
+        try:
+            syn = synthesize(
+                lines, emitter_mass=mass, hydrogenic=hydrogenic,
+                resolving_power=resolving_power, window_nm=window,
+                # A transport cap, not a physics one. Closure stays inside
+                # 0.1% here, and the response reports what it actually was.
+                max_points=6000,
+            )
+        except ValueError as exc:
+            return None, str(exc)
+        return ProfileModel.from_synthetic(syn), None
+
     @app.get("/api/spectrum", response_model=SpectrumResponse)
     def spectrum(system: str = "h", n_max: int = 6,
                  fine_structure: bool = False,
                  intensities: bool = False,
                  temperature_k: float | None = None,
                  electron_density_cm3: float | None = None,
+                 profile: bool = False,
+                 resolving_power: float | None = None,
+                 full_range: bool = False,
                  config: str | None = None) -> SpectrumResponse:
         thermal = _resolve_thermal(temperature_k, electron_density_cm3)
+        if resolving_power is not None and not 1e2 <= resolving_power <= 1e7:
+            raise HTTPException(
+                status_code=422, detail="resolving_power must be in [1e2, 1e7]"
+            )
         if _is_screened(system):
             element = atom_for_key(system)
             cfg = _resolve_config(system, config)
@@ -786,6 +845,12 @@ def create_app() -> FastAPI:
                     )
                 ]
                 citation = reference.citation
+            prof = note = None
+            if profile:
+                prof, note = _synthesize_profile(
+                    lines, element_emitter_mass(element), hydrogenic=False,
+                    resolving_power=resolving_power, full_range=full_range,
+                )
             return SpectrumResponse(
                 system=SystemModel.from_atom(
                     element, element.z,
@@ -799,6 +864,7 @@ def create_app() -> FastAPI:
                     None if lines.thermal is None
                     else ThermalModel.from_state(lines.thermal)
                 ),
+                profile=prof, profile_note=note,
             )
         if not 2 <= n_max <= 10:
             raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
@@ -818,6 +884,12 @@ def create_app() -> FastAPI:
                 for c in compare_lines(lines, reference, tolerance_relative=tol)
             ]
             citation = reference.citation
+        prof = note = None
+        if profile:
+            prof, note = _synthesize_profile(
+                lines, emitter_mass(sys_), hydrogenic=True,
+                resolving_power=resolving_power, full_range=full_range,
+            )
         return SpectrumResponse(
             system=SystemModel.from_system(sys_),
             n_max=n_max,
@@ -831,6 +903,7 @@ def create_app() -> FastAPI:
                 None if lines.thermal is None
                 else ThermalModel.from_state(lines.thermal)
             ),
+            profile=prof, profile_note=note,
         )
 
     @app.get("/api/thumbnail/{n}/{l}/{m}")

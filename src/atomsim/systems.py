@@ -228,6 +228,39 @@ def emitter_mass(system: System) -> Quantity:
     )
 
 
+def element_emitter_mass(element) -> Quantity:
+    """Mass of a neutral atom of `element`, in kg, for a Doppler width.
+
+    `element` is an atoms.Element (untyped here to keep that module free of
+    physics imports, which is its stated boundary). Unlike the hydrogen-like
+    presets, a screened atom's mass is not implied by anything the model
+    already carries, so it comes from the standard atomic weight table.
+
+    That weight is for the natural isotope mixture, which is not one mass. The
+    spread is real and shows up in a spectrum as an isotope shift; what this
+    gives is the width the mean mass would produce.
+    """
+    return Quantity(
+        value=element.mass_u * _sc.physical_constants["atomic mass constant"][0],
+        unit="kg",
+        label=f"M_atom ({element.symbol})",
+        provenance=Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method=(
+                f"standard atomic weight {element.mass_u:g} u "
+                "(IUPAC/CIAAW), times the atomic mass constant"
+            ),
+            assumptions=(
+                "natural terrestrial isotope mixture, taken as a single mean "
+                "mass: the real mixture broadens and shifts lines by an isotope "
+                "effect this does not model",
+                "neutral atom: an ion has lost an electron's worth of mass, "
+                "which is parts in 1e4 and below anything here",
+            ),
+        ),
+    )
+
+
 def hydrogen_like(Z: int, mu_ratio: float = 1.0) -> System:
     """Generic one-electron ion with charge Z (infinite nuclear mass by default)."""
     if Z < 1:

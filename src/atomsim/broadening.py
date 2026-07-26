@@ -409,6 +409,7 @@ def synthesize(
     resolving_power: float | None = None,
     window_nm: tuple[float, float] | None = None,
     n_background: int = 600,
+    max_points: int = _MAX_POINTS,
 ) -> SyntheticSpectrum:
     """Sum the line profiles of a LineList into a continuous spectral emissivity.
 
@@ -428,6 +429,10 @@ def synthesize(
 
     `hydrogenic` gates the collisional-broadening estimate, which is a linear
     Stark effect and therefore exists only for a degenerate l manifold.
+
+    `max_points` is a transport limit, not a physics one: the curve has to
+    cross a wire. Lowering it coarsens the grid, and whatever that costs shows
+    up in `flux_closure` rather than being hidden.
 
     Raises if no mechanism gives any line a width, because the honest output
     then is not a curve but a message saying which knob is missing.
@@ -540,7 +545,7 @@ def synthesize(
     # Give up the cheapest thing first: the baseline between lines, then the
     # far wings, and only last the core, which is the only part that decides
     # what the peak looks like.
-    while grid.size > _MAX_POINTS and (background > 2 or n_wing > 4 or n_core > 5):
+    while grid.size > max_points and (background > 2 or n_wing > 4 or n_core > 5):
         if background > 2:
             background = max(background // 4, 2)
         elif n_wing > 4:
@@ -582,20 +587,31 @@ def synthesize(
         )
         neglected += p.weight * _tail_fraction(span, p.sigma_nm, p.gamma_nm)
 
+    # A gas hot and dense enough to be fully ionized has no bound-bound
+    # emission at all, so every weight is legitimately zero. The curve is then
+    # flat zero, which is the answer rather than a failure, and there is no
+    # total to normalize the closure or the dropped flux against.
     total_weight = sum(p.weight for p in profiles)
     closure = (
         float(np.trapezoid(values, grid)) / total_weight if total_weight > 0 else 1.0
     )
+    lost = neglected / total_weight if total_weight > 0 else 0.0
     assumptions = [
         "profile = Voigt (Gaussian widths in quadrature, Lorentzian widths "
         "added) evaluated with the Faddeeva function; exact given the widths",
         "grid is adaptive (a cluster per line over a coarse background); each "
         "line's own centre is a grid point, so no peak is undersampled",
         f"each line is summed out to {_CUT_FWHM:.0e} of its own FWHM and its "
-        f"wings dropped beyond that, which loses {neglected / total_weight:.2e} "
+        f"wings dropped beyond that, which loses {lost:.2e} "
         "of the total flux (computed from the analytic tail integrals, not "
         "assumed); overlapping wings inside that span are summed exactly",
     ]
+    if total_weight <= 0.0:
+        assumptions.append(
+            "every line in this spectrum has zero strength, so the curve is "
+            "flat zero: at these conditions the gas is fully ionized and there "
+            "are no neutral atoms left to emit a bound-bound line"
+        )
     if window_nm is not None:
         assumptions.append(
             "lines outside the requested window are dropped whole, including "

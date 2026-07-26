@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from atomsim.broadening import SyntheticSpectrum
 from atomsim.classical import BohrOrbit, ClassicalGhost
 from atomsim.constants import BOHR_RADIUS_FM
 from atomsim.constants_lab import ConstantsReport, DerivedObservable
@@ -334,6 +335,71 @@ class ThermalModel(BaseModel):
             electron_density_cm3=state.conditions.electron_density_cm3,
             ionized_fraction=QuantityModel.from_quantity(state.ionized_fraction),
             partition_function=QuantityModel.from_quantity(state.partition_function),
+        )
+
+
+class LineWidthModel(BaseModel):
+    """The width budget of one line, so the view can say what set it.
+
+    Kept separate from the curve: a user pointing at a line wants to know
+    whether they are looking at temperature, lifetime, or the spectrograph,
+    and only the breakdown answers that.
+    """
+
+    label: str
+    wavelength_nm: float
+    n_upper: int
+    n_lower: int
+    #: Gaussian sigma, nm (Doppler and instrument in quadrature).
+    sigma_nm: float
+    #: Lorentzian HWHM, nm (natural).
+    gamma_nm: float
+    fwhm_nm: float
+    terms: list[str]
+
+
+class ProfileModel(BaseModel):
+    """A synthesized spectrum: the curve, its widths, and what it leaves out."""
+
+    wavelength_nm: list[float]
+    intensity: list[float]
+    unit: str
+    #: "emissivity" | "rate" | "uniform" — what the area under a line means.
+    weight_kind: str
+    resolving_power: float | None
+    #: Curve integral over summed line strengths. The grid's own quadrature
+    #: error, measured by the engine rather than assumed to be negligible.
+    flux_closure: float
+    widths: list[LineWidthModel]
+    #: The collisional broadening that is NOT in the curve, sized.
+    stark_span_nm: QuantityModel | None
+    stark_note: str | None
+    provenance: ProvenanceModel
+
+    @classmethod
+    def from_synthetic(cls, syn: SyntheticSpectrum) -> "ProfileModel":
+        return cls(
+            wavelength_nm=[float(x) for x in syn.spectrum.grid],
+            intensity=[float(v) for v in syn.spectrum.values],
+            unit=syn.spectrum.unit,
+            weight_kind=syn.weight_kind,
+            resolving_power=syn.resolving_power,
+            flux_closure=syn.flux_closure,
+            widths=[
+                LineWidthModel(
+                    label=p.label, wavelength_nm=p.wavelength_nm,
+                    n_upper=p.n_upper, n_lower=p.n_lower,
+                    sigma_nm=p.sigma_nm, gamma_nm=p.gamma_nm,
+                    fwhm_nm=p.fwhm_nm, terms=list(p.terms),
+                )
+                for p in syn.profiles
+            ],
+            stark_span_nm=(
+                None if syn.stark_span is None
+                else QuantityModel.from_quantity(syn.stark_span)
+            ),
+            stark_note=syn.stark_note,
+            provenance=ProvenanceModel.from_provenance(syn.spectrum.provenance),
         )
 
 

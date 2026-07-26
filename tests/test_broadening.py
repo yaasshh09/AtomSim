@@ -453,6 +453,21 @@ def test_curve_is_finite_and_nonnegative():
     assert v.max() > 0.0
 
 
+def test_fully_ionized_gas_gives_a_flat_zero_curve():
+    """Not a failure: a gas with no neutrals left emits no bound-bound line at
+    all, so zero everywhere is the answer. It used to divide by the summed
+    strength and raise."""
+    lines = _hydrogen_thermal(t=3e5, ne=1e4)
+    assert lines.thermal.ionized_fraction.value == pytest.approx(1.0)
+    assert sum(ln.emissivity.value for ln in lines.lines) == 0.0
+    syn = synthesize(lines, emitter_mass=emitter_mass(get_system("h")))
+    assert np.all(syn.spectrum.values == 0.0)
+    assert syn.flux_closure == 1.0
+    assert any(
+        "fully ionized" in a for a in syn.spectrum.provenance.assumptions
+    )
+
+
 def test_window_restricts_the_lines_and_the_grid():
     syn = synthesize(
         _hydrogen_thermal(), emitter_mass=emitter_mass(get_system("h")),
