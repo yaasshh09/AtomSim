@@ -7,6 +7,7 @@ import type {
   LevelsResponse,
   RadialResponse,
   ScreenedLevels,
+  CurveOfGrowthInfo,
   SpectrumResponse,
   StateResponse,
   SystemsResponse,
@@ -164,6 +165,27 @@ export function getSpectrum(
   return getJson(
     `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}` +
       `&intensities=${intensities}${c}${t}${p}`,
+  );
+}
+
+export interface CurveOfGrowthParams {
+  system: string;
+  nMax: number;
+  fineStructure: boolean;
+  lambdaNm: number;
+  thermal: ThermalParams;
+  resolvingPower?: number | null;
+  config?: string | null;
+}
+
+export function getCurveOfGrowth(p: CurveOfGrowthParams): Promise<CurveOfGrowthInfo> {
+  const c = p.config ? `&config=${encodeURIComponent(p.config)}` : "";
+  const r = p.resolvingPower != null ? `&resolving_power=${p.resolvingPower}` : "";
+  return getJson(
+    `/api/curve-of-growth?system=${p.system}&n_max=${p.nMax}` +
+      `&fine_structure=${p.fineStructure}&lambda_nm=${p.lambdaNm}` +
+      `&temperature_k=${p.thermal.temperatureK}` +
+      `&electron_density_cm3=${p.thermal.electronDensityCm3}${r}${c}`,
   );
 }
 

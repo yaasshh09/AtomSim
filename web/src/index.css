@@ -346,6 +346,11 @@ button.primary:disabled {
 .levels-svg {
   width: 100%;
   height: auto;
+  /* .view-wrap is a flex column, so a plot is a flex item and shrinks to fit
+     by default: a 680x260 viewBox was rendering at 552x79, throwing away two
+     thirds of the height every plot was designed around. The wrapper already
+     scrolls (overflow-y: auto), so shrinking was never the intent. */
+  flex-shrink: 0;
   background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: 6px;

@@ -9,6 +9,7 @@ import type {
   PlaneMeta,
   RadialResponse,
   SampleMeta,
+  CurveOfGrowthInfo,
   ScreenedLevels,
   SpectrumResponse,
   StateResponse,
@@ -71,6 +72,11 @@ interface AppState {
   /** Wavelength window [nm] the profile is synthesized over, or null for the
    *  full across-n range. Set by clicking a line. */
   profileZoom: [number, number] | null;
+  /** Show the curve of growth for the zoomed line. Off by default: it answers
+   *  a different question from the profile (how the line responds to more gas,
+   *  not what it looks like) and deserves to be asked for. */
+  showCurveOfGrowth: boolean;
+  curveOfGrowth: CurveOfGrowthInfo | null;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -140,6 +146,8 @@ interface AppState {
   setProfile: (profile: boolean) => void;
   setLogResolvingPower: (logResolvingPower: number | null) => void;
   setProfileZoom: (profileZoom: [number, number] | null) => void;
+  setShowCurveOfGrowth: (showCurveOfGrowth: boolean) => void;
+  loadCurveOfGrowth: (lambdaNm: number) => Promise<void>;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -169,6 +177,7 @@ const INVALIDATED = {
   radial: null,
   levels: null,
   spectrum: null,
+  curveOfGrowth: null,
   // A zoom window names a wavelength, and a wavelength names a line of one
   // particular system. Carrying it across a system change would point the
   // profile at empty spectrum and quietly return nothing.
@@ -194,6 +203,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   logNe: 13,
   profile: false,
   logResolvingPower: null,
+  showCurveOfGrowth: false,
   // profileZoom's default lives in INVALIDATED, which is spread below.
   nucleusMode: "marker",
   count: 100_000,
@@ -259,7 +269,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProfile: (profile) => set({ profile, spectrum: null }),
   setLogResolvingPower: (logResolvingPower) =>
     set({ logResolvingPower, spectrum: null }),
-  setProfileZoom: (profileZoom) => set({ profileZoom, spectrum: null }),
+  // The curve belongs to one line, so moving the window discards it too.
+  setProfileZoom: (profileZoom) =>
+    set({ profileZoom, spectrum: null, curveOfGrowth: null }),
+  setShowCurveOfGrowth: (showCurveOfGrowth) => set({ showCurveOfGrowth }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -418,6 +431,22 @@ export const useAppStore = create<AppState>((set, get) => ({
         system, N_MAX_DIAGRAM, fineStructure, undefined, config, dirac,
         bField, eField, hyperfine,
       ),
+    });
+  },
+  loadCurveOfGrowth: async (lambdaNm) => {
+    const {
+      system, fineStructure, config, temperatureK, logNe, logResolvingPower,
+    } = get();
+    set({
+      curveOfGrowth: await client.getCurveOfGrowth({
+        system,
+        nMax: N_MAX_DIAGRAM,
+        fineStructure,
+        lambdaNm,
+        thermal: { temperatureK, electronDensityCm3: 10 ** logNe },
+        resolvingPower: logResolvingPower === null ? null : 10 ** logResolvingPower,
+        config,
+      }),
     });
   },
   loadSpectrum: async () => {

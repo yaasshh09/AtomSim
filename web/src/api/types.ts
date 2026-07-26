@@ -258,6 +258,31 @@ export interface ProfileInfo {
   provenance: Provenance;
 }
 
+/** One regime of the curve of growth. Which one a line sits in decides
+ *  whether its strength measures how much gas there is at all. */
+export type GrowthRegime = "linear" | "saturated" | "damping";
+
+/** Equivalent width against column density, with the branches labelled. */
+export interface CurveOfGrowthInfo {
+  label: string;
+  wavelength_nm: number;
+  oscillator_strength: number;
+  /** The widths the curve was computed for; the knees sit where they put them. */
+  sigma_nm: number;
+  gamma_nm: number;
+  /** a = gamma / (sigma sqrt2). The damping branch starts at a*tau = 1. */
+  damping_parameter: number;
+  column_density_m2: number[];
+  equivalent_width_nm: number[];
+  regime: GrowthRegime[];
+  /** Local log-log slope: 1, then ~0, then 1/2. */
+  slope: number[];
+  /** Optical depth at line centre. This is what decides the regime. */
+  tau_centre: number[];
+  window_nm: number;
+  provenance: Provenance;
+}
+
 export interface SpectrumResponse {
   system: SystemInfo;
   n_max: number;

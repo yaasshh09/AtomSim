@@ -10,6 +10,7 @@ import {
 import { seriesColor, seriesName } from "../lib/spectrum";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { CurveOfGrowthView } from "./CurveOfGrowthView";
 
 const W = 680;
 const LINES_H = 190;
@@ -277,6 +278,7 @@ export function SpectrumView() {
     thermal, temperatureK, logNe, setThermal, setTemperatureK, setLogNe,
     profile, logResolvingPower, profileZoom,
     setProfile, setLogResolvingPower, setProfileZoom,
+    showCurveOfGrowth, curveOfGrowth, setShowCurveOfGrowth, loadCurveOfGrowth,
   } = useAppStore();
   const [fullRange, setFullRange] = useState(false);
   // Set when the user deliberately backs out of a zoom, so the auto-zoom below
@@ -320,6 +322,14 @@ export function SpectrumView() {
     }
     setProfileZoom(zoomWindow(best.wavelength_nm, best.fwhm_nm));
   }, [profile, profileZoom, keepFull, prof0, lines0, setProfileZoom]);
+  // The curve is per line and costs its own request, so it is only fetched
+  // once asked for and only for the line actually in the window.
+  const zoomCentre = profileZoom ? (profileZoom[0] + profileZoom[1]) / 2 : null;
+  useEffect(() => {
+    if (!showCurveOfGrowth || zoomCentre === null) return;
+    void loadCurveOfGrowth(zoomCentre);
+  }, [showCurveOfGrowth, zoomCentre, temperatureK, logNe, logResolvingPower,
+      loadCurveOfGrowth]);
   if (!spectrum) return <p className="hint-block">loading spectrum…</p>;
 
   const window_ = wavelengthWindow(spectrum.lines, fullRange);
@@ -554,6 +564,24 @@ export function SpectrumView() {
             setProfileZoom(null);
           }}
         />
+      )}
+      {prof && profileZoom && (
+        <>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={showCurveOfGrowth}
+              onChange={(e) => setShowCurveOfGrowth(e.target.checked)}
+            />
+            curve of growth: what happens as more gas is put in the way
+          </label>
+          {showCurveOfGrowth && curveOfGrowth && (
+            <CurveOfGrowthView cog={curveOfGrowth} />
+          )}
+          {showCurveOfGrowth && !curveOfGrowth && (
+            <p className="hint-block">computing the curve of growth…</p>
+          )}
+        </>
       )}
       {spectrum.profile_note && (
         <p className="caption">
