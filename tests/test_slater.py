@@ -41,9 +41,23 @@ def test_f0_of_hydrogenic_1s_matches_the_analytic_value(grid):
         assert slater_f(p, p, grid, 0) == pytest.approx(5.0 * z / 8.0, rel=1e-5)
 
 
-def test_g_equals_f_when_both_orbitals_are_the_same(grid):
-    p = hydrogenic_1s(grid, 1.5)
-    assert slater_g(p, p, grid, 0) == pytest.approx(slater_f(p, p, grid, 0), rel=1e-10)
+def test_direct_integral_is_symmetric_under_orbital_exchange(grid):
+    """F^k(ab) = F^k(ba): the direct integral cannot tell which electron is
+    which. Tests the quadrature, not a tautology."""
+    a = hydrogenic_1s(grid, 1.0)
+    b = hydrogenic_1s(grid, 2.5)
+    assert slater_f(a, b, grid, 0) == pytest.approx(slater_f(b, a, grid, 0), rel=1e-8)
+
+
+def test_exchange_integral_never_exceeds_the_direct_one(grid):
+    """G^0(ab) <= F^0(ab) by Cauchy-Schwarz on a positive-definite kernel.
+    Holds for distinct orbitals, where the two integrals genuinely differ."""
+    a = hydrogenic_1s(grid, 1.0)
+    b = hydrogenic_1s(grid, 2.5)
+    direct = slater_f(a, b, grid, 0)
+    exchange = slater_g(a, b, grid, 0)
+    assert exchange <= direct
+    assert exchange != pytest.approx(direct)
 
 
 def test_higher_k_pair_potential_decays_faster(grid):
@@ -58,3 +72,10 @@ def test_rejects_negative_k(grid):
     p = hydrogenic_1s(grid, 1.0)
     with pytest.raises(ValueError):
         pair_potential(p, p, grid, -1)
+
+
+def test_rejects_grid_starting_at_zero():
+    grid = np.linspace(0.0, 40.0, 4000)
+    p = hydrogenic_1s(grid, 1.0)
+    with pytest.raises(ValueError):
+        pair_potential(p, p, grid, 0)

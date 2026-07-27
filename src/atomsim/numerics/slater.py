@@ -14,6 +14,12 @@ Two properties make this self-checking and are asserted in tests: U_0 tends to
 exchange of its two orbital arguments.
 
 Hartree atomic units. P = r R(r) throughout, normalized as integral P^2 dr = 1.
+
+Returns plain arrays and floats, not Quantity or Field. This is pure
+quadrature, not physics: the caller in hf_atom.py wraps these results with
+the provenance they belong to. That is a decision, not an oversight, and it
+matches the exemption analytic/wigner.py already documents for 3j and 6j
+symbols.
 """
 
 import numpy as np
@@ -38,6 +44,12 @@ def pair_potential(
         raise ValueError(f"multipole order k must be >= 0, got {k}")
     if not (p_a.shape == p_b.shape == r.shape):
         raise ValueError("orbitals and grid must have the same shape")
+    if r[0] <= 0.0:
+        raise ValueError(
+            f"radial grid must start strictly above zero, got r[0]={r[0]!r}; "
+            "r = 0 makes the outer integrand 0 * inf = nan and np.cumsum then "
+            "propagates that nan across the whole grid"
+        )
 
     density = p_a * p_b
     inner = _cumulative_trapezoid(density * r**k, r)
