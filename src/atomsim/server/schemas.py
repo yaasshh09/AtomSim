@@ -17,7 +17,7 @@ from atomsim.populations import ThermalState
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.spectra import LineComparison, SpectralLine
 from atomsim.systems import System
-from atomsim.transfer import CurveOfGrowth
+from atomsim.transfer import AbsorbingLine, AbsorptionSpectrum, CurveOfGrowth
 
 FidelityName = Literal[
     "exact", "numerical", "approximation", "counterfactual", "visual_liberty"
@@ -449,6 +449,90 @@ class CurveOfGrowthModel(BaseModel):
             tau_centre=[float(v) for v in c.tau_centre],
             window_nm=c.window_nm,
             provenance=ProvenanceModel.from_provenance(c.provenance),
+        )
+
+
+class AbsorbingLineModel(BaseModel):
+    """One line's share of a blended absorption spectrum."""
+
+    wavelength_nm: float
+    label: str
+    oscillator_strength: float
+    #: Column in *this line's* lower level. The reason one gas gives every
+    #: line a different optical depth, and the number the view has to show
+    #: for the Lyman/Balmer contrast to mean anything.
+    lower_column_m2: float
+    tau_centre: float
+    regime: str
+    thin_width_nm: float
+    fwhm_nm: float
+
+    @classmethod
+    def from_line(cls, d: AbsorbingLine) -> "AbsorbingLineModel":
+        return cls(
+            wavelength_nm=d.wavelength_nm,
+            label=d.label,
+            oscillator_strength=d.oscillator_strength,
+            lower_column_m2=d.lower_column_m2,
+            tau_centre=d.tau_centre,
+            regime=d.regime,
+            thin_width_nm=d.thin_width_nm,
+            fwhm_nm=d.fwhm_nm,
+        )
+
+
+class AbsorptionSpectrumModel(BaseModel):
+    """A whole line list absorbing at once against a flat continuum.
+
+    `saturation` is the payload rather than the curve. It is how much of the
+    census the spectrum is losing, and without it a plot of transmission
+    invites the reading this phase exists to prevent: that a deeper line means
+    proportionally more gas.
+    """
+
+    wavelength_nm: list[float]
+    transmission: list[float]
+    optical_depth: list[float]
+    lines: list[AbsorbingLineModel]
+    #: The gas that produced these populations. Without it the spectrum is a
+    #: shape with no conditions attached, and the whole Lyman/Balmer contrast
+    #: below is unexplained.
+    thermal: ThermalModel | None
+    column_density_m2: float
+    equivalent_width_nm: float
+    thin_limit_width_nm: float
+    saturation: float
+    #: Pairs of line labels whose profiles overlap.
+    blends: list[tuple[str, str]]
+    flux_closure: float
+    provenance: ProvenanceModel
+    #: Provenance of the column density itself, which is a knob and says so.
+    column_provenance: ProvenanceModel
+
+    @classmethod
+    def from_spectrum(
+        cls, a: AbsorptionSpectrum, thermal: ThermalState | None = None
+    ) -> "AbsorptionSpectrumModel":
+        return cls(
+            wavelength_nm=[float(v) for v in a.transmission.grid],
+            transmission=[float(v) for v in a.transmission.values],
+            optical_depth=[float(v) for v in a.optical_depth.values],
+            lines=[AbsorbingLineModel.from_line(d) for d in a.lines],
+            thermal=(
+                None if thermal is None else ThermalModel.from_state(thermal)
+            ),
+            column_density_m2=a.column_density.value,
+            equivalent_width_nm=a.equivalent_width.value,
+            thin_limit_width_nm=a.thin_limit_width.value,
+            saturation=a.saturation.value,
+            blends=[tuple(b) for b in a.blends],
+            flux_closure=a.flux_closure,
+            provenance=ProvenanceModel.from_provenance(
+                a.transmission.provenance
+            ),
+            column_provenance=ProvenanceModel.from_provenance(
+                a.column_density.provenance
+            ),
         )
 
 

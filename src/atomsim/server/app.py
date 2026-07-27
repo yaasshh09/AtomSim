@@ -55,6 +55,7 @@ from atomsim.screened_atom import (
 )
 from atomsim.server.jobs import Job, JobStatus, JobStore
 from atomsim.server.schemas import (
+    AbsorptionSpectrumModel,
     ChannelModel,
     ClassicalGhostModel,
     ComparisonModel,
@@ -89,7 +90,7 @@ from atomsim.systems import (
     hydrogen_like,
     list_systems,
 )
-from atomsim.transfer import curve_of_growth, default_columns
+from atomsim.transfer import absorb, curve_of_growth, default_columns
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -934,6 +935,82 @@ def create_app() -> FastAPI:
             profile=prof, profile_note=note,
         )
 
+    def _check_resolving_power(resolving_power: float | None) -> None:
+        if resolving_power is not None and not 1e2 <= resolving_power <= 1e7:
+            raise HTTPException(
+                status_code=422, detail="resolving_power must be in [1e2, 1e7]"
+            )
+
+    def _lines_with_strengths(
+        system: str, n_max: int, fine_structure: bool, thermal, config: str | None
+    ):
+        """A line list carrying oscillator strengths and populations, plus the
+        emitter mass its Doppler widths need.
+
+        Both transfer endpoints want exactly this and want it identically: a
+        curve of growth and an absorption spectrum that disagreed about which
+        lines exist would be two answers about one gas.
+        """
+        if _is_screened(system):
+            element = atom_for_key(system)
+            cfg = _resolve_config(system, config)
+            result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
+            lines = screened_transition_lines(result, intensities=True, thermal=thermal)
+            return lines, element_emitter_mass(element), False
+        if not 2 <= n_max <= 10:
+            raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
+        sys_ = _resolve_system(system)
+        lines = transition_lines(
+            sys_, n_max=n_max, fine_structure=fine_structure,
+            intensities=True, thermal=thermal,
+        )
+        return lines, emitter_mass(sys_), True
+
+    @app.get("/api/absorption", response_model=AbsorptionSpectrumModel)
+    def absorption_endpoint(
+        system: str = "h", n_max: int = 6, fine_structure: bool = False,
+        temperature_k: float = 10000.0, electron_density_cm3: float = 1e13,
+        column_density_m2: float = 1e20,
+        resolving_power: float | None = None,
+        lambda_min: float | None = None, lambda_max: float | None = None,
+        config: str | None = None,
+    ) -> AbsorptionSpectrumModel:
+        """A whole line list in front of a flat continuum, and what survives.
+
+        One column density for the element; each line's own lower-level
+        fraction turns it into that line's absorbers. That is what makes the
+        Lyman lines go black while the Balmer lines stay invisible in the same
+        gas, and it is the fact the emission endpoint cannot represent.
+
+        The window is left to the engine unless asked for, because sizing it
+        by eye is how Phase 19 lost a third of an equivalent width without
+        anything reporting a problem.
+        """
+        # Absorption has no meaning without populations, so unlike the emission
+        # endpoint these conditions are not optional. They default rather than
+        # refuse, and the gas they describe rides back on the response so a
+        # spectrum is never a shape with no conditions attached.
+        thermal = _resolve_thermal(temperature_k, electron_density_cm3)
+        if not 0.0 <= column_density_m2 <= 1e30:
+            raise HTTPException(
+                status_code=422,
+                detail="column_density_m2 must be in [0, 1e30]",
+            )
+        _check_resolving_power(resolving_power)
+        window = _resolve_zoom(lambda_min, lambda_max)
+        lines, mass, hydrogenic = _lines_with_strengths(
+            system, n_max, fine_structure, thermal, config
+        )
+        try:
+            spectrum = absorb(
+                lines, column_density_m2, emitter_mass=mass,
+                hydrogenic=hydrogenic, resolving_power=resolving_power,
+                window_nm=window,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return AbsorptionSpectrumModel.from_spectrum(spectrum, lines.thermal)
+
     @app.get("/api/curve-of-growth", response_model=CurveOfGrowthModel)
     def curve_of_growth_endpoint(
         system: str = "h", n_max: int = 6, fine_structure: bool = False,
@@ -951,25 +1028,10 @@ def create_app() -> FastAPI:
         thermal = _resolve_thermal(temperature_k, electron_density_cm3)
         if lambda_nm <= 0.0:
             raise HTTPException(status_code=422, detail="lambda_nm must be > 0")
-        if resolving_power is not None and not 1e2 <= resolving_power <= 1e7:
-            raise HTTPException(
-                status_code=422, detail="resolving_power must be in [1e2, 1e7]"
-            )
-        if _is_screened(system):
-            element = atom_for_key(system)
-            cfg = _resolve_config(system, config)
-            result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
-            lines = screened_transition_lines(result, intensities=True, thermal=thermal)
-            mass, hydrogenic = element_emitter_mass(element), False
-        else:
-            if not 2 <= n_max <= 10:
-                raise HTTPException(status_code=422, detail="n_max must be in [2, 10]")
-            sys_ = _resolve_system(system)
-            lines = transition_lines(
-                sys_, n_max=n_max, fine_structure=fine_structure,
-                intensities=True, thermal=thermal,
-            )
-            mass, hydrogenic = emitter_mass(sys_), True
+        _check_resolving_power(resolving_power)
+        lines, mass, hydrogenic = _lines_with_strengths(
+            system, n_max, fine_structure, thermal, config
+        )
 
         syn = synthesize(
             lines, emitter_mass=mass, hydrogenic=hydrogenic,
