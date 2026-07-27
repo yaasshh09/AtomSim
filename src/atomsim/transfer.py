@@ -353,11 +353,6 @@ def curve_of_growth(
     )
 
 
-def _orbital(l: int) -> str:
-    """Spectroscopic letter for an orbital angular momentum."""
-    return "spdfghi"[l] if l < 7 else f"l={l}"
-
-
 @dataclass(frozen=True)
 class AbsorbingLine:
     """One line's contribution to a blended absorption spectrum."""
@@ -471,6 +466,7 @@ def absorb(
     the flux-closure check are the same ones the emission spectrum uses.
     """
     from atomsim.broadening import synthesize, voigt  # circular at module scope
+    from atomsim.spectra import subshell_label
 
     if column_density_m2 < 0.0:
         raise ValueError(f"column density must be >= 0, got {column_density_m2}")
@@ -534,7 +530,7 @@ def absorb(
         )
         detail.append(AbsorbingLine(
             wavelength_nm=p.wavelength_nm,
-            label=f"{p.label} ({_orbital(ln.l_upper)}->{_orbital(ln.l_lower)})",
+            label=subshell_label(ln),
             oscillator_strength=(
                 ln.oscillator_strength.value
                 if ln.oscillator_strength is not None else 0.0

@@ -310,8 +310,7 @@ def test_a_p_lower_level_and_an_s_lower_level_differ_in_column():
     balmer = {
         d.label: d for d in result.lines if abs(d.wavelength_nm - 656.4696) < 1e-3
     }
-    from_2s = next(d for k, d in balmer.items() if k.endswith("(p->s)"))
-    from_2p = next(d for k, d in balmer.items() if k.endswith("(d->p)"))
+    from_2s, from_2p = balmer["3p->2s"], balmer["3d->2p"]
     # 2p holds three times the 2s population: g = 6 against g = 2, degenerate
     # in energy in the gross-structure model.
     assert from_2p.lower_column_m2 == pytest.approx(3.0 * from_2s.lower_column_m2, rel=1e-6)

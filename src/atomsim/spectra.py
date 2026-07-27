@@ -71,6 +71,28 @@ class SpectralLine:
     lower_fraction: Quantity | None = None
 
 
+_L_LETTERS = "spdfghi"
+
+
+def orbital_label(n: int, l: int) -> str:
+    """A level in spectroscopic notation: (3, 2) -> "3d"."""
+    return f"{n}{_L_LETTERS[l]}" if l < len(_L_LETTERS) else f"{n}(l={l})"
+
+
+def subshell_label(line: "SpectralLine") -> str:
+    """A line named by the levels it joins: "3d->2p".
+
+    Needed wherever lines have to be told apart rather than merely counted.
+    A gross-structure series label like "3->2" names three transitions at one
+    wavelength with oscillator strengths of 0.014, 0.435 and 0.696, which is
+    fine for a series and useless for anything that has to pick one.
+    """
+    return (
+        f"{orbital_label(line.n_upper, line.l_upper)}"
+        f"->{orbital_label(line.n_lower, line.l_lower)}"
+    )
+
+
 @dataclass(frozen=True)
 class LineList:
     system_key: str
@@ -382,7 +404,7 @@ def screened_transition_lines(
                 * HARTREE_EV
             ),
         )
-        label = f"{nu}{'spdfgh'[lu]}->{nl}{'spdfgh'[ll_]}"
+        label = f"{orbital_label(nu, lu)}->{orbital_label(nl, ll_)}"
         a_coeff = f_value = None
         if intensities:
             dE_h = eu.value - el.value

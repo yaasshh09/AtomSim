@@ -27,9 +27,24 @@ def test_returns_all_three_branches(client):
 
 
 def test_picks_the_line_nearest_the_requested_wavelength(client):
-    assert _cog(client, lambda_nm=656.0)["label"] == "3->2"
-    assert _cog(client, lambda_nm=486.0)["label"] == "4->2"
-    assert _cog(client, lambda_nm=121.5)["label"] == "2->1"
+    assert _cog(client, lambda_nm=656.0)["label"].startswith("3->2")
+    assert _cog(client, lambda_nm=486.0)["label"].startswith("4->2")
+    assert _cog(client, lambda_nm=121.5)["label"].startswith("2->1")
+
+
+def test_the_strongest_transition_at_a_wavelength_is_the_one_drawn(client):
+    """"H-alpha" is three lines on one wavelength, and they are not alike.
+
+    3s->2p, 3p->2s and 3d->2p all sit at 656.4696 nm with oscillator strengths
+    of 0.014, 0.435 and 0.696. Taking whichever comes first in the list draws
+    the curve of growth of the weakest and labels it H-alpha, putting the knee
+    in the wrong place by more than an order of magnitude in column density.
+    The label now says which transition was drawn, so the answer is checkable
+    rather than merely plausible.
+    """
+    body = _cog(client, lambda_nm=656.28)
+    assert body["label"] == "3->2 (3d->2p)"
+    assert body["oscillator_strength"] == pytest.approx(0.6961, abs=1e-3)
 
 
 def test_the_branches_have_their_textbook_slopes(client):

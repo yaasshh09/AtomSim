@@ -81,6 +81,7 @@ from atomsim.spectra import (
     compare_lines,
     load_reference,
     screened_transition_lines,
+    subshell_label,
     transition_lines,
 )
 from atomsim.systems import (
@@ -1037,18 +1038,25 @@ def create_app() -> FastAPI:
             lines, emitter_mass=mass, hydrogenic=hydrogenic,
             resolving_power=resolving_power, max_points=2000,
         )
-        # Nearest computed line to what was asked for, paired with its own f.
-        # Matched by wavelength rather than by list position: the two lists
-        # happen to run in step today, and a windowed synthesis would silently
-        # break that with no error to notice.
-        if not lines.lines or not syn.profiles:
+        if not syn.profiles:
             raise HTTPException(status_code=404, detail="no lines in this spectrum")
-        line = min(
-            lines.lines, key=lambda ln: abs(ln.wavelength.value - lambda_nm)
-        )
-        width = min(
-            syn.profiles,
-            key=lambda p: abs(p.wavelength_nm - line.wavelength.value),
+        # Nearest computed wavelength to what was asked for, then the strongest
+        # transition sitting on it. Both steps matter: "H-alpha" is three
+        # lines at exactly 656.4696 nm with oscillator strengths of 0.014,
+        # 0.435 and 0.696, so picking whichever comes first in the list draws a
+        # curve of growth for the weakest of them and calls it H-alpha. The
+        # pairing comes from `synthesize` rather than from a second wavelength
+        # match, which could not tell those three apart at all.
+        paired = list(zip(syn.profiles, syn.lines, strict=True))
+        target = min(
+            paired, key=lambda pl: abs(pl[0].wavelength_nm - lambda_nm)
+        )[0].wavelength_nm
+        width, line = max(
+            (pl for pl in paired if pl[0].wavelength_nm == target),
+            key=lambda pl: (
+                pl[1].oscillator_strength.value
+                if pl[1].oscillator_strength is not None else 0.0
+            ),
         )
         if line.oscillator_strength is None or line.oscillator_strength.value <= 0.0:
             raise HTTPException(
@@ -1068,7 +1076,8 @@ def create_app() -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return CurveOfGrowthModel.from_curve(
-            curve, width.label, width.sigma_nm, width.gamma_nm
+            curve, f"{width.label} ({subshell_label(line)})",
+            width.sigma_nm, width.gamma_nm
         )
 
     @app.get("/api/thumbnail/{n}/{l}/{m}")
