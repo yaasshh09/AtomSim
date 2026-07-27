@@ -23,13 +23,16 @@ See docs/superpowers/specs/2026-07-26-phase18-line-profiles-design.md.
 """
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from scipy import constants as _sc
 from scipy.special import wofz
 
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
+from atomsim.spectra import SpectralLine
 
 __all__ = [
     "LineProfile",
@@ -107,6 +110,12 @@ class SyntheticSpectrum:
     #: values = spectral emissivity per nm, grid = vacuum wavelength in nm.
     spectrum: Field
     profiles: tuple[LineProfile, ...]
+    #: The lines the profiles were built from, one per profile and in the same
+    #: order. Kept because a profile does not identify its line: degenerate
+    #: transitions share a wavelength exactly (all of 3d->2p, 3p->2s, 3s->2p sit
+    #: at 656.47 nm), so anything that needs a line's other properties back has
+    #: to be handed the pairing rather than reconstruct it from what it can see.
+    lines: tuple[SpectralLine, ...]
     #: "emissivity" | "rate" | "uniform" — what the area under a line means.
     weight_kind: str
     resolving_power: float | None
@@ -410,6 +419,8 @@ def synthesize(
     window_nm: tuple[float, float] | None = None,
     n_background: int = 600,
     max_points: int = _MAX_POINTS,
+    weight_fn: Callable[[Any], float] | None = None,
+    weight_label: tuple[str, str] | None = None,
 ) -> SyntheticSpectrum:
     """Sum the line profiles of a LineList into a continuous spectral emissivity.
 
@@ -434,6 +445,15 @@ def synthesize(
     cross a wire. Lowering it coarsens the grid, and whatever that costs shows
     up in `flux_closure` rather than being hidden.
 
+    `weight_fn` replaces the area rule above with the caller's own, taking a
+    line and returning the area to put under it; `weight_label` names the
+    result as (kind, unit). This exists so that absorption can be summed by
+    exactly this routine: an optical depth is the same superposition of
+    area-normalized Voigts as an emissivity, differing only in what each area
+    means, and duplicating the grid, the wing accounting and the closure check
+    for the sake of one line of arithmetic would be two things to keep true
+    instead of one.
+
     Raises if no mechanism gives any line a width, because the honest output
     then is not a curve but a message saying which knob is missing.
     """
@@ -446,7 +466,9 @@ def synthesize(
         raise ValueError("no lines in the requested window")
 
     thermal = line_list.thermal
-    if thermal is not None and any(ln.emissivity is not None for ln in lines):
+    if weight_fn is not None:
+        weight_kind, unit = weight_label or ("custom", "per nm")
+    elif thermal is not None and any(ln.emissivity is not None for ln in lines):
         weight_kind = "emissivity"
         unit = "eV/s per atom per nm"
     elif any(ln.einstein_a is not None for ln in lines):
@@ -488,7 +510,9 @@ def synthesize(
             sigma_sq += instrumental_sigma_nm(lam, resolving_power) ** 2
             terms.append("instrumental")
         sigma = math.sqrt(sigma_sq)
-        if weight_kind == "emissivity":
+        if weight_fn is not None:
+            weight = float(weight_fn(ln))
+        elif weight_kind == "emissivity":
             weight = ln.emissivity.value if ln.emissivity else 0.0
         elif weight_kind == "rate":
             weight = ln.einstein_a.value if ln.einstein_a else 0.0
@@ -610,7 +634,7 @@ def synthesize(
         assumptions.append(
             "every line in this spectrum has zero strength, so the curve is "
             "flat zero: at these conditions the gas is fully ionized and there "
-            "are no neutral atoms left to emit a bound-bound line"
+            "are no bound electrons left to make a bound-bound line"
         )
     if window_nm is not None:
         assumptions.append(
@@ -695,6 +719,7 @@ def synthesize(
             ),
         ),
         profiles=tuple(profiles),
+        lines=tuple(lines),
         weight_kind=weight_kind,
         resolving_power=resolving_power,
         flux_closure=closure,
