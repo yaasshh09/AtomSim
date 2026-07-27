@@ -1,4 +1,5 @@
 import type {
+  AbsorptionInfo,
   ClassicalGhost,
   ConstantsReport,
   ForceLawResult,
@@ -22,6 +23,20 @@ export function isScreenedLevels(
 
 export type Basis = "complex" | "real";
 export type PlaneQuantity = "density" | "psi";
+
+/**
+ * A number, safe to drop into a query string.
+ *
+ * JavaScript stringifies anything from 1e21 up in exponential form, so
+ * `String(1e21)` is "1e+21" and the raw `+` decodes server-side as a space:
+ * the API sees "1e 21" and rejects it. Both of this app's big physical knobs
+ * cross that threshold — electron density goes to 1e22 cm^-3 and column
+ * density to 1e26 m^-2 — so the failure is at the top of a slider's travel,
+ * not in some unreachable corner.
+ */
+export function num(v: number): string {
+  return encodeURIComponent(String(v));
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -151,15 +166,17 @@ export function getSpectrum(
 ): Promise<SpectrumResponse> {
   const c = config ? `&config=${encodeURIComponent(config)}` : "";
   const t = thermal
-    ? `&temperature_k=${thermal.temperatureK}` +
-      `&electron_density_cm3=${thermal.electronDensityCm3}`
+    ? `&temperature_k=${num(thermal.temperatureK)}` +
+      `&electron_density_cm3=${num(thermal.electronDensityCm3)}`
     : "";
   let p = "";
   if (profile?.on) {
     p = "&profile=true";
-    if (profile.resolvingPower != null) p += `&resolving_power=${profile.resolvingPower}`;
+    if (profile.resolvingPower != null) {
+      p += `&resolving_power=${num(profile.resolvingPower)}`;
+    }
     if (profile.window) {
-      p += `&lambda_min=${profile.window[0]}&lambda_max=${profile.window[1]}`;
+      p += `&lambda_min=${num(profile.window[0])}&lambda_max=${num(profile.window[1])}`;
     }
   }
   return getJson(
@@ -180,12 +197,43 @@ export interface CurveOfGrowthParams {
 
 export function getCurveOfGrowth(p: CurveOfGrowthParams): Promise<CurveOfGrowthInfo> {
   const c = p.config ? `&config=${encodeURIComponent(p.config)}` : "";
-  const r = p.resolvingPower != null ? `&resolving_power=${p.resolvingPower}` : "";
+  const r = p.resolvingPower != null ? `&resolving_power=${num(p.resolvingPower)}` : "";
   return getJson(
     `/api/curve-of-growth?system=${p.system}&n_max=${p.nMax}` +
-      `&fine_structure=${p.fineStructure}&lambda_nm=${p.lambdaNm}` +
-      `&temperature_k=${p.thermal.temperatureK}` +
-      `&electron_density_cm3=${p.thermal.electronDensityCm3}${r}${c}`,
+      `&fine_structure=${p.fineStructure}&lambda_nm=${num(p.lambdaNm)}` +
+      `&temperature_k=${num(p.thermal.temperatureK)}` +
+      `&electron_density_cm3=${num(p.thermal.electronDensityCm3)}${r}${c}`,
+  );
+}
+
+export interface AbsorptionParams {
+  system: string;
+  nMax: number;
+  fineStructure: boolean;
+  /** For the element, not per line: each line's own lower-level fraction
+   *  turns this into that line's absorbers. */
+  columnDensityM2: number;
+  thermal: ThermalParams;
+  resolvingPower?: number | null;
+  window?: [number, number] | null;
+  config?: string | null;
+}
+
+export function getAbsorption(p: AbsorptionParams): Promise<AbsorptionInfo> {
+  const c = p.config ? `&config=${encodeURIComponent(p.config)}` : "";
+  const r = p.resolvingPower != null ? `&resolving_power=${num(p.resolvingPower)}` : "";
+  // No window means the engine sizes its own, which is the safe default: a
+  // saturated line is far wider than its FWHM, and a window guessed from the
+  // line's width silently returns a short equivalent width.
+  const w = p.window
+    ? `&lambda_min=${num(p.window[0])}&lambda_max=${num(p.window[1])}`
+    : "";
+  return getJson(
+    `/api/absorption?system=${p.system}&n_max=${p.nMax}` +
+      `&fine_structure=${p.fineStructure}` +
+      `&column_density_m2=${num(p.columnDensityM2)}` +
+      `&temperature_k=${num(p.thermal.temperatureK)}` +
+      `&electron_density_cm3=${num(p.thermal.electronDensityCm3)}${r}${w}${c}`,
   );
 }
 
