@@ -29,8 +29,11 @@ from scipy import constants as _sc
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
 __all__ = [
+    "AbsorbingLine",
+    "AbsorptionSpectrum",
     "CurveOfGrowth",
     "SIGMA_INTEGRAL",
+    "absorb",
     "absorption_spectrum",
     "cross_section",
     "curve_of_growth",
@@ -57,6 +60,12 @@ _SLAB = (
     "negligible unless the populations approach inversion",
     "no continuous opacity: the continuum is taken as flat and unabsorbed",
 )
+
+#: How far past the tau = 1 half-width a saturated line is still integrated.
+#: The Lorentzian wing falls as 1/d^2, so tau is down to 1e-2 by 10 and 1e-4
+#: by 100; 40 puts the residual absorption at the window edge below 1e-3,
+#: which the edge self-check then confirms rather than trusts.
+_SATURATED_PAD: float = 40.0
 
 
 @dataclass(frozen=True)
@@ -341,6 +350,331 @@ def curve_of_growth(
                 "at once, which is how the Doppler width is measured"
             ),
         ),
+    )
+
+
+def _orbital(l: int) -> str:
+    """Spectroscopic letter for an orbital angular momentum."""
+    return "spdfghi"[l] if l < 7 else f"l={l}"
+
+
+@dataclass(frozen=True)
+class AbsorbingLine:
+    """One line's contribution to a blended absorption spectrum."""
+
+    wavelength_nm: float
+    label: str
+    oscillator_strength: float
+    #: Column of absorbers in *this line's* lower level, m^-2. The whole
+    #: reason one gas gives every line a different optical depth.
+    lower_column_m2: float
+    tau_centre: float
+    #: "linear" | "saturated" | "damping", by the same physics as Phase 19.
+    regime: str
+    #: What this line would remove on its own with nothing saturating, nm.
+    thin_width_nm: float
+    fwhm_nm: float
+
+
+@dataclass(frozen=True)
+class AbsorptionSpectrum:
+    """A whole line list absorbing at once against a flat continuum."""
+
+    #: I/I_0 against vacuum wavelength.
+    transmission: Field
+    #: tau on the same grid, kept because a transmission of 1e-9 and one of
+    #: 1e-30 look identical and are not.
+    optical_depth: Field
+    lines: tuple[AbsorbingLine, ...]
+    #: Column density of the element along the sight line, m^-2.
+    column_density: Quantity
+    #: What the spectrum actually removes: integral (1 - I/I_0) dlambda.
+    equivalent_width: Quantity
+    #: What it would remove if no line saturated and none overlapped.
+    thin_limit_width: Quantity
+    #: measured / thin. Below 1 by exactly the amount the naive sum overstates
+    #: the absorption.
+    saturation: Quantity
+    #: Pairs of lines close enough that their profiles overlap, so their
+    #: absorption is jointly less than the sum of the parts.
+    blends: tuple[tuple[str, str], ...]
+    #: The synthesis grid's own quadrature error, measured not assumed.
+    flux_closure: float
+
+
+def _window_for(profiles, lo: float, hi: float) -> tuple[float, float]:
+    """Widen a window until every line's absorption has actually ended in it.
+
+    Phase 19 learned this the expensive way on a single line: a window sized
+    by the line's FWHM silently returns a plausible wrong equivalent width,
+    because a saturated line is far wider than its FWHM and the missing part
+    is simply never integrated. Nothing about a list of lines makes that
+    safer, so the window is sized from the same physics.
+
+    Two half-widths, per line, whichever is larger:
+
+    - Doppler core, black out to where the Gaussian exponent eats tau_centre:
+      `sigma sqrt(2 ln tau_c)`.
+    - Lorentzian wing, where `tau = W gamma / (pi d^2)` falls to 1:
+      `d = sqrt(W gamma / pi)`. This is the one that grows without limit as
+      the column grows, and the one a FWHM-sized window misses entirely.
+    """
+    from atomsim.broadening import voigt  # circular at module scope
+
+    reach = 0.0
+    for p in profiles:
+        peak = p.weight * float(voigt(np.zeros(1), p.sigma_nm, p.gamma_nm)[0])
+        if peak <= 1.0:
+            continue
+        if p.sigma_nm > 0.0:
+            reach = max(reach, p.sigma_nm * math.sqrt(2.0 * math.log(peak)))
+        if p.gamma_nm > 0.0:
+            reach = max(reach, math.sqrt(p.weight * p.gamma_nm / math.pi))
+    # A factor on top, because these are the half-widths at tau = 1 and the
+    # absorption is still appreciable well past that.
+    pad = _SATURATED_PAD * reach
+    return max(lo - pad, 0.5 * lo), hi + pad
+
+
+def absorb(
+    line_list,
+    column_density_m2: float,
+    emitter_mass: Quantity | None = None,
+    hydrogenic: bool = True,
+    resolving_power: float | None = None,
+    window_nm: tuple[float, float] | None = None,
+    max_points: int = 24_000,
+) -> AbsorptionSpectrum:
+    """Put a whole line list in front of a flat continuum and see what survives.
+
+    This is the phase every previous one deferred. Phase 19 made one line
+    absorb; the thing a spectrum actually does is absorb in every line at
+    once, out of levels that hold wildly different numbers of atoms, and the
+    result is not the sum of the parts in two separate ways:
+
+    - **Saturation.** Once a core is black, more gas cannot remove more light
+      there, so the total absorbed falls below the sum of the thin-limit
+      widths. This is the Phase 19 curve of growth, now happening to every
+      line simultaneously and at a different point on its own curve.
+    - **Blending.** Where two lines overlap, the transmissions multiply
+      (`exp(-tau_1 - tau_2)`) rather than the absorptions adding. Two lines
+      that each remove 60 percent of the light remove 84 percent together,
+      not 120. The naive sum is not merely inaccurate, it is impossible.
+
+    One `column_density_m2` is given for the *element*, and each line's own
+    lower-level fraction turns it into that line's absorbers. That is why a
+    single number can serve the whole list, and why the Lyman lines go black
+    while the Balmer lines are invisible in the same gas.
+
+    The sum is done by `broadening.synthesize` with the area under each line
+    set to its integrated optical depth, so the grid, the wing accounting and
+    the flux-closure check are the same ones the emission spectrum uses.
+    """
+    from atomsim.broadening import synthesize, voigt  # circular at module scope
+
+    if column_density_m2 < 0.0:
+        raise ValueError(f"column density must be >= 0, got {column_density_m2}")
+    usable = [
+        ln for ln in line_list.lines
+        if ln.oscillator_strength is not None and ln.lower_fraction is not None
+    ]
+    if not usable:
+        raise ValueError(
+            "absorption needs an oscillator strength and a lower-level "
+            "population for every line: turn on intensities and give thermal "
+            "conditions. Without both there is nothing to absorb with, and a "
+            "flat continuum would be drawn as if that were an answer"
+        )
+
+    def weight_fn(ln) -> float:
+        if ln.oscillator_strength is None or ln.lower_fraction is None:
+            return 0.0
+        # The integral of tau over wavelength, nm: fixed by f and the column
+        # alone, whatever the profile does with it.
+        return _thin_limit_width(
+            ln.oscillator_strength.value,
+            ln.wavelength.value,
+            column_density_m2 * ln.lower_fraction.value,
+        )
+
+    kwargs = dict(
+        emitter_mass=emitter_mass,
+        hydrogenic=hydrogenic,
+        resolving_power=resolving_power,
+        max_points=max_points,
+        weight_fn=weight_fn,
+        weight_label=("optical depth", "tau per nm"),
+    )
+    synth = synthesize(line_list, window_nm=window_nm, **kwargs)
+    if window_nm is None:
+        # Re-run only if the default window is too tight for how saturated
+        # these lines turned out to be, which cannot be known until the
+        # widths and weights exist.
+        grid = synth.spectrum.grid
+        wide = _window_for(synth.profiles, float(grid[0]), float(grid[-1]))
+        if wide[0] < grid[0] or wide[1] > grid[-1]:
+            synth = synthesize(line_list, window_nm=wide, **kwargs)
+
+    grid = synth.spectrum.grid
+    tau = np.clip(synth.spectrum.values, 0.0, None)
+    trans = transmission(tau)
+    measured = float(np.trapezoid(1.0 - trans, grid))
+
+    # f and the lower column belong to the line, not the profile, and a profile
+    # cannot be matched back to its line by wavelength: 3d->2p, 3p->2s and
+    # 3s->2p are three lines at one wavelength, with three different oscillator
+    # strengths and three different lower levels. `synthesize` hands back the
+    # pairing so it does not have to be guessed.
+    detail: list[AbsorbingLine] = []
+    for p, ln in zip(synth.profiles, synth.lines, strict=True):
+        peak = p.weight * float(voigt(np.zeros(1), p.sigma_nm, p.gamma_nm)[0])
+        a = (
+            p.gamma_nm / (p.sigma_nm * math.sqrt(2.0))
+            if p.sigma_nm > 0.0 else 1.0
+        )
+        detail.append(AbsorbingLine(
+            wavelength_nm=p.wavelength_nm,
+            label=f"{p.label} ({_orbital(ln.l_upper)}->{_orbital(ln.l_lower)})",
+            oscillator_strength=(
+                ln.oscillator_strength.value
+                if ln.oscillator_strength is not None else 0.0
+            ),
+            lower_column_m2=(
+                column_density_m2 * ln.lower_fraction.value
+                if ln.lower_fraction is not None else 0.0
+            ),
+            tau_centre=peak,
+            regime=_classify(peak, a),
+            thin_width_nm=p.weight,
+            fwhm_nm=p.fwhm_nm,
+        ))
+    detail.sort(key=lambda d: d.wavelength_nm)
+
+    thin_total = sum(d.thin_width_nm for d in detail)
+    ratio = measured / thin_total if thin_total > 0.0 else 1.0
+
+    blends: list[tuple[str, str]] = []
+    for first, second in zip(detail, detail[1:], strict=False):
+        gap = second.wavelength_nm - first.wavelength_nm
+        if gap < first.fwhm_nm + second.fwhm_nm and min(
+            first.tau_centre, second.tau_centre
+        ) > 1e-3:
+            blends.append((first.label, second.label))
+
+    # The window's own self-check: if the spectrum is still absorbing at the
+    # edge, the equivalent width is an underestimate by an amount nobody
+    # measured. Phase 19's lesson was that this fails silently, so it is asked
+    # rather than assumed.
+    edge = float(max(1.0 - trans[0], 1.0 - trans[-1])) if trans.size else 0.0
+    notes: list[str] = []
+    if edge > 1e-3:
+        notes.append(
+            f"the spectrum is still absorbing {edge:.2%} of the continuum at "
+            "the edge of the window, so the equivalent width below is an "
+            "underestimate: widen the window or lower the column"
+        )
+    saturated = [d for d in detail if d.regime != "linear"]
+    if saturated:
+        notes.append(
+            f"{len(saturated)} of {len(detail)} lines have a black core "
+            "(tau at centre above 1), so their strengths no longer measure "
+            "how much gas there is"
+        )
+    if blends:
+        notes.append(
+            f"{len(blends)} pair(s) of lines overlap within their own widths, "
+            "so their transmissions multiply rather than their absorptions "
+            "adding: the total is less than the sum of the parts by "
+            "construction, not by approximation"
+        )
+
+    common = _SLAB + tuple(notes)
+    return AbsorptionSpectrum(
+        transmission=Field(
+            values=trans,
+            grid=grid,
+            unit="I/I_0 (dimensionless)",
+            grid_unit="nm (vacuum)",
+            label="transmission",
+            provenance=Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method=(
+                    "Beer-Lambert through a summed line list: "
+                    "I/I_0 = exp(-sum_i N_i sigma_i(lambda))"
+                ),
+                assumptions=common + (
+                    "one column density for the element; each line's own "
+                    "lower-level fraction (LTE) selects its absorbers",
+                    f"grid closure {synth.flux_closure:.4f}: the summed "
+                    "optical depth integrates to this times the analytic "
+                    "total, measured on the grid actually used",
+                ),
+                refinement=(
+                    "a source function and a stratified atmosphere would let "
+                    "these lines re-emit and reverse instead of only darkening"
+                ),
+            ),
+        ),
+        optical_depth=Field(
+            values=tau,
+            grid=grid,
+            unit="dimensionless",
+            grid_unit="nm (vacuum)",
+            label="optical depth",
+            provenance=Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="tau(lambda) = sum_i N_i sigma_i(lambda), Voigt profiles",
+                assumptions=common,
+            ),
+        ),
+        lines=tuple(detail),
+        column_density=Quantity(
+            column_density_m2, "m^-2", "column density of the element",
+            Provenance(
+                fidelity=Fidelity.COUNTERFACTUAL,
+                method="chosen by the user; a knob, not a measurement",
+                assumptions=(
+                    "counts atoms of the element per square metre of sight "
+                    "line, neutral and ionized together",
+                ),
+            ),
+        ),
+        equivalent_width=Quantity(
+            measured, "nm", "equivalent width of the whole spectrum",
+            Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="W = integral (1 - I/I_0) dlambda over the full grid",
+                assumptions=common,
+            ),
+        ),
+        thin_limit_width=Quantity(
+            thin_total, "nm", "summed thin-limit widths",
+            Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="sum_i (e^2/4 eps_0 m_e c^2) N_i f_i lambda_i^2",
+                assumptions=_SLAB + (
+                    "what the lines would remove if none saturated and none "
+                    "overlapped; an upper bound, not a prediction",
+                ),
+            ),
+        ),
+        saturation=Quantity(
+            ratio, "dimensionless", "measured / thin-limit width",
+            Provenance(
+                fidelity=Fidelity.APPROXIMATION,
+                method="W_measured / sum_i W_thin,i",
+                assumptions=_SLAB + (
+                    "1 means every line is optically thin and the spectrum is "
+                    "a faithful census of the gas; below 1 means it is not, "
+                    "and this is how much of the census is being lost",
+                    "folds saturation and blending together: both make the "
+                    "whole absorb less than the sum of its lines, and on a "
+                    "single grid they are not separable",
+                ),
+            ),
+        ),
+        blends=tuple(blends),
+        flux_closure=synth.flux_closure,
     )
 
 
