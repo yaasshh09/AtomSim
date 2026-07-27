@@ -587,6 +587,7 @@ Create `tests/test_hf_terms.py`:
 import numpy as np
 import pytest
 
+from atomsim.analytic.wigner import wigner_3j
 from atomsim.numerics.hf_terms import (
     Subshell,
     direct_potential,
@@ -654,15 +655,11 @@ def test_closed_shell_coefficients_match_the_independent_derivation():
         q_full = 2 * (2 * l_a + 1)
         for k in range(2, 2 * l_a + 1, 2):
             averaged = same_shell_coefficient(l_a, k, q_full)
-            from atomsim.analytic.wigner import wigner_3j
-
             closed = (2 * l_a + 1) * wigner_3j(l_a, k, l_a, 0, 0, 0) ** 2
             assert averaged == pytest.approx(closed)
 
 
 def test_cross_shell_coefficient_matches_closed_shell_form():
-    from atomsim.analytic.wigner import wigner_3j
-
     for l_a, l_b in ((0, 1), (1, 1), (1, 2)):
         q_full_b = 2 * (2 * l_b + 1)
         for k in range(abs(l_a - l_b), l_a + l_b + 1):
@@ -848,7 +845,12 @@ git commit -m "Derive average-of-configuration Fock terms and pin them on H, He 
 - Produces:
   - `local_hamiltonian_bands(v_local, l, r) -> tuple[np.ndarray, np.ndarray]` giving the tridiagonal diagonal and off-diagonal
   - `fock_operator(subshells, a_index, v_nuclear, l, r) -> LinearOperator`
-  - `solve_channel(subshells, a_index, v_nuclear, l, r, n_states, guess) -> tuple[np.ndarray, np.ndarray]` returning eigenvalues and orbitals
+  - `solve_channel(subshells, a_index, v_nuclear, l, r, n_states, guess) -> ChannelSolution` with fields `energies`, `orbitals`, `iterations`
+  - `ChannelSolution` frozen dataclass
+
+The iteration count is returned rather than recorded in module state: the
+preconditioner claim has to be falsifiable, and a module-level counter that
+grows for the life of the process is a leak, not a diagnostic.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -875,31 +877,28 @@ def test_one_electron_channel_reproduces_hydrogen(grid):
     """With q = 1 there is no interaction at all, so this must return the
     analytic hydrogen levels: -1/2, -1/8, -1/18."""
     shells = (Subshell(n=1, l=0, q=1, p=np.zeros_like(grid)),)
-    eps, orbitals = solve_channel(
-        shells, 0, coulomb(1.0), l=0, r=grid, n_states=3, guess=None
-    )
-    assert eps[0] == pytest.approx(-0.5, rel=2e-4)
-    assert eps[1] == pytest.approx(-0.125, rel=2e-4)
-    assert eps[2] == pytest.approx(-1.0 / 18.0, rel=2e-3)
+    sol = solve_channel(shells, 0, coulomb(1.0), l=0, r=grid, n_states=3,
+                        guess=None)
+    assert sol.energies[0] == pytest.approx(-0.5, rel=2e-4)
+    assert sol.energies[1] == pytest.approx(-0.125, rel=2e-4)
+    assert sol.energies[2] == pytest.approx(-1.0 / 18.0, rel=2e-3)
 
 
 def test_returned_orbitals_are_normalized(grid):
     shells = (Subshell(n=1, l=0, q=1, p=np.zeros_like(grid)),)
-    _, orbitals = solve_channel(
-        shells, 0, coulomb(1.0), l=0, r=grid, n_states=3, guess=None
-    )
-    for u in orbitals:
+    sol = solve_channel(shells, 0, coulomb(1.0), l=0, r=grid, n_states=3,
+                        guess=None)
+    for u in sol.orbitals:
         assert np.trapezoid(u**2, grid) == pytest.approx(1.0, rel=1e-8)
 
 
 def test_returned_orbitals_are_orthogonal(grid):
     shells = (Subshell(n=1, l=0, q=1, p=np.zeros_like(grid)),)
-    _, orbitals = solve_channel(
-        shells, 0, coulomb(1.0), l=0, r=grid, n_states=3, guess=None
-    )
+    sol = solve_channel(shells, 0, coulomb(1.0), l=0, r=grid, n_states=3,
+                        guess=None)
     for i in range(3):
         for j in range(i + 1, 3):
-            overlap = np.trapezoid(orbitals[i] * orbitals[j], grid)
+            overlap = np.trapezoid(sol.orbitals[i] * sol.orbitals[j], grid)
             assert abs(overlap) < 1e-8
 
 
@@ -925,24 +924,32 @@ def test_exchange_actually_changes_the_answer(grid):
     eigenvalue must sit well above the bare Z=2 hydrogenic -2.0."""
     p = 2.0 * 2.0**1.5 * grid * np.exp(-2.0 * grid)
     shells = (Subshell(n=1, l=0, q=2, p=p),)
-    eps, _ = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid,
-                           n_states=1, guess=None)
-    assert -2.0 < eps[0] < -0.5
+    sol = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid, n_states=1,
+                        guess=None)
+    assert -2.0 < sol.energies[0] < -0.5
 
 
-def test_warm_start_reduces_iterations(grid):
-    """The preconditioner claim is falsifiable: a warm start must converge in
-    strictly fewer LOBPCG iterations than a cold one."""
+def test_warm_start_does_not_cost_more_iterations(grid):
+    """The preconditioner claim, made falsifiable: restarting from a converged
+    orbital must not take more LOBPCG iterations than starting cold."""
     p = 2.0 * 2.0**1.5 * grid * np.exp(-2.0 * grid)
     shells = (Subshell(n=1, l=0, q=2, p=p),)
-    _, cold = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid,
-                            n_states=1, guess=None)
-    from atomsim.numerics.hartree_fock import LAST_ITERATIONS
+    cold = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid, n_states=1,
+                         guess=None)
+    warm = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid, n_states=1,
+                         guess=cold.orbitals)
+    assert warm.iterations <= cold.iterations
 
-    cold_iters = LAST_ITERATIONS[-1]
-    solve_channel(shells, 0, coulomb(2.0), l=0, r=grid, n_states=1, guess=cold)
-    warm_iters = LAST_ITERATIONS[-1]
-    assert warm_iters <= cold_iters
+
+def test_iteration_count_shows_the_preconditioner_is_working(grid):
+    """Unpreconditioned LOBPCG on this operator needs hundreds of iterations.
+    If this ever climbs past ~50 the preconditioner has silently stopped
+    being applied."""
+    p = 2.0 * 2.0**1.5 * grid * np.exp(-2.0 * grid)
+    shells = (Subshell(n=1, l=0, q=2, p=p),)
+    sol = solve_channel(shells, 0, coulomb(2.0), l=0, r=grid, n_states=1,
+                        guess=None)
+    assert sol.iterations < 50
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -984,16 +991,22 @@ from scipy.sparse.linalg import LinearOperator, lobpcg
 from atomsim.numerics.hf_terms import Subshell, direct_potential, exchange_apply
 
 __all__ = [
-    "LAST_ITERATIONS",
+    "ChannelSolution",
     "HFConvergenceError",
     "fock_operator",
     "local_hamiltonian_bands",
     "solve_channel",
 ]
 
-#: LOBPCG iteration counts, most recent last. Diagnostics only: the
-#: preconditioner claim in the module docstring is falsifiable through this.
-LAST_ITERATIONS: list[int] = []
+
+@dataclass(frozen=True)
+class ChannelSolution:
+    """Eigenpairs for one l channel, plus what it cost to get them."""
+
+    energies: np.ndarray      # shape (n_states,)
+    orbitals: np.ndarray      # shape (n_states, len(r))
+    iterations: int           # LOBPCG iterations, so the preconditioner
+                              # claim in the module docstring is falsifiable
 
 
 class HFConvergenceError(RuntimeError):
@@ -1080,12 +1093,12 @@ def solve_channel(
     guess: np.ndarray | None = None,
     tol: float = 1e-9,
     maxiter: int = 400,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> ChannelSolution:
     """Lowest n_states eigenpairs of the Fock operator in this l channel.
 
-    Returns (eigenvalues, orbitals) with orbitals shaped (n_states, len(r)),
-    normalized to integral P^2 dr = 1, sign-fixed, and explicitly
-    re-orthogonalized. The re-orthogonalization is not redundant: the pair
+    Orbitals come back shaped (n_states, len(r)), normalized to
+    integral P^2 dr = 1, sign-fixed, and explicitly re-orthogonalized. The
+    re-orthogonalization is not redundant: the pair
     potentials are quadratures, so the discrete operator is symmetric only to
     O(h^2) and LOBPCG's own orthogonality inherits that error.
     """
@@ -1112,7 +1125,6 @@ def solve_channel(
         op, x, M=precond, tol=tol, maxiter=maxiter, largest=False,
         retResidualNormsHistory=True,
     )
-    LAST_ITERATIONS.append(len(history))
     if len(history) >= maxiter:
         raise HFConvergenceError(
             f"LOBPCG did not converge in {maxiter} iterations for l={l}; "
@@ -1134,8 +1146,15 @@ def solve_channel(
             u = -u
         ortho.append(u)
 
-    return eigenvalues[order], np.array(ortho)
+    return ChannelSolution(
+        energies=eigenvalues[order],
+        orbitals=np.array(ortho),
+        iterations=len(history),
+    )
 ```
+
+`dataclass` must be imported at the top of the module alongside the scipy
+imports: `from dataclasses import dataclass`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1396,14 +1415,14 @@ def scf(
         new_energies: list[float] = []
         for index, a in enumerate(current):
             k = a.n - a.l - 1
-            eps, orbitals = solve_channel(
+            channel = solve_channel(
                 current, index, v_nuclear, a.l, r, n_states=k + 1,
                 guess=a.p[None, :],
             )
-            mixed = (1.0 - alpha) * a.p + alpha * orbitals[k]
+            mixed = (1.0 - alpha) * a.p + alpha * channel.orbitals[k]
             mixed = _normalize(mixed, r)
             updated.append(Subshell(n=a.n, l=a.l, q=a.q, p=mixed))
-            new_energies.append(float(eps[k]))
+            new_energies.append(float(channel.energies[k]))
 
         residual = max(
             abs(new - old) for new, old in zip(new_energies, energies, strict=True)
@@ -1419,9 +1438,9 @@ def scf(
     )
 ```
 
-Add the needed imports at the top of the module: `from dataclasses import
-dataclass`, `from atomsim.analytic.wigner import wigner_3j`, `from
-atomsim.numerics.slater import slater_f, slater_g`.
+Add the needed imports at the top of the module: `from atomsim.analytic.wigner
+import wigner_3j` and `from atomsim.numerics.slater import slater_f, slater_g`.
+`dataclass` is already imported for `ChannelSolution` in Task 5.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1520,7 +1539,7 @@ def test_virial_ratio_is_numerical_not_approximation(solved, symbol, z):
     assert solved[symbol].virial_ratio.provenance.fidelity is Fidelity.NUMERICAL
 
 
-def test_hydrogen_is_exact_to_the_grid(solved):
+def test_hydrogen_is_exact_to_the_grid():
     result = solve_hartree_fock(1, 1, aufbau_configuration(1))
     assert result.total_energy.value == pytest.approx(-0.5, rel=1e-4)
 
