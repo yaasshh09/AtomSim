@@ -1,3 +1,8 @@
+import subprocess
+import sys
+
+import pytest
+
 import atomsim.cli as cli
 
 
@@ -30,3 +35,27 @@ def test_no_browser_flag(monkeypatch):
     monkeypatch.setattr(cli, "_open_browser_soon", lambda url: opened.append(url))
     cli.main(["serve", "--no-browser"])
     assert opened == []
+
+
+@pytest.mark.parametrize("module", ["atomsim", "atomsim.cli"])
+def test_module_entry_point_runs_the_parser(module):
+    """`python -m atomsim[.cli] --help` must print help, not exit silently."""
+    done = subprocess.run(
+        [sys.executable, "-m", module, "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr
+    assert "usage: atomsim" in done.stdout
+    assert "serve" in done.stdout
+
+
+@pytest.mark.parametrize("module", ["atomsim", "atomsim.cli"])
+def test_module_entry_point_requires_a_subcommand(module):
+    done = subprocess.run(
+        [sys.executable, "-m", module],
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 2
+    assert "required" in done.stderr

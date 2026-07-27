@@ -29,3 +29,7 @@ def main(argv: list[str] | None = None) -> None:
         if not args.no_browser:
             _open_browser_soon(url)
         uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
+
+
+if __name__ == "__main__":  # `python -m atomsim.cli`, alongside the console script
+    main()
