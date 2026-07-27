@@ -157,9 +157,10 @@ Measured on H-alpha at 10,000 K, the three branches come out at slope **1.000**,
 
 ## Deferred
 
-- The absorption *spectrum*: a whole line list absorbing against a
+- ~~The absorption *spectrum*: a whole line list absorbing against a
   continuum. Needs a per-line lower-level column threaded through the line
-  list, which the emission path does not currently carry.
+  list, which the emission path does not currently carry.~~ Done in Phase 20;
+  see `2026-07-27-phase20-absorption-spectrum-design.md`.
 - Line reversal and source functions (needs a stratified atmosphere).
 - Continuous opacity and the true continuum.
 - Stimulated emission correction to the cross-section.
