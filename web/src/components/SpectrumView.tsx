@@ -10,6 +10,7 @@ import {
 import { seriesColor, seriesName } from "../lib/spectrum";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { AbsorptionView } from "./AbsorptionView";
 import { CurveOfGrowthView } from "./CurveOfGrowthView";
 
 const W = 680;
@@ -279,6 +280,8 @@ export function SpectrumView() {
     profile, logResolvingPower, profileZoom,
     setProfile, setLogResolvingPower, setProfileZoom,
     showCurveOfGrowth, curveOfGrowth, setShowCurveOfGrowth, loadCurveOfGrowth,
+    absorption, logColumn, absorptionData, setAbsorption, setLogColumn,
+    loadAbsorption,
   } = useAppStore();
   const [fullRange, setFullRange] = useState(false);
   // Set when the user deliberately backs out of a zoom, so the auto-zoom below
@@ -330,6 +333,14 @@ export function SpectrumView() {
     void loadCurveOfGrowth(zoomCentre);
   }, [showCurveOfGrowth, zoomCentre, temperatureK, logNe, logResolvingPower,
       loadCurveOfGrowth]);
+  // Absorption is its own request against the whole line list, so it is only
+  // fetched once asked for. It needs populations, hence the thermal gate: which
+  // level an atom is in *is* what its line absorbs with.
+  useEffect(() => {
+    if (!absorption || !thermal) return;
+    void loadAbsorption();
+  }, [absorption, thermal, logColumn, system, fineStructure, temperatureK,
+      logNe, logResolvingPower, profileZoom, loadAbsorption]);
   if (!spectrum) return <p className="hint-block">loading spectrum…</p>;
 
   const window_ = wavelengthWindow(spectrum.lines, fullRange);
@@ -581,6 +592,32 @@ export function SpectrumView() {
           {showCurveOfGrowth && !curveOfGrowth && (
             <p className="hint-block">computing the curve of growth…</p>
           )}
+        </>
+      )}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={absorption}
+          disabled={!thermal}
+          onChange={(e) => setAbsorption(e.target.checked)}
+        />
+        absorption: put this gas in front of a continuum
+        {!thermal && " (needs LTE populations above)"}
+      </label>
+      {absorption && thermal && (
+        <>
+          <label className="levels-field">
+            column{" "}
+            <input
+              type="range" min={14} max={26} step={0.1}
+              value={logColumn}
+              onChange={(e) => setLogColumn(Number(e.target.value))}
+            />
+            {` 10^${logColumn.toFixed(1)} m⁻² of the element`}
+          </label>
+          {absorptionData
+            ? <AbsorptionView abs={absorptionData} zoomed={profileZoom !== null} />
+            : <p className="hint-block">computing the absorption spectrum…</p>}
         </>
       )}
       {spectrum.profile_note && (

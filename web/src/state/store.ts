@@ -9,6 +9,7 @@ import type {
   PlaneMeta,
   RadialResponse,
   SampleMeta,
+  AbsorptionInfo,
   CurveOfGrowthInfo,
   ScreenedLevels,
   SpectrumResponse,
@@ -77,6 +78,15 @@ interface AppState {
    *  not what it looks like) and deserves to be asked for. */
   showCurveOfGrowth: boolean;
   curveOfGrowth: CurveOfGrowthInfo | null;
+  /** Put the whole line list in front of a continuum instead of watching it
+   *  emit. A different question from either panel above: not what the gas
+   *  gives off, but what it takes out of light passing through. Off by
+   *  default, and it needs populations, so it needs LTE on. */
+  absorption: boolean;
+  /** log10(column density of the element / m^-2). The knob the curve of growth
+   *  sweeps, here held at one value for every line at once. */
+  logColumn: number;
+  absorptionData: AbsorptionInfo | null;
   nucleusMode: NucleusMode;
   count: number;
   systems: SystemInfo[];
@@ -148,6 +158,9 @@ interface AppState {
   setProfileZoom: (profileZoom: [number, number] | null) => void;
   setShowCurveOfGrowth: (showCurveOfGrowth: boolean) => void;
   loadCurveOfGrowth: (lambdaNm: number) => Promise<void>;
+  setAbsorption: (absorption: boolean) => void;
+  setLogColumn: (logColumn: number) => void;
+  loadAbsorption: () => Promise<void>;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
@@ -178,6 +191,7 @@ const INVALIDATED = {
   levels: null,
   spectrum: null,
   curveOfGrowth: null,
+  absorptionData: null,
   // A zoom window names a wavelength, and a wavelength names a line of one
   // particular system. Carrying it across a system change would point the
   // profile at empty spectrum and quietly return nothing.
@@ -204,6 +218,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   profile: false,
   logResolvingPower: null,
   showCurveOfGrowth: false,
+  absorption: false,
+  // 1e20 m^-2 of hydrogen at 10,000 K: Lyman-alpha black, Balmer-alpha barely
+  // there. The default is chosen to open on the contrast the view exists to
+  // show rather than on a flat line or an all-black one.
+  logColumn: 20,
   // profileZoom's default lives in INVALIDATED, which is spread below.
   nucleusMode: "marker",
   count: 100_000,
@@ -271,8 +290,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ logResolvingPower, spectrum: null }),
   // The curve belongs to one line, so moving the window discards it too.
   setProfileZoom: (profileZoom) =>
-    set({ profileZoom, spectrum: null, curveOfGrowth: null }),
+    set({ profileZoom, spectrum: null, curveOfGrowth: null, absorptionData: null }),
   setShowCurveOfGrowth: (showCurveOfGrowth) => set({ showCurveOfGrowth }),
+  // The absorption curve is computed for one column against one gas, so both
+  // knobs discard it. Same rule as the thermal ones above.
+  setAbsorption: (absorption) => set({ absorption, absorptionData: null }),
+  setLogColumn: (logColumn) => set({ logColumn, absorptionData: null }),
   // pure render choice: nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
@@ -445,6 +468,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         lambdaNm,
         thermal: { temperatureK, electronDensityCm3: 10 ** logNe },
         resolvingPower: logResolvingPower === null ? null : 10 ** logResolvingPower,
+        config,
+      }),
+    });
+  },
+  loadAbsorption: async () => {
+    const {
+      system, fineStructure, config, temperatureK, logNe, logResolvingPower,
+      logColumn, profileZoom,
+    } = get();
+    set({
+      absorptionData: await client.getAbsorption({
+        system,
+        nMax: N_MAX_DIAGRAM,
+        fineStructure,
+        columnDensityM2: 10 ** logColumn,
+        thermal: { temperatureK, electronDensityCm3: 10 ** logNe },
+        resolvingPower: logResolvingPower === null ? null : 10 ** logResolvingPower,
+        // Same window as the profile panel. Across the full 90 to 7500 nm range
+        // a line is narrower than a pixel, so the only place an absorption
+        // line's actual shape exists is a zoom, exactly as for emission.
+        window: profileZoom,
         config,
       }),
     });

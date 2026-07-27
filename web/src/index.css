@@ -408,6 +408,44 @@ button.primary:disabled {
   vector-effect: non-scaling-stroke;
 }
 
+/* Transmission against wavelength. Filled down from the continuum rather than
+   stroked: the quantity being read is how much light is *missing*, and an
+   area says that where a line does not. */
+.transmission-curve {
+  fill: none;
+  stroke: #7dd3fc;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.line-table th,
+.line-table td {
+  text-align: right;
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--edge);
+  font-variant-numeric: tabular-nums;
+}
+
+.line-table th:first-child,
+.line-table td:first-child,
+.line-table th:last-child,
+.line-table td:last-child {
+  text-align: left;
+}
+
+.line-table th {
+  color: var(--text);
+  font-weight: 500;
+}
+
 /* Where the FWHM is defined: across the profile at half its peak. */
 .fwhm-bar {
   stroke: #fbbf24;

@@ -30,6 +30,8 @@ useAppStore.subscribe((s) => {
     profile: s.profile,
     logResolvingPower: s.logResolvingPower,
     profileZoom: s.profileZoom,
+    absorption: s.absorption,
+    logColumn: s.logColumn,
     ghost: s.ghost,
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,

@@ -46,6 +46,13 @@ export interface UrlState {
    *  Carried so a link can point at one line's shape, which is the whole
    *  reason the zoom exists. */
   profileZoom: [number, number] | null;
+  /** Absorption spectrum in the Spectrum view; defaults off. */
+  absorption: boolean;
+  /** log10 of the column density in m^-2. Carried because it is a physical
+   *  knob and not a disclosure toggle: moving it is what walks the gas from
+   *  a faithful census to a saturated one, and a link to "hydrogen at 10^22,
+   *  Lyman black and Balmer invisible" has to survive being shared. */
+  logColumn: number;
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
@@ -78,6 +85,8 @@ export const URL_DEFAULTS: UrlState = {
   profile: false,
   logResolvingPower: null,
   profileZoom: null,
+  absorption: false,
+  logColumn: 20,
   // A stellar photosphere: warm enough that the excited levels are populated
   // at all, dense enough that hydrogen is not yet mostly ionized.
   temperatureK: 10000,
@@ -211,6 +220,13 @@ export function parseAppUrl(search: string): Partial<UrlState> {
     }
   }
 
+  if (q.get("abs") === "1") out.absorption = true;
+  const col = pickFloat(q.get("col"));
+  // Same bounds as the slider. Outside them the engine still answers, but the
+  // spectrum is either a flat line or entirely black and the view has nothing
+  // to show.
+  if (col !== undefined && col >= 14 && col <= 26) out.logColumn = col;
+
   const ghost = q.get("ghost");
   if (ghost === "1" || ghost === "true") out.ghost = true;
   else if (ghost === "0" || ghost === "false") out.ghost = false;
@@ -292,6 +308,12 @@ export function serializeAppUrl(state: UrlState): string {
     }
     if (state.profileZoom) {
       q.set("zoom", `${state.profileZoom[0]},${state.profileZoom[1]}`);
+    }
+  }
+  if (state.absorption) {
+    q.set("abs", "1");
+    if (state.logColumn !== URL_DEFAULTS.logColumn) {
+      q.set("col", String(state.logColumn));
     }
   }
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");

@@ -110,6 +110,8 @@ describe("serializeAppUrl", () => {
       profile: true,
       logResolvingPower: 4.5,
       profileZoom: [656.1, 656.5] as [number, number],
+      absorption: true,
+      logColumn: 21.5,
       config: null,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
@@ -156,6 +158,36 @@ describe("serializeAppUrl", () => {
     const on = serializeAppUrl({ ...URL_DEFAULTS, thermal: true });
     expect(on).toContain("lte=1");
     expect(parseAppUrl(on).thermal).toBe(true);
+  });
+
+  it("round-trips the absorption toggle, which defaults off", () => {
+    expect(URL_DEFAULTS.absorption).toBe(false);
+    const on = serializeAppUrl({ ...URL_DEFAULTS, absorption: true });
+    expect(on).toContain("abs=1");
+    expect(parseAppUrl(on).absorption).toBe(true);
+  });
+
+  it("round-trips a column density away from the default", () => {
+    // The column is what walks the gas from a faithful census to a saturated
+    // one, so a link to a saturated spectrum has to survive being shared.
+    const url = serializeAppUrl({
+      ...URL_DEFAULTS, absorption: true, logColumn: 22.5,
+    });
+    const back = { ...URL_DEFAULTS, ...parseAppUrl(url) };
+    expect(back.logColumn).toBe(22.5);
+  });
+
+  it("carries the column only when absorption is on", () => {
+    const off = serializeAppUrl({
+      ...URL_DEFAULTS, absorption: false, logColumn: 24,
+    });
+    expect(off).not.toContain("col=");
+  });
+
+  it("drops a column outside the range the view can draw", () => {
+    expect(parseAppUrl("?abs=1&col=5").logColumn).toBeUndefined();
+    expect(parseAppUrl("?abs=1&col=40").logColumn).toBeUndefined();
+    expect(parseAppUrl("?abs=1&col=22").logColumn).toBe(22);
   });
 
   it("carries the conditions only when LTE weighting is on", () => {

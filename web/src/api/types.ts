@@ -283,6 +283,45 @@ export interface CurveOfGrowthInfo {
   provenance: Provenance;
 }
 
+/** One line's share of a blended absorption spectrum. */
+export interface AbsorbingLineInfo {
+  wavelength_nm: number;
+  /** Names the transition, not the series: "3d->2p", not "3->2". Three lines
+   *  share 656.4696 nm and they do not absorb alike. */
+  label: string;
+  oscillator_strength: number;
+  /** Column in *this line's* lower level. Why one gas gives every line a
+   *  different optical depth. */
+  lower_column_m2: number;
+  tau_centre: number;
+  regime: GrowthRegime;
+  /** What this line would remove on its own with nothing saturating. */
+  thin_width_nm: number;
+  fwhm_nm: number;
+}
+
+/** A whole line list absorbing at once against a flat continuum. */
+export interface AbsorptionInfo {
+  wavelength_nm: number[];
+  transmission: number[];
+  /** Kept beside the transmission because 1e-9 and 1e-30 both draw as black
+   *  and are not the same gas. */
+  optical_depth: number[];
+  lines: AbsorbingLineInfo[];
+  thermal: ThermalInfo | null;
+  column_density_m2: number;
+  equivalent_width_nm: number;
+  thin_limit_width_nm: number;
+  /** measured / thin. Below 1 by exactly how much the naive sum overstates
+   *  the absorption, which is how much of the census is being lost. */
+  saturation: number;
+  blends: [string, string][];
+  flux_closure: number;
+  provenance: Provenance;
+  /** The column is a knob the user turned, and says so. */
+  column_provenance: Provenance;
+}
+
 export interface SpectrumResponse {
   system: SystemInfo;
   n_max: number;
