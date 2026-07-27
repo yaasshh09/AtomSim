@@ -147,11 +147,18 @@ hydrogen and then risks double counting against the same-shell exchange term.
 
 A wrong factor here does not crash. It produces a converged, smooth, entirely
 believable set of orbitals with the wrong energy, which is the precise failure
-mode the prime directive exists to prevent. So the coefficients get derived at
-implementation time by differentiating the average-of-configuration energy
-functional with respect to `P_a`, with the derivation written into the module
-docstring, and they get pinned by the three anchors in section 7.1 before
-anything else in the phase is trusted.
+mode the prime directive exists to prevent. So the coefficients get derived by
+differentiating the average-of-configuration energy functional with respect to
+`P_a`, with the derivation written into the module docstring, and they get
+pinned by the anchors in section 7.1 before anything else in the phase is
+trusted.
+
+**Update.** That derivation is now done and lives in
+`docs/superpowers/plans/2026-07-27-phase21-hartree-fock.md` under "The derived
+equations", where it is checked four independent ways: hydrogen, helium,
+agreement with a separate closed-shell derivation on full shells, and
+beryllium's textbook `4J - 2K`. This section stands as the record of why it was
+not written from memory, which remains the right call.
 
 `analytic/wigner.py` currently exports `triangular` and `wigner_6j` only. This
 phase adds `wigner_3j` to that module, following the same conventions already
