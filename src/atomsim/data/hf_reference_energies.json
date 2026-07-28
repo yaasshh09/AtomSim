@@ -1,0 +1,45 @@
+{
+  "species": "Neutral atom ground states, non-relativistic Roothaan-Hartree-Fock",
+  "citation": "C. F. Bunge, J. A. Barrientos, A. V. Bunge, \"Roothaan-Hartree-Fock Ground-State Atomic Wave Functions: Slater-Type Orbital Expansions and Expectation Values for Z = 2-54\", At. Data Nucl. Data Tables 53, 113 (1993)",
+  "retrieved": "2026-07-28",
+  "transcribed_from": "The printed tables are paywalled. These energies were read from the machine-readable Bunge tables mirrored in the QC-Devs data files: neutral/{he,be,ne,mg,ar}.slater inside atomdb/data/slater_atom.tar.xz (github.com/theochem/AtomDB, master) and, for He/Be/Ne, independently from bfit/data/neutral/*.slater (github.com/theochem/bfit, master). The two mirrors agree digit-for-digit on all three atoms they share. He is further corroborated by the published Hartree-Fock limit -2.86167999561223887877554374 hartree (Hutchinson et al., J. Phys. Commun. 4, 085006 (2020)).",
+  "units": "hartree",
+  "note": "Roothaan-Hartree-Fock: the SCF solution within a finite Slater-type basis. These lie slightly ABOVE (are less bound than) the basis-set-free numerical Hartree-Fock limit that a converged grid solver reaches, because a finite basis is variationally incomplete. Bunge quotes 8 to 10 significant figures, so the basis-incompleteness gap is far below the 1e-4 relative tolerance the solver benchmarks use. These are also non-relativistic and clamped-nucleus, so they are NOT experimental total energies: correlation energy (~0.04 hartree for He, ~0.7 hartree for Ar) is absent by construction. They are the right yardstick for a Hartree-Fock solver and the wrong one for reality.",
+  "values": {
+    "He": {
+      "z": 2,
+      "n_electrons": 2,
+      "configuration": "1s(2)",
+      "term": "1S",
+      "total_energy_hartree": -2.861679996
+    },
+    "Be": {
+      "z": 4,
+      "n_electrons": 4,
+      "configuration": "1s(2)2s(2)",
+      "term": "1S",
+      "total_energy_hartree": -14.573023167
+    },
+    "Ne": {
+      "z": 10,
+      "n_electrons": 10,
+      "configuration": "1s(2)2s(2)2p(6)",
+      "term": "1S",
+      "total_energy_hartree": -128.547098079
+    },
+    "Mg": {
+      "z": 12,
+      "n_electrons": 12,
+      "configuration": "1s(2)2s(2)2p(6)3s(2)",
+      "term": "1S",
+      "total_energy_hartree": -199.614636270
+    },
+    "Ar": {
+      "z": 18,
+      "n_electrons": 18,
+      "configuration": "1s(2)2s(2)2p(6)3s(2)3p(6)",
+      "term": "1S",
+      "total_energy_hartree": -526.817512711
+    }
+  }
+}
