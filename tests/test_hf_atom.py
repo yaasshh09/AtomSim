@@ -1,13 +1,15 @@
 """End-to-end Hartree-Fock atoms against the vendored reference energies.
 
-Only helium is benchmarked here. Beryllium through argon are the point of this
-task and they are not skipped because they fail - they are skipped because a
-UNIFORM grid cannot afford them. Measured, one SCF step from a central-field
-guess: Be 4.1s, Ne 12.4s, Mg 42.4s, Ar 88.5s, and the SCF needs about thirty
-steps on each of two grids, so argon costs the better part of an hour. Warm
-starts do not help; argon's steps 1 through 6 measured 83, 86, 89, 84, 85, 99
-seconds. The exponential mesh puts the points where the core actually is and
-is what makes those atoms affordable; they arrive with it.
+All five vendored closed-shell atoms are benchmarked here. They used to be one
+- helium - because a UNIFORM grid could not afford the rest. Measured then, for
+a single SCF step from a central-field guess: Be 4.1s, Ne 12.4s, Mg 42.4s,
+Ar 88.5s, times about thirty steps on each of two grids, so argon cost the
+better part of an hour and warm starts did not help.
+
+The exponential mesh puts the points where the core actually is, and it is what
+makes these affordable: argon now solves in about 8 seconds on roughly 2800
+points rather than 72000. That is the whole reason numerics/mesh.py exists, so
+these atoms are the test that it worked.
 """
 
 import pytest
@@ -17,7 +19,7 @@ from atomsim.hf_atom import solve_hartree_fock
 from atomsim.hf_reference import load_hf_reference
 from atomsim.provenance import Fidelity
 
-CLOSED_SHELL = [("He", 2)]
+CLOSED_SHELL = [("He", 2), ("Be", 4), ("Ne", 10), ("Mg", 12), ("Ar", 18)]
 
 
 @pytest.fixture(scope="module")
@@ -41,16 +43,55 @@ def test_total_energy_matches_the_vendored_reference(solved, symbol, z):
 def test_energy_is_a_variational_upper_bound(solved, symbol, z):
     """HF sits above the exact non-relativistic energy, never below. If the
     computed energy drops below the reference by more than the tolerance, the
-    functional is wrong, not merely inaccurate."""
+    functional is wrong, not merely inaccurate.
+
+    The tolerance scales with Z because the numerical error does: argon's
+    energy is 180x helium's, so a fixed absolute slack would be a far stricter
+    demand on argon than on helium for no physical reason.
+    """
     reference = load_hf_reference(symbol)["total_energy_hartree"]
     if reference is None:
         pytest.skip("reference energies not yet transcribed from the source")
-    assert solved[symbol].total_energy.value > reference - 1e-3
+    assert solved[symbol].total_energy.value > reference * (1.0 + 1e-4)
+
+
+@pytest.mark.parametrize("symbol,z", CLOSED_SHELL)
+def test_the_quoted_error_estimate_actually_brackets_the_error(solved, symbol, z):
+    """The provenance error bar has to be a bound, not a decoration.
+
+    This is the test the old Richardson one should always have been. A
+    refinement pair is structurally blind to everything that does not scale
+    with the step - the inner-wall truncation and the eigensolver conditioning
+    both cancel, because both meshes share r_min - so the spread alone
+    understates the error and does so by more as the mesh gets finer. Beryllium
+    is the case that exposed it: spread 6.5e-5 against a true deviation of
+    7.7e-5, an error bar smaller than the error it described.
+
+    Measured margins with the floor term included run 1.6x (Be) to 2.2x (Ar).
+    """
+    reference = load_hf_reference(symbol)["total_energy_hartree"]
+    if reference is None:
+        pytest.skip("reference energies not yet transcribed from the source")
+    result = solved[symbol]
+    deviation = abs(result.total_energy.value - reference)
+    assert deviation < result.total_energy.provenance.error_estimate
 
 
 @pytest.mark.parametrize("symbol,z", CLOSED_SHELL)
 def test_virial_ratio_is_near_two(solved, symbol, z):
     assert solved[symbol].virial_ratio.value == pytest.approx(2.0, rel=2e-3)
+
+
+@pytest.mark.parametrize("symbol,z", CLOSED_SHELL)
+def test_orbital_energies_are_ordered_by_binding(solved, symbol, z):
+    """The core must come out below the valence, on every atom. Nothing in the
+    solve enforces this - each subshell is an eigenvector of its own Fock
+    operator - so an ordering inversion would mean the channels had been
+    matched to the wrong subshells.
+    """
+    energies = [orbital.energy.value for orbital in solved[symbol].orbitals]
+    assert energies == sorted(energies)
+    assert all(e < 0.0 for e in energies)
 
 
 @pytest.mark.parametrize("symbol,z", CLOSED_SHELL)
@@ -74,10 +115,11 @@ def test_hydrogen_is_exact_to_the_grid():
     assert result.total_energy.value == pytest.approx(-0.5, rel=1e-4)
 
 
-def test_richardson_beats_the_grid_it_extrapolates_from():
-    """The extrapolation is not decoration. Hydrogen on this grid is 1.8e-4
-    hartree low before it and 6.6e-6 after, and the quoted error estimate is
-    the size of the correction, so it must bracket the residual error."""
+def test_hydrogen_error_estimate_brackets_the_exact_answer():
+    """Hydrogen is the one case with no reference uncertainty at all: HF on one
+    electron is the bare Coulomb problem and the answer is exactly -1/2. So the
+    error bar is checked against truth here, not against another calculation.
+    """
     result = solve_hartree_fock(1, 1, aufbau_configuration(1))
     residual = abs(result.total_energy.value - (-0.5))
     assert residual < result.total_energy.provenance.error_estimate
