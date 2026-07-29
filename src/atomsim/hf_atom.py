@@ -23,7 +23,15 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.linalg import eigh_tridiagonal
 
-from atomsim.atoms import Configuration, is_ground, total_electrons, validate_config
+from atomsim.analytic.angular import spherical_harmonic
+from atomsim.analytic.wavefunction import WavefunctionValues
+from atomsim.atoms import (
+    Configuration,
+    aufbau_configuration,
+    is_ground,
+    total_electrons,
+    validate_config,
+)
 from atomsim.numerics.hartree_fock import (
     HFConvergenceError,
     SCFSolution,
@@ -41,9 +49,17 @@ from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 __all__ = [
     "HFOrbital",
     "HFResult",
+    "evaluate_hf_state",
     "hf_mesh",
+    "hf_radial",
+    "hf_valence_ionization_energy",
     "solve_hartree_fock",
 ]
+
+#: Resampling density for evaluate_hf_state, matching screened_atom.py. The
+#: solve itself runs on a few thousand mesh points; this is the grid the
+#: interpolation reads, and it is deliberately finer than the 400 a plot needs.
+_HF_EVAL_POINTS = 4096
 
 # The two energy routes are algebraically identical, so a disagreement above
 # this is a coefficient bug, not a discretization error. See Task 6.
@@ -380,4 +396,157 @@ def solve_hartree_fock(
         residual_history=solution.residual_history,
         converged=True,
         provenance=energy_prov,
+    )
+
+
+def hf_valence_ionization_energy(result: HFResult) -> Quantity:
+    """IE = -epsilon_valence, by Koopmans' theorem.
+
+    Mirrors screened_atom.valence_ionization_energy so the two models are
+    swappable, but the approximation being made here is NOT the same one, and
+    the provenance says so rather than inheriting the solve's.
+
+    Koopmans equates the ionization energy with minus the orbital energy, which
+    assumes the remaining N-1 electrons do not relax when one leaves. They do.
+    That error does not shrink with a finer mesh or a tighter SCF, so it is a
+    model error stacked on top of Hartree-Fock's own, and it is not small:
+    helium's Koopmans IE is 24.98 eV against 24.587 measured, an overestimate
+    of 0.39 eV, because ionizing a two-electron atom contracts what is left of
+    it hard. Alkalis are far better, since removing the lone valence electron
+    barely disturbs the closed core: lithium lands 0.05 eV out.
+
+    The two neglected effects push opposite ways, which is worth stating
+    because it explains why the error is not simply "HF is missing
+    correlation". Frozen orbitals overestimate the IE; missing correlation
+    underestimates it. Relaxing the ion properly (Delta-SCF) gives helium
+    23.45 eV, 1.14 eV LOW, which is its correlation energy almost exactly.
+    """
+    occupied = [o for o in result.orbitals if o.occupancy > 0]
+    if not occupied:
+        raise ValueError("no occupied orbitals")
+    valence = max(occupied, key=lambda o: o.energy.value)
+    base = valence.energy.provenance
+    prov = dataclasses.replace(
+        base,
+        method=f"{base.method}; ionization energy = -epsilon_valence (Koopmans)",
+        assumptions=base.assumptions
+        + (
+            "Koopmans: the N-1 remaining electrons do not relax, which "
+            "overestimates the ionization energy (0.39 eV for helium, less for "
+            "atoms whose valence electron sits outside a closed core)",
+        ),
+        refinement=(
+            "a Delta-SCF ionization energy, E(ion) - E(atom), relaxes the ion "
+            "and removes the Koopmans error, leaving only the correlation one"
+        ),
+    )
+    return Quantity(-valence.energy.value, "hartree", "IE_valence", prov)
+
+
+def _occupied_orbital(z: int, n_electrons: int, n: int, l: int) -> HFOrbital:
+    """The converged orbital for one subshell, or a refusal.
+
+    Hartree-Fock cannot hand back an arbitrary channel the way a central-field
+    model can. There is no single potential here: each occupied subshell has
+    its own Fock operator, built from the others, so an unoccupied subshell has
+    no operator to be an eigenfunction of. Asking for one is a question this
+    model cannot answer, and inventing a channel by borrowing another
+    subshell's operator would answer a different question silently.
+    """
+    if n <= l:
+        raise ValueError(f"n must be > l, got n={n}, l={l}")
+    # The ground configuration for however many electrons are present, which
+    # for a neutral atom is just the element's own.
+    result = solve_hartree_fock(z, n_electrons, aufbau_configuration(n_electrons))
+    for orbital in result.orbitals:
+        if (orbital.n, orbital.l) == (n, l):
+            return orbital
+    held = ", ".join(f"{o.n}{'spdf'[o.l]}" for o in result.orbitals)
+    raise ValueError(
+        f"subshell {n}{'spdf'[l]} is not occupied in Z={z}, N={n_electrons} "
+        f"(which holds {held}); Hartree-Fock builds one Fock operator per "
+        f"occupied subshell, so there is no operator for an empty one"
+    )
+
+
+def hf_radial(
+    z: int, n_electrons: int, n: int, l: int, points: int = 400,
+) -> tuple[Field, Field]:
+    """R_nl(r) and the radial density r^2 R^2, on a uniform display grid.
+
+    Mirrors screened_atom.screened_radial, including its convention that the
+    second field is the probability density and not the amplitude. Note the
+    solver's own HFOrbital.P is the amplitude P = r R, a different quantity
+    with a different unit; the naming follows screened_atom because these are
+    what a caller plots.
+    """
+    orbital = _occupied_orbital(z, n_electrons, n, l)
+    solver_r = orbital.P.grid
+    grid = np.linspace(solver_r[0], solver_r[-1], points)
+    # R = P / r. The mesh never reaches r = 0, so this needs no special case,
+    # which is exactly why the exponential mesh starts where it does.
+    values = np.interp(grid, solver_r, orbital.P.values / solver_r)
+    prov = dataclasses.replace(
+        orbital.P.provenance,
+        method=f"{orbital.P.provenance.method}; R_nl = P/r resampled uniformly",
+    )
+    r_field = Field(
+        values=values, grid=grid, unit="bohr^-3/2", grid_unit="bohr",
+        label=f"R_{n},{l}(r)", provenance=prov,
+    )
+    p_field = Field(
+        values=grid**2 * values**2, grid=grid, unit="bohr^-1", grid_unit="bohr",
+        label=f"P_{n},{l}(r) = r^2 R^2", provenance=prov,
+    )
+    return r_field, p_field
+
+
+def evaluate_hf_state(
+    z: int,
+    n_electrons: int,
+    n: int,
+    l: int,
+    m: int,
+    positions: np.ndarray,
+    *,
+    basis: str = "complex",
+) -> WavefunctionValues:
+    """psi_nlm = Hartree-Fock R_nl(|r|) x hydrogenic Y_lm, at (N, 3) positions.
+
+    Mirrors evaluate_screened_state. The angular factor is still the hydrogenic
+    harmonic: restricted Hartree-Fock on a spherically averaged configuration
+    leaves the angular dependence exactly Y_lm, so this is the model's own
+    shape rather than a convenience.
+    """
+    pos = np.asarray(positions, dtype=float)
+    if pos.ndim != 2 or pos.shape[1] != 3:
+        raise ValueError(f"positions must have shape (N, 3), got {pos.shape}")
+
+    r = np.linalg.norm(pos, axis=1)
+    safe_r = np.where(r > 0.0, r, 1.0)
+    theta = np.arccos(np.clip(pos[:, 2] / safe_r, -1.0, 1.0))
+    theta = np.where(r > 0.0, theta, 0.0)
+    phi = np.arctan2(pos[:, 1], pos[:, 0])
+
+    r_field, _ = hf_radial(z, n_electrons, n, l, points=_HF_EVAL_POINTS)
+    # Inside the first mesh point, hold R flat rather than extrapolating; past
+    # the box, zero. Both match evaluate_screened_state.
+    R = np.interp(r, r_field.grid, r_field.values, left=r_field.values[0], right=0.0)
+    angular = spherical_harmonic(l, m, theta, phi, basis=basis)
+
+    base = r_field.provenance
+    prov = Provenance(
+        fidelity=Fidelity.APPROXIMATION,
+        method=(
+            f"psi_nlm = Hartree-Fock R_nl (P/r) x {angular.provenance.method}; "
+            f"{base.method}"
+        ),
+        assumptions=base.assumptions
+        + angular.provenance.assumptions
+        + ("values in bohr^-3/2 at Cartesian positions in bohr",),
+        error_estimate=base.error_estimate,
+    )
+    return WavefunctionValues(
+        values=R * angular.values, positions=pos, n=n, l=l, m=m, Z=z, mu_ratio=1.0,
+        basis=basis, provenance=prov,
     )

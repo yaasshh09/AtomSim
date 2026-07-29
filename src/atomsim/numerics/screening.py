@@ -102,5 +102,7 @@ def screening_provenance(z: int, n_electrons: int) -> Provenance:
             "infinite nuclear mass (mu_ratio = 1)",
         ),
         error_estimate=None,  # quantified against NIST at the observable level
-        refinement="self-consistent Hartree-Fock (a later phase) removes the model error",
+        refinement=(
+            "self-consistent Hartree-Fock in hf_atom.py removes the model error"
+        ),
     )
