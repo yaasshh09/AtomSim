@@ -8,6 +8,7 @@ from atomsim.numerics.mesh import (
     RadialMesh,
     exponential_mesh,
     mesh_for_atom,
+    mesh_for_atom_at_step,
     uniform_mesh,
 )
 
@@ -114,6 +115,49 @@ class TestTheInnerWallIsWhereTheAccuracyGoes:
         coarse = relative_error(mesh_for_atom(1, 60.0, 1200), 1, 1, 0)
         fine = relative_error(mesh_for_atom(1, 60.0, 4800), 1, 1, 0)
         assert fine > coarse / 10
+
+
+class TestSizingByStepInsteadOfPointCount:
+    """Why this exists: inverting `mesh_for_atom` by hand needs r_min, and a
+    caller that keeps its own copy of that constant gets a mesh at the wrong
+    step, silently, the moment the two drift apart."""
+
+    @pytest.mark.parametrize("z", [1, 2, 10, 18])
+    @pytest.mark.parametrize("step", [0.02, 0.01, 0.005])
+    def test_it_lands_within_one_point_of_the_requested_step(self, z, step):
+        """The point count floors, so the delivered step is never finer than
+        asked and overshoots by at most one point's worth. Pinned in that
+        direction on purpose: a caller sizing a mesh by step should know which
+        way the rounding goes rather than assume it is symmetric."""
+        mesh = mesh_for_atom_at_step(z, 60.0, step)
+        assert mesh.step >= step
+        assert mesh.step == pytest.approx(step, rel=1.0 / (mesh.points - 1))
+
+    @pytest.mark.parametrize("z", [1, 2, 10, 18])
+    def test_it_agrees_with_mesh_for_atom_on_the_same_point_count(self, z):
+        """The two constructors must place identical nodes, or the mesh a
+        solve runs on would depend on which door it came through."""
+        by_step = mesh_for_atom_at_step(z, 60.0, 0.01)
+        by_count = mesh_for_atom(z, 60.0, by_step.points)
+        assert np.array_equal(by_step.r, by_count.r)
+        assert by_step.step == by_count.step
+
+    def test_halving_the_step_keeps_both_endpoints_exactly(self):
+        """The refinement pair hf_atom quotes an error from is only a
+        statement about the step if nothing else moved between the two."""
+        coarse = mesh_for_atom_at_step(18, 60.0, 0.01)
+        fine = mesh_for_atom_at_step(18, 60.0, 0.005)
+        assert fine.r[0] == coarse.r[0]
+        assert fine.r[-1] == coarse.r[-1]
+        assert fine.points > coarse.points
+
+    def test_a_non_positive_step_is_rejected(self):
+        with pytest.raises(ValueError, match="step must be positive"):
+            mesh_for_atom_at_step(2, 60.0, 0.0)
+
+    def test_a_box_inside_the_inner_radius_is_rejected(self):
+        with pytest.raises(ValueError, match="must exceed inner radius"):
+            mesh_for_atom_at_step(18, 1e-9, 0.01)
 
 
 class TestTheMeshCarriesItsOwnQuadrature:

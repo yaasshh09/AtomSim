@@ -80,7 +80,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
-__all__ = ["RadialMesh", "exponential_mesh", "mesh_for_atom", "uniform_mesh"]
+__all__ = [
+    "RadialMesh",
+    "exponential_mesh",
+    "mesh_for_atom",
+    "mesh_for_atom_at_step",
+    "uniform_mesh",
+]
 
 # Z r_min at the crossover between wall truncation and conditioning noise.
 _OPTIMAL_SCALED_INNER_RADIUS = 1.0e-3
@@ -259,3 +265,27 @@ def mesh_for_atom(z: int, r_max: float, points: int) -> RadialMesh:
     if z < 1:
         raise ValueError(f"Z must be >= 1, got {z}")
     return exponential_mesh(_OPTIMAL_SCALED_INNER_RADIUS / z, r_max, points)
+
+
+def mesh_for_atom_at_step(z: int, r_max: float, step: float) -> RadialMesh:
+    """`mesh_for_atom` sized by the step you want rather than a point count.
+
+    Exists so callers do not have to know r_min. Going the other way - picking
+    a point count that lands near a target step - means dividing the span
+    log(r_max / r_min) by that step, which silently needs the same r_min this
+    module owns. A caller keeping its own copy of that constant gets no error
+    when the two drift apart, just a mesh at the wrong step.
+
+    The point count floors, so the delivered step is never finer than asked and
+    overshoots by at most one point's worth. Halving `step` therefore always
+    refines, which is what a refinement pair needs.
+    """
+    if z < 1:
+        raise ValueError(f"Z must be >= 1, got {z}")
+    if step <= 0.0:
+        raise ValueError(f"step must be positive, got {step!r}")
+    r_min = _OPTIMAL_SCALED_INNER_RADIUS / z
+    if r_max <= r_min:
+        raise ValueError(f"box radius {r_max!r} must exceed inner radius {r_min!r}")
+    points = int(np.log(r_max / r_min) / step) + 1
+    return exponential_mesh(r_min, r_max, points)

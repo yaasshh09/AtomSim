@@ -15,6 +15,7 @@ grid error carried as a numerical sub-scale rather than as the headline number.
 See docs/superpowers/specs/2026-07-27-phase21-hartree-fock-design.md.
 """
 
+import dataclasses
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -33,7 +34,7 @@ from atomsim.numerics.hartree_fock import (
     total_energy_from_orbitals,
 )
 from atomsim.numerics.hf_terms import Subshell
-from atomsim.numerics.mesh import RadialMesh, mesh_for_atom
+from atomsim.numerics.mesh import RadialMesh, mesh_for_atom_at_step
 from atomsim.numerics.screening import gsz_parameters, screened_potential
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
@@ -64,9 +65,11 @@ _TOTAL_ENERGY_REFINEMENT = (
 )
 _DIAGNOSTIC_METHOD = "property of the converged solution, not a claim about the atom"
 
-# The mesh's own optimum; see numerics/mesh.py for the measurement behind both.
+# The mesh's own optimum; see numerics/mesh.py for the measurement behind it.
+# The matching inner radius deliberately is NOT duplicated here - mesh.py owns
+# it, and mesh_for_atom_at_step is what keeps the point count consistent with
+# it.
 _MESH_STEP = 0.01
-_MESH_INNER_SCALE = 1.0e-3  # Z r_min, matching mesh_for_atom
 
 # The part of the error a refinement pair is structurally blind to.
 #
@@ -130,13 +133,13 @@ def hf_mesh(z: int, n_electrons: int, n_top: int, refinement: int = 1) -> Radial
     error falls, so more points make the answer worse.
 
     `refinement` halves the step, and exists so the caller can run the same
-    physics on two meshes and quote the difference as an error estimate.
+    physics on two meshes and quote the difference as an error estimate. Both
+    meshes share r_min and r_max exactly and differ only in point count, which
+    is what makes their difference a clean statement about the step.
     """
     z_net = max(z - n_electrons + 1, 1)
     r_max = min(60.0, 12.0 * (n_top + 1) ** 2 / z_net)
-    span = np.log(r_max * z / _MESH_INNER_SCALE)
-    points = int(span / (_MESH_STEP / refinement)) + 1
-    return mesh_for_atom(z, r_max, points)
+    return mesh_for_atom_at_step(z, r_max, _MESH_STEP / refinement)
 
 
 def _start_potential(z: int, n_electrons: int):
@@ -195,11 +198,16 @@ def _refine(
 
     Two details that are not decoration.
 
-    The endpoints are anchored at P = 0 on both walls. The finer mesh begins
-    inside the coarse one's first point, and an interpolant that clamps rather
-    than extrapolating flattens every P across that innermost interval, putting
-    a kink exactly where -Z/r and the kinetic term are largest. That alone cost
-    hydrogen 2.8% of its total energy.
+    The endpoints are anchored at P = 0 on both walls. On this mesh that is no
+    longer load-bearing the way it was on uniform grids, where the two grids
+    had different first points and an interpolant that clamps rather than
+    extrapolating flattened every P across the innermost interval, putting a
+    kink exactly where -Z/r and the kinetic term are largest, at a cost of 2.8%
+    of hydrogen's total energy. Both meshes here share r_min and r_max exactly,
+    so nothing is ever evaluated outside the coarse span. The anchors stay
+    because P(0) = 0 is true and giving the spline that knot shapes it
+    correctly approaching r_min, which is where the amplitude is changing
+    fastest.
 
     The interpolant is cubic rather than linear because the SCF then runs the
     result through a second difference. A piecewise-linear P has zero curvature
@@ -270,7 +278,7 @@ def solve_hartree_fock(
     n_top = max(n for (n, _), _ in config)
     coarse_mesh = hf_mesh(z, n_electrons, n_top, refinement=1)
     mesh = hf_mesh(z, n_electrons, n_top, refinement=2)
-    coarse, _, e_coarse = _solve_on_grid(
+    coarse, coarse_energies, e_coarse = _solve_on_grid(
         z, n_electrons, config, coarse_mesh, start=None
     )
     solution, energies, e_direct = _solve_on_grid(
@@ -313,17 +321,46 @@ def solve_hartree_fock(
         method=_DIAGNOSTIC_METHOD,
         assumptions=(f"converged in {solution.iterations} SCF iterations",),
     )
+    # The orbital amplitude gets its own provenance carrying NO error estimate,
+    # rather than borrowing the energy's. Provenance.error_estimate is
+    # documented as being in the unit of the quantity it describes, and P is in
+    # bohr^-1/2: an error bar in hartree attached to it would not be a loose
+    # error bar, it would be a number in the wrong dimension. The mesh spread
+    # for the orbital SHAPE is not something this solve estimates, and saying
+    # nothing is the honest form of not knowing.
+    shape_prov = Provenance(
+        fidelity=Fidelity.APPROXIMATION,
+        method=f"{_TOTAL_ENERGY_METHOD}; radial amplitude sampled on the solver mesh",
+        assumptions=_TOTAL_ENERGY_ASSUMPTIONS,
+        refinement=_TOTAL_ENERGY_REFINEMENT,
+    )
 
     orbitals = tuple(
         HFOrbital(
             n=a.n, l=a.l, occupancy=a.q,
-            energy=Quantity(e, "hartree", f"eps_{a.n}{a.l}", energy_prov),
+            # Each orbital energy gets ITS OWN spread, not the total energy's.
+            # eps_3p is about -0.6 hartree for argon while E_total is -527, so
+            # handing every orbital the total's error bar would overstate the
+            # valence uncertainty by three orders of magnitude and understate
+            # nothing usefully. Same two terms as the total: the coarse-to-fine
+            # spread plus the mesh floor the spread cannot see.
+            energy=Quantity(
+                fine, "hartree", f"eps_{a.n}{a.l}",
+                dataclasses.replace(
+                    energy_prov,
+                    error_estimate=(
+                        abs(fine - crude) + _MESH_FLOOR_RELATIVE * abs(fine)
+                    ),
+                ),
+            ),
             P=Field(
                 values=a.p, grid=mesh.r, unit="bohr^-1/2", grid_unit="bohr",
-                label=f"P_{a.n}{a.l}", provenance=energy_prov,
+                label=f"P_{a.n}{a.l}", provenance=shape_prov,
             ),
         )
-        for a, e in zip(solution.subshells, energies, strict=True)
+        for a, fine, crude in zip(
+            solution.subshells, energies, coarse_energies, strict=True
+        )
     )
 
     return HFResult(

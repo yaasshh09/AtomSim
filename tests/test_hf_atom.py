@@ -110,6 +110,45 @@ def test_virial_ratio_is_numerical_not_approximation(solved, symbol, z):
     assert solved[symbol].virial_ratio.provenance.fidelity is Fidelity.NUMERICAL
 
 
+@pytest.mark.parametrize("symbol,z", [(s, z) for s, z in CLOSED_SHELL if z > 2])
+def test_each_orbital_carries_its_own_error_bar_not_the_totals(solved, symbol, z):
+    """An orbital energy is not the total energy and must not borrow its error.
+
+    Argon's 3p sits at about -0.59 hartree against a total of -527, so handing
+    every orbital the total's bar overstated the valence uncertainty by about
+    nineteen times. Each bar is now that orbital's own coarse-to-fine spread.
+    """
+    result = solved[symbol]
+    bars = [orbital.energy.provenance.error_estimate for orbital in result.orbitals]
+    assert all(bar is not None and bar > 0.0 for bar in bars)
+    assert len(set(bars)) == len(bars)  # genuinely per-orbital, not one number
+    assert all(bar < result.total_energy.provenance.error_estimate for bar in bars)
+
+
+def test_beryllium_orbital_error_bars_bracket_the_published_energies(solved):
+    """Checked against Bunge's tabulated orbital energies rather than against
+    another run of this code, so the bar is measured against an outside number.
+    """
+    got = [orbital.energy.value for orbital in solved["Be"].orbitals]
+    bars = [orbital.energy.provenance.error_estimate for orbital in solved["Be"].orbitals]
+    for value, bar, published in zip(got, bars, [-4.7326699, -0.3092695], strict=True):
+        assert abs(value - published) < bar
+
+
+@pytest.mark.parametrize("symbol,z", CLOSED_SHELL)
+def test_the_amplitude_field_carries_no_energy_error_bar(solved, symbol, z):
+    """Provenance.error_estimate is documented as being in the unit of the
+    quantity it describes. P is in bohr^-1/2, so an error bar in hartree
+    attached to it would not be loose, it would be dimensionally meaningless.
+    This solve does not estimate the orbital SHAPE's error, and the honest way
+    to say that is to carry no number at all.
+    """
+    for orbital in solved[symbol].orbitals:
+        assert orbital.P.unit == "bohr^-1/2"
+        assert orbital.P.provenance.error_estimate is None
+        assert orbital.P.provenance.fidelity is Fidelity.APPROXIMATION
+
+
 def test_hydrogen_is_exact_to_the_grid():
     result = solve_hartree_fock(1, 1, aufbau_configuration(1))
     assert result.total_energy.value == pytest.approx(-0.5, rel=1e-4)

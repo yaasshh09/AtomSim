@@ -399,16 +399,24 @@ def orbital_energy(
 
     This is NOT redundant with the eigenvalue solve_channel returns, and the
     difference between them is worth understanding rather than hiding. The
-    eigenvalue is whatever LOBPCG converged to; this is the exact Rayleigh
-    quotient of the same operator against the orbital actually held, so the two
-    differ by however far short of convergence the eigensolve stopped.
+    one-electron part here comes from the very operator that was diagonalized,
+    but the direct and exchange expectations are trapezoid sums over r, while
+    the operator applies those same terms through the mesh's own quadrature
+    weights. Both are O(delta^2) accurate and they disagree at that order.
+
+    So the gap is discretization, not convergence, and it is worth being
+    precise about which: measured on this mesh it falls by 4.00x per halving of
+    delta (He 4.28e-6 -> 1.08e-6 -> 2.70e-7; Be 1s 1.34e-5 -> 3.35e-6 ->
+    8.36e-7), which is the signature of a quadrature difference and not of an
+    eigensolve stopping short. Tightening the LOBPCG tolerance does not close
+    it; refining the mesh does.
 
     That matters because the identity E = 1/2 sum q (I + eps) is exact only
-    when eps and I come from the same operator and the same quadrature. Fed the
-    eigenvalue, the identity misses the directly assembled energy by that
-    convergence gap; fed this, it agrees to machine precision, which is what
-    makes the two energy routes a real test of the angular coefficients rather
-    than a test of the eigensolver.
+    when eps and I are quadratured the same way. Fed the eigenvalue, the
+    identity misses the directly assembled energy by that O(delta^2) gap; fed
+    this, it agrees to machine precision (measured 2.3e-13 hartree on argon),
+    which is what makes the two energy routes a real test of the angular
+    coefficients rather than a test of the discretization.
 
     Pass v_nuclear when the nuclear potential is not the bare -Z/r Coulomb.
     """
@@ -481,13 +489,12 @@ def kinetic_and_potential(
     reporting on a calculation nobody ran.
     """
     zero = np.zeros_like(mesh.r)
-    kinetic = sum(
-        a.q * local_expectation(a.p, zero, a.l, mesh) for a in subshells
-    )
-    nuclear = sum(
-        a.q * (one_electron_integral(a, z, mesh) - local_expectation(a.p, zero, a.l, mesh))
-        for a in subshells
-    )
+    kinetic = 0.0
+    nuclear = 0.0
+    for a in subshells:
+        free = local_expectation(a.p, zero, a.l, mesh)
+        kinetic += a.q * free
+        nuclear += a.q * (one_electron_integral(a, z, mesh) - free)
     return float(kinetic), float(nuclear + _interaction_energy(subshells, mesh.r))
 
 

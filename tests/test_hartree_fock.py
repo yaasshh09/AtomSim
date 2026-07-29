@@ -20,6 +20,7 @@ from atomsim.numerics.hartree_fock import (
     kinetic_and_potential,
     orbital_energy,
     scf,
+    solve_channel,
     total_energy_direct,
     total_energy_from_orbitals,
 )
@@ -113,16 +114,45 @@ def test_the_two_energy_routes_agree_for_beryllium(beryllium, mesh):
 
 
 def test_eigenvalue_and_quadrature_orbital_energies_agree(helium, mesh):
-    """The two ways of getting eps_a differ only by discretization: the
-    eigenvalue comes from the finite-difference operator, orbital_energy from
-    the trapezoid quadrature. They must agree to O(h^2), which on this mesh is
-    a few times 1e-5 - large enough to break an abs=1e-8 energy identity, small
-    enough to be irrelevant physically. Pinned so neither drifts unnoticed.
+    """The two ways of getting eps_a differ only by discretization. The
+    one-electron part is the same operator in both, but orbital_energy takes
+    the direct and exchange terms by trapezoid while the operator applies them
+    through the mesh's own quadrature weights, so they agree only to O(h^2) -
+    a few times 1e-5 on this mesh, large enough to break an abs=1e-8 energy
+    identity, small enough to be irrelevant physically. Pinned here for size;
+    test_the_eigenvalue_gap_is_quadrature_not_convergence pins the cause.
     """
     eig = helium.energies[0]
     quad = orbital_energy(helium.subshells, 0, 2, mesh)
     assert quad == pytest.approx(eig, abs=1e-4)
     assert quad != eig  # they are genuinely different quadratures
+
+
+def test_the_eigenvalue_gap_is_quadrature_not_convergence(helium, mesh):
+    """Names the CAUSE of that gap, because the two candidates would be fixed
+    by opposite actions and the docstrings claim one of them.
+
+    If the gap were the eigensolve stopping short, tightening the LOBPCG
+    tolerance would close it. It does not: driving the residual down by three
+    orders of magnitude moves the eigenvalue in the eleventh decimal and leaves
+    the gap fixed to four significant figures. The gap is the direct and
+    exchange terms being taken by trapezoid here and by the mesh's own
+    quadrature weights inside the operator, so only refining the mesh moves it.
+    """
+    loose = solve_channel(
+        helium.subshells, 0, coulomb(2.0), l=0, mesh=mesh, n_states=1,
+        guess=helium.subshells[0].p[None, :], tol=1e-4,
+    )
+    tight = solve_channel(
+        helium.subshells, 0, coulomb(2.0), l=0, mesh=mesh, n_states=1,
+        guess=helium.subshells[0].p[None, :], tol=1e-10,
+    )
+    assert tight.residual < 0.1 * loose.residual  # the solve really did tighten
+
+    quad = orbital_energy(helium.subshells, 0, 2, mesh)
+    assert (quad - tight.energies[0]) == pytest.approx(
+        quad - loose.energies[0], rel=1e-3
+    )
 
 
 def test_virial_ratio_is_two(helium, mesh):
