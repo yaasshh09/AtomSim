@@ -24,71 +24,68 @@ from atomsim.numerics.hartree_fock import (
     total_energy_from_orbitals,
 )
 from atomsim.numerics.hf_terms import Subshell
+from atomsim.numerics.mesh import uniform_mesh
 
 
 def coulomb(z):
     return lambda r: -z / r
 
 
-def start(grid, z, shells):
+def start(mesh, z, shells):
     """Hydrogenic warm start: P_1s at effective charge z."""
-    p = 2.0 * z**1.5 * grid * np.exp(-z * grid)
-    p /= np.sqrt(np.trapezoid(p**2, grid))
+    p = 2.0 * z**1.5 * mesh.r * np.exp(-z * mesh.r)
+    p /= np.sqrt(np.trapezoid(p**2, mesh.r))
     return tuple(Subshell(n=n, l=l, q=q, p=p.copy()) for n, l, q in shells)
 
 
-def radial_grid(r_max=30.0, n_points=30000):
-    """r[0] == h; see hartree_fock.local_hamiltonian_bands for why."""
-    h = r_max / (n_points + 1)
-    return h * np.arange(1, n_points + 1)
+@pytest.fixture(scope="module")
+def mesh():
+    """A uniform mesh, so these results stay comparable to the ones this
+    module was originally validated against."""
+    return uniform_mesh(30.0, 30000)
 
 
 @pytest.fixture(scope="module")
-def grid():
-    return radial_grid()
+def hydrogen(mesh):
+    return scf(1, start(mesh, 1.0, [(1, 0, 1)]), coulomb(1.0), mesh)
 
 
 @pytest.fixture(scope="module")
-def hydrogen(grid):
-    return scf(1, start(grid, 1.0, [(1, 0, 1)]), coulomb(1.0), grid)
+def helium(mesh):
+    return scf(2, start(mesh, 1.7, [(1, 0, 2)]), coulomb(2.0), mesh)
 
 
 @pytest.fixture(scope="module")
-def helium(grid):
-    return scf(2, start(grid, 1.7, [(1, 0, 2)]), coulomb(2.0), grid)
+def beryllium(mesh):
+    return scf(4, start(mesh, 3.0, [(1, 0, 2), (2, 0, 2)]), coulomb(4.0), mesh)
 
 
-@pytest.fixture(scope="module")
-def beryllium(grid):
-    return scf(4, start(grid, 3.0, [(1, 0, 2), (2, 0, 2)]), coulomb(4.0), grid)
-
-
-def quadrature_energies(sol, z, grid):
+def quadrature_energies(sol, z, mesh):
     """eps_a from the same quadrature as I(a); see orbital_energy."""
     return tuple(
-        orbital_energy(sol.subshells, i, z, grid)
+        orbital_energy(sol.subshells, i, z, mesh)
         for i in range(len(sol.subshells))
     )
 
 
-def test_hydrogen_is_exactly_minus_one_half(hydrogen, grid):
+def test_hydrogen_is_exactly_minus_one_half(hydrogen, mesh):
     """One electron: HF must reduce to the bare Coulomb problem with no
     self-interaction whatsoever. This is the phase's sharpest anchor and it
     costs nothing."""
-    assert total_energy_direct(1, hydrogen.subshells, grid) == pytest.approx(
+    assert total_energy_direct(1, hydrogen.subshells, mesh) == pytest.approx(
         -0.5, rel=2e-4
     )
     assert hydrogen.energies[0] == pytest.approx(-0.5, rel=2e-4)
 
 
-def test_helium_total_energy_is_physical(helium, grid):
+def test_helium_total_energy_is_physical(helium, mesh):
     """No vendored number needed to catch a gross error: helium must sit
     between the non-interacting limit (-4) and the single-ion limit (-2)."""
-    e = total_energy_direct(2, helium.subshells, grid)
+    e = total_energy_direct(2, helium.subshells, mesh)
     assert -4.0 < e < -2.0
 
 
-def test_the_two_energy_routes_agree(helium, grid):
+def test_the_two_energy_routes_agree(helium, mesh):
     """Direct assembly and the orbital identity E = 1/2 sum q (I + eps) are
     algebraically identical, so any disagreement is a coding error, not a
     numerical one. Tolerance is tight on purpose.
@@ -98,46 +95,46 @@ def test_the_two_energy_routes_agree(helium, grid):
     eigenvalue. Feeding it the eigenvalue instead tests the discretization,
     which is what test_eigenvalue_and_quadrature_orbital_energies_agree does.
     """
-    direct = total_energy_direct(2, helium.subshells, grid)
+    direct = total_energy_direct(2, helium.subshells, mesh)
     identity = total_energy_from_orbitals(
-        helium.subshells, quadrature_energies(helium, 2, grid), 2, grid
+        helium.subshells, quadrature_energies(helium, 2, mesh), 2, mesh
     )
     assert direct == pytest.approx(identity, abs=1e-8)
 
 
-def test_the_two_energy_routes_agree_for_beryllium(beryllium, grid):
+def test_the_two_energy_routes_agree_for_beryllium(beryllium, mesh):
     """Two subshells, so cross-shell direct and exchange coefficients are in
     play. Helium alone would not exercise them."""
-    direct = total_energy_direct(4, beryllium.subshells, grid)
+    direct = total_energy_direct(4, beryllium.subshells, mesh)
     identity = total_energy_from_orbitals(
-        beryllium.subshells, quadrature_energies(beryllium, 4, grid), 4, grid
+        beryllium.subshells, quadrature_energies(beryllium, 4, mesh), 4, mesh
     )
     assert direct == pytest.approx(identity, abs=1e-8)
 
 
-def test_eigenvalue_and_quadrature_orbital_energies_agree(helium, grid):
+def test_eigenvalue_and_quadrature_orbital_energies_agree(helium, mesh):
     """The two ways of getting eps_a differ only by discretization: the
     eigenvalue comes from the finite-difference operator, orbital_energy from
-    the trapezoid quadrature. They must agree to O(h^2), which on this grid is
+    the trapezoid quadrature. They must agree to O(h^2), which on this mesh is
     a few times 1e-5 - large enough to break an abs=1e-8 energy identity, small
     enough to be irrelevant physically. Pinned so neither drifts unnoticed.
     """
     eig = helium.energies[0]
-    quad = orbital_energy(helium.subshells, 0, 2, grid)
+    quad = orbital_energy(helium.subshells, 0, 2, mesh)
     assert quad == pytest.approx(eig, abs=1e-4)
     assert quad != eig  # they are genuinely different quadratures
 
 
-def test_virial_ratio_is_two(helium, grid):
+def test_virial_ratio_is_two(helium, mesh):
     """At a converged HF solution in a pure Coulomb field, -V/T = 2 exactly.
-    Departure measures grid and box error, not model error."""
-    t, v = kinetic_and_potential(2, helium.subshells, grid)
+    Departure measures mesh and box error, not model error."""
+    t, v = kinetic_and_potential(2, helium.subshells, mesh)
     assert -v / t == pytest.approx(2.0, rel=1e-3)
 
 
-def test_energy_equals_minus_kinetic_at_convergence(helium, grid):
-    t, _ = kinetic_and_potential(2, helium.subshells, grid)
-    e = total_energy_direct(2, helium.subshells, grid)
+def test_energy_equals_minus_kinetic_at_convergence(helium, mesh):
+    t, _ = kinetic_and_potential(2, helium.subshells, mesh)
+    e = total_energy_direct(2, helium.subshells, mesh)
     assert e == pytest.approx(-t, rel=1e-3)
 
 
@@ -154,14 +151,14 @@ def test_beryllium_orbital_energies_match_the_published_ones(beryllium):
     assert beryllium.energies[1] == pytest.approx(-0.3092695, rel=1e-4)
 
 
-def test_beryllium_shells_come_out_orthogonal(beryllium, grid):
+def test_beryllium_shells_come_out_orthogonal(beryllium, mesh):
     """1s and 2s are eigenvectors of DIFFERENT operators - each subshell has
     its own Fock operator in this scheme - so their orthogonality is a result,
     not a construction. If it degraded, the energy functional would silently
     double-count.
     """
     overlap = np.trapezoid(
-        beryllium.subshells[0].p * beryllium.subshells[1].p, grid
+        beryllium.subshells[0].p * beryllium.subshells[1].p, mesh.r
     )
     assert abs(overlap) < 1e-5
 
@@ -171,12 +168,12 @@ def test_residual_history_is_monotone_enough_to_show_convergence(helium):
     assert helium.residual_history[-1] < 1e-8
 
 
-def test_non_convergence_raises_rather_than_returning(grid):
+def test_non_convergence_raises_rather_than_returning(mesh):
     with pytest.raises(HFConvergenceError, match="SCF did not converge"):
-        scf(2, start(grid, 1.7, [(1, 0, 2)]), coulomb(2.0), grid,
+        scf(2, start(mesh, 1.7, [(1, 0, 2)]), coulomb(2.0), mesh,
             max_iterations=1, tol=1e-14)
 
 
-def test_mixing_parameter_is_validated(grid):
+def test_mixing_parameter_is_validated(mesh):
     with pytest.raises(ValueError, match="mixing parameter"):
-        scf(2, start(grid, 1.7, [(1, 0, 2)]), coulomb(2.0), grid, alpha=0.0)
+        scf(2, start(mesh, 1.7, [(1, 0, 2)]), coulomb(2.0), mesh, alpha=0.0)

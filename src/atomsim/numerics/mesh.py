@@ -142,8 +142,13 @@ class RadialMesh:
         return int(self.r.size)
 
     @property
-    def r_max(self) -> float:
-        return float(self.r[-1])
+    def outer_wall(self) -> float:
+        """Where the outer Dirichlet condition sits, one step past r[-1].
+
+        Not the same as r[-1]: a uniform mesh built for a box of 40 bohr has
+        its last node just inside 40 and its wall exactly on it.
+        """
+        return float(self.r[-1] + self.step * self.jacobian[-1])
 
     def integrate(self, f: np.ndarray) -> float:
         """integral f(r) dr, as integral f J dx by the trapezoid rule in x.

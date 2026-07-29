@@ -15,13 +15,20 @@ positive definite and its inverse is a banded Cholesky solve in O(N). It works
 because the local part carries all the high-frequency content while exchange is
 a smooth integral kernel with a fast-decaying spectrum.
 
-Grid convention, and it is load-bearing: the 3-point stencil imposes u = 0 one
-step below r[0], so the grid must be uniform with r[0] == h for that step to
-land on the origin. This matches radial_solver.solve_radial exactly. A grid
-that merely starts "close to zero" is not equivalent - r[0] = 1e-5 with
-h = 2e-3 puts the wall at r = -0.002 and costs 4.6% on hydrogen's ground state,
-with orbitals that still look perfectly smooth. local_hamiltonian_bands
-therefore refuses such a grid instead of quietly absorbing the error.
+The mesh owns the discretization. Everything here takes a `RadialMesh` and asks
+it for the local Hamiltonian and its quadrature, rather than assuming a
+constant step - that is what lets the same SCF run on the uniform grid this
+module was written against and on the exponential mesh the heavier atoms need.
+The eigenproblem is solved in the mesh's S variable, not in P, because the
+Euclidean dot product on S is the physical integral P^2 dr and LOBPCG knows
+only the Euclidean one. Exchange is an integral operator in P, so the matvec
+carries its argument to P and its result back; the transformation is a
+diagonal scaling, so the operator stays symmetric.
+
+Two-electron integrals stay in P on the raw radii: they are trapezoid sums
+over r, which are correct on any increasing grid, and keeping them there means
+the two total-energy routes are quadratured identically and their agreement
+still tests the angular coefficients rather than the mesh.
 
 Returns plain arrays, not Quantity or Field: these are intermediate eigenpairs
 of one channel, and hf_atom.py attaches provenance when it reports an atom.
@@ -38,6 +45,7 @@ from scipy.sparse.linalg import LinearOperator, lobpcg
 
 from atomsim.analytic.wigner import wigner_3j
 from atomsim.numerics.hf_terms import Subshell, direct_potential, exchange_apply
+from atomsim.numerics.mesh import RadialMesh
 from atomsim.numerics.slater import slater_f, slater_g
 
 __all__ = [
@@ -46,6 +54,7 @@ __all__ = [
     "SCFSolution",
     "fock_operator",
     "kinetic_and_potential",
+    "local_expectation",
     "local_hamiltonian_bands",
     "one_electron_integral",
     "orbital_energy",
@@ -120,23 +129,30 @@ def fock_operator(
     a_index: int,
     v_nuclear: Callable[[np.ndarray], np.ndarray],
     l: int,
-    r: np.ndarray,
+    mesh: RadialMesh,
 ) -> LinearOperator:
-    """The Fock operator for subshell a as a matrix-free LinearOperator."""
+    """The Fock operator for subshell a as a matrix-free LinearOperator.
+
+    Acts on S, the mesh's working variable. Exchange lives in P, so its
+    argument is carried across and its result carried back; both directions are
+    the same diagonal scaling, which is what keeps the operator symmetric.
+    """
+    r = mesh.r
     v_local = np.asarray(v_nuclear(r), dtype=float) + direct_potential(
         subshells, a_index, r
     )
-    diag, offdiag = local_hamiltonian_bands(v_local, l, r)
+    diag, offdiag = mesh.hamiltonian_bands(v_local, l)
+    scale = np.sqrt(mesh.step * mesh.jacobian)
 
-    def matvec(psi: np.ndarray) -> np.ndarray:
-        psi = np.asarray(psi, dtype=float).ravel()
-        out = diag * psi
-        out[:-1] += offdiag * psi[1:]
-        out[1:] += offdiag * psi[:-1]
-        return out - exchange_apply(subshells, a_index, psi, r)
+    def matvec(s: np.ndarray) -> np.ndarray:
+        s = np.asarray(s, dtype=float).ravel()
+        out = diag * s
+        out[:-1] += offdiag * s[1:]
+        out[1:] += offdiag * s[:-1]
+        return out - scale * exchange_apply(subshells, a_index, s / scale, r)
 
-    return LinearOperator((r.size, r.size), matvec=matvec, rmatvec=matvec,
-                          dtype=float)
+    n = mesh.points
+    return LinearOperator((n, n), matvec=matvec, rmatvec=matvec, dtype=float)
 
 
 def _preconditioner(
@@ -160,8 +176,22 @@ def _preconditioner(
     return LinearOperator((diag.size, diag.size), matvec=apply, dtype=float)
 
 
-def _normalize(u: np.ndarray, r: np.ndarray) -> np.ndarray:
-    return u / np.sqrt(np.trapezoid(u**2, r))
+def local_expectation(
+    p: np.ndarray, v_local: np.ndarray, l: int, mesh: RadialMesh
+) -> float:
+    """<P| -1/2 d2/dr2 + l(l+1)/2r^2 + V |P>, from the mesh's own operator.
+
+    Deliberately the SAME matrix solve_channel diagonalizes, wall correction
+    included, rather than a finite difference assembled separately. The
+    identity E = 1/2 sum q (I + eps) only holds when the one-electron integral
+    and the eigenvalue come from one operator; assembling them twice makes the
+    two energy routes disagree by the difference between two discretizations
+    instead of by a coefficient error, which is the one thing that check is
+    for.
+    """
+    diag, offdiag = mesh.hamiltonian_bands(v_local, l)
+    s = mesh.to_s(p)
+    return float(s @ (diag * s) + 2.0 * float(offdiag @ (s[:-1] * s[1:])))
 
 
 def solve_channel(
@@ -169,7 +199,7 @@ def solve_channel(
     a_index: int,
     v_nuclear: Callable[[np.ndarray], np.ndarray],
     l: int,
-    r: np.ndarray,
+    mesh: RadialMesh,
     n_states: int,
     guess: np.ndarray | None = None,
     tol: float = 1e-6,
@@ -220,11 +250,12 @@ def solve_channel(
     gap between those two populations. What establishes accuracy is not this
     gate but the grid-convergence and vendored-energy benchmarks.
     """
-    op = fock_operator(subshells, a_index, v_nuclear, l, r)
+    r = mesh.r
+    op = fock_operator(subshells, a_index, v_nuclear, l, mesh)
     v_local = np.asarray(v_nuclear(r), dtype=float) + direct_potential(
         subshells, a_index, r
     )
-    diag, offdiag = local_hamiltonian_bands(v_local, l, r)
+    diag, offdiag = mesh.hamiltonian_bands(v_local, l)
     lowest = float(
         eigh_tridiagonal(
             diag, offdiag, select="i", select_range=(0, 0), eigvals_only=True
@@ -240,15 +271,27 @@ def solve_channel(
     energy_scale = max(1.0, abs(lowest))
     scaled_tol = tol * energy_scale
 
-    block = min(n_states + 2, r.size)  # guard vectors: LOBPCG is least
-    # accurate at the top of its block
+    # No guard vectors. Padding the block above n_states looks like cheap
+    # insurance against LOBPCG being least accurate at the top of its block,
+    # and measurement says it is the opposite: the extra vectors land in the
+    # near-degenerate diffuse states just below zero, which never converge, so
+    # scipy - whose stopping rule is over the WHOLE block - burns its entire
+    # iteration budget on vectors that are then thrown away. Argon's 3s channel
+    # with two guards took 302 iterations and 2.67s and reported a residual of
+    # 1.3e-4; with none it took 87 iterations and 0.34s and reported 7.2e-7,
+    # for an eigenvalue identical to nine digits. Every channel measured moved
+    # the same way.
+    block = min(n_states, r.size)
+
     def cold_block() -> np.ndarray:
         return eigh_tridiagonal(
             diag, offdiag, select="i", select_range=(0, block - 1)
         )[1]
 
     def warm_block() -> np.ndarray:
-        x = np.asarray(guess, dtype=float).reshape(-1, r.size).T
+        # The guess arrives in P, the physical radial function, because that is
+        # what callers hold; the solve happens in S.
+        x = mesh.to_s(np.asarray(guess, dtype=float).reshape(-1, r.size)).T
         if x.shape[1] < block:
             # Pad from the local spectrum, skipping the states the guess
             # already covers. Padding from index 0 instead hands LOBPCG a near
@@ -266,8 +309,13 @@ def solve_channel(
             op, np.linalg.qr(x)[0], M=precond, tol=scaled_tol, maxiter=budget,
             largest=False, retResidualNormsHistory=True,
         )
-        res = float(np.max(history[-1]))
-        limit = residual_ceiling * max(1.0, float(np.max(np.abs(w))))
+        w = np.atleast_1d(w)
+        # Judge only the states this call will return. Anything else in the
+        # block is scratch, and letting scratch fail the gate rejects solves
+        # that are converged in every eigenvalue the caller receives.
+        kept = np.argsort(w)[:n_states]
+        res = float(np.max(np.atleast_1d(history[-1])[kept]))
+        limit = residual_ceiling * max(1.0, float(np.max(np.abs(w[kept]))))
         return w, v, history, res, limit
 
     # The warm attempt is speculative and gets the plain budget; the cold
@@ -305,15 +353,15 @@ def solve_channel(
             )
 
     order = np.argsort(eigenvalues)[:n_states]
-    out = eigenvectors.T[order]
+    out = mesh.to_p(eigenvectors.T[order])
 
-    # Modified Gram-Schmidt in the trapezoid inner product, then sign-fix,
+    # Modified Gram-Schmidt in the mesh's inner product, then sign-fix,
     # matching radial_solver.py's convention.
     ortho = []
     for u in out:
         for v in ortho:
             u = u - v * np.trapezoid(u * v, r)
-        u = _normalize(u, r)
+        u = mesh.normalized(u)
         first = np.argmax(np.abs(u) > 0.01 * np.abs(u).max())
         if u[first] < 0:
             u = -u
@@ -335,48 +383,39 @@ class SCFSolution:
     residual_history: tuple[float, ...]
 
 
-def one_electron_integral(subshell: Subshell, z: int, r: np.ndarray) -> float:
+def one_electron_integral(subshell: Subshell, z: float, mesh: RadialMesh) -> float:
     """I(a) = <P_a| -1/2 d2/dr2 + l(l+1)/(2r^2) - Z/r |P_a>."""
-    p = subshell.p
-    h = float(r[1] - r[0])
-    second = np.zeros_like(p)
-    second[1:-1] = (p[2:] - 2.0 * p[1:-1] + p[:-2]) / h**2
-    kinetic = -0.5 * np.trapezoid(p * second, r)
-    centrifugal = 0.5 * subshell.l * (subshell.l + 1) * np.trapezoid(
-        (p / r) ** 2, r
-    )
-    nuclear = -z * np.trapezoid(p**2 / r, r)
-    return float(kinetic + centrifugal + nuclear)
+    return local_expectation(subshell.p, -z / mesh.r, subshell.l, mesh)
 
 
 def orbital_energy(
     subshells: tuple[Subshell, ...],
     a_index: int,
     z: int,
-    r: np.ndarray,
+    mesh: RadialMesh,
     v_nuclear: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> float:
     """eps_a as the quadrature expectation <P_a| h + direct - exchange |P_a>.
 
     This is NOT redundant with the eigenvalue solve_channel returns, and the
     difference between them is worth understanding rather than hiding. The
-    eigenvalue comes from the finite-difference operator; this comes from the
-    same trapezoid quadrature that one_electron_integral and the Slater
-    integrals use. They agree only to O(h^2) - about 2e-5 hartree for helium on
-    a 30000-point grid.
+    eigenvalue is whatever LOBPCG converged to; this is the exact Rayleigh
+    quotient of the same operator against the orbital actually held, so the two
+    differ by however far short of convergence the eigensolve stopped.
 
     That matters because the identity E = 1/2 sum q (I + eps) is exact only
-    when eps and I are quadratured the same way. Fed the eigenvalue, the
-    identity misses the directly assembled energy by exactly that O(h^2) gap;
-    fed this, it agrees to machine precision, which is what makes the two
-    energy routes a real test of the angular coefficients rather than a test of
-    the discretization.
+    when eps and I come from the same operator and the same quadrature. Fed the
+    eigenvalue, the identity misses the directly assembled energy by that
+    convergence gap; fed this, it agrees to machine precision, which is what
+    makes the two energy routes a real test of the angular coefficients rather
+    than a test of the eigensolver.
 
     Pass v_nuclear when the nuclear potential is not the bare -Z/r Coulomb.
     """
+    r = mesh.r
     a = subshells[a_index]
     v_nuc = (-z / r) if v_nuclear is None else np.asarray(v_nuclear(r), dtype=float)
-    one = one_electron_integral(a, 0, r) + float(np.trapezoid(a.p**2 * v_nuc, r))
+    one = local_expectation(a.p, v_nuc, a.l, mesh)
     direct = float(np.trapezoid(a.p**2 * direct_potential(subshells, a_index, r), r))
     exchange = float(
         np.trapezoid(a.p * exchange_apply(subshells, a_index, a.p, r), r)
@@ -402,18 +441,18 @@ def _interaction_energy(subshells: tuple[Subshell, ...], r: np.ndarray) -> float
 
 
 def total_energy_direct(
-    z: int, subshells: tuple[Subshell, ...], r: np.ndarray
+    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh
 ) -> float:
     """Route 1: assemble the energy functional term by term."""
-    one = sum(a.q * one_electron_integral(a, z, r) for a in subshells)
-    return float(one + _interaction_energy(subshells, r))
+    one = sum(a.q * one_electron_integral(a, z, mesh) for a in subshells)
+    return float(one + _interaction_energy(subshells, mesh.r))
 
 
 def total_energy_from_orbitals(
     subshells: tuple[Subshell, ...],
     energies: tuple[float, ...],
     z: int,
-    r: np.ndarray,
+    mesh: RadialMesh,
 ) -> float:
     """Route 2: E = 1/2 sum_a q_a ( I(a) + eps_a ).
 
@@ -424,34 +463,39 @@ def total_energy_from_orbitals(
     return float(
         0.5
         * sum(
-            a.q * (one_electron_integral(a, z, r) + e)
+            a.q * (one_electron_integral(a, z, mesh) + e)
             for a, e in zip(subshells, energies, strict=True)
         )
     )
 
 
 def kinetic_and_potential(
-    z: int, subshells: tuple[Subshell, ...], r: np.ndarray
+    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh
 ) -> tuple[float, float]:
-    """Route 3's inputs: total T and total V, for the virial ratio -V/T = 2."""
-    h = float(r[1] - r[0])
-    kinetic = 0.0
-    for a in subshells:
-        second = np.zeros_like(a.p)
-        second[1:-1] = (a.p[2:] - 2.0 * a.p[1:-1] + a.p[:-2]) / h**2
-        kinetic += a.q * (
-            -0.5 * np.trapezoid(a.p * second, r)
-            + 0.5 * a.l * (a.l + 1) * np.trapezoid((a.p / r) ** 2, r)
-        )
-    nuclear = sum(-z * a.q * np.trapezoid(a.p**2 / r, r) for a in subshells)
-    return float(kinetic), float(nuclear + _interaction_energy(subshells, r))
+    """Route 3's inputs: total T and total V, for the virial ratio -V/T = 2.
+
+    The nuclear term is taken as the difference between the full one-electron
+    integral and the Z = 0 one rather than integrated separately, so that
+    T + V reproduces total_energy_direct exactly. A virial ratio computed from
+    a T and a V that do not add back up to the energy would be a diagnostic
+    reporting on a calculation nobody ran.
+    """
+    zero = np.zeros_like(mesh.r)
+    kinetic = sum(
+        a.q * local_expectation(a.p, zero, a.l, mesh) for a in subshells
+    )
+    nuclear = sum(
+        a.q * (one_electron_integral(a, z, mesh) - local_expectation(a.p, zero, a.l, mesh))
+        for a in subshells
+    )
+    return float(kinetic), float(nuclear + _interaction_energy(subshells, mesh.r))
 
 
 def scf(
     z: int,
     subshells: tuple[Subshell, ...],
     v_nuclear: Callable[[np.ndarray], np.ndarray],
-    r: np.ndarray,
+    mesh: RadialMesh,
     alpha: float = 0.4,
     max_iterations: int = 200,
     tol: float = 1e-8,
@@ -478,11 +522,11 @@ def scf(
         for index, a in enumerate(current):
             k = a.n - a.l - 1
             channel = solve_channel(
-                current, index, v_nuclear, a.l, r, n_states=k + 1,
+                current, index, v_nuclear, a.l, mesh, n_states=k + 1,
                 guess=a.p[None, :],
             )
             mixed = (1.0 - alpha) * a.p + alpha * channel.orbitals[k]
-            mixed = _normalize(mixed, r)
+            mixed = mesh.normalized(mixed)
             updated.append(Subshell(n=a.n, l=a.l, q=a.q, p=mixed))
             new_energies.append(float(channel.energies[k]))
 

@@ -20,6 +20,7 @@ from functools import lru_cache
 
 import numpy as np
 from scipy.interpolate import CubicSpline
+from scipy.linalg import eigh_tridiagonal
 
 from atomsim.atoms import Configuration, is_ground, total_electrons, validate_config
 from atomsim.numerics.hartree_fock import (
@@ -32,14 +33,14 @@ from atomsim.numerics.hartree_fock import (
     total_energy_from_orbitals,
 )
 from atomsim.numerics.hf_terms import Subshell
-from atomsim.numerics.radial_solver import solve_radial
+from atomsim.numerics.mesh import RadialMesh, mesh_for_atom
 from atomsim.numerics.screening import gsz_parameters, screened_potential
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
 __all__ = [
     "HFOrbital",
     "HFResult",
-    "hf_grid",
+    "hf_mesh",
     "solve_hartree_fock",
 ]
 
@@ -49,8 +50,7 @@ _ROUTE_AGREEMENT = 1e-6
 
 _TOTAL_ENERGY_METHOD = (
     "self-consistent restricted Hartree-Fock, average of configuration; "
-    "matrix-free preconditioned LOBPCG on a uniform radial grid; "
-    "Richardson-extrapolated in h^2 from a grid-halving pair"
+    "matrix-free preconditioned LOBPCG on an exponential radial mesh"
 )
 _TOTAL_ENERGY_ASSUMPTIONS = (
     "no electron correlation; variational, so E_HF >= E_exact "
@@ -63,6 +63,28 @@ _TOTAL_ENERGY_REFINEMENT = (
     "recover the correlation energy"
 )
 _DIAGNOSTIC_METHOD = "property of the converged solution, not a claim about the atom"
+
+# The mesh's own optimum; see numerics/mesh.py for the measurement behind both.
+_MESH_STEP = 0.01
+_MESH_INNER_SCALE = 1.0e-3  # Z r_min, matching mesh_for_atom
+
+# The part of the error a refinement pair is structurally blind to.
+#
+# Both meshes in the pair share r_min, so halving the step cancels out of the
+# inner-wall truncation and the eigensolver conditioning noise entirely. Those
+# do not vanish as delta -> 0; they are the floor numerics/mesh.py derives and
+# pins, and past it the spread keeps shrinking while the answer stops moving.
+# Quoting the spread alone would therefore claim an accuracy that tightens
+# without bound while the real error sits still - the exact shape of a number
+# that lies about itself.
+#
+# Measured here on the total energy rather than inherited from the mesh's
+# single-eigenvalue figure, because a total energy sums several orbital
+# contributions and their floors accumulate. Extrapolating the delta^2 term
+# away from a refinement pair leaves, relative to |E|: He 3.9e-6, Be 3.8e-6,
+# Ne 3.0e-6, Mg 2.9e-6, Ar 2.5e-6 - flat in Z and about 1.6x the mesh's own
+# 2.4e-6, as summing contributions predicts.
+_MESH_FLOOR_RELATIVE = 4.0e-6
 
 
 @dataclass(frozen=True)
@@ -92,51 +114,29 @@ class HFResult:
     provenance: Provenance
 
 
-def hf_grid(z: int, n_electrons: int, n_top: int) -> tuple[float, int]:
-    """Box radius and point count for a Hartree-Fock solve.
+def hf_mesh(z: int, n_electrons: int, n_top: int, refinement: int = 1) -> RadialMesh:
+    """The mesh a Hartree-Fock solve runs on.
 
-    Two competing scales. The 1s core contracts as 1/Z, so the step must scale
-    as 1/Z to hold the relative discretization error fixed: the error in the
-    core eigenvalue goes as (h Z)^2. The valence extends as n^2 / Z_net, which
-    sets the box.
+    Exponential, because a uniform grid has to resolve the 1s core (which
+    contracts as 1/Z) and reach the valence tail at the same time, and pays for
+    the finer of the two everywhere. Argon needed 72000 uniform points and
+    about an hour; it needs roughly 1400 here.
 
-    This is deliberately much tighter than screened_atom._r_max, whose
-    40 (n_top+1)^2 box would spend most of a Hartree-Fock grid on vacuum. It is
-    also the reason this phase stops at Z = 18: holding h Z fixed on a UNIFORM
-    grid becomes unaffordable well before Z = 54, and a logarithmic mesh is the
-    real fix (Phase 22).
+    The box is set by where the valence actually reaches, n^2 / Z_net, but
+    generously: the cost of a larger box is only logarithmic on this mesh, so
+    there is no reason to crowd the tail. The step is chosen to land near
+    delta = 0.01, which numerics/mesh.py measures as the sweet spot - past it
+    the eigensolver's conditioning noise grows faster than the discretization
+    error falls, so more points make the answer worse.
+
+    `refinement` halves the step, and exists so the caller can run the same
+    physics on two meshes and quote the difference as an error estimate.
     """
     z_net = max(z - n_electrons + 1, 1)
-    r_max = min(40.0, 8.0 * (n_top + 1) ** 2 / z_net)
-    h = 0.01 / z
-    return r_max, int(r_max / h)
-
-
-def _grid(r_max: float, points: int) -> np.ndarray:
-    """The solver grid, r[0] == h. Matches radial_solver.solve_radial exactly,
-    so a GSZ warm start lands on the same points without interpolation."""
-    h = r_max / (points + 1)
-    return h * np.arange(1, points + 1)
-
-
-def _normalized(p: np.ndarray, r: np.ndarray) -> np.ndarray:
-    return p / np.sqrt(np.trapezoid(p**2, r))
-
-
-def _richardson(fine: float, coarse: float) -> float:
-    """Cancel the leading h^2 error term from a grid-halving pair.
-
-    The discretization converges as a clean h^2 - measured ratios of 3.78,
-    3.89, 3.95, 3.97, 3.99 against the exact hydrogen energy as the grid
-    halves - so (4 E_h - E_2h) / 3 removes that term and leaves O(h^4). On
-    hydrogen it turns a 1.8e-4 hartree error into 6.6e-6 at exactly the cost
-    already being paid for the error estimate.
-
-    Note the direction: finite differences are NOT variational here, and the
-    energy approaches its limit from below. Extrapolating is therefore what
-    keeps E_HF above the exact energy, not what threatens it.
-    """
-    return (4.0 * fine - coarse) / 3.0
+    r_max = min(60.0, 12.0 * (n_top + 1) ** 2 / z_net)
+    span = np.log(r_max * z / _MESH_INNER_SCALE)
+    points = int(span / (_MESH_STEP / refinement)) + 1
+    return mesh_for_atom(z, r_max, points)
 
 
 def _start_potential(z: int, n_electrons: int):
@@ -159,57 +159,62 @@ def _start_potential(z: int, n_electrons: int):
 
 
 def _guess_from_central_field(
-    z: int, n_electrons: int, config: Configuration, r_max: float, points: int
+    z: int, n_electrons: int, config: Configuration, mesh: RadialMesh
 ) -> tuple[Subshell, ...]:
-    """One central-field solve per l channel, reused across its subshells."""
-    potential = _start_potential(z, n_electrons)
+    """One central-field solve per l channel, reused across its subshells.
+
+    Diagonalized on this mesh rather than through radial_solver.solve_radial,
+    which builds a uniform grid of its own: a guess sampled somewhere else and
+    interpolated across is exactly the kind of piecewise-linear kink that cost
+    hydrogen 2.8% of its energy earlier in this module's history.
+    """
+    v = np.asarray(_start_potential(z, n_electrons)(mesh.r), dtype=float)
     by_l: dict[int, np.ndarray] = {}
     for (n, l), _ in config:
         needed = n - l  # radial states 0..n-l-1
         if l not in by_l or by_l[l].shape[0] < needed:
-            by_l[l] = solve_radial(
-                potential, l=l, mu_ratio=1.0, r_max=r_max,
-                n_points=points, n_states=needed,
-            ).u
+            diag, offdiag = mesh.hamiltonian_bands(v, l)
+            vectors = eigh_tridiagonal(
+                diag, offdiag, select="i", select_range=(0, needed - 1)
+            )[1]
+            by_l[l] = mesh.to_p(vectors.T)
     return tuple(
-        Subshell(n=n, l=l, q=q, p=by_l[l][n - l - 1].copy())
+        Subshell(n=n, l=l, q=q, p=mesh.normalized(by_l[l][n - l - 1]))
         for (n, l), q in config
     )
 
 
 def _refine(
-    coarse: SCFSolution, coarse_r: np.ndarray, fine_r: np.ndarray, r_max: float
+    coarse: SCFSolution, coarse_mesh: RadialMesh, fine: RadialMesh
 ) -> tuple[Subshell, ...]:
-    """Interpolate a converged coarse solution onto the fine grid.
+    """Interpolate a converged coarse solution onto the finer mesh.
 
-    The coarse solve is needed anyway for the grid-halving error estimate, so
-    seeding the fine solve with it is free: the fine SCF starts a step or two
-    from its own fixed point instead of from a central-field guess.
+    The coarse solve is needed anyway for the error estimate, so seeding the
+    fine solve with it is free: the fine SCF starts a step or two from its own
+    fixed point instead of from a central-field guess.
 
     Two details that are not decoration.
 
-    The endpoints are anchored at P(0) = P(r_max) = 0. The fine grid begins
-    inside the coarse grid's first point and ends outside its last, and a
-    linear interpolant clamps rather than extrapolating: without the inner
-    anchor every P is flattened across the innermost interval, putting a kink
-    exactly where -Z/r and the kinetic term are largest. That alone cost
+    The endpoints are anchored at P = 0 on both walls. The finer mesh begins
+    inside the coarse one's first point, and an interpolant that clamps rather
+    than extrapolating flattens every P across that innermost interval, putting
+    a kink exactly where -Z/r and the kinetic term are largest. That alone cost
     hydrogen 2.8% of its total energy.
 
     The interpolant is cubic rather than linear because the SCF then runs the
     result through a second difference. A piecewise-linear P has zero curvature
-    between coarse nodes and all of it concentrated at them, and the kinetic
-    operator amplifies that by 1/h^2 - an O(h_coarse^2) amplitude error becomes
-    an O(h_coarse^2 / h_fine^2) energy error, which is not small at all. It also
-    made LOBPCG stagnate on every fine-grid step, so this is a speed fix as
-    much as an accuracy one.
+    between knots and all of it concentrated at them, and the kinetic operator
+    amplifies that by 1/h^2, so an O(h_coarse^2) amplitude error becomes an
+    O(h_coarse^2 / h_fine^2) energy error, which is not small at all. It also
+    made LOBPCG stagnate on every fine step, so this is a speed fix as much as
+    an accuracy one.
     """
-    knots = np.concatenate(([0.0], coarse_r, [r_max]))
+    knots = np.concatenate(([0.0], coarse_mesh.r, [coarse_mesh.outer_wall]))
     return tuple(
         Subshell(
             n=a.n, l=a.l, q=a.q,
-            p=_normalized(
-                CubicSpline(knots, np.concatenate(([0.0], a.p, [0.0])))(fine_r),
-                fine_r,
+            p=fine.normalized(
+                CubicSpline(knots, np.concatenate(([0.0], a.p, [0.0])))(fine.r)
             ),
         )
         for a in coarse.subshells
@@ -220,28 +225,26 @@ def _solve_on_grid(
     z: int,
     n_electrons: int,
     config: Configuration,
-    r_max: float,
-    points: int,
+    mesh: RadialMesh,
     start: tuple[Subshell, ...] | None,
-) -> tuple[np.ndarray, SCFSolution, tuple[float, ...], float]:
-    """Run the SCF on one grid; return the grid, the solution, the quadrature
-    orbital energies and the directly assembled total energy."""
-    r = _grid(r_max, points)
+) -> tuple[SCFSolution, tuple[float, ...], float]:
+    """Run the SCF on one mesh; return the solution, the quadrature orbital
+    energies and the directly assembled total energy."""
     if start is None:
-        start = _guess_from_central_field(z, n_electrons, config, r_max, points)
+        start = _guess_from_central_field(z, n_electrons, config, mesh)
 
     # The SCF residual is a change in orbital energies, and the deepest of
     # those scales as Z^2/2, so a fixed absolute tolerance silently demands
     # more significant figures as Z grows. Scale it to keep the demand fixed at
     # roughly ten digits on the 1s level.
     solution = scf(
-        z, start, lambda rr: -z / rr, r, tol=1e-9 * max(1, z**2)
+        z, start, lambda rr: -z / rr, mesh, tol=1e-9 * max(1, z**2)
     )
     energies = tuple(
-        orbital_energy(solution.subshells, i, z, r)
+        orbital_energy(solution.subshells, i, z, mesh)
         for i in range(len(solution.subshells))
     )
-    return r, solution, energies, total_energy_direct(z, solution.subshells, r)
+    return solution, energies, total_energy_direct(z, solution.subshells, mesh)
 
 
 @lru_cache(maxsize=8)
@@ -265,19 +268,19 @@ def solve_hartree_fock(
         )
 
     n_top = max(n for (n, _), _ in config)
-    r_max, points = hf_grid(z, n_electrons, n_top)
-
-    coarse_r, coarse, coarse_energies, e_coarse = _solve_on_grid(
-        z, n_electrons, config, r_max, points // 2, start=None
+    coarse_mesh = hf_mesh(z, n_electrons, n_top, refinement=1)
+    mesh = hf_mesh(z, n_electrons, n_top, refinement=2)
+    coarse, _, e_coarse = _solve_on_grid(
+        z, n_electrons, config, coarse_mesh, start=None
     )
-    r, solution, energies, e_direct = _solve_on_grid(
-        z, n_electrons, config, r_max, points,
-        start=_refine(coarse, coarse_r, _grid(r_max, points), r_max),
+    solution, energies, e_direct = _solve_on_grid(
+        z, n_electrons, config, mesh,
+        start=_refine(coarse, coarse_mesh, mesh),
     )
 
     # Route 2 shares no code with route 1 beyond the one-electron integral, so
     # a disagreement is an angular-coefficient bug rather than a coarse grid.
-    e_identity = total_energy_from_orbitals(solution.subshells, energies, z, r)
+    e_identity = total_energy_from_orbitals(solution.subshells, energies, z, mesh)
     if abs(e_direct - e_identity) > _ROUTE_AGREEMENT:
         raise HFConvergenceError(
             f"the two total-energy routes disagree by "
@@ -285,17 +288,24 @@ def solve_hartree_fock(
             f"that is a coding error, not a discretization one"
         )
 
-    kinetic, potential = kinetic_and_potential(z, solution.subshells, r)
-    e_total = _richardson(e_direct, e_coarse)
+    kinetic, potential = kinetic_and_potential(z, solution.subshells, mesh)
 
     energy_prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=_TOTAL_ENERGY_METHOD,
         assumptions=_TOTAL_ENERGY_ASSUMPTIONS,
-        # The size of the correction Richardson just applied. The residual
-        # error is O(h^4) and measures ~30x smaller than this, so quoting the
-        # correction itself is the conservative choice.
-        error_estimate=abs(e_total - e_direct),
+        # Two independent error sources, added rather than maxed because they
+        # are independent: the spread between the two meshes, which measures
+        # the step discretization, plus the mesh floor the spread cannot see
+        # (see _MESH_FLOOR_RELATIVE). Deliberately NOT Richardson-extrapolated
+        # away - the residual past the delta^2 term is conditioning noise, not
+        # a smooth power of delta, and extrapolating noise sharpens nothing.
+        #
+        # Checked against the vendored energies, this brackets the true
+        # deviation for every atom solved here, by 1.6x (Be) to 2.2x (Ar).
+        error_estimate=(
+            abs(e_direct - e_coarse) + _MESH_FLOOR_RELATIVE * abs(e_direct)
+        ),
         refinement=_TOTAL_ENERGY_REFINEMENT,
     )
     diagnostic_prov = Provenance(
@@ -307,17 +317,13 @@ def solve_hartree_fock(
     orbitals = tuple(
         HFOrbital(
             n=a.n, l=a.l, occupancy=a.q,
-            energy=Quantity(
-                _richardson(fine, crude), "hartree", f"eps_{a.n}{a.l}", energy_prov
-            ),
+            energy=Quantity(e, "hartree", f"eps_{a.n}{a.l}", energy_prov),
             P=Field(
-                values=a.p, grid=r, unit="bohr^-1/2", grid_unit="bohr",
+                values=a.p, grid=mesh.r, unit="bohr^-1/2", grid_unit="bohr",
                 label=f"P_{a.n}{a.l}", provenance=energy_prov,
             ),
         )
-        for a, fine, crude in zip(
-            solution.subshells, energies, coarse_energies, strict=True
-        )
+        for a, e in zip(solution.subshells, energies, strict=True)
     )
 
     return HFResult(
@@ -327,7 +333,7 @@ def solve_hartree_fock(
         config=config,
         is_ground=is_ground(config),
         orbitals=orbitals,
-        total_energy=Quantity(e_total, "hartree", "E_total", energy_prov),
+        total_energy=Quantity(e_direct, "hartree", "E_total", energy_prov),
         kinetic=Quantity(kinetic, "hartree", "T", diagnostic_prov),
         potential=Quantity(potential, "hartree", "V", diagnostic_prov),
         virial_ratio=Quantity(
