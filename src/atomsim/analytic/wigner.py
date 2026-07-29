@@ -20,8 +20,24 @@ this project uses (l <= 10, spin 1/2), so cancellation is not a practical issue.
 """
 
 import math
+from functools import lru_cache
 
 __all__ = ["triangular", "wigner_3j", "wigner_6j"]
+
+# Both symbols are pure functions of six small numbers, so memoizing them is
+# exact rather than an approximation: the cache returns the identical float the
+# Racah sum would have produced, not a rounded or interpolated one.
+#
+# It is worth doing because of where these get called from. The Hartree-Fock
+# exchange operator asks for its angular coefficients inside the LOBPCG matvec,
+# which runs hundreds of times per channel against an unchanged (l_a, k, l_b),
+# and each miss costs a Racah sum of factorials. Profiling argon showed 23907
+# calls to wigner_3j driving 389484 calls to math.factorial.
+#
+# The distinct arguments in an atomic calculation number in the dozens, since
+# they are built from l values of 0 to 3 and small multipole orders, so the
+# cache is bounded in practice by the physics rather than by maxsize.
+_CACHE_SIZE = 4096
 
 
 def _doubled(j: float, name: str) -> int:
@@ -56,6 +72,7 @@ def _delta(a2: int, b2: int, c2: int) -> float:
     )
 
 
+@lru_cache(maxsize=_CACHE_SIZE)
 def wigner_6j(
     j1: float, j2: float, j3: float, j4: float, j5: float, j6: float
 ) -> float:
@@ -110,6 +127,7 @@ def _doubled_m(m: float, name: str) -> int:
     return two_m
 
 
+@lru_cache(maxsize=_CACHE_SIZE)
 def wigner_3j(
     j1: float, j2: float, j3: float, m1: float, m2: float, m3: float
 ) -> float:

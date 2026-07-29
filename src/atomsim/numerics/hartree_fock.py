@@ -44,7 +44,12 @@ from scipy.linalg import cho_solve_banded, cholesky_banded, eigh_tridiagonal
 from scipy.sparse.linalg import LinearOperator, lobpcg
 
 from atomsim.analytic.wigner import wigner_3j
-from atomsim.numerics.hf_terms import Subshell, direct_potential, exchange_apply
+from atomsim.numerics.hf_terms import (
+    Subshell,
+    direct_potential,
+    exchange_apply,
+    exchange_operator,
+)
 from atomsim.numerics.mesh import RadialMesh
 from atomsim.numerics.slater import slater_f, slater_g
 
@@ -137,22 +142,42 @@ def fock_operator(
     argument is carried across and its result carried back; both directions are
     the same diagonal scaling, which is what keeps the operator symmetric.
     """
+    return _fock_parts(subshells, a_index, v_nuclear, l, mesh)[0]
+
+
+def _fock_parts(
+    subshells: tuple[Subshell, ...],
+    a_index: int,
+    v_nuclear: Callable[[np.ndarray], np.ndarray],
+    l: int,
+    mesh: RadialMesh,
+) -> tuple[LinearOperator, np.ndarray, np.ndarray]:
+    """The Fock operator together with the local bands it was assembled from.
+
+    solve_channel needs both - the operator to diagonalize and the bands for
+    its preconditioner and cold start - and assembling them separately meant
+    building the Hartree potential twice per channel, which is a sweep over
+    every occupied subshell each time.
+    """
     r = mesh.r
     v_local = np.asarray(v_nuclear(r), dtype=float) + direct_potential(
         subshells, a_index, r
     )
     diag, offdiag = mesh.hamiltonian_bands(v_local, l)
     scale = np.sqrt(mesh.step * mesh.jacobian)
+    # Built once, applied by every LOBPCG iteration. See hf_terms.
+    exchange = exchange_operator(subshells, a_index, r)
 
     def matvec(s: np.ndarray) -> np.ndarray:
         s = np.asarray(s, dtype=float).ravel()
         out = diag * s
         out[:-1] += offdiag * s[1:]
         out[1:] += offdiag * s[:-1]
-        return out - scale * exchange_apply(subshells, a_index, s / scale, r)
+        return out - scale * exchange.apply(s / scale)
 
     n = mesh.points
-    return LinearOperator((n, n), matvec=matvec, rmatvec=matvec, dtype=float)
+    op = LinearOperator((n, n), matvec=matvec, rmatvec=matvec, dtype=float)
+    return op, diag, offdiag
 
 
 def _preconditioner(
@@ -251,11 +276,7 @@ def solve_channel(
     gate but the grid-convergence and vendored-energy benchmarks.
     """
     r = mesh.r
-    op = fock_operator(subshells, a_index, v_nuclear, l, mesh)
-    v_local = np.asarray(v_nuclear(r), dtype=float) + direct_potential(
-        subshells, a_index, r
-    )
-    diag, offdiag = mesh.hamiltonian_bands(v_local, l)
+    op, diag, offdiag = _fock_parts(subshells, a_index, v_nuclear, l, mesh)
     lowest = float(
         eigh_tridiagonal(
             diag, offdiag, select="i", select_range=(0, 0), eigvals_only=True
@@ -292,16 +313,35 @@ def solve_channel(
         # The guess arrives in P, the physical radial function, because that is
         # what callers hold; the solve happens in S.
         x = mesh.to_s(np.asarray(guess, dtype=float).reshape(-1, r.size)).T
-        if x.shape[1] < block:
-            # Pad from the local spectrum, skipping the states the guess
-            # already covers. Padding from index 0 instead hands LOBPCG a near
-            # duplicate of the guess, which measured slower on helium and
-            # stopped beryllium converging at all.
-            extra = eigh_tridiagonal(
-                diag, offdiag, select="i", select_range=(x.shape[1], block - 1)
-            )[1]
-            x = np.hstack([x, extra])
-        return x[:, :block]
+        if x.shape[1] >= block:
+            return x[:, :block]
+
+        # Start from the full local spectrum, then let each guess vector
+        # displace the local state it most resembles.
+        #
+        # The rule this replaced padded with local states from index
+        # len(guess) upward, which assumed a partial guess covers the LOWEST
+        # states. In the SCF it covers the highest: the 3s channel is solved
+        # for three states and warm-started with the 3s alone. That put a near
+        # duplicate of the guess in the block AND left no approximation to the
+        # 1s at all, so LOBPCG had to discover the deepest, most contracted
+        # state from nothing. Magnesium's 3s channel was 70% of its whole
+        # solve at 2977 iterations.
+        #
+        # Matching by overlap needs no assumption about which states a guess
+        # covers, so it is right for a guess of any size or position.
+        local = eigh_tridiagonal(
+            diag, offdiag, select="i", select_range=(0, block - 1)
+        )[1]
+        taken: set[int] = set()
+        for column in range(x.shape[1]):
+            overlaps = np.abs(local.T @ x[:, column])
+            for candidate in np.argsort(overlaps)[::-1]:
+                if int(candidate) not in taken:
+                    taken.add(int(candidate))
+                    local[:, int(candidate)] = x[:, column]
+                    break
+        return local
 
     def attempt(x: np.ndarray, budget: int):
         # QR because LOBPCG needs a well-conditioned starting block.
@@ -503,7 +543,7 @@ def scf(
     subshells: tuple[Subshell, ...],
     v_nuclear: Callable[[np.ndarray], np.ndarray],
     mesh: RadialMesh,
-    alpha: float = 0.4,
+    alpha: float = 0.65,
     max_iterations: int = 200,
     tol: float = 1e-8,
 ) -> SCFSolution:
@@ -511,8 +551,22 @@ def scf(
 
     Undamped iteration oscillates on atoms with a diffuse valence shell, so the
     new orbitals are mixed into the old at alpha rather than replacing them.
-    alpha = 0.4 is a starting value tuned against measured iteration counts, not
-    a claim about the physics.
+    alpha is a convergence knob, not a claim about the physics: it changes the
+    path to the fixed point, never which fixed point, and the loop still exits
+    only when the orbital energies stop moving.
+
+    0.65 by measurement, chosen on WORST case rather than total. SCF iterations
+    from a central-field start, on the coarse mesh, H through Ar:
+
+        alpha   0.50  0.55  0.60  0.65  0.70  0.75
+        worst     27    21    16    15    17    19
+
+    Undamping further does not keep helping, and it fails in the direction that
+    matters: neon takes 26 iterations at 0.8, 65 at 0.9, and does not converge
+    at all at 1.0. So the cliff is real and 0.65 sits with margin below it,
+    which is worth more than the slightly better total 0.70 posts. The previous
+    0.4 cost 34 to 38 iterations on the same atoms, and since the coarse solve
+    is most of the wall time, that was most of the wall time.
 
     Raises HFConvergenceError rather than returning an unconverged solution.
     """
