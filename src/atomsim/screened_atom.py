@@ -141,11 +141,21 @@ def screened_radial(
     R = sol.u[k] / r_solver  # R = u / r
     grid = np.linspace(r_solver[0], r_solver[-1], points)
     R_i = np.interp(grid, r_solver, R)
+    # These two fields are shapes, not energies, so they carry NO error
+    # estimate. They used to borrow the eigenvalue's, which is in hartree,
+    # while R is in bohr^-3/2 and r^2 R^2 in bohr^-1. Provenance.error_estimate
+    # is documented as being in the unit of the quantity it describes, so that
+    # was not a loose bar on the shape, it was a number in the wrong dimension
+    # presented as an uncertainty on R. What this solve does estimate is the
+    # error in the ENERGY, and that bar is still on the energy where it belongs
+    # (see ScreenedAtomResult.orbitals). The grid error in the shape itself is
+    # not something this routine measures, and saying nothing is the honest
+    # form of not knowing. Same fix, same reasoning, as hf_atom.shape_prov.
     prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=f"{screening_provenance(z, n_electrons).method}; numerical R_nl = u/r",
         assumptions=screening_provenance(z, n_electrons).assumptions,
-        error_estimate=sol.energies[k].provenance.error_estimate,
+        error_estimate=None,
     )
     r_field = Field(values=R_i, grid=grid, unit="bohr^-3/2", grid_unit="bohr",
                     label=f"R_{n},{l}(r)", provenance=prov)

@@ -5,6 +5,7 @@ import pytest
 
 from atomsim.atoms import aufbau_configuration, parse_config
 from atomsim.provenance import Fidelity
+from atomsim.sampling import sample_screened_density
 from atomsim.screened_atom import (
     evaluate_screened_state,
     screened_radial,
@@ -56,6 +57,40 @@ def test_screened_radial_shapes():
     r_field, p_field = screened_radial(z=11, n_electrons=11, n=3, l=0, points=300)
     assert r_field.values.shape == r_field.grid.shape == (300,)
     assert p_field.unit == "bohr^-1" and r_field.provenance.fidelity is Fidelity.APPROXIMATION
+
+
+def test_a_shape_field_carries_no_energy_error_bar():
+    """An error estimate is in the unit of the thing it describes, or it lies.
+
+    Both fields here are shapes: R in bohr^-3/2 and r^2 R^2 in bohr^-1. The
+    eigenvalue's error estimate is in hartree. Attaching it to either one is
+    not a conservative bar on the shape, it is a number in the wrong dimension
+    read as an uncertainty on R, which is exactly the class of quiet lie the
+    provenance system exists to make impossible.
+
+    The energy's own bar is a separate assertion below, because dropping it
+    from the fields must not be achieved by dropping it everywhere.
+    """
+    r_field, p_field = screened_radial(z=11, n_electrons=11, n=3, l=0, points=300)
+    assert r_field.unit == "bohr^-3/2" and p_field.unit == "bohr^-1"
+    assert r_field.provenance.error_estimate is None
+    assert p_field.provenance.error_estimate is None
+
+    # The two surfaces downstream of that field, which is how a hartree bar
+    # would creep back in without anyone editing the line that sets it: psi
+    # values are bohr^-3/2 and a sampled cloud is positions in bohr.
+    pos = np.array([[1.0, 0.0, 0.0]])
+    psi = evaluate_screened_state(11, 11, 3, 0, 0, pos)
+    assert psi.provenance.error_estimate is None
+    cloud = sample_screened_density(11, 11, 3, 0, 0, 50, seed=1)
+    assert cloud.provenance.error_estimate is None
+
+    # ...and the energy, which IS in hartree, still carries one. Dropping the
+    # bar from the shapes must not be achieved by dropping it everywhere.
+    res = solve_screened_atom(z=11, n_electrons=11, config=aufbau_configuration(11))
+    energy = res.orbitals[0].energy
+    assert energy.unit == "hartree"
+    assert energy.provenance.error_estimate is not None
 
 
 def test_evaluate_screened_state_is_real_on_y0_plane():
