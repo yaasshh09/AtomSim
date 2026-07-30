@@ -24,6 +24,8 @@ from scipy.interpolate import CubicSpline
 from scipy.linalg import eigh_tridiagonal
 
 from atomsim.analytic.angular import spherical_harmonic
+from atomsim.analytic.dirac import dirac_energy
+from atomsim.analytic.hydrogen import energy as hydrogen_energy
 from atomsim.analytic.wavefunction import WavefunctionValues
 from atomsim.atoms import (
     Configuration,
@@ -95,6 +97,11 @@ _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would "
     "recover the correlation energy"
 )
+#: Below this Z the neglected relativity is under a tenth of a percent of the
+#: deepest orbital, which is far under the correlation energy already disclosed
+#: above it, so quantifying it separately would be noise. Set from the formula
+#: in _relativistic_scale, not chosen: (Z*alpha)^2/4 reaches 1e-3 near Z = 9.
+_RELATIVITY_WORTH_STATING_Z = 9
 _DIAGNOSTIC_METHOD = "property of the converged solution, not a claim about the atom"
 
 # The mesh's own optimum; see numerics/mesh.py for the measurement behind it.
@@ -269,7 +276,33 @@ def _refine(
     )
 
 
-def _energy_assumptions(config: Configuration) -> tuple[str, ...]:
+def _relativistic_scale(z: int) -> float:
+    """How large the neglected relativity is, as a fraction of the 1s energy.
+
+    "Non-relativistic" is already in the assumption list, but as a word it says
+    nothing about whether the reader should care, and the answer changes by two
+    orders of magnitude across the atoms this module solves: 0.003% for helium,
+    0.4% for argon, 1.7% at Z = 36. A phrase that reads identically in all three
+    cases is not a disclosure.
+
+    Measured, not modelled: the exact hydrogenic Dirac 1s energy against the
+    Schrodinger one at the same Z, using the dirac_energy this repo already
+    ships. The 1s is the right orbital to ask because relativity is a
+    core effect - it lives where the electron moves fastest - and the 1s pair
+    dominates the total energy at every Z here.
+
+    This is an order-of-magnitude scale for what is missing, not a correction
+    to apply: a real atom's screening puts its 1s at slightly less than the
+    hydrogenic value, so this reads a little high, which is the safe direction
+    for an honesty estimate. Note it stays well under the correlation energy
+    the assumption list leads with, which is why it is stated second.
+    """
+    schrodinger = hydrogen_energy(1, Z=z).value
+    relativistic = dirac_energy(1, 0.5, Z=z).value
+    return abs(relativistic - schrodinger) / abs(schrodinger)
+
+
+def _energy_assumptions(config: Configuration, z: int) -> tuple[str, ...]:
     """What this configuration actually costs the reader, and nothing more.
 
     Two of the four claims are conditional, because disclosing a limitation the
@@ -285,6 +318,12 @@ def _energy_assumptions(config: Configuration) -> tuple[str, ...]:
     none of them.
     """
     out = list(_TOTAL_ENERGY_ASSUMPTIONS)
+    if z >= _RELATIVITY_WORTH_STATING_Z:
+        out.append(
+            f"neglects relativity, which at Z = {z} shifts the hydrogenic 1s "
+            f"by {100 * _relativistic_scale(z):.2f}% of its energy; that is the "
+            f"scale of what is missing here, not a correction to apply"
+        )
     if open_subshells(config):
         out.append(_OPEN_SHELL_ASSUMPTION)
     if not is_single_term(config):
@@ -361,7 +400,7 @@ def solve_hartree_fock(
 
     kinetic, potential = kinetic_and_potential(z, solution.subshells, mesh)
 
-    assumptions = _energy_assumptions(config)
+    assumptions = _energy_assumptions(config, z)
     energy_prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=_TOTAL_ENERGY_METHOD,

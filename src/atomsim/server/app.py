@@ -30,8 +30,10 @@ from atomsim.analytic.wavefunction import WavefunctionValues, evaluate_state
 from atomsim.analytic.zeeman import zeeman_sublevels
 from atomsim.atoms import (
     ATOM_KEYS,
+    SUBSHELL_LABELS,
     atom_for_key,
     aufbau_configuration,
+    element_by_z,
     format_config,
     is_atom_key,
     parse_config,
@@ -42,6 +44,7 @@ from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
+from atomsim.hf_atom import HFResult, solve_hartree_fock
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
@@ -64,6 +67,8 @@ from atomsim.server.schemas import (
     FieldModel,
     ForceLawLevelModel,
     ForceLawModel,
+    HFOrbitalModel,
+    HFResultModel,
     LineModel,
     PotentialCurveModel,
     ProfileModel,
@@ -288,6 +293,156 @@ class PlaneMetaModel(BaseModel):
     basis: str
     system: str
     provenance: ProvenanceModel
+
+
+class HFRequest(BaseModel):
+    z: int
+    n_electrons: int | None = None  # defaults to neutral
+    config: str | None = None       # defaults to the aufbau ground configuration
+
+
+# The outermost principal quantum number the solver actually converges.
+#
+# Measured, and NOT a statement about Z. Argon-like ions converge cleanly all
+# the way to Z = 36 (virial 2.000003 at every Z tried), and K+ and Ca2+ solve
+# in about six seconds. What fails is the 4s channel of a neutral alkali: the
+# starting potential falls back to the bare nucleus above argon, which puts
+# potassium's 4s guess at -11.3 hartree against a true -0.15, and the SCF
+# cannot screen a guess that far outward. LOBPCG then stagnates at a residual
+# 28x over its ceiling, so this is stagnation rather than a budget that wants
+# raising, and refusing up front beats letting a job die eight seconds in with
+# an eigensolver message.
+_HF_MAX_N = 3
+# As far as the solver has been exercised. Beyond this the answer is untested,
+# and a non-relativistic model is also getting thin: the neglected relativity
+# is already 1.8% of the 1s energy at Z = 36 (hf_atom quantifies it in the
+# provenance from Z = 9 up).
+_HF_MAX_Z = 36
+
+
+def _parse_config_or_422(text: str):
+    """Parse a hand-written configuration string, 422 on malformed input.
+
+    Two status codes are in play here and the split is deliberate. 422 means
+    the request could not be understood - "2s^9" is not a configuration. 400
+    means it was understood perfectly and the server is declining it, which is
+    what _validate_hf_request returns: a neutral potassium atom is a real,
+    well-posed request that this solver cannot answer honestly.
+    """
+    try:
+        cfg = parse_config(text)
+        validate_config(cfg)
+    except (ValueError, IndexError) as exc:
+        raise HTTPException(status_code=422, detail=f"bad config: {exc}") from exc
+    return cfg
+
+
+def _validate_hf_request(z: int, n_electrons: int, config) -> None:
+    """Refuse what the solver cannot do, with the reason, before starting a job."""
+    if not 1 <= z <= _HF_MAX_Z:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Z must be in [1, {_HF_MAX_Z}], got {z}; the Hartree-Fock "
+                f"solver has not been exercised above {_HF_MAX_Z}, and a "
+                f"non-relativistic model is a poor description of a heavier atom"
+            ),
+        )
+    if not 1 <= n_electrons <= z + 1:
+        raise HTTPException(
+            status_code=400,
+            detail=f"electron count must be in [1, Z+1] = [1, {z + 1}], got {n_electrons}",
+        )
+    try:
+        validate_config(config)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if total_electrons(config) != n_electrons:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"configuration holds {total_electrons(config)} electrons, "
+                f"not the {n_electrons} requested"
+            ),
+        )
+    n_top = max(n for (n, _), _ in config)
+    if n_top > _HF_MAX_N:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"this configuration occupies n = {n_top}, and the solver "
+                f"converges only to n = {_HF_MAX_N}. The {n_top}s guess starts "
+                f"from a bare-nucleus potential, which for a diffuse outer "
+                f"shell is far too contracted for the self-consistent loop to "
+                f"recover; the eigensolver stagnates rather than converging "
+                f"slowly. Ions whose outermost shell is n <= {_HF_MAX_N} are "
+                f"fine at any Z up to {_HF_MAX_Z}"
+            ),
+        )
+
+
+def _hf_channel(n: int, l: int) -> str:
+    return f"P_{n}{SUBSHELL_LABELS[l]}"
+
+
+def _hf_symbol(z: int) -> str | None:
+    """The element symbol, or None above the preset table.
+
+    Hartree-Fock solves further up than the preset library reaches, and naming
+    the element is a convenience for the view rather than part of the physics,
+    so not knowing one is not an error.
+    """
+    try:
+        return element_by_z(z).symbol
+    except KeyError:
+        return None
+
+
+def _hf_result_model(result: HFResult) -> HFResultModel:
+    return HFResultModel(
+        z=result.z,
+        n_electrons=result.n_electrons,
+        symbol=_hf_symbol(result.z),
+        config=format_config(result.config),
+        is_ground=result.is_ground,
+        orbitals=[
+            HFOrbitalModel(
+                n=o.n, l=o.l, label=f"{o.n}{SUBSHELL_LABELS[o.l]}",
+                occupancy=o.occupancy,
+                energy=QuantityModel.from_quantity(o.energy),
+                energy_ev=QuantityModel.from_quantity(_to_ev(o.energy)),
+                channel=_hf_channel(o.n, o.l),
+            )
+            for o in result.orbitals
+        ],
+        total_energy=QuantityModel.from_quantity(result.total_energy),
+        total_energy_ev=QuantityModel.from_quantity(_to_ev(result.total_energy)),
+        kinetic=QuantityModel.from_quantity(result.kinetic),
+        potential=QuantityModel.from_quantity(result.potential),
+        virial_ratio=QuantityModel.from_quantity(result.virial_ratio),
+        iterations=result.iterations,
+        coarse_iterations=result.coarse_iterations,
+        converged=result.converged,
+        provenance=ProvenanceModel.from_provenance(result.provenance),
+        grid_channel="grid",
+        grid_points=len(result.orbitals[0].P.grid),
+        channels=[
+            ChannelModel(
+                name="grid", dtype="float32", unit="bohr",
+                # The mesh is a solver choice, not a measurement of the atom.
+                provenance=ProvenanceModel.from_provenance(
+                    result.orbitals[0].P.provenance
+                ),
+            ),
+            *(
+                ChannelModel(
+                    name=_hf_channel(o.n, o.l), dtype="float32", unit=o.P.unit,
+                    provenance=ProvenanceModel.from_provenance(o.P.provenance),
+                )
+                for o in result.orbitals
+            ),
+        ],
+    )
 
 
 def _validate_state(n: int, l: int, m: int) -> None:
@@ -1172,6 +1327,38 @@ def create_app() -> FastAPI:
         loop.run_in_executor(None, jobs.run, job.id, work)
         return _job_model(job)
 
+    @app.post("/api/jobs/hf", response_model=JobModel)
+    async def create_hf_job(req: HFRequest) -> JobModel:
+        """Start a Hartree-Fock solve.
+
+        A job rather than a plain GET because the solve takes seconds, not
+        milliseconds - argon is about 5s cold and chlorine about 7s - which is
+        long enough that a blocking request would be a bad answer even though
+        it would be a correct one. The engine memoizes, so a repeat is free and
+        the job simply finishes immediately.
+        """
+        n_electrons = req.z if req.n_electrons is None else req.n_electrons
+        config = (
+            aufbau_configuration(n_electrons)
+            if req.config is None
+            else _parse_config_or_422(req.config)
+        )
+        _validate_hf_request(req.z, n_electrons, config)
+
+        job = jobs.create()
+
+        def work(progress):
+            # solve_hartree_fock runs its own two-mesh loop with no progress
+            # hook, so there is nothing honest to report between 0 and 1. A
+            # synthetic ramp would look like information and be none.
+            result = solve_hartree_fock(req.z, n_electrons, config)
+            progress(1.0)
+            return result
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, jobs.run, job.id, work)
+        return _job_model(job)
+
     @app.get("/api/jobs/{job_id}", response_model=JobModel)
     def job_status(job_id: str) -> JobModel:
         job = jobs.get(job_id)
@@ -1217,13 +1404,35 @@ def create_app() -> FastAPI:
             provenance=ProvenanceModel.from_provenance(pg.provenance),
         )
 
-    @app.get("/api/jobs/{job_id}/meta", response_model=SampleMetaModel | PlaneMetaModel)
-    def job_meta(job_id: str) -> SampleMetaModel | PlaneMetaModel:
+    @app.get(
+        "/api/jobs/{job_id}/meta",
+        response_model=SampleMetaModel | PlaneMetaModel | HFResultModel,
+    )
+    def job_meta(job_id: str) -> SampleMetaModel | PlaneMetaModel | HFResultModel:
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
         if isinstance(res, PlaneGrid):
             return _plane_meta(res, system_key)
+        if isinstance(res, HFResult):
+            # Unlike sample and plane, the whole scientific result is here: the
+            # energies and their provenance. /data carries only the orbital
+            # shapes, which are the part that is an array.
+            return _hf_result_model(res)
         return _sample_meta(res, system_key)
+
+    def _hf_channel_payload(res: HFResult, channel: str | None) -> np.ndarray:
+        if channel is None or channel == "grid":
+            return res.orbitals[0].P.grid.astype(np.float32)
+        for o in res.orbitals:
+            if _hf_channel(o.n, o.l) == channel:
+                return o.P.values.astype(np.float32)
+        known = ", ".join(
+            ["grid", *(_hf_channel(o.n, o.l) for o in res.orbitals)]
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"no channel {channel!r} on this job; it has {known}",
+        )
 
     @app.get("/api/jobs/{job_id}/data")
     def job_data(job_id: str, channel: str | None = None) -> Response:
@@ -1234,6 +1443,8 @@ def create_app() -> FastAPI:
                     status_code=422, detail="plane jobs have a single channel"
                 )
             payload = res.values.astype(np.float32)
+        elif isinstance(res, HFResult):
+            payload = _hf_channel_payload(res, channel)
         elif (channel or "positions") == "positions":
             payload = res.cloud.positions
         elif channel == "density":

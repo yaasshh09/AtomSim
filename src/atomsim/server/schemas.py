@@ -237,6 +237,61 @@ class ScreenedLevelsModel(BaseModel):
     total_energy_ev: QuantityModel
 
 
+class HFOrbitalModel(BaseModel):
+    """One converged Hartree-Fock subshell.
+
+    Mirrors ScreenedOrbitalModel field for field so the two models are
+    swappable in a view, and adds `channel`: the orbital amplitude P(r) is an
+    array, so it travels as raw float32 on /api/jobs/{id}/data like every other
+    array in this API rather than being inflated into JSON.
+    """
+
+    n: int
+    l: int
+    label: str
+    occupancy: int
+    energy: QuantityModel
+    energy_ev: QuantityModel
+    channel: str
+
+
+class HFResultModel(BaseModel):
+    """A finished Hartree-Fock solve, as the browser sees it.
+
+    Carries z and n_electrons rather than a SystemModel. The screened models
+    are keyed to a named neutral preset, but Hartree-Fock needs no fitted table
+    and so also solves ions that have no preset - K+ and Ar-like Fe both
+    converge - and inventing an Element for those to satisfy the schema would
+    be a fiction in the one place this codebase least wants one.
+
+    `iterations` and `virial_ratio` are convergence diagnostics. They describe
+    the solve, not the atom, and their provenance says NUMERICAL rather than
+    APPROXIMATION for exactly that reason; a view must not present the virial
+    ratio as a physical result.
+    """
+
+    kind: Literal["hf"] = "hf"
+    z: int
+    n_electrons: int
+    symbol: str | None
+    config: str
+    is_ground: bool
+    orbitals: list[HFOrbitalModel]
+    total_energy: QuantityModel
+    total_energy_ev: QuantityModel
+    kinetic: QuantityModel
+    potential: QuantityModel
+    virial_ratio: QuantityModel
+    iterations: int
+    coarse_iterations: int
+    converged: bool
+    provenance: ProvenanceModel
+    # The shared radial grid every P channel is sampled on, in bohr.
+    grid_channel: str
+    grid_points: int
+    channels: list[ChannelModel]
+
+
 class ForceLawLevelModel(BaseModel):
     radial_index: int
     energy: QuantityModel
