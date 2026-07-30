@@ -39,6 +39,26 @@ export function num(v: number): string {
   return encodeURIComponent(String(v));
 }
 
+/**
+ * A string, safe to drop into a query string.
+ *
+ * The same failure as `num`, arrived at from the other side. `he+` is a real
+ * preset key, a bare `+` in a query string decodes to a space, and so the
+ * server was handed the system "he " and refused it. That is not one broken
+ * request: selecting He+ 422'd its state, levels, spectrum, radial curve and
+ * every thumbnail in the strip at once, because all of them spell the system
+ * into a URL. The cloud and cross-section kept working, since jobs POST JSON,
+ * which is what made it look like a display problem rather than an encoding
+ * one.
+ *
+ * Anything that reaches a query string as text goes through here, not just the
+ * keys that happen to need it today: `+` is legal in a preset key and the next
+ * one to contain it should not have to rediscover this.
+ */
+export function key(v: string): string {
+  return encodeURIComponent(v);
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
@@ -88,7 +108,7 @@ export function getState(
   fineStructure: boolean,
 ): Promise<StateResponse> {
   return getJson(
-    `/api/state/${n}/${l}/${m}?system=${system}&fine_structure=${fineStructure}`,
+    `/api/state/${n}/${l}/${m}?system=${key(system)}&fine_structure=${fineStructure}`,
   );
 }
 
@@ -99,7 +119,7 @@ export function getRadial(
   points?: number,
 ): Promise<RadialResponse> {
   const p = points === undefined ? "" : `&points=${points}`;
-  return getJson(`/api/radial/${n}/${l}?system=${system}${p}`);
+  return getJson(`/api/radial/${n}/${l}?system=${key(system)}${p}`);
 }
 
 export function getLevels(
@@ -120,7 +140,7 @@ export function getLevels(
   const e = eField > 0 ? `&e_field=${eField}` : "";
   const h = hyperfine ? "&hyperfine=true" : "";
   return getJson(
-    `/api/levels?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}${d}${b}${e}${h}`,
+    `/api/levels?system=${key(system)}&n_max=${nMax}&fine_structure=${fineStructure}${a}${c}${d}${b}${e}${h}`,
   );
 }
 
@@ -139,7 +159,7 @@ export function getConstants(m: ConstMultipliers): Promise<ConstantsReport> {
 }
 
 export function getClassical(system: string, n: number): Promise<ClassicalGhost> {
-  return getJson(`/api/classical?system=${encodeURIComponent(system)}&n=${n}`);
+  return getJson(`/api/classical?system=${key(system)}&n=${n}`);
 }
 
 export function getForceLaw(
@@ -202,7 +222,7 @@ export function getSpectrum(
     }
   }
   return getJson(
-    `/api/spectrum?system=${system}&n_max=${nMax}&fine_structure=${fineStructure}` +
+    `/api/spectrum?system=${key(system)}&n_max=${nMax}&fine_structure=${fineStructure}` +
       `&intensities=${intensities}${c}${t}${p}`,
   );
 }
@@ -221,7 +241,7 @@ export function getCurveOfGrowth(p: CurveOfGrowthParams): Promise<CurveOfGrowthI
   const c = p.config ? `&config=${encodeURIComponent(p.config)}` : "";
   const r = p.resolvingPower != null ? `&resolving_power=${num(p.resolvingPower)}` : "";
   return getJson(
-    `/api/curve-of-growth?system=${p.system}&n_max=${p.nMax}` +
+    `/api/curve-of-growth?system=${key(p.system)}&n_max=${p.nMax}` +
       `&fine_structure=${p.fineStructure}&lambda_nm=${num(p.lambdaNm)}` +
       `&temperature_k=${num(p.thermal.temperatureK)}` +
       `&electron_density_cm3=${num(p.thermal.electronDensityCm3)}${r}${c}`,
@@ -251,7 +271,7 @@ export function getAbsorption(p: AbsorptionParams): Promise<AbsorptionInfo> {
     ? `&lambda_min=${num(p.window[0])}&lambda_max=${num(p.window[1])}`
     : "";
   return getJson(
-    `/api/absorption?system=${p.system}&n_max=${p.nMax}` +
+    `/api/absorption?system=${key(p.system)}&n_max=${p.nMax}` +
       `&fine_structure=${p.fineStructure}` +
       `&column_density_m2=${num(p.columnDensityM2)}` +
       `&temperature_k=${num(p.thermal.temperatureK)}` +
@@ -372,5 +392,5 @@ export function thumbnailUrl(
   basis: Basis,
   size: number,
 ): string {
-  return `/api/thumbnail/${n}/${l}/${m}?system=${system}&basis=${basis}&size=${size}`;
+  return `/api/thumbnail/${n}/${l}/${m}?system=${key(system)}&basis=${basis}&size=${size}`;
 }
