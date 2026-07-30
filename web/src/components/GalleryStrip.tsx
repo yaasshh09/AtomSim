@@ -3,20 +3,20 @@ import type { Basis } from "../api/client";
 import { galleryStates } from "../lib/gallery";
 import { THUMBNAIL_LIBERTY } from "../lib/liberties";
 import { stateLabel } from "../lib/quantum";
+import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 
 export function GalleryStrip() {
   const { n, l, m, system, systems, basis, setQuantumNumbers } = useAppStore();
-  // Positive knowledge only. /api/thumbnail renders a hydrogenic plane inline
-  // and 422s on a screened atom, and before `systems` arrives we cannot tell
-  // which this is — so asking anyway means a 422 and a broken image icon on
-  // every screened atom. Absence of evidence is not evidence of hydrogen.
+  // /api/thumbnail renders a hydrogenic plane inline and 422s on a screened
+  // atom, so asking without knowing means a broken image icon on every tile.
+  // Positive knowledge only, per lib/systemKind.
   //
   // Not fixed by rendering screened thumbnails instead: measured, a screened
   // plane grid costs 2.5 to 3.5 s even at 96 px, and this strip asks for up to
   // 36 at once. Serving them means a job and a cache, not an inline render.
-  const hasThumbnails = systems.find((s) => s.key === system)?.kind === "hydrogenic";
+  const hasThumbnails = isHydrogenic(systems, system);
   return (
     <div className="gallery">
       <div className="gallery-head">
