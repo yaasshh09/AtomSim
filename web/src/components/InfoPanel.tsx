@@ -10,11 +10,18 @@ export function InfoPanel() {
   } = useAppStore();
   const selected = systems.find((s) => s.key === system);
   const isScreened = selected?.kind === "screened";
+  // /api/state is hydrogenic-only; screened atoms describe themselves via the
+  // systems list and their dedicated level/radial/spectrum views.
+  //
+  // Gated on knowing the system is hydrogenic, not on it not being screened.
+  // Those differ on the first render, when `systems` is still empty: `selected`
+  // is undefined, so `!isScreened` is true and every screened atom fired a
+  // request that 422s. Waiting for the table costs one render and asks nothing
+  // it cannot answer.
+  const isHydrogenic = selected?.kind === "hydrogenic";
   useEffect(() => {
-    // /api/state is hydrogenic-only; screened atoms describe themselves via the
-    // systems list and their dedicated level/radial/spectrum views.
-    if (!isScreened) void loadStateInfo();
-  }, [isScreened, n, l, m, system, fineStructure, loadStateInfo]);
+    if (isHydrogenic) void loadStateInfo();
+  }, [isHydrogenic, n, l, m, system, fineStructure, loadStateInfo]);
   // Prefer the exact per-state system, else the selected preset from the list.
   const sys = stateInfo?.system ?? selected;
   return (
