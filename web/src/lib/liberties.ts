@@ -114,8 +114,9 @@ export const SPECTRUM_EMISSIVITY_LIBERTY: Provenance = {
 /**
  * A Hartree-Fock ladder spans more than two decades of binding energy: argon's
  * 1s sits at -3227.5 eV and its 3p at -16.1 eV, a ratio of 200. Drawn linearly,
- * the four shallower levels land inside the top 10% of the frame and the
- * picture says "argon has a 1s and a smudge", which is false. So the axis is
+ * argon's entire valence shell (3s at -34.8 and 3p at -16.1, which is all of
+ * its chemistry) falls inside the top 1.1% of the frame, about two pixels
+ * apart, and the picture says "argon has a 1s and a smudge". So the axis is
  * logarithmic in binding energy.
  *
  * That buys readability and costs the zero: the ionization limit is infinitely
