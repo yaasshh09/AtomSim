@@ -10,6 +10,7 @@ import {
   RENDER_LIBERTIES,
 } from "../lib/liberties";
 import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
+import { systemKind } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
@@ -59,13 +60,24 @@ export function CloudView() {
     classicalStatus,
     setGhost,
     loadClassical,
+    system,
+    systems,
   } = useAppStore();
+  // The ghost is a Kepler orbit, which exists because the field is exactly
+  // 1/r. A screened atom's whole content is that its field is not, so there is
+  // no ghost to draw and /api/classical says so with a 422. Three states, not
+  // two: offer the toggle when we know the system is hydrogenic, say why not
+  // when we know it is screened, and show neither before the systems table
+  // arrives, so hydrogen does not flash the screened note on first render.
+  const kind = systemKind(systems, system);
   // Deep-link (?ghost=1) sets `ghost` in initial state without going through
   // setGhost, and changing n/system resets the ghost data to idle while the
   // toggle stays on. Either way, fetch when the overlay is on but data is idle.
+  // Hiding the toggle is not enough on its own: the deep link reaches `ghost`
+  // without ever touching it, and this effect is what it reaches.
   useEffect(() => {
-    if (ghost && classicalStatus === "idle") void loadClassical();
-  }, [ghost, classicalStatus, loadClassical]);
+    if (kind === "hydrogenic" && ghost && classicalStatus === "idle") void loadClassical();
+  }, [kind, ghost, classicalStatus, loadClassical]);
   // Live loop phase shared between the in-Canvas animation (writes each frame)
   // and the HUD clock (polls at 10 Hz) — no per-frame React renders.
   const ghostTauRef = useRef(0);
@@ -115,14 +127,22 @@ export function CloudView() {
         {nucleus?.kind === "marker" && <Badge provenance={NUCLEUS_MARKER_LIBERTY} />}
         {caption && <span className="nucleus-caption">{caption}</span>}
         <Legend mode={colorMode} />
-        <label className="ghost-toggle">
-          <input
-            type="checkbox"
-            checked={ghost}
-            onChange={(e) => setGhost(e.target.checked)}
-          />
-          Classical ghost
-        </label>
+        {kind === "hydrogenic" && (
+          <label className="ghost-toggle">
+            <input
+              type="checkbox"
+              checked={ghost}
+              onChange={(e) => setGhost(e.target.checked)}
+            />
+            Classical ghost
+          </label>
+        )}
+        {kind === "screened" && (
+          <span className="ghost-readout">
+            No classical ghost here: the Kepler orbit needs a 1/r field, and the
+            screening is the part this model adds.
+          </span>
+        )}
         {ghost && classicalStatus === "sampling" && (
           <span className="ghost-readout">loading classical orbits…</span>
         )}
