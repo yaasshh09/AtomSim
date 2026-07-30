@@ -1,6 +1,32 @@
 import type { Provenance } from "../api/types";
 import { MARKER_DIVISOR } from "./nucleus";
 
+/**
+ * Render a provenance `error_estimate` at a precision it can actually support.
+ *
+ * These arrive as raw doubles, and printing one verbatim gives things like
+ * "0.00034049718827628214" — an error bar quoted to twenty significant figures,
+ * which claims a precision the error bar is the admission of not having. Two
+ * figures is what an error scale carries; anything past that is noise wearing a
+ * digit's clothes, and in this codebase overstating precision is the bug.
+ *
+ * Known gap, deliberately not papered over: `Provenance` carries no unit, while
+ * the engine's contract (provenance.py) is that `error_estimate` is in the unit
+ * of the quantity it describes. So the magnitude is shown without one. Fixing
+ * that properly means giving Provenance a unit field in the engine and the
+ * schema; inventing a unit here would be a guess printed as a fact.
+ */
+export function formatErrorScale(x: number): string {
+  if (!Number.isFinite(x)) return String(x);
+  if (x === 0) return "0";
+  // toPrecision(2) already switches to exponential on its own above 1e2 and
+  // below 1e-6, and it is right to: "4300" for 4321 would assert two zeros it
+  // does not have. The one place it is left wanting is 1e-6 to 1e-3, where it
+  // gives "0.00034" and the leading zeros have to be counted, so that band is
+  // sent to exponential too.
+  return Math.abs(x) < 1e-3 ? x.toExponential(1) : x.toPrecision(2);
+}
+
 /** The frontend is the authority on its own rendering choices — disclosed, never hidden. */
 export const RENDER_LIBERTIES: Provenance = {
   fidelity: "visual_liberty",

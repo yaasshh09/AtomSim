@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Provenance } from "../api/types";
+import { formatErrorScale } from "../lib/liberties";
 
 const COLORS: Record<string, string> = {
   exact: "#4ade80",
@@ -36,7 +37,7 @@ export function Badge({ provenance }: { provenance: Provenance }) {
           )}
           {provenance.error_estimate !== null && (
             <p>
-              <strong>Error scale:</strong> {provenance.error_estimate}
+              <strong>Error scale:</strong> {formatErrorScale(provenance.error_estimate)}
             </p>
           )}
           {provenance.refinement && (
