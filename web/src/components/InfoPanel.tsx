@@ -21,11 +21,22 @@ export function InfoPanel() {
   }, [hydrogenic, n, l, m, system, fineStructure, loadStateInfo]);
   // Prefer the exact per-state system, else the selected preset from the list.
   const sys = stateInfo?.system ?? selected;
+  // "…" means the table has not arrived. Once it has and the key is still not
+  // in it, the ellipsis stops being a wait and becomes a lie: nothing further
+  // is coming, because nothing is going to ask for it. A hand-edited ?system=
+  // is the only way in, and leaving it looking like a slow load is the one
+  // response that never resolves.
+  const unknownSystem = systems.length > 0 && !sys;
   return (
     <aside className="panel">
       <h1 className="brand">atomsim</h1>
-      <h2>{sys ? `${sys.name} (Z = ${sys.z})` : "…"}</h2>
+      <h2>{sys ? `${sys.name} (Z = ${sys.z})` : unknownSystem ? "Unknown system" : "…"}</h2>
       {sys && <p className="system-desc">{sys.description}</p>}
+      {unknownSystem && (
+        <p className="system-desc">
+          No preset is called "{system}". Choose one under System to carry on.
+        </p>
+      )}
       {/*
         The description above is the preset's, and every screened preset names
         GSZ in it. With the Hartree-Fock model selected that sentence is
