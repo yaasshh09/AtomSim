@@ -29,6 +29,8 @@ from atomsim.atoms import (
     Configuration,
     aufbau_configuration,
     is_ground,
+    is_single_term,
+    open_subshells,
     total_electrons,
     validate_config,
 )
@@ -72,8 +74,22 @@ _TOTAL_ENERGY_METHOD = (
 _TOTAL_ENERGY_ASSUMPTIONS = (
     "no electron correlation; variational, so E_HF >= E_exact "
     "(non-relativistic, infinite nuclear mass)",
-    "average of configuration: one energy per configuration, not per term",
     "infinite nuclear mass (mu_ratio = 1)",
+)
+# Added only when a subshell is partially filled. Restricted Hartree-Fock gives
+# both spins the same radial function, which for a closed shell is no
+# constraint at all (the two spin populations are identical anyway) and for an
+# open shell forbids the core from polarizing around the unpaired electrons.
+_OPEN_SHELL_ASSUMPTION = (
+    "restricted: one radial function per subshell shared by both spins, so the "
+    "core cannot spin-polarize around an unpaired electron; that omission is "
+    "far smaller than the missing correlation energy above"
+)
+# Added only when the configuration spans more than one term.
+_MULTI_TERM_ASSUMPTION = (
+    "average of configuration: one energy per configuration, not per term, so "
+    "this energy lies among the terms the configuration splits into rather "
+    "than on the lowest of them"
 )
 _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would "
@@ -245,6 +261,29 @@ def _refine(
     )
 
 
+def _energy_assumptions(config: Configuration) -> tuple[str, ...]:
+    """What this configuration actually costs the reader, and nothing more.
+
+    Two of the four claims are conditional, because disclosing a limitation the
+    solve does not have misleads exactly as much as hiding one it does.
+
+    Neon fills every subshell it touches: there is no spin to polarize and no
+    second term to average over, so both extra lines would be noise. Lithium
+    has an open 2s, so it pays the restriction, but its configuration spans one
+    term (2S) and the configuration average is the degeneracy-weighted mean of
+    the term energies - with one term in the sum, that mean is exactly that
+    term. Claiming otherwise would hand the reader an error bar that is not
+    there. Carbon's 2p2 spans 3P, 1D and 1S, and there the average really is
+    none of them.
+    """
+    out = list(_TOTAL_ENERGY_ASSUMPTIONS)
+    if open_subshells(config):
+        out.append(_OPEN_SHELL_ASSUMPTION)
+    if not is_single_term(config):
+        out.append(_MULTI_TERM_ASSUMPTION)
+    return tuple(out)
+
+
 def _solve_on_grid(
     z: int,
     n_electrons: int,
@@ -314,10 +353,11 @@ def solve_hartree_fock(
 
     kinetic, potential = kinetic_and_potential(z, solution.subshells, mesh)
 
+    assumptions = _energy_assumptions(config)
     energy_prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=_TOTAL_ENERGY_METHOD,
-        assumptions=_TOTAL_ENERGY_ASSUMPTIONS,
+        assumptions=assumptions,
         # Two independent error sources, added rather than maxed because they
         # are independent: the spread between the two meshes, which measures
         # the step discretization, plus the mesh floor the spread cannot see
@@ -347,7 +387,7 @@ def solve_hartree_fock(
     shape_prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=f"{_TOTAL_ENERGY_METHOD}; radial amplitude sampled on the solver mesh",
-        assumptions=_TOTAL_ENERGY_ASSUMPTIONS,
+        assumptions=assumptions,
         refinement=_TOTAL_ENERGY_REFINEMENT,
     )
 
