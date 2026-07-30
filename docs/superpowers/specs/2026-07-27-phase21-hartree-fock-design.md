@@ -511,6 +511,102 @@ docs/superpowers/plans/2026-07-27-phase21-hartree-fock.md   implementation plan
 Milestone 2 is the gate. If the anchors do not pin the coefficients, nothing
 past it is worth building.
 
+## What the build changed
+
+**The exponential mesh moved out of section 11 and into this phase, and it
+changed what the phase is.** Section 12 listed "uniform grid insufficient at
+argon" as a risk with the log mesh as the escape hatch. The risk fired. Argon on
+72,000 uniform points took about an hour. On the exponential mesh of
+`numerics/mesh.py` it takes about 8 seconds on ~2,800 points, and all five
+vendored closed-shell atoms land within 6.3e-6 relative of Bunge with virial
+2.000006 or better. Section 1.1's coupling of the mesh to a Z ceiling turned out
+to be wrong twice over: the mesh landed here rather than in Phase 22, and Z was
+never the constraint. Measured, not assumed — K+ (Z = 19), and Ar-like ions at
+Z = 22, 26, 30 and 36 all converge in 4.4 to 6.2 s at virial 2.000003. Only
+*neutral* potassium fails, and only in its l = 0 channel. The real boundary is
+the outermost occupied principal quantum number: n <= 3 works, a 4s subshell does
+not, because `_start_potential` falls back to the bare nucleus where GSZ has no
+parameters and hands the SCF a 4s guess 75x too deep. `_HF_MAX_Z = 36` is "as far
+as tested" and where non-relativistic stops describing the atom, not a solver
+limit.
+
+**The error bar was lying, and the spread was what lied.** Both meshes in a
+grid-refinement pair share `r_min`, so inner-wall truncation and eigensolver
+conditioning noise cancel *exactly* out of their difference. The deviation from
+the reference converges as clean delta^2 (ratios 4.01, 4.02, 4.03) to a nonzero
+floor around 3e-6 relative, flat in Z. Quoting the spread alone claims an
+accuracy that tightens without bound while the real error sits still. It surfaced
+only because beryllium's spread (6.5e-5) came out *smaller* than its true
+deviation (7.7e-5). `error_estimate` is now spread + 4e-6*|E|, which brackets all
+five atoms by 1.6x to 2.2x. The general lesson, which outlives this phase:
+whenever an error bar comes from differencing two runs, ask what is identical in
+both.
+
+**Section 2.4 was right to refuse to state the coefficients.** They were derived
+by varying the average-of-configuration functional with respect to `P_a`, and the
+derivation is written into the `numerics/hf_terms.py` docstring rather than left
+implicit in the code. Four independent checks pin it: hydrogen has no
+self-interaction at all (this is what the `(q_a - 1)` factor buys, and it is the
+check the spec's worked counter-example fails), helium sees exactly one unit of
+`U_0`, the averaged coefficients reduce to the independently derived closed-shell
+ones at full occupancy, and beryllium reproduces the textbook 4J - 2K. The spec's
+prediction about the failure mode held: nothing here crashes when it is wrong.
+
+**`hf_terms.py` and `hartree_fock.py` are separate modules.** Section 4's file
+plan had one. The angular algebra is pure, cacheable and testable against closed
+forms; the SCF machinery is stateful, iterative and testable only against
+converged answers. Keeping them together would have meant testing the
+coefficients through the eigensolver, which is exactly the coupling that lets a
+wrong coefficient hide inside a converged number.
+
+**Mixing was the single largest performance factor, and it is not an
+algorithm.** `alpha` was 0.4. The coarse solve took 34 to 38 SCF iterations and
+over 80% of wall time while the fine solve took 8 to 10. Retuning to 0.65 on the
+*worst case* across H to Ar took that to 15 iterations. Worst case, not total,
+because failure here is one-sided: neon takes 26 iterations at 0.8, 65 at 0.9,
+and diverges at 1.0. 0.70 had a better total and a worse worst case. The full
+sweep is in the `scf` docstring. Combined with hoisting the multipole geometry
+out of the LOBPCG matvec and memoizing the Wigner symbols, the whole benchmark
+went 40.9 s to 5.6 s with the relative accuracy unchanged in every digit.
+
+**Two eigensolver behaviours that produce believable wrong numbers.** scipy's
+`lobpcg` residual history length is not the iteration count — on a stagnation
+fallback it is the iteration scipy reverted to, so `len(history) >= maxiter`
+never fires and an unconverged solve returns a plausible answer. Gate on the
+achieved residual, scaled by the channel's energy magnitude. And LOBPCG guard
+vectors are a net loss here rather than insurance: padding the block above
+`n_states` puts the extras in near-degenerate diffuse states just below zero
+which never converge, and scipy's stopping rule covers the whole block. Argon's
+3s channel: 302 iterations / 2.67 s / residual 1.3e-4 with two guards, versus 87
+iterations / 0.34 s / 7.2e-7 with none, same eigenvalue to nine digits.
+
+**Section 7.4's cross-model claim is false for helium, for a reason worth
+keeping.** The expectation was that HF beats GSZ against NIST everywhere. Helium:
+HF gives 24.979 eV, GSZ 24.941, NIST 24.587, so the fitted model wins by 0.04 eV.
+This is not a bug — eps_1s is -0.917943 against the published HF limit -0.917956.
+Koopmans' theorem freezes the ion's orbitals, and ionizing a two-electron atom
+contracts what remains hard, which costs 0.39 eV; GSZ's fitted parameters absorb
+part of that. Confirmed from the other side: Delta-SCF gives 23.45 eV, 1.14 eV
+*low*, which is almost exactly helium's correlation energy. The comparison now
+runs on the alkalis, where removing the lone valence electron barely disturbs the
+core, and helium is pinned as an explained exception rather than dropped.
+
+**Open shells needed no formalism at all.** Section 2.1's average of
+configuration takes fractional occupancy natively, so lithium and sodium worked
+the moment closed shells did, and sulfur and chlorine — the visible payoff, since
+GSZ has no parameters for them — needed only to be solvable, not special-cased.
+What they did need was two *separate* disclosures where the plan had conflated
+them into one. An open subshell costs the restricted radial function (no core
+spin polarization). The configuration average only bites when the configuration
+spans more than one term. Lithium's 2s^1 is open but spans only 2S, so a single
+combined disclosure would have told lithium's user about a limitation lithium
+does not have. Splitting them needed a term counter, hence `atoms.subshell_terms`.
+
+**Argon is not the slowest atom.** Cold solve times over Z = 1..18 put chlorine at
+7.18 s and sodium at 5.53 s against argon's 4.66 s: the third-row open shells cost
+more than the closed-shell atom above them. A performance guard written only on
+argon, which is the obvious choice, leaves the worst case unguarded.
+
 ## 11. Deferred
 
 - **Logarithmic mesh, and with it Z > 18.** Phase 22. See section 1.1.

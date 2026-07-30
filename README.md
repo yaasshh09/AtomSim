@@ -73,6 +73,13 @@ Everything below landed in M1–M3:
 - Spectral line lists with selection rules, compared against vendored NIST ASD
   reference wavelengths in CI (citation + retrieval date in-repo)
 - System presets: H, D, T, muonic hydrogen, positronium, He+, generic Z
+- Many-electron atoms under **two** models you can switch between, because they
+  disagree and the disagreement is the point: the fitted Green-Sellin-Zachor
+  screened central field (He through Ar, no S or Cl — nobody published
+  parameters for them), and a self-consistent Hartree-Fock solve that needs no
+  fitted parameters and so covers S and Cl too, along with ions that have no
+  named preset. Both are `APPROXIMATION`, of different things, and each says
+  which on its own badge
 - Numerical radial solver for **arbitrary central potentials** (the engine that
   will power real atoms, screened models, and counterfactual force laws alike),
   validated against closed-form hydrogen and harmonic-oscillator solutions —
