@@ -143,7 +143,15 @@ class HFResult:
     kinetic: Quantity  # NUMERICAL
     potential: Quantity  # NUMERICAL
     virial_ratio: Quantity  # NUMERICAL, target 2
+    # SCF iterations on the fine mesh, which is warm-started from the coarse
+    # one and so converges in a handful whatever the mixing does.
     iterations: int
+    # SCF iterations on the coarse mesh, which starts from a central field and
+    # is where nearly all the wall time goes. Reported separately because the
+    # two respond to completely different things: a mixing parameter that has
+    # regressed roughly triples this one and barely moves `iterations`. A
+    # performance guard wants this number.
+    coarse_iterations: int
     residual_history: tuple[float, ...]
     converged: bool
     provenance: Provenance
@@ -375,7 +383,11 @@ def solve_hartree_fock(
     diagnostic_prov = Provenance(
         fidelity=Fidelity.NUMERICAL,
         method=_DIAGNOSTIC_METHOD,
-        assumptions=(f"converged in {solution.iterations} SCF iterations",),
+        assumptions=(
+            f"converged in {coarse.iterations} SCF iterations on the coarse "
+            f"mesh and {solution.iterations} on the fine one, which starts "
+            f"from the coarse solution rather than from a central field",
+        ),
     )
     # The orbital amplitude gets its own provenance carrying NO error estimate,
     # rather than borrowing the energy's. Provenance.error_estimate is
@@ -433,6 +445,7 @@ def solve_hartree_fock(
             -potential / kinetic, "dimensionless", "-V/T", diagnostic_prov
         ),
         iterations=solution.iterations,
+        coarse_iterations=coarse.iterations,
         residual_history=solution.residual_history,
         converged=True,
         provenance=energy_prov,
