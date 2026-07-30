@@ -445,4 +445,49 @@ export interface PlaneMeta {
   provenance: Provenance;
 }
 
-export type JobMeta = SampleMeta | PlaneMeta;
+export interface HFOrbital {
+  n: number;
+  l: number;
+  label: string;
+  occupancy: number;
+  energy: Quantity;
+  energy_ev: Quantity;
+  /** The /data channel carrying this orbital's P(r); shapes travel as binary. */
+  channel: string;
+}
+
+/**
+ * A finished Hartree-Fock solve.
+ *
+ * Arrives on the job `meta` endpoint rather than as its own response, because
+ * the solve takes seconds. Unlike a sample or plane job the meta IS the
+ * result: /data carries only the orbital shapes.
+ *
+ * `symbol` is null above the preset table. Hartree-Fock needs no fitted
+ * parameters and so solves ions the named-atom library has never heard of, and
+ * the server declines to invent an element for them.
+ */
+export interface HFLevels {
+  kind: "hf";
+  z: number;
+  n_electrons: number;
+  symbol: string | null;
+  config: string;
+  is_ground: boolean;
+  orbitals: HFOrbital[];
+  total_energy: Quantity;
+  total_energy_ev: Quantity;
+  kinetic: Quantity;
+  potential: Quantity;
+  /** A diagnostic of the solve, NUMERICAL — never draw this as physics. */
+  virial_ratio: Quantity;
+  iterations: number;
+  coarse_iterations: number;
+  converged: boolean;
+  provenance: Provenance;
+  grid_channel: string;
+  grid_points: number;
+  channels: ChannelInfo[];
+}
+
+export type JobMeta = SampleMeta | PlaneMeta | HFLevels;

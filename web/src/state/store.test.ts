@@ -221,3 +221,62 @@ describe("force-law slice", () => {
     expect(useAppStore.getState().spectrum).toBeNull();
   });
 });
+
+describe("many-electron model selection", () => {
+  it("defaults to the screened model, so no existing session changes physics", () => {
+    expect(useAppStore.getInitialState().model).toBe("gsz");
+    expect(useAppStore.getInitialState().hf).toBeNull();
+  });
+
+  it("setModel invalidates everything derived under the previous model", () => {
+    pretendLoaded();
+    useAppStore.getState().setModel("hf");
+    const s = useAppStore.getState();
+    expect(s.model).toBe("hf");
+    expect(s.levels).toBeNull();
+    expect(s.stateInfo).toBeNull();
+    expect(s.radial).toBeNull();
+    expect(s.spectrum).toBeNull();
+    expect(s.positions).toBeNull();
+    expect(s.plane).toBeNull();
+    expect(s.status).toBe("idle");
+  });
+
+  // The solve costs seconds and is keyed on the atom, not on which model is on
+  // screen, so switching away and back must not throw it away.
+  it("setModel keeps the solve itself: it is not derived from the model", () => {
+    useAppStore.setState({ hf: { fake: true } as never, hfStatus: "ready" });
+    useAppStore.getState().setModel("hf");
+    expect(useAppStore.getState().hf).not.toBeNull();
+    useAppStore.getState().setModel("gsz");
+    expect(useAppStore.getState().hf).not.toBeNull();
+  });
+
+  // ...but it belongs to one atom in one configuration, and both of those are
+  // physics inputs to the solve.
+  it("setSystem drops the solve, which was for a different element", () => {
+    useAppStore.setState({ hf: { fake: true } as never, hfStatus: "ready" });
+    useAppStore.getState().setSystem("ar");
+    expect(useAppStore.getState().hf).toBeNull();
+    expect(useAppStore.getState().hfStatus).toBe("idle");
+  });
+
+  it("setConfig drops the solve, which was for a different configuration", () => {
+    useAppStore.setState({
+      system: "na", hf: { fake: true } as never, hfStatus: "ready",
+    });
+    useAppStore.getState().setConfig("1s2 2s2 2p6 3p1");
+    expect(useAppStore.getState().hf).toBeNull();
+    expect(useAppStore.getState().hfStatus).toBe("idle");
+  });
+
+  // An HF solve depends on the occupied subshells and on nothing else. Putting
+  // it in INVALIDATED would be the safe-looking choice and would re-solve on
+  // every click of n, which is seconds of wall time for no change in answer.
+  it("changing n keeps the solve, which does not depend on the drawn state", () => {
+    useAppStore.setState({ hf: { fake: true } as never, hfStatus: "ready" });
+    useAppStore.getState().setQuantumNumbers(3, 1, 0);
+    expect(useAppStore.getState().hf).not.toBeNull();
+    expect(useAppStore.getState().hfStatus).toBe("ready");
+  });
+});

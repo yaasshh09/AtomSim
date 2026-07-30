@@ -5,7 +5,8 @@ import { Badge } from "./Badge";
 
 export function InfoPanel() {
   const {
-    n, l, m, basis, system, systems, fineStructure, stateInfo, meta, fps, view, loadStateInfo,
+    n, l, m, basis, system, systems, fineStructure, stateInfo, meta, fps, view, model,
+    loadStateInfo,
   } = useAppStore();
   const selected = systems.find((s) => s.key === system);
   const isScreened = selected?.kind === "screened";
@@ -21,6 +22,18 @@ export function InfoPanel() {
       <h1 className="brand">atomsim</h1>
       <h2>{sys ? `${sys.name} (Z = ${sys.z})` : "…"}</h2>
       {sys && <p className="system-desc">{sys.description}</p>}
+      {/*
+        The description above is the preset's, and every screened preset names
+        GSZ in it. With the Hartree-Fock model selected that sentence is
+        describing a model this session is not using for its levels, so it gets
+        corrected here rather than left to be read as the active one.
+      */}
+      {isScreened && model === "hf" && (
+        <p className="system-desc">
+          Energy levels below are solved by Hartree-Fock, not by the screened
+          field named above. Other views still use the screened field.
+        </p>
+      )}
       <p className="state-label">
         {stateLabel(n, l, m)}
         {basis === "real" && (

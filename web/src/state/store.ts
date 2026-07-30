@@ -5,6 +5,7 @@ import type {
   ClassicalGhost,
   ConstantsReport,
   ForceLawResult,
+  HFLevels,
   LevelsResponse,
   PlaneMeta,
   RadialResponse,
@@ -37,6 +38,16 @@ export type ViewMode =
   | "whatif"
   | "forcelaw";
 export type ColorMode = "solid" | "density" | "phase";
+
+/**
+ * Which many-electron model an atom's levels come from.
+ *
+ * "gsz" is the fitted Green-Sellin-Zachor screened central field, "hf" the
+ * self-consistent Hartree-Fock solve. Both are APPROXIMATION, but of different
+ * things, and they disagree — so this is a physics input and it invalidates,
+ * unlike the presentational toggles which deliberately invalidate nothing.
+ */
+export type AtomModel = "gsz" | "hf";
 
 const N_MAX_DIAGRAM = 6;
 
@@ -109,6 +120,18 @@ interface AppState {
   spectrum: SpectrumResponse | null;
   /** null = Aufbau ground config (server fills it); else an explicit config string. */
   config: string | null;
+  model: AtomModel;
+  /**
+   * The finished Hartree-Fock solve, or null.
+   *
+   * Derived from (system, config) and from nothing else — an HF solve knows
+   * about occupied subshells, not about the (n, l, m) state being drawn. So it
+   * is reset explicitly by setSystem and setConfig rather than living in
+   * INVALIDATED, exactly like classicalGhost, and a change of n does not throw
+   * away seconds of solve.
+   */
+  hf: HFLevels | null;
+  hfStatus: SampleStatus;
   labConst: ConstMultipliers;
   labZ: number;
   whatif: {
@@ -141,6 +164,8 @@ interface AppState {
   setQuantumNumbers: (n: number, l: number, m: number) => void;
   setSystem: (system: string) => void;
   setConfig: (config: string | null) => void;
+  setModel: (model: AtomModel) => void;
+  loadHF: () => Promise<void>;
   setBasis: (basis: Basis) => void;
   setView: (view: ViewMode) => void;
   setColorMode: (colorMode: ColorMode) => void;
@@ -244,6 +269,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   forceLaw: null,
   forceStatus: "idle",
   config: null,
+  // gsz, so that every deep link written before Hartree-Fock existed keeps
+  // resolving to the physics it was written against.
+  model: "gsz",
+  hf: null,
+  hfStatus: "idle",
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -259,10 +289,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       classicalStatus: "idle",
       forceLaw: null,
       forceStatus: "idle",
+      // a solve belongs to one atom; see the comment on `hf`
+      hf: null,
+      hfStatus: "idle" as SampleStatus,
     }),
   // config is its own physics input (screened atoms only): it clears the derived
   // level/spectrum/state payloads but keeps the selected system.
-  setConfig: (config) => set({ config, levels: null, spectrum: null, stateInfo: null }),
+  setConfig: (config) =>
+    set({
+      config,
+      levels: null,
+      spectrum: null,
+      stateInfo: null,
+      hf: null,
+      hfStatus: "idle",
+    }),
+  // Switching model changes what the numbers mean, so everything derived under
+  // the old one goes. The HF solve itself survives: it is keyed on the atom,
+  // not on which model is being displayed, so switching away and back is free.
+  setModel: (model) => set({ model, ...INVALIDATED }),
   setBasis: (basis) =>
     set((s) => ({
       basis,
@@ -455,6 +500,39 @@ export const useAppStore = create<AppState>((set, get) => ({
         bField, eField, hyperfine,
       ),
     });
+  },
+  loadHF: async () => {
+    const { system, config, systems, hfStatus } = get();
+    if (hfStatus === "sampling") return;
+    // Z and the electron count live on the system table, so a solve cannot be
+    // requested before it has loaded. Ask for it rather than guessing them
+    // from the key — the key is a label, the table is the authority.
+    const table = systems.length === 0 ? (await client.getSystems()).systems : systems;
+    if (systems.length === 0) set({ systems: table });
+    const info = table.find((s) => s.key === system);
+    if (info === undefined || info.n_electrons === null) {
+      set({
+        hfStatus: "error",
+        error: `Hartree-Fock needs an atom with a known electron count; ${system} has none`,
+      });
+      return;
+    }
+    set({ hfStatus: "sampling", error: null });
+    try {
+      const job = await client.createHFJob({
+        z: info.z,
+        n_electrons: info.n_electrons,
+        config,
+      });
+      // The solve reports no intermediate progress (the server says why), so
+      // there is nothing to show between 0 and 1 and nothing is pretended.
+      await client.watchJob(job.id, () => {});
+      const meta = await client.getJobMeta(job.id);
+      if (!client.isHFLevels(meta)) throw new Error("expected hartree-fock job meta");
+      set({ hf: meta, hfStatus: "ready" });
+    } catch (err) {
+      set({ hfStatus: "error", error: err instanceof Error ? err.message : String(err) });
+    }
   },
   loadCurveOfGrowth: async (lambdaNm) => {
     const {

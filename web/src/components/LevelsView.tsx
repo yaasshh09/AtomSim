@@ -1,8 +1,9 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import { isScreenedLevels } from "../api/client";
-import type { ScreenedLevels } from "../api/types";
+import type { HFLevels, ScreenedLevels } from "../api/types";
 import { arrowsFor } from "../lib/levels";
+import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 
@@ -74,6 +75,92 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   );
 }
 
+/**
+ * The self-consistent ladder.
+ *
+ * Deliberately not a variant of ScreenedLadder: it plots a different axis, and
+ * it has a convergence readout that the fitted model has no analogue for. The
+ * two are the same shape on screen and different claims underneath, which is
+ * the point of letting you switch between them.
+ */
+function HFLadder({ levels }: { levels: HFLevels }) {
+  const orbitals = levels.orbitals;
+  // Binding energy, so the log is of a positive number. Every occupied HF
+  // orbital is bound; the guard is here because a rung at exactly 0 would
+  // silently become -Infinity and take the whole scale with it.
+  const bind = orbitals.map((o) => Math.abs(o.energy_ev.value));
+  const deepest = Math.max(...bind);
+  const shallowest = Math.min(...bind.filter((b) => b > 0), deepest);
+  // A quarter-decade of headroom: enough that the shallowest rung is not welded
+  // to the frame edge, and deliberately not more. A generous gap above the
+  // topmost level reads as "this one is far from ionization" when on a log axis
+  // it is the one CLOSEST to it, and the empty band means nothing at all.
+  const y = scaleLinear(
+    [Math.log10(shallowest) - 0.25, Math.log10(deepest)],
+    [40, H - 40],
+  );
+  const rungX1 = 100;
+  const rungX2 = 360;
+  const virial = levels.virial_ratio.value;
+  return (
+    <div className="view-wrap">
+      <div className="view-header">
+        <span className="plot-title">
+          Hartree-Fock orbital energies ε_nl [eV]{" "}
+          <Badge provenance={levels.provenance} />
+        </span>
+        <span className="plot-title">
+          · {levels.symbol ?? `Z=${levels.z}`} {levels.config}
+          {levels.is_ground ? " (ground)" : " — excited (non-ground)"}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
+        {/* The ionization limit cannot be a rung here — see HF_LADDER_AXIS_LIBERTY. */}
+        <text x={rungX1} y={16} className="tick" opacity={0.7}>
+          ↑ 0 eV (ionization limit) — off the top of a log axis
+        </text>
+        {orbitals.map((o) => {
+          const e = o.energy_ev.value;
+          const yr = y(Math.log10(Math.abs(e)));
+          return (
+            <g key={`${o.n}-${o.l}`}>
+              <line
+                x1={rungX1} x2={rungX2} y1={yr} y2={yr}
+                className="rung" strokeWidth={3}
+              />
+              <text x={rungX1 - 8} y={yr} dy="0.32em" textAnchor="end" className="tick">
+                {o.label}
+                <tspan dy="-0.5em">{o.occupancy}</tspan>
+              </text>
+              <text x={rungX2 + 8} y={yr} dy="0.32em" className="tick">
+                {/* Three significant figures across three decades of magnitude. */}
+                {e.toPrecision(4)} eV
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <p className="caption">
+        Self-consistent-field orbital energies (APPROXIMATION — see the badge for
+        what Hartree-Fock leaves out, correlation above all). Energy axis is
+        logarithmic in binding energy <Badge provenance={HF_LADDER_AXIS_LIBERTY} />{" "}
+        because the 1s and the valence shell differ by more than two decades.
+        Total energy {levels.total_energy_ev.value.toFixed(2)} eV is variational,
+        unlike the screened model's sum of orbital energies.
+      </p>
+      <p className="caption">
+        <strong>Solve diagnostics</strong> (NUMERICAL — these describe the
+        computation, not the atom): {levels.converged ? "converged" : "DID NOT CONVERGE"}{" "}
+        in {levels.coarse_iterations} coarse + {levels.iterations} fine SCF
+        iterations on {levels.grid_points} radial points. Virial ratio
+        −〈V〉/〈T〉 = {virial.toFixed(6)}, which is exactly 2 for a converged
+        solution of this Hamiltonian; the departure is a measure of the grid, not
+        a property of the element.
+      </p>
+    </div>
+  );
+}
+
 // h in eV per MHz (h = 4.135667696e-15 eV·s, times 1e6 Hz/MHz), for turning a
 // hyperfine energy split into its transition frequency — the payoff number.
 const EV_PER_MHZ = 4.135667696e-9;
@@ -82,12 +169,30 @@ export function LevelsView() {
   const {
     n, l, system, fineStructure, dirac, setDirac, bField, setBField,
     eField, setEField, hyperfine, setHyperfine, levels, spectrum,
-    loadLevels, loadSpectrum,
+    loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
   } = useAppStore();
+  const wantHF = model === "hf";
   useEffect(() => {
     void loadLevels();
     void loadSpectrum();
   }, [system, fineStructure, dirac, bField, eField, hyperfine, loadLevels, loadSpectrum]);
+  useEffect(() => {
+    // Only under the HF model, and only once per (system, config): the solve
+    // costs seconds, so it is not something to fire on the chance it is wanted.
+    if (wantHF && hf === null && hfStatus === "idle") void loadHF();
+  }, [wantHF, hf, hfStatus, system, config, loadHF]);
+
+  if (wantHF) {
+    if (hfStatus === "error") {
+      return (
+        <p className="hint-block">
+          Hartree-Fock declined this atom: {error ?? "unknown reason"}
+        </p>
+      );
+    }
+    if (hf === null) return <p className="hint-block">solving Hartree-Fock (seconds)…</p>;
+    return <HFLadder levels={hf} />;
+  }
   if (!levels) return <p className="hint-block">loading levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 

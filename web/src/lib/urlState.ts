@@ -2,7 +2,7 @@
  * Phase 2 guided tour needs is addressable by URL alone. Parsing validates
  * hard — a junk parameter is dropped, never propagated into the store. */
 import type { Basis, ConstMultipliers, PlaneQuantity } from "../api/client";
-import type { ColorMode, ViewMode } from "../state/store";
+import type { AtomModel, ColorMode, ViewMode } from "../state/store";
 import type { NucleusMode } from "./nucleus";
 import {
   DEFAULT_EXPR,
@@ -65,6 +65,21 @@ export interface UrlState {
   forceExpr: string;
   /** screened-atom electron configuration; null = Aufbau ground (default) */
   config: string | null;
+  /**
+   * Which many-electron model an atom's levels come from.
+   *
+   * "gsz" is the fitted screened central field, "hf" the self-consistent
+   * Hartree-Fock solve. Both are APPROXIMATION, but of different things, and
+   * they disagree - so this is physics input, not a display toggle, and the
+   * store invalidates on it.
+   *
+   * Defaults to "gsz" so every deep link written before Hartree-Fock existed
+   * keeps resolving to the physics it was written against.
+   *
+   * The key is `model`; note `hf` is separately in use as the *key* for the
+   * hyperfine toggle. Different keys, no collision, easy to misread.
+   */
+  model: AtomModel;
 }
 
 export const URL_DEFAULTS: UrlState = {
@@ -101,6 +116,7 @@ export const URL_DEFAULTS: UrlState = {
   forceL: 0,
   forceExpr: DEFAULT_EXPR,
   config: null,
+  model: "gsz",
 };
 
 // a config string is compact subshell tokens: "1s2 2s2 2p6 3p1"
@@ -112,6 +128,8 @@ const N_MAX_UI = 6;
 const VIEWS: ViewMode[] = ["cloud", "plane", "radial", "levels", "spectrum", "whatif", "forcelaw"];
 const COLORS: ColorMode[] = ["solid", "density", "phase"];
 const BASES: Basis[] = ["complex", "real"];
+/** Which many-electron model an atom's levels come from. See UrlState.model. */
+const MODELS: AtomModel[] = ["gsz", "hf"];
 const NUCLEUS: NucleusMode[] = ["hidden", "true-scale", "marker"];
 const PLANES: PlaneQuantity[] = ["density", "psi"];
 const FORCE_PRESETS: ForcePreset[] = [
@@ -169,6 +187,12 @@ export function parseAppUrl(search: string): Partial<UrlState> {
 
   const system = q.get("system");
   if (system !== null && SYSTEM_KEY.test(system)) out.system = system;
+
+  // Dropped rather than thrown on, like every other parameter here: this
+  // module's contract is that junk never reaches the store, and a link with a
+  // typo should still open the app rather than fail to render.
+  const model = pickEnum(q.get("model"), MODELS);
+  if (model) out.model = model;
 
   const basis = pickEnum(q.get("basis"), BASES);
   if (basis) out.basis = basis;
@@ -335,6 +359,11 @@ export function serializeAppUrl(state: UrlState): string {
     q.set("expr", state.forceExpr);
   }
   if (state.config) q.set("config", state.config);
+  // Written unconditionally when non-default, including for hydrogenic
+  // systems where it currently selects nothing. Dropping it there would make
+  // the round trip depend on which system is loaded, and a link is supposed to
+  // carry the state it was written from.
+  if (state.model !== URL_DEFAULTS.model) q.set("model", state.model);
   // note: '+' stays percent-encoded (%2B) — a literal '+' in a query string
   // reads back as a space, which would break the he+ round-trip
   const s = q.toString();

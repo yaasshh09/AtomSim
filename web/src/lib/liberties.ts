@@ -111,6 +111,31 @@ export const SPECTRUM_EMISSIVITY_LIBERTY: Provenance = {
   refinement: "radiative transfer through a finite optical depth would give a predicted brightness",
 };
 
+/**
+ * A Hartree-Fock ladder spans more than two decades of binding energy: argon's
+ * 1s sits at -3227.5 eV and its 3p at -16.1 eV, a ratio of 200. Drawn linearly,
+ * the four shallower levels land inside the top 10% of the frame and the
+ * picture says "argon has a 1s and a smudge", which is false. So the axis is
+ * logarithmic in binding energy.
+ *
+ * That buys readability and costs the zero: the ionization limit is infinitely
+ * far up a log axis and cannot be drawn as a rung. It is marked at the top
+ * edge and named as off-scale rather than quietly moved to a finite height,
+ * because a line drawn at the top would read as a level that is there.
+ */
+export const HF_LADDER_AXIS_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "orbital ladder drawn on log10 of binding energy |ε| [eV], deepest at the bottom",
+  assumptions: [
+    "the energies themselves are engine values, unmodified — only the axis is compressed",
+    "spacing on this axis is a ratio, not a difference: two rungs one decade apart differ 10x",
+    "0 eV (the ionization limit) is off the top of a logarithmic axis, not at the top rung",
+    "every occupied orbital is bound, so |ε| never crosses zero and the log is always defined",
+  ],
+  error_estimate: null,
+  refinement: "the eV value of every rung is printed beside it, on the linear scale it was computed on",
+};
+
 export const THUMBNAIL_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "server-rendered inferno PNG of |psi|^2 on the y=0 plane (navigation aid)",

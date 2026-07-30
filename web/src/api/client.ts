@@ -3,6 +3,7 @@ import type {
   ClassicalGhost,
   ConstantsReport,
   ForceLawResult,
+  HFLevels,
   JobInfo,
   JobMeta,
   LevelsResponse,
@@ -44,13 +45,34 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * The server's own words, when it bothered to write any.
+ *
+ * FastAPI puts a refusal's reason in `detail`, and several of them are the
+ * whole point of the response: the Hartree-Fock endpoint explains that a
+ * neutral potassium atom is declined for its 4s shell rather than for its Z,
+ * which is exactly the misreading a bare "HTTP 400" would leave in place.
+ * Falls back to the status code when the body is not JSON or carries no
+ * detail, so a proxy returning HTML still produces something legible.
+ */
+async function errorFrom(url: string, res: Response): Promise<Error> {
+  let detail: string | null = null;
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body.detail === "string") detail = body.detail;
+  } catch {
+    detail = null;
+  }
+  return new Error(detail ?? `${url}: HTTP ${res.status}`);
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  if (!res.ok) throw await errorFrom(url, res);
   return res.json() as Promise<T>;
 }
 
@@ -263,6 +285,31 @@ export interface PlaneParams {
 
 export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {
   return postJson("/api/jobs/plane", { resolution: 512, ...params });
+}
+
+export interface HFParams {
+  z: number;
+  /** Defaults to neutral on the server; set it for an ion. */
+  n_electrons?: number;
+  /** Defaults to the Aufbau ground configuration. */
+  config?: string | null;
+}
+
+/**
+ * Start a Hartree-Fock solve.
+ *
+ * A job and not a plain GET because the solve is seconds, not milliseconds.
+ * Rejections are synchronous and carry their reason - see errorFrom - so a
+ * configuration this solver cannot handle fails here rather than eight
+ * seconds later inside the worker.
+ */
+export function createHFJob(params: HFParams): Promise<JobInfo> {
+  return postJson("/api/jobs/hf", params);
+}
+
+/** The job `meta` payload is a sample, a plane, or a Hartree-Fock solve. */
+export function isHFLevels(meta: JobMeta): meta is HFLevels {
+  return meta.kind === "hf";
 }
 
 export function watchJob(jobId: string, onProgress: (p: number) => void): Promise<void> {

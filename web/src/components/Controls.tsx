@@ -23,9 +23,10 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
 export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
-    colorMode, fineStructure, nucleusMode, config, levels,
+    colorMode, fineStructure, nucleusMode, config, levels, model,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
-    setColorMode, setFineStructure, setNucleusMode, setConfig, loadSystems,
+    setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
+    loadSystems,
   } = useAppStore();
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
@@ -101,6 +102,29 @@ export function Controls() {
           <button type="button" className="ghost" onClick={() => setConfig(null)}>
             Reset to Aufbau
           </button>
+          <div className="radio-row">
+            <label className="radio">
+              <input
+                type="radio"
+                checked={model === "gsz"}
+                onChange={() => setModel("gsz")}
+              />
+              screened (GSZ)
+            </label>
+            <label className="radio">
+              <input
+                type="radio"
+                checked={model === "hf"}
+                onChange={() => setModel("hf")}
+              />
+              Hartree-Fock
+            </label>
+          </div>
+          <p className="hint">
+            {model === "gsz"
+              ? "Fitted central field: one potential for every electron, no self-consistency."
+              : "Self-consistent field, solved per subshell. Reaches the Energy levels view only — the cloud, cross-section and radial views are still the screened model, and say so on their own badges."}
+          </p>
         </div>
       )}
       <h2>View</h2>

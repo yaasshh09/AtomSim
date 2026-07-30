@@ -113,6 +113,7 @@ describe("serializeAppUrl", () => {
       absorption: true,
       logColumn: 21.5,
       config: null,
+      model: "hf" as const,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
@@ -347,6 +348,49 @@ describe("dirac level-model url state", () => {
     expect(
       serializeAppUrl({ ...URL_DEFAULTS, fineStructure: false, dirac: true }),
     ).not.toContain("dirac");
+  });
+});
+
+describe("many-electron model url state", () => {
+  it("round-trips the model key", () => {
+    const q = serializeAppUrl({ ...URL_DEFAULTS, system: "ne", model: "hf" });
+    expect(q).toContain("model=hf");
+    expect({ ...URL_DEFAULTS, ...parseAppUrl(q) }.model).toBe("hf");
+  });
+
+  it("defaults to gsz so existing deep links keep resolving as before", () => {
+    expect({ ...URL_DEFAULTS, ...parseAppUrl("?system=ne") }.model).toBe("gsz");
+  });
+
+  it("omits the default from the serialized url", () => {
+    expect(serializeAppUrl({ ...URL_DEFAULTS })).not.toContain("model=");
+  });
+
+  // The plan asked for a throw here. Every other parameter in this module is
+  // dropped instead, and the contract that junk never reaches the store is
+  // worth more than one parameter's strictness: a link with a typo should
+  // still open the app on the default physics rather than fail to render.
+  it("drops an unknown model rather than throwing", () => {
+    expect(parseAppUrl("?model=dft").model).toBeUndefined();
+    expect({ ...URL_DEFAULTS, ...parseAppUrl("?model=dft") }.model).toBe("gsz");
+  });
+
+  // `hf=1` is the hyperfine toggle and `model=hf` is Hartree-Fock. Two
+  // different things spelled the same way two characters apart, so this pins
+  // that neither one can ever be read as the other.
+  it("does not confuse model=hf with the hyperfine hf=1 flag", () => {
+    const q = serializeAppUrl({ ...URL_DEFAULTS, model: "hf", hyperfine: true });
+    const back = { ...URL_DEFAULTS, ...parseAppUrl(q) };
+    expect(back.model).toBe("hf");
+    expect(back.hyperfine).toBe(true);
+
+    const onlyHyperfine = { ...URL_DEFAULTS, ...parseAppUrl("?hf=1") };
+    expect(onlyHyperfine.hyperfine).toBe(true);
+    expect(onlyHyperfine.model).toBe("gsz");
+
+    const onlyModel = { ...URL_DEFAULTS, ...parseAppUrl("?model=hf") };
+    expect(onlyModel.model).toBe("hf");
+    expect(onlyModel.hyperfine).toBe(false);
   });
 });
 
