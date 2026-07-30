@@ -518,6 +518,23 @@ button.primary:disabled {
   background: #000;
 }
 
+/* Stands in for the image where none can be served (screened atoms), so the
+   buttons keep the size and rhythm they have everywhere else. Deliberately
+   flat and empty: a placeholder that suggested a density would be inventing
+   one. */
+.thumb-blank {
+  width: 72px;
+  height: 72px;
+  border-radius: 4px;
+  display: block;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--edge) 0 2px,
+    transparent 2px 8px
+  );
+  opacity: 0.35;
+}
+
 .thumb-active {
   border-color: var(--accent);
   color: var(--accent);
