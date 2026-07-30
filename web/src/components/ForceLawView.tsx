@@ -7,6 +7,7 @@ import {
   validateExprClient,
   type ForcePreset,
 } from "../lib/forceLaw";
+import { systemKind } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 
@@ -40,11 +41,22 @@ export function ForceLawView() {
     setForceExpr,
     setForceViz,
     loadForceLaw,
+    system,
+    systems,
+    setSystem,
   } = useAppStore();
 
+  // This lab swaps the potential under ONE electron, and reads the selected
+  // system only for its Z and reduced mass. A screened atom is not that: it is
+  // eleven electrons and a fitted field, with no one-electron reduction to
+  // hand over, which is why /api/forcelaw rejects it outright. So the guard is
+  // on the request, not just on the menu entry, and it waits to know rather
+  // than assuming: before `systems` arrives the kind is null and nothing fires.
+  const kind = systemKind(systems, system);
   useEffect(() => {
+    if (kind !== "hydrogenic") return;
     if (forceLaw === null && forceStatus === "idle") void loadForceLaw();
-  }, [forceLaw, forceStatus, loadForceLaw]);
+  }, [kind, forceLaw, forceStatus, loadForceLaw]);
 
   // The expression input is edited locally and committed (which re-solves) only
   // on Enter or blur, so a half-typed formula never fires a doomed solve.
@@ -55,6 +67,27 @@ export function ForceLawView() {
     const trimmed = draft.trim();
     if (draftError === null && trimmed !== forceExpr) setForceExpr(trimmed);
   };
+
+  // The view stays on the menu on purpose. Which view you are looking at is a
+  // separate axis from which system you picked, so making the entry disappear
+  // when a screened atom is selected would leave the user hunting for a lab
+  // that was there a moment ago. Say what is missing and offer the one click
+  // that fixes it instead.
+  if (kind === "screened") {
+    return (
+      <div className="hint-block">
+        <p>
+          The force-law lab replaces the potential under a single electron, so
+          it needs a system that is a single electron. A screened atom is a
+          fitted field standing in for the other electrons, and that field is
+          the thing this lab would be overwriting.
+        </p>
+        <button type="button" className="ghost" onClick={() => setSystem("h")}>
+          Switch to hydrogen
+        </button>
+      </div>
+    );
+  }
 
   const potLabel =
     forcePreset === "custom"

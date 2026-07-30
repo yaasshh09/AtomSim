@@ -790,3 +790,36 @@ def test_levels_hyperfine_ignored_for_screened(client):
     r = client.get("/api/levels?system=he&hyperfine=true")
     assert r.status_code == 200
     assert "orbitals" in r.json()
+
+
+# The endpoints that are hydrogenic-only, and stay that way on purpose. Each
+# reduces the atom to one electron with a charge and a reduced mass, which is
+# the step a screened atom does not permit: its whole content is the fitted
+# field standing in for the other electrons.
+#
+# The frontend gates these behind "the system is known to be hydrogenic", so
+# this list is the contract that gate is written against. If a later phase
+# teaches one of them a screened path, this test fails and points at the gate
+# that needs to learn it too, instead of the frontend quietly withholding a
+# view the server had started answering.
+HYDROGENIC_ONLY = [
+    "/api/state/3/0/0?system={sys}",
+    "/api/thumbnail/3/0/0?system={sys}",
+    "/api/classical?system={sys}&n=3",
+    "/api/forcelaw?system={sys}&preset=powerlaw&l=0&n_states=3",
+]
+
+
+@pytest.mark.parametrize("url", HYDROGENIC_ONLY)
+@pytest.mark.parametrize("screened_key", ["he", "na", "ar"])
+def test_hydrogenic_only_endpoints_reject_screened_atoms(client, url, screened_key):
+    r = client.get(url.format(sys=screened_key))
+    assert r.status_code == 422, f"{url} accepted {screened_key}"
+    assert screened_key in r.json()["detail"]
+
+
+@pytest.mark.parametrize("url", HYDROGENIC_ONLY)
+def test_hydrogenic_only_endpoints_answer_for_hydrogen(client, url):
+    # The negative above is only worth something if the same request succeeds
+    # for a hydrogenic system: otherwise a typo in the URL would pass it.
+    assert client.get(url.format(sys="h")).status_code == 200
