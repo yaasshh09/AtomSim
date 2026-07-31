@@ -43,6 +43,7 @@ useAppStore.subscribe((s) => {
     forceExpr: s.forceExpr,
     config: s.config,
     model: s.model,
+    exchange: s.exchange,
   });
   const next = window.location.pathname + qs;
   if (next !== window.location.pathname + window.location.search) {

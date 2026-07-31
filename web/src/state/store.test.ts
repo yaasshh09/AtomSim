@@ -280,3 +280,34 @@ describe("many-electron model selection", () => {
     expect(useAppStore.getState().hfStatus).toBe("ready");
   });
 });
+
+describe("exchange toggle (distinguishable electrons)", () => {
+  it("defaults to real physics, so no session lands in the counterfactual", () => {
+    expect(useAppStore.getInitialState().exchange).toBe(true);
+  });
+
+  // The two models are different atoms. A stale solve sitting under a flipped
+  // switch would be a ladder labelled Hartree drawn from Hartree-Fock numbers,
+  // which is exactly the quiet lie the badge exists to prevent.
+  it("setExchange drops the solve, which was for the other model", () => {
+    useAppStore.setState({ hf: { fake: true } as never, hfStatus: "ready" });
+    useAppStore.getState().setExchange(false);
+    expect(useAppStore.getState().exchange).toBe(false);
+    expect(useAppStore.getState().hf).toBeNull();
+    expect(useAppStore.getState().hfStatus).toBe("idle");
+  });
+
+  // "idle" and not "sampling": nothing has been requested yet, and a view that
+  // said "solving" before a request existed would describe work nobody started.
+  it("goes back to idle rather than pretending a solve is running", () => {
+    useAppStore.setState({ hfStatus: "ready" });
+    useAppStore.getState().setExchange(false);
+    expect(useAppStore.getState().hfStatus).toBe("idle");
+  });
+
+  it("altered physics does not follow the user to the next atom", () => {
+    useAppStore.setState({ exchange: false });
+    useAppStore.getState().setSystem("ar");
+    expect(useAppStore.getState().exchange).toBe(true);
+  });
+});

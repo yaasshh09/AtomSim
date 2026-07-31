@@ -80,6 +80,19 @@ export interface UrlState {
    * hyperfine toggle. Different keys, no collision, easy to misread.
    */
   model: AtomModel;
+  /**
+   * Whether the Hartree-Fock solve keeps its exchange term.
+   *
+   * False is the Hartree model: electrons that repel but are distinguishable,
+   * returned COUNTERFACTUAL. Serialized as `nox=1` rather than `exchange=0`,
+   * with the default polarity chosen so that ABSENCE means real physics — a
+   * link that predates this toggle, or one a user hand-trims, cannot land
+   * anyone in altered physics by omission.
+   *
+   * `nox` and not `x`: `hf` is already the hyperfine key and this file has one
+   * near-collision too many already.
+   */
+  exchange: boolean;
 }
 
 export const URL_DEFAULTS: UrlState = {
@@ -117,6 +130,7 @@ export const URL_DEFAULTS: UrlState = {
   forceExpr: DEFAULT_EXPR,
   config: null,
   model: "gsz",
+  exchange: true,
 };
 
 // a config string is compact subshell tokens: "1s2 2s2 2p6 3p1"
@@ -193,6 +207,8 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   // typo should still open the app rather than fail to render.
   const model = pickEnum(q.get("model"), MODELS);
   if (model) out.model = model;
+
+  if (q.get("nox") === "1") out.exchange = false;
 
   const basis = pickEnum(q.get("basis"), BASES);
   if (basis) out.basis = basis;
@@ -364,6 +380,7 @@ export function serializeAppUrl(state: UrlState): string {
   // the round trip depend on which system is loaded, and a link is supposed to
   // carry the state it was written from.
   if (state.model !== URL_DEFAULTS.model) q.set("model", state.model);
+  if (!state.exchange) q.set("nox", "1");
   // note: '+' stays percent-encoded (%2B) — a literal '+' in a query string
   // reads back as a space, which would break the he+ round-trip
   const s = q.toString();

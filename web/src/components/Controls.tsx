@@ -23,10 +23,10 @@ const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
 export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
-    colorMode, fineStructure, nucleusMode, config, levels, model,
+    colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
-    loadSystems,
+    setExchange, loadSystems,
   } = useAppStore();
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
@@ -125,6 +125,23 @@ export function Controls() {
               ? "Fitted central field: one potential for every electron, no self-consistency."
               : "Self-consistent field, solved per subshell. Reaches the Energy levels view only — the cloud, cross-section and radial views are still the screened model, and say so on their own badges."}
           </p>
+          {model === "hf" && (
+            <>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!exchange}
+                  onChange={(e) => setExchange(!e.target.checked)}
+                />
+                distinguishable electrons
+              </label>
+              <p className="panel-hint">
+                {exchange
+                  ? "Exchange on: the wavefunction is antisymmetric, as it is in this universe."
+                  : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched — this is not electrons piling into 1s."}
+              </p>
+            </>
+          )}
         </div>
       )}
       <h2>View</h2>

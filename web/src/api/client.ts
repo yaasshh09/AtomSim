@@ -313,6 +313,12 @@ export interface HFParams {
   n_electrons?: number;
   /** Defaults to the Aufbau ground configuration. */
   config?: string | null;
+  /**
+   * False solves the Hartree model instead: distinguishable electrons, no
+   * exchange. Omit for real physics — the server defaults to true, so a caller
+   * cannot ask for the counterfactual by forgetting a field.
+   */
+  exchange?: boolean;
 }
 
 /**

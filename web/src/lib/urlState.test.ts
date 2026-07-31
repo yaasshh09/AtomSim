@@ -114,6 +114,7 @@ describe("serializeAppUrl", () => {
       logColumn: 21.5,
       config: null,
       model: "hf" as const,
+      exchange: false,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
@@ -409,5 +410,19 @@ describe("zeeman b-field url state", () => {
   it("omits b when fine structure is off", () => {
     const url = serializeAppUrl({ ...URL_DEFAULTS, fineStructure: false, bField: 3 });
     expect(url).not.toContain("b=");
+  });
+
+  it("a link cannot land anyone in altered physics by omission", () => {
+    // Absence of the key means exchange is ON. A deep link written before this
+    // toggle existed, or one a user hand-trims, gets the real atom.
+    expect(URL_DEFAULTS.exchange).toBe(true);
+    expect(serializeAppUrl(URL_DEFAULTS)).not.toContain("nox");
+    expect(parseAppUrl("?system=ne&model=hf").exchange).toBeUndefined();
+  });
+
+  it("round-trips the counterfactual as nox=1", () => {
+    const off = serializeAppUrl({ ...URL_DEFAULTS, exchange: false });
+    expect(off).toContain("nox=1");
+    expect(parseAppUrl(off).exchange).toBe(false);
   });
 });

@@ -106,8 +106,8 @@ function HFLadder({ levels }: { levels: HFLevels }) {
     <div className="view-wrap">
       <div className="view-header">
         <span className="plot-title">
-          Hartree-Fock orbital energies ε_nl [eV]{" "}
-          <Badge provenance={levels.provenance} />
+          {levels.exchange ? "Hartree-Fock" : "Hartree (no exchange)"} orbital
+          energies ε_nl [eV] <Badge provenance={levels.provenance} />
         </span>
         <span className="plot-title">
           · {levels.symbol ?? `Z=${levels.z}`} {levels.config}
@@ -141,13 +141,33 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         })}
       </svg>
       <p className="caption">
-        Self-consistent-field orbital energies (APPROXIMATION — see the badge for
-        what Hartree-Fock leaves out, correlation above all). Energy axis is
-        logarithmic in binding energy <Badge provenance={HF_LADDER_AXIS_LIBERTY} />{" "}
-        because the 1s and the valence shell differ by more than two decades.
-        Total energy {levels.total_energy_ev.value.toFixed(2)} eV is variational,
-        unlike the screened model's sum of orbital energies.
+        Self-consistent-field orbital energies (
+        {levels.exchange
+          ? "APPROXIMATION — see the badge for what Hartree-Fock leaves out, correlation above all"
+          : "COUNTERFACTUAL — see the badge; this is not an approximation to the real atom"}
+        ). Energy axis is logarithmic in binding energy{" "}
+        <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
+        valence shell differ by more than two decades. Total energy{" "}
+        {levels.total_energy_ev.value.toFixed(2)} eV
+        {levels.exchange
+          ? " is variational, unlike the screened model's sum of orbital energies."
+          : " is stationary for this model, but it is not a variational bound on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons and the theorem does not apply to it."}
       </p>
+      {!levels.exchange && levels.exchange_energy_ev !== null && (
+        <p className="caption">
+          <strong>
+            Exchange is worth{" "}
+            {Math.abs(levels.exchange_energy_ev.value).toFixed(2)} eV of binding
+          </strong>{" "}
+          to this atom — the gap between the energy above and the Hartree-Fock
+          one, both solved on the same mesh. Exchange binds because same-spin
+          electrons keep out of each other's way, so they repel each other less
+          than distinguishable ones would.{" "}
+          {levels.exchange_energy_ev.value === 0
+            ? "Zero here, and that is the answer rather than a missing one: no two electrons in this configuration share a spin, so there is no pair to exchange."
+            : "The Pauli occupancies are untouched — nothing has piled into the 1s."}
+        </p>
+      )}
       <p className="caption">
         <strong>Solve diagnostics</strong> (NUMERICAL — these describe the
         computation, not the atom): {levels.converged ? "converged" : "DID NOT CONVERGE"}{" "}
@@ -170,6 +190,7 @@ export function LevelsView() {
     n, l, system, fineStructure, dirac, setDirac, bField, setBField,
     eField, setEField, hyperfine, setHyperfine, levels, spectrum,
     loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
+    exchange,
   } = useAppStore();
   const wantHF = model === "hf";
   useEffect(() => {
@@ -180,7 +201,7 @@ export function LevelsView() {
     // Only under the HF model, and only once per (system, config): the solve
     // costs seconds, so it is not something to fire on the chance it is wanted.
     if (wantHF && hf === null && hfStatus === "idle") void loadHF();
-  }, [wantHF, hf, hfStatus, system, config, loadHF]);
+  }, [wantHF, hf, hfStatus, system, config, exchange, loadHF]);
 
   if (wantHF) {
     if (hfStatus === "error") {

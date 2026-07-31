@@ -474,6 +474,21 @@ export interface HFLevels {
   symbol: string | null;
   config: string;
   is_ground: boolean;
+  /**
+   * False means exchange was removed: the Hartree model, in which electrons
+   * repel but are distinguishable. Read this rather than sniffing the
+   * provenance tier — a view that has to parse prose to learn which physics it
+   * is drawing will eventually draw the wrong one.
+   */
+  exchange: boolean;
+  /**
+   * E_HF − E_Hartree, in hartree. Negative, because exchange stabilizes; zero
+   * for an atom with no same-spin pair, which is the answer and not a missing
+   * value. Present only on a counterfactual solve, since only that one ran
+   * both models.
+   */
+  exchange_energy: Quantity | null;
+  exchange_energy_ev: Quantity | null;
   orbitals: HFOrbital[];
   total_energy: Quantity;
   total_energy_ev: Quantity;

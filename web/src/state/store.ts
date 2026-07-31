@@ -132,6 +132,19 @@ interface AppState {
    */
   hf: HFLevels | null;
   hfStatus: SampleStatus;
+  /**
+   * Whether the Hartree-Fock solve keeps its exchange term.
+   *
+   * False asks for the Hartree model: electrons that repel but are
+   * distinguishable, returned COUNTERFACTUAL. A physics input, so it clears
+   * `hf` exactly the way setConfig does — the two models are different atoms
+   * and a stale one must never sit under a flipped switch.
+   *
+   * True by default, and deliberately not remembered across a system change:
+   * altered physics should be something the user asked for on the atom in
+   * front of them, not something inherited from the last one.
+   */
+  exchange: boolean;
   labConst: ConstMultipliers;
   labZ: number;
   whatif: {
@@ -165,6 +178,7 @@ interface AppState {
   setSystem: (system: string) => void;
   setConfig: (config: string | null) => void;
   setModel: (model: AtomModel) => void;
+  setExchange: (exchange: boolean) => void;
   loadHF: () => Promise<void>;
   setBasis: (basis: Basis) => void;
   setView: (view: ViewMode) => void;
@@ -274,6 +288,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   model: "gsz",
   hf: null,
   hfStatus: "idle",
+  exchange: true,
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -292,6 +307,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       // a solve belongs to one atom; see the comment on `hf`
       hf: null,
       hfStatus: "idle" as SampleStatus,
+      // and altered physics does not follow the user to the next atom
+      exchange: true,
     }),
   // config is its own physics input (screened atoms only): it clears the derived
   // level/spectrum/state payloads but keeps the selected system.
@@ -308,6 +325,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   // the old one goes. The HF solve itself survives: it is keyed on the atom,
   // not on which model is being displayed, so switching away and back is free.
   setModel: (model) => set({ model, ...INVALIDATED }),
+  // Same shape as setConfig: the solve under the old setting is a different
+  // atom, so it goes rather than sitting stale beneath a flipped switch. The
+  // status goes back to idle rather than to sampling — nothing is running yet,
+  // and a view that reported "solving" before a request existed would be
+  // describing work nobody started.
+  setExchange: (exchange) => set({ exchange, hf: null, hfStatus: "idle" }),
   setBasis: (basis) =>
     set((s) => ({
       basis,
@@ -502,7 +525,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   loadHF: async () => {
-    const { system, config, systems, hfStatus } = get();
+    const { system, config, systems, hfStatus, exchange } = get();
     if (hfStatus === "sampling") return;
     // Z and the electron count live on the system table, so a solve cannot be
     // requested before it has loaded. Ask for it rather than guessing them
@@ -523,6 +546,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         z: info.z,
         n_electrons: info.n_electrons,
         config,
+        exchange,
       });
       // The solve reports no intermediate progress (the server says why), so
       // there is nothing to show between 0 and 1 and nothing is pretended.
