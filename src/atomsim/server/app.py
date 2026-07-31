@@ -44,7 +44,7 @@ from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
-from atomsim.hf_atom import HFResult, solve_hartree_fock
+from atomsim.hf_atom import HFResult, hf_exchange_energy, solve_hartree_fock
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
@@ -299,6 +299,10 @@ class HFRequest(BaseModel):
     z: int
     n_electrons: int | None = None  # defaults to neutral
     config: str | None = None       # defaults to the aufbau ground configuration
+    # False solves the Hartree model instead: electrons that repel but are
+    # distinguishable. Defaults to real physics, so a client that has never
+    # heard of the toggle cannot accidentally ask for the counterfactual.
+    exchange: bool = True
 
 
 # The outermost principal quantum number the solver actually converges.
@@ -318,6 +322,25 @@ _HF_MAX_N = 3
 # is already 1.8% of the 1s energy at Z = 36 (hf_atom quantifies it in the
 # provenance from Z = 9 up).
 _HF_MAX_Z = 36
+
+
+@dataclasses.dataclass(frozen=True)
+class HFJobResult:
+    """A finished solve, plus what exchange was worth if the job measured it.
+
+    A wrapper rather than a second endpoint, because the exchange energy is a
+    difference between two solves and the two have to be the same solves. If a
+    view fetched the Hartree-Fock energy from one job and the Hartree energy
+    from another, nothing would stop it differencing a warm result against a
+    cold one, or a fine mesh against a coarse one, and reporting the gap
+    between two calculations as the gap between two models.
+
+    None when the job ran only the real model, which is the common case and
+    costs one solve rather than two.
+    """
+
+    result: HFResult
+    exchange_energy: Quantity | None = None
 
 
 def _parse_config_or_422(text: str):
@@ -398,13 +421,24 @@ def _hf_symbol(z: int) -> str | None:
         return None
 
 
-def _hf_result_model(result: HFResult) -> HFResultModel:
+def _hf_result_model(
+    result: HFResult, exchange_energy: Quantity | None = None
+) -> HFResultModel:
     return HFResultModel(
         z=result.z,
         n_electrons=result.n_electrons,
         symbol=_hf_symbol(result.z),
         config=format_config(result.config),
         is_ground=result.is_ground,
+        exchange=result.exchange,
+        exchange_energy=(
+            None if exchange_energy is None
+            else QuantityModel.from_quantity(exchange_energy)
+        ),
+        exchange_energy_ev=(
+            None if exchange_energy is None
+            else QuantityModel.from_quantity(_to_ev(exchange_energy))
+        ),
         orbitals=[
             HFOrbitalModel(
                 n=o.n, l=o.l, label=f"{o.n}{SUBSHELL_LABELS[o.l]}",
@@ -1351,9 +1385,20 @@ def create_app() -> FastAPI:
             # solve_hartree_fock runs its own two-mesh loop with no progress
             # hook, so there is nothing honest to report between 0 and 1. A
             # synthetic ramp would look like information and be none.
-            result = solve_hartree_fock(req.z, n_electrons, config)
+            result = solve_hartree_fock(
+                req.z, n_electrons, config, req.exchange
+            )
+            # The counterfactual solve is the only one that owes the reader a
+            # comparison, and it is the only one that pays for a second solve.
+            # Cheap in practice: a client reaches this by turning exchange off
+            # on an atom it was just looking at, so the real solve is already
+            # memoized and this is arithmetic on two cached results.
+            delta = (
+                None if req.exchange
+                else hf_exchange_energy(req.z, n_electrons, config)
+            )
             progress(1.0)
-            return result
+            return HFJobResult(result, delta)
 
         loop = asyncio.get_running_loop()
         loop.run_in_executor(None, jobs.run, job.id, work)
@@ -1413,11 +1458,11 @@ def create_app() -> FastAPI:
         system_key = app.state.job_systems.get(job_id, "h")
         if isinstance(res, PlaneGrid):
             return _plane_meta(res, system_key)
-        if isinstance(res, HFResult):
+        if isinstance(res, HFJobResult):
             # Unlike sample and plane, the whole scientific result is here: the
             # energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
-            return _hf_result_model(res)
+            return _hf_result_model(res.result, res.exchange_energy)
         return _sample_meta(res, system_key)
 
     def _hf_channel_payload(res: HFResult, channel: str | None) -> np.ndarray:
@@ -1443,8 +1488,8 @@ def create_app() -> FastAPI:
                     status_code=422, detail="plane jobs have a single channel"
                 )
             payload = res.values.astype(np.float32)
-        elif isinstance(res, HFResult):
-            payload = _hf_channel_payload(res, channel)
+        elif isinstance(res, HFJobResult):
+            payload = _hf_channel_payload(res.result, channel)
         elif (channel or "positions") == "positions":
             payload = res.cloud.positions
         elif channel == "density":

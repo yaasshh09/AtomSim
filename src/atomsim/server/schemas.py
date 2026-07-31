@@ -276,6 +276,16 @@ class HFResultModel(BaseModel):
     symbol: str | None
     config: str
     is_ground: bool
+    # False means the exchange term was removed: the Hartree model, in which
+    # electrons repel but are distinguishable. Sent as a field rather than left
+    # for the client to infer from the provenance tier, because a view that has
+    # to parse prose to find out which physics it is drawing will eventually
+    # draw the wrong one.
+    exchange: bool = True
+    # E_HF - E_Hartree, present only on a solve that has both to compare, which
+    # in practice means the exchange-energy endpoint rather than a plain solve.
+    exchange_energy: QuantityModel | None = None
+    exchange_energy_ev: QuantityModel | None = None
     orbitals: list[HFOrbitalModel]
     total_energy: QuantityModel
     total_energy_ev: QuantityModel
