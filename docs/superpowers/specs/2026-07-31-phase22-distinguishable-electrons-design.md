@@ -120,3 +120,47 @@ about the numerics of the altered model, and is labeled as such.
 - Frontend: a checkbox next to the Hartree-Fock model selector, live only when
   the HF model is selected, wired into the store's `INVALIDATED` set because the
   levels it produces are different physics.
+
+---
+
+## 7. What building it changed
+
+**The store toggle is not in `INVALIDATED` after all.** Section 6 said it would
+be. It should not be: `INVALIDATED` clears everything derived from (n, l, m,
+system, basis), and an HF solve is derived from none of those. Putting the flag
+there would have thrown away seconds of solve on every click of n, for an answer
+that cannot change. It clears `hf` explicitly instead, the same shape `setConfig`
+already uses for the same reason.
+
+**The caption inherited a theorem that does not cover it.** The Hartree-Fock
+caption says the total energy "is variational, unlike the screened model's sum
+of orbital energies". Rendered under the counterfactual, that sentence was
+false: a product wavefunction is not antisymmetric, so it is not an admissible
+trial function for electrons, and the variational theorem says nothing about
+where its energy lands relative to the true one. It happens to land above. The
+counterfactual branch now says stationary-for-this-model and states why the
+bound does not apply. The same trap is already noted in `test_hf_exchange.py`,
+which deliberately does not assert the bound; the caption was the place it got
+through anyway, and it got through by being inherited rather than written.
+
+**Helium's zero is bit-exact, and that is worth more than a tolerance.** The
+prediction was "zero". What the code actually does for a single closed s shell
+is run bit-identical arithmetic down both paths - the exchange branches are
+empty loops, not small numbers - so the test asserts `== 0.0` rather than
+`approx(0)`. A tolerance there would hide the first term that ever starts
+contributing.
+
+**Magnitudes, measured.** E_HF - E_Hartree, in hartree: He 0 (exactly), Li
+0.0203, Be 0.0641, C 0.390, Ne 2.14, Ar 7.38 - between 0% and 1.7% of the total
+energy, always stabilizing, monotonic in Z over this set. Cross-checked against
+an independent count for neon: 5 spin-up electrons give C(5,2) = 10 same-spin
+pairs per spin, 20 in all, and an average exchange integral of order 0.1 hartree
+puts the total near 2. It is smaller than the exchange integrals evaluated on
+fixed Hartree-Fock orbitals would suggest, which is the expected direction: the
+Hartree solve relaxes its own orbitals and recovers part of the gap.
+
+**Convergence, not accuracy, is what the toggle costs.** Hartree takes more SCF
+iterations than Hartree-Fock on the closed shells, not fewer: neon needs 46
+coarse iterations against 15, carbon 28 against 16. Both converge well inside
+the budget and both hold the virial ratio to 2.000004, so this is a wall-clock
+note rather than a limit.
