@@ -33,6 +33,25 @@ still tests the angular coefficients rather than the mesh.
 Returns plain arrays, not Quantity or Field: these are intermediate eigenpairs
 of one channel, and hf_atom.py attaches provenance when it reports an atom.
 
+`exchange=False` turns Hartree-Fock into Hartree - the counterfactual model in
+which electrons repel each other but are not indistinguishable. Exchange enters
+this module in exactly three places and the flag has to reach all three, because
+they are not three copies of one calculation:
+
+    _fock_parts        the non-local operator the channel solve diagonalizes,
+    orbital_energy     the <P| K |P> expectation that makes eps_a,
+    _interaction_energy  the F_k (k>0) and G_k terms of the energy functional.
+
+What does NOT move with it is the (q_a - 1) factor in `direct_potential`. That
+is an electron declining to repel itself, which is classical electrostatics and
+true in either model; folding it into the exchange bucket would put a
+self-interaction error inside a number reported as the exchange energy.
+
+Half-applying the flag is caught for free: hf_atom.py's two total-energy routes
+run through the functional and through the operator respectively, so a mismatch
+raises HFConvergenceError on every atom rather than returning a plausible wrong
+energy.
+
 Hartree atomic units. P = r R(r), normalized as integral P^2 dr = 1.
 """
 
@@ -45,6 +64,7 @@ from scipy.sparse.linalg import LinearOperator, lobpcg
 
 from atomsim.analytic.wigner import wigner_3j
 from atomsim.numerics.hf_terms import (
+    ExchangeOperator,
     Subshell,
     direct_potential,
     exchange_apply,
@@ -68,6 +88,11 @@ __all__ = [
     "total_energy_direct",
     "total_energy_from_orbitals",
 ]
+
+# Exchange turned off, as an operator rather than as an absence. Frozen and
+# empty, so it is shared by every channel of every Hartree solve and applies as
+# a zero without a special case anywhere downstream.
+_NO_EXCHANGE = ExchangeOperator(terms=())
 
 
 @dataclass(frozen=True)
@@ -135,14 +160,22 @@ def fock_operator(
     v_nuclear: Callable[[np.ndarray], np.ndarray],
     l: int,
     mesh: RadialMesh,
+    *,
+    exchange: bool = True,
 ) -> LinearOperator:
     """The Fock operator for subshell a as a matrix-free LinearOperator.
 
     Acts on S, the mesh's working variable. Exchange lives in P, so its
     argument is carried across and its result carried back; both directions are
     the same diagonal scaling, which is what keeps the operator symmetric.
+
+    exchange=False drops the non-local term and leaves the Hartree operator:
+    the counterfactual model in which electrons repel but are distinguishable.
+    See the module docstring for what must move with it.
     """
-    return _fock_parts(subshells, a_index, v_nuclear, l, mesh)[0]
+    return _fock_parts(
+        subshells, a_index, v_nuclear, l, mesh, exchange=exchange
+    )[0]
 
 
 def _fock_parts(
@@ -151,6 +184,8 @@ def _fock_parts(
     v_nuclear: Callable[[np.ndarray], np.ndarray],
     l: int,
     mesh: RadialMesh,
+    *,
+    exchange: bool = True,
 ) -> tuple[LinearOperator, np.ndarray, np.ndarray]:
     """The Fock operator together with the local bands it was assembled from.
 
@@ -166,14 +201,19 @@ def _fock_parts(
     diag, offdiag = mesh.hamiltonian_bands(v_local, l)
     scale = np.sqrt(mesh.step * mesh.jacobian)
     # Built once, applied by every LOBPCG iteration. See hf_terms.
-    exchange = exchange_operator(subshells, a_index, r)
+    # The empty operator rather than a branch inside matvec: matvec runs
+    # hundreds of times per channel and the question is settled before any of
+    # them. An ExchangeOperator with no terms applies as an exact zero.
+    exchange_op = (
+        exchange_operator(subshells, a_index, r) if exchange else _NO_EXCHANGE
+    )
 
     def matvec(s: np.ndarray) -> np.ndarray:
         s = np.asarray(s, dtype=float).ravel()
         out = diag * s
         out[:-1] += offdiag * s[1:]
         out[1:] += offdiag * s[:-1]
-        return out - scale * exchange.apply(s / scale)
+        return out - scale * exchange_op.apply(s / scale)
 
     n = mesh.points
     op = LinearOperator((n, n), matvec=matvec, rmatvec=matvec, dtype=float)
@@ -230,6 +270,8 @@ def solve_channel(
     tol: float = 1e-6,
     residual_ceiling: float = 1e-3,
     maxiter: int = 150,
+    *,
+    exchange: bool = True,
 ) -> ChannelSolution:
     """Lowest n_states eigenpairs of the Fock operator in this l channel.
 
@@ -276,7 +318,9 @@ def solve_channel(
     gate but the grid-convergence and vendored-energy benchmarks.
     """
     r = mesh.r
-    op, diag, offdiag = _fock_parts(subshells, a_index, v_nuclear, l, mesh)
+    op, diag, offdiag = _fock_parts(
+        subshells, a_index, v_nuclear, l, mesh, exchange=exchange
+    )
     lowest = float(
         eigh_tridiagonal(
             diag, offdiag, select="i", select_range=(0, 0), eigvals_only=True
@@ -434,6 +478,8 @@ def orbital_energy(
     z: int,
     mesh: RadialMesh,
     v_nuclear: Callable[[np.ndarray], np.ndarray] | None = None,
+    *,
+    exchange: bool = True,
 ) -> float:
     """eps_a as the quadrature expectation <P_a| h + direct - exchange |P_a>.
 
@@ -465,35 +511,49 @@ def orbital_energy(
     v_nuc = (-z / r) if v_nuclear is None else np.asarray(v_nuclear(r), dtype=float)
     one = local_expectation(a.p, v_nuc, a.l, mesh)
     direct = float(np.trapezoid(a.p**2 * direct_potential(subshells, a_index, r), r))
-    exchange = float(
+    if not exchange:
+        return one + direct
+    k_term = float(
         np.trapezoid(a.p * exchange_apply(subshells, a_index, a.p, r), r)
     )
-    return one + direct - exchange
+    return one + direct - k_term
 
 
-def _interaction_energy(subshells: tuple[Subshell, ...], r: np.ndarray) -> float:
-    """The two-electron part of the average-of-configuration functional."""
+def _interaction_energy(
+    subshells: tuple[Subshell, ...], r: np.ndarray, *, exchange: bool = True
+) -> float:
+    """The two-electron part of the average-of-configuration functional.
+
+    The exchange terms are the ones carrying a squared 3j symbol - the k > 0
+    same-shell F_k and every cross-shell G_k - and exchange=False drops exactly
+    those, leaving the k = 0 Hartree repulsion. The (q_a - 1) and q_a q_b
+    counting factors are untouched: they say how many pairs there are, which
+    does not depend on whether the pairs are indistinguishable.
+    """
     total = 0.0
     for i, a in enumerate(subshells):
         total += (a.q * (a.q - 1) / 2.0) * slater_f(a.p, a.p, r, 0)
-        for k in range(2, 2 * a.l + 1, 2):
-            tj = wigner_3j(a.l, k, a.l, 0, 0, 0)
-            coeff = ((2 * a.l + 1) / (4 * a.l + 1)) * tj * tj
-            total -= (a.q * (a.q - 1) / 2.0) * coeff * slater_f(a.p, a.p, r, k)
+        if exchange:
+            for k in range(2, 2 * a.l + 1, 2):
+                tj = wigner_3j(a.l, k, a.l, 0, 0, 0)
+                coeff = ((2 * a.l + 1) / (4 * a.l + 1)) * tj * tj
+                total -= (a.q * (a.q - 1) / 2.0) * coeff * slater_f(a.p, a.p, r, k)
         for b in subshells[i + 1:]:
             total += a.q * b.q * slater_f(a.p, b.p, r, 0)
-            for k in range(abs(a.l - b.l), a.l + b.l + 1):
-                tj = wigner_3j(a.l, k, b.l, 0, 0, 0)
-                total -= 0.5 * a.q * b.q * tj * tj * slater_g(a.p, b.p, r, k)
+            if exchange:
+                for k in range(abs(a.l - b.l), a.l + b.l + 1):
+                    tj = wigner_3j(a.l, k, b.l, 0, 0, 0)
+                    total -= 0.5 * a.q * b.q * tj * tj * slater_g(a.p, b.p, r, k)
     return float(total)
 
 
 def total_energy_direct(
-    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh
+    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh, *,
+    exchange: bool = True,
 ) -> float:
     """Route 1: assemble the energy functional term by term."""
     one = sum(a.q * one_electron_integral(a, z, mesh) for a in subshells)
-    return float(one + _interaction_energy(subshells, mesh.r))
+    return float(one + _interaction_energy(subshells, mesh.r, exchange=exchange))
 
 
 def total_energy_from_orbitals(
@@ -518,7 +578,8 @@ def total_energy_from_orbitals(
 
 
 def kinetic_and_potential(
-    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh
+    z: int, subshells: tuple[Subshell, ...], mesh: RadialMesh, *,
+    exchange: bool = True,
 ) -> tuple[float, float]:
     """Route 3's inputs: total T and total V, for the virial ratio -V/T = 2.
 
@@ -535,7 +596,9 @@ def kinetic_and_potential(
         free = local_expectation(a.p, zero, a.l, mesh)
         kinetic += a.q * free
         nuclear += a.q * (one_electron_integral(a, z, mesh) - free)
-    return float(kinetic), float(nuclear + _interaction_energy(subshells, mesh.r))
+    return float(kinetic), float(
+        nuclear + _interaction_energy(subshells, mesh.r, exchange=exchange)
+    )
 
 
 def scf(
@@ -546,6 +609,8 @@ def scf(
     alpha: float = 0.65,
     max_iterations: int = 200,
     tol: float = 1e-8,
+    *,
+    exchange: bool = True,
 ) -> SCFSolution:
     """Self-consistent field loop with damped linear mixing.
 
@@ -584,7 +649,7 @@ def scf(
             k = a.n - a.l - 1
             channel = solve_channel(
                 current, index, v_nuclear, a.l, mesh, n_states=k + 1,
-                guess=a.p[None, :],
+                guess=a.p[None, :], exchange=exchange,
             )
             mixed = (1.0 - alpha) * a.p + alpha * channel.orbitals[k]
             mixed = mesh.normalized(mixed)

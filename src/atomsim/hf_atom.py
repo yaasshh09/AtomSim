@@ -54,6 +54,7 @@ __all__ = [
     "HFOrbital",
     "HFResult",
     "evaluate_hf_state",
+    "hf_exchange_energy",
     "hf_mesh",
     "hf_radial",
     "hf_valence_ionization_energy",
@@ -92,6 +93,34 @@ _MULTI_TERM_ASSUMPTION = (
     "average of configuration: one energy per configuration, not per term, so "
     "this energy lies among the terms the configuration splits into rather "
     "than on the lowest of them"
+)
+
+# Everything below is the exchange=False branch: the Hartree model.
+_HARTREE_METHOD = (
+    "self-consistent Hartree, average of configuration; the same solve with "
+    "the exchange term removed from the Fock operator and from the energy "
+    "functional"
+)
+# Leads the assumption list, and says which counterfactual this is. A badge
+# reading COUNTERFACTUAL without naming the altered rule is decoration.
+_HARTREE_ALTERATION = (
+    "COUNTERFACTUAL: electrons are treated as distinguishable, so the "
+    "wavefunction is a product rather than an antisymmetrized determinant and "
+    "there is no exchange term at all"
+)
+# The disclosure that stops the badge from being read as the stronger claim.
+_HARTREE_PAULI_INTACT = (
+    "the Pauli principle is NOT switched off: subshell occupancies are still "
+    "capped at 2(2l+1) and the configuration is unchanged, so this is 'the "
+    "wavefunction is not antisymmetric', not 'the electrons may all fall into 1s'"
+)
+_HARTREE_SELF_INTERACTION = (
+    "an electron still does not repel itself: the (q-1) pair count is "
+    "electrostatics, true in either model, and is not part of what was removed"
+)
+_HARTREE_REFINEMENT = (
+    "turn exchange back on; this model is not an approximation to the real "
+    "atom that a better calculation would improve on"
 )
 _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would "
@@ -145,8 +174,12 @@ class HFResult:
     n_electrons: int
     config: Configuration
     is_ground: bool
+    # False means the Hartree model: distinguishable electrons, no exchange.
+    # Carried on the result rather than left implicit in the provenance text so
+    # a caller can branch on it without parsing prose.
+    exchange: bool
     orbitals: tuple[HFOrbital, ...]
-    total_energy: Quantity  # APPROXIMATION
+    total_energy: Quantity  # APPROXIMATION, or COUNTERFACTUAL if exchange=False
     kinetic: Quantity  # NUMERICAL
     potential: Quantity  # NUMERICAL
     virial_ratio: Quantity  # NUMERICAL, target 2
@@ -302,7 +335,9 @@ def _relativistic_scale(z: int) -> float:
     return abs(relativistic - schrodinger) / abs(schrodinger)
 
 
-def _energy_assumptions(config: Configuration, z: int) -> tuple[str, ...]:
+def _energy_assumptions(
+    config: Configuration, z: int, exchange: bool = True
+) -> tuple[str, ...]:
     """What this configuration actually costs the reader, and nothing more.
 
     Two of the four claims are conditional, because disclosing a limitation the
@@ -318,6 +353,16 @@ def _energy_assumptions(config: Configuration, z: int) -> tuple[str, ...]:
     none of them.
     """
     out = list(_TOTAL_ENERGY_ASSUMPTIONS)
+    if not exchange:
+        # Ahead of the rest, because these change what the number IS rather
+        # than how close it lands to the truth. The correlation line keeps its
+        # place behind them and stays true: Hartree is missing correlation as
+        # well as exchange, and the reader is owed both.
+        out[:0] = [
+            _HARTREE_ALTERATION,
+            _HARTREE_PAULI_INTACT,
+            _HARTREE_SELF_INTERACTION,
+        ]
     if z >= _RELATIVITY_WORTH_STATING_Z:
         out.append(
             f"neglects relativity, which at Z = {z} shifts the hydrogenic 1s "
@@ -337,6 +382,7 @@ def _solve_on_grid(
     config: Configuration,
     mesh: RadialMesh,
     start: tuple[Subshell, ...] | None,
+    exchange: bool = True,
 ) -> tuple[SCFSolution, tuple[float, ...], float]:
     """Run the SCF on one mesh; return the solution, the quadrature orbital
     energies and the directly assembled total energy."""
@@ -348,23 +394,31 @@ def _solve_on_grid(
     # more significant figures as Z grows. Scale it to keep the demand fixed at
     # roughly ten digits on the 1s level.
     solution = scf(
-        z, start, lambda rr: -z / rr, mesh, tol=1e-9 * max(1, z**2)
+        z, start, lambda rr: -z / rr, mesh, tol=1e-9 * max(1, z**2),
+        exchange=exchange,
     )
     energies = tuple(
-        orbital_energy(solution.subshells, i, z, mesh)
+        orbital_energy(solution.subshells, i, z, mesh, exchange=exchange)
         for i in range(len(solution.subshells))
     )
-    return solution, energies, total_energy_direct(z, solution.subshells, mesh)
+    return solution, energies, total_energy_direct(
+        z, solution.subshells, mesh, exchange=exchange
+    )
 
 
 @lru_cache(maxsize=8)
 def solve_hartree_fock(
-    z: int, n_electrons: int, config: Configuration
+    z: int, n_electrons: int, config: Configuration, exchange: bool = True
 ) -> HFResult:
     """Converge the restricted Hartree-Fock equations for one atom or ion.
 
     Raises HFConvergenceError rather than returning an unconverged result: a
     HFResult with converged=False would be a quiet lie in object form.
+
+    exchange=False solves the Hartree model instead - electrons that repel but
+    are distinguishable - and the result comes back COUNTERFACTUAL rather than
+    APPROXIMATION. It is a positional argument and part of the cache key, so
+    the two models never share a cached solve.
     """
     if z < 1:
         raise ValueError(f"Z must be >= 1, got {z}")
@@ -381,11 +435,12 @@ def solve_hartree_fock(
     coarse_mesh = hf_mesh(z, n_electrons, n_top, refinement=1)
     mesh = hf_mesh(z, n_electrons, n_top, refinement=2)
     coarse, coarse_energies, e_coarse = _solve_on_grid(
-        z, n_electrons, config, coarse_mesh, start=None
+        z, n_electrons, config, coarse_mesh, start=None, exchange=exchange
     )
     solution, energies, e_direct = _solve_on_grid(
         z, n_electrons, config, mesh,
         start=_refine(coarse, coarse_mesh, mesh),
+        exchange=exchange,
     )
 
     # Route 2 shares no code with route 1 beyond the one-electron integral, so
@@ -398,12 +453,20 @@ def solve_hartree_fock(
             f"that is a coding error, not a discretization one"
         )
 
-    kinetic, potential = kinetic_and_potential(z, solution.subshells, mesh)
+    kinetic, potential = kinetic_and_potential(
+        z, solution.subshells, mesh, exchange=exchange
+    )
 
-    assumptions = _energy_assumptions(config, z)
+    assumptions = _energy_assumptions(config, z, exchange)
     energy_prov = Provenance(
-        fidelity=Fidelity.APPROXIMATION,
-        method=_TOTAL_ENERGY_METHOD,
+        # COUNTERFACTUAL rather than APPROXIMATION when exchange is off, and
+        # the distinction is not cosmetic. The truth-distance tiers say how far
+        # a number is from the real atom; this number is not trying to be the
+        # real atom at all. Calling it APPROXIMATION would invite the reader to
+        # treat the gap to the reference energy as an error, when the gap IS
+        # the physics the toggle exists to show.
+        fidelity=Fidelity.APPROXIMATION if exchange else Fidelity.COUNTERFACTUAL,
+        method=_TOTAL_ENERGY_METHOD if exchange else _HARTREE_METHOD,
         assumptions=assumptions,
         # Two independent error sources, added rather than maxed because they
         # are independent: the spread between the two meshes, which measures
@@ -417,7 +480,7 @@ def solve_hartree_fock(
         error_estimate=(
             abs(e_direct - e_coarse) + _MESH_FLOOR_RELATIVE * abs(e_direct)
         ),
-        refinement=_TOTAL_ENERGY_REFINEMENT,
+        refinement=_TOTAL_ENERGY_REFINEMENT if exchange else _HARTREE_REFINEMENT,
     )
     diagnostic_prov = Provenance(
         fidelity=Fidelity.NUMERICAL,
@@ -436,10 +499,16 @@ def solve_hartree_fock(
     # for the orbital SHAPE is not something this solve estimates, and saying
     # nothing is the honest form of not knowing.
     shape_prov = Provenance(
-        fidelity=Fidelity.APPROXIMATION,
-        method=f"{_TOTAL_ENERGY_METHOD}; radial amplitude sampled on the solver mesh",
+        # The orbital SHAPE is as counterfactual as the energy. Exchange changes
+        # the operator these came out of, so a Hartree 2s is a different curve,
+        # not the same curve at a different accuracy.
+        fidelity=Fidelity.APPROXIMATION if exchange else Fidelity.COUNTERFACTUAL,
+        method=(
+            f"{_TOTAL_ENERGY_METHOD if exchange else _HARTREE_METHOD}; "
+            f"radial amplitude sampled on the solver mesh"
+        ),
         assumptions=assumptions,
-        refinement=_TOTAL_ENERGY_REFINEMENT,
+        refinement=_TOTAL_ENERGY_REFINEMENT if exchange else _HARTREE_REFINEMENT,
     )
 
     orbitals = tuple(
@@ -471,11 +540,15 @@ def solve_hartree_fock(
     )
 
     return HFResult(
-        key=f"z{z}n{n_electrons}",
+        # The key names the calculation, not just the atom, so a Hartree solve
+        # and a Hartree-Fock solve of the same atom cannot be mistaken for each
+        # other anywhere downstream that caches or labels by key.
+        key=f"z{z}n{n_electrons}" + ("" if exchange else "-nox"),
         z=z,
         n_electrons=n_electrons,
         config=config,
         is_ground=is_ground(config),
+        exchange=exchange,
         orbitals=orbitals,
         total_energy=Quantity(e_direct, "hartree", "E_total", energy_prov),
         kinetic=Quantity(kinetic, "hartree", "T", diagnostic_prov),
@@ -533,6 +606,66 @@ def hf_valence_ionization_energy(result: HFResult) -> Quantity:
         ),
     )
     return Quantity(-valence.energy.value, "hartree", "IE_valence", prov)
+
+
+def hf_exchange_energy(
+    z: int, n_electrons: int, config: Configuration
+) -> Quantity:
+    """E_HF - E_Hartree: what antisymmetry is worth to this atom, in hartree.
+
+    Negative, because exchange stabilizes. Both models are solved here rather
+    than subtracted by the caller, and that is the point of the function
+    existing: the two energies must come off the same mesh at the same
+    refinement, and a UI that fetched them separately would be free to difference
+    a fine solve against a coarse one and report the mesh spread as physics.
+
+    Zero, exactly, for helium and for every other atom whose configuration is a
+    single closed s shell - and that is the model being right, not the toggle
+    failing. Exchange couples same-spin pairs only; 1s2 holds one spin up and one
+    spin down, so there is no such pair and `exchange_operator` builds no terms.
+    The k = 0 same-shell integral that a reader might expect to see here is
+    already carried by the (q - 1) factor in the direct potential, where it
+    belongs, in both models.
+
+    The difference of two variational energies is not itself variational, so
+    this carries no error bar against any exact quantity. It gets the loosest of
+    the two solves' mesh estimates, which is an honest statement about the
+    arithmetic and not a claim about the physics.
+    """
+    with_exchange = solve_hartree_fock(z, n_electrons, config, True)
+    without = solve_hartree_fock(z, n_electrons, config, False)
+    delta = with_exchange.total_energy.value - without.total_energy.value
+
+    return Quantity(
+        delta,
+        "hartree",
+        "E_exchange",
+        Provenance(
+            # COUNTERFACTUAL, because half of what produced it is: this number
+            # cannot be measured, only computed by running an experiment on a
+            # universe that does not exist and differencing.
+            fidelity=Fidelity.COUNTERFACTUAL,
+            method=(
+                "E(Hartree-Fock) - E(Hartree): the same atom on the same mesh, "
+                "solved once with the exchange term and once without"
+            ),
+            assumptions=(
+                "the stabilization an antisymmetric wavefunction buys, at the "
+                "average-of-configuration level; not an observable",
+                "exactly zero whenever no two electrons share a spin, which "
+                "includes helium and every closed single-s-shell configuration",
+            )
+            + _TOTAL_ENERGY_ASSUMPTIONS,
+            error_estimate=max(
+                with_exchange.total_energy.provenance.error_estimate or 0.0,
+                without.total_energy.provenance.error_estimate or 0.0,
+            ),
+            refinement=(
+                "correlation energy is the other half of what a single "
+                "determinant misses, and is not included in this difference"
+            ),
+        ),
+    )
 
 
 def _occupied_orbital(z: int, n_electrons: int, n: int, l: int) -> HFOrbital:
