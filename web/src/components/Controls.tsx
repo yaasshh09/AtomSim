@@ -92,7 +92,7 @@ export function Controls() {
               }}
             />
           </label>
-          <p className="hint">
+          <p className="panel-hint">
             {config === null
               ? "Aufbau ground configuration (default)"
               : resolved
@@ -120,7 +120,7 @@ export function Controls() {
               Hartree-Fock
             </label>
           </div>
-          <p className="hint">
+          <p className="panel-hint">
             {model === "gsz"
               ? "Fitted central field: one potential for every electron, no self-consistency."
               : "Self-consistent field, solved per subshell. Reaches the Energy levels view only — the cloud, cross-section and radial views are still the screened model, and say so on their own badges."}

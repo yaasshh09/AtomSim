@@ -73,12 +73,25 @@ body {
   position: relative;
 }
 
+/* A canvas overlay: centred over the view and pinned above its bottom edge.
+   It only lands where it is meant to because `.canvas-wrap` is positioned. */
 .hint {
   position: absolute;
   inset: auto 0 2rem 0;
   text-align: center;
   color: var(--muted);
   pointer-events: none;
+}
+
+/* The in-panel sibling of `.hint`, and the reason the two are not one class.
+   The controls sidebar is not a positioned ancestor, so `.hint` used there
+   escaped to the page's own bottom edge, full width, and drew both
+   configuration hints across the gallery strip in the middle of the screen.
+   These are ordinary paragraphs in the flow of a panel and now say so. */
+.panel-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
 }
 
 label {
