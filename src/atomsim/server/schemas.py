@@ -255,6 +255,35 @@ class HFOrbitalModel(BaseModel):
     channel: str
 
 
+class PauliCollapseModel(BaseModel):
+    """The real atom carried alongside the collapsed one, so the view can say
+    what the exclusion principle was worth without fetching it separately.
+
+    Both halves come off one comparison in the engine rather than two requests,
+    for the reason the exchange energy does: a client free to difference two
+    jobs is free to difference a warm solve against a cold one and report the
+    gap between two calculations as the gap between two models.
+
+    The variational fields are the closed-form check - N electrons in one 1s of
+    exponent zeta - and they are here so the page can show that the collapsed
+    number was tested against something outside this codebase.
+    """
+
+    #: E(collapsed) - E(real). Negative: the collapsed atom is far more bound.
+    binding_change: QuantityModel
+    binding_change_ev: QuantityModel
+    real_total_energy: QuantityModel
+    real_total_energy_ev: QuantityModel
+    real_config: str
+    real_radius: QuantityModel
+    collapsed_radius: QuantityModel
+    #: <r>(collapsed) / <r>(real), below 1 and falling with Z.
+    radius_ratio: QuantityModel
+    variational_zeta: QuantityModel
+    variational_energy: QuantityModel
+    variational_energy_ev: QuantityModel
+
+
 class HFResultModel(BaseModel):
     """A finished Hartree-Fock solve, as the browser sees it.
 
@@ -286,6 +315,17 @@ class HFResultModel(BaseModel):
     # in practice means the exchange-energy endpoint rather than a plain solve.
     exchange_energy: QuantityModel | None = None
     exchange_energy_ev: QuantityModel | None = None
+    # False means the occupancy cap was lifted as well and the configuration
+    # collapsed to 1s^N. Its own field rather than inferred from `exchange`,
+    # because exchange=False on its own is the weaker counterfactual in which
+    # the cap is still enforced, and a view that conflated them would show the
+    # wrong disclosure for whichever one it guessed.
+    pauli: bool = True
+    # The real atom next to the collapsed one. Present only on a pauli=False
+    # solve of a ground configuration; a hand-written collapsed configuration
+    # has no "same atom with the cap on" to be compared against, so nothing is
+    # sent rather than a comparison against a different configuration.
+    collapse: PauliCollapseModel | None = None
     orbitals: list[HFOrbitalModel]
     total_energy: QuantityModel
     total_energy_ev: QuantityModel

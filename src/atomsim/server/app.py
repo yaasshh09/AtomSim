@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic import Field as PydanticField
 
 import atomsim
@@ -44,7 +44,13 @@ from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
-from atomsim.hf_atom import HFResult, hf_exchange_energy, solve_hartree_fock
+from atomsim.hf_atom import (
+    HFResult,
+    PauliCollapse,
+    hf_exchange_energy,
+    pauli_collapse,
+    solve_hartree_fock,
+)
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
@@ -70,6 +76,7 @@ from atomsim.server.schemas import (
     HFOrbitalModel,
     HFResultModel,
     LineModel,
+    PauliCollapseModel,
     PotentialCurveModel,
     ProfileModel,
     ProvenanceModel,
@@ -303,6 +310,30 @@ class HFRequest(BaseModel):
     # distinguishable. Defaults to real physics, so a client that has never
     # heard of the toggle cannot accidentally ask for the counterfactual.
     exchange: bool = True
+    # False lifts the occupancy cap too, and the configuration collapses to
+    # 1s^N. Same default and the same reason.
+    pauli: bool = True
+
+    @model_validator(mode="after")
+    def _pauli_off_implies_exchange_off(self) -> "HFRequest":
+        """Refuse the combination rather than quietly flipping a flag.
+
+        422 rather than 400 because this is a request that cannot be
+        understood, not one the server is declining: pauli=False with
+        exchange=True does not name a model this or any solver could run. A
+        Slater determinant holding two electrons in the same spin-orbital is
+        identically zero, so there is no wavefunction there for an exchange
+        integral to act on. Correcting it for the client would hide that they
+        asked for a state that does not exist.
+        """
+        if not self.pauli and self.exchange:
+            raise ValueError(
+                "pauli=false requires exchange=false: exchange energy is a "
+                "consequence of antisymmetry and the exclusion principle IS "
+                "antisymmetry, so with the principle off there is nothing for "
+                "an exchange integral to act on"
+            )
+        return self
 
 
 # The outermost principal quantum number the solver actually converges.
@@ -341,9 +372,14 @@ class HFJobResult:
 
     result: HFResult
     exchange_energy: Quantity | None = None
+    #: The real atom beside the collapsed one, on a pauli=False ground solve.
+    #: Same reasoning as exchange_energy: a comparison between two models has
+    #: to be made from two solves that are known to match, so it is assembled
+    #: here rather than left for a client to difference across two jobs.
+    collapse: PauliCollapse | None = None
 
 
-def _parse_config_or_422(text: str):
+def _parse_config_or_422(text: str, pauli: bool = True):
     """Parse a hand-written configuration string, 422 on malformed input.
 
     Two status codes are in play here and the split is deliberate. 422 means
@@ -351,16 +387,19 @@ def _parse_config_or_422(text: str):
     means it was understood perfectly and the server is declining it, which is
     what _validate_hf_request returns: a neutral potassium atom is a real,
     well-posed request that this solver cannot answer honestly.
+
+    With pauli off, "1s10" IS a configuration, so the capacity check goes away
+    here as well; n > l stays, because that one is not the exclusion principle.
     """
     try:
         cfg = parse_config(text)
-        validate_config(cfg)
+        validate_config(cfg, pauli)
     except (ValueError, IndexError) as exc:
         raise HTTPException(status_code=422, detail=f"bad config: {exc}") from exc
     return cfg
 
 
-def _validate_hf_request(z: int, n_electrons: int, config) -> None:
+def _validate_hf_request(z: int, n_electrons: int, config, pauli: bool = True) -> None:
     """Refuse what the solver cannot do, with the reason, before starting a job."""
     if not 1 <= z <= _HF_MAX_Z:
         raise HTTPException(
@@ -377,7 +416,7 @@ def _validate_hf_request(z: int, n_electrons: int, config) -> None:
             detail=f"electron count must be in [1, Z+1] = [1, {z + 1}], got {n_electrons}",
         )
     try:
-        validate_config(config)
+        validate_config(config, pauli)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if total_electrons(config) != n_electrons:
@@ -421,8 +460,30 @@ def _hf_symbol(z: int) -> str | None:
         return None
 
 
+def _pauli_collapse_model(collapse: PauliCollapse) -> PauliCollapseModel:
+    return PauliCollapseModel(
+        binding_change=QuantityModel.from_quantity(collapse.binding_change),
+        binding_change_ev=QuantityModel.from_quantity(_to_ev(collapse.binding_change)),
+        real_total_energy=QuantityModel.from_quantity(collapse.real.total_energy),
+        real_total_energy_ev=QuantityModel.from_quantity(
+            _to_ev(collapse.real.total_energy)
+        ),
+        real_config=format_config(collapse.real.config),
+        real_radius=QuantityModel.from_quantity(collapse.real_radius),
+        collapsed_radius=QuantityModel.from_quantity(collapse.collapsed_radius),
+        radius_ratio=QuantityModel.from_quantity(collapse.radius_ratio),
+        variational_zeta=QuantityModel.from_quantity(collapse.variational_zeta),
+        variational_energy=QuantityModel.from_quantity(collapse.variational_energy),
+        variational_energy_ev=QuantityModel.from_quantity(
+            _to_ev(collapse.variational_energy)
+        ),
+    )
+
+
 def _hf_result_model(
-    result: HFResult, exchange_energy: Quantity | None = None
+    result: HFResult,
+    exchange_energy: Quantity | None = None,
+    collapse: PauliCollapse | None = None,
 ) -> HFResultModel:
     return HFResultModel(
         z=result.z,
@@ -439,6 +500,8 @@ def _hf_result_model(
             None if exchange_energy is None
             else QuantityModel.from_quantity(_to_ev(exchange_energy))
         ),
+        pauli=result.pauli,
+        collapse=None if collapse is None else _pauli_collapse_model(collapse),
         orbitals=[
             HFOrbitalModel(
                 n=o.n, l=o.l, label=f"{o.n}{SUBSHELL_LABELS[o.l]}",
@@ -1373,11 +1436,19 @@ def create_app() -> FastAPI:
         """
         n_electrons = req.z if req.n_electrons is None else req.n_electrons
         config = (
-            aufbau_configuration(n_electrons)
+            aufbau_configuration(n_electrons, req.pauli)
             if req.config is None
-            else _parse_config_or_422(req.config)
+            else _parse_config_or_422(req.config, req.pauli)
         )
-        _validate_hf_request(req.z, n_electrons, config)
+        _validate_hf_request(req.z, n_electrons, config, req.pauli)
+        # A collapsed solve is compared against the real atom only when it is
+        # the ground configuration of its own rule. A hand-written 1s5 2s3 has
+        # no "same atom with the cap on" to be measured against, and comparing
+        # it to the Aufbau ground state would report the distance between two
+        # different configurations as the cost of the exclusion principle.
+        comparable = not req.pauli and config == aufbau_configuration(
+            n_electrons, pauli=False
+        )
 
         job = jobs.create()
 
@@ -1386,19 +1457,20 @@ def create_app() -> FastAPI:
             # hook, so there is nothing honest to report between 0 and 1. A
             # synthetic ramp would look like information and be none.
             result = solve_hartree_fock(
-                req.z, n_electrons, config, req.exchange
+                req.z, n_electrons, config, req.exchange, req.pauli
             )
-            # The counterfactual solve is the only one that owes the reader a
-            # comparison, and it is the only one that pays for a second solve.
-            # Cheap in practice: a client reaches this by turning exchange off
-            # on an atom it was just looking at, so the real solve is already
-            # memoized and this is arithmetic on two cached results.
+            # The counterfactual solves are the only ones that owe the reader a
+            # comparison, and they are the only ones that pay for a second
+            # solve. Cheap in practice: a client reaches these by flipping a
+            # switch on an atom it was just looking at, so the real solve is
+            # already memoized and this is arithmetic on two cached results.
             delta = (
-                None if req.exchange
+                None if req.exchange or not req.pauli
                 else hf_exchange_energy(req.z, n_electrons, config)
             )
+            collapse = pauli_collapse(req.z, n_electrons) if comparable else None
             progress(1.0)
-            return HFJobResult(result, delta)
+            return HFJobResult(result, delta, collapse)
 
         loop = asyncio.get_running_loop()
         loop.run_in_executor(None, jobs.run, job.id, work)
@@ -1462,7 +1534,7 @@ def create_app() -> FastAPI:
             # Unlike sample and plane, the whole scientific result is here: the
             # energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
-            return _hf_result_model(res.result, res.exchange_energy)
+            return _hf_result_model(res.result, res.exchange_energy, res.collapse)
         return _sample_meta(res, system_key)
 
     def _hf_channel_payload(res: HFResult, channel: str | None) -> np.ndarray:

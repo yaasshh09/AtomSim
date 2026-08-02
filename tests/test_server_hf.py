@@ -266,3 +266,125 @@ def test_the_orbital_amplitudes_still_come_back_as_float32(client):
     grid = np.frombuffer(r.content, dtype=np.float32)
     assert grid.size == meta["grid_points"]
     assert np.all(np.diff(grid) > 0)
+
+
+# --------------------------------------------------------------------------
+# Phase 24: the occupancy cap lifted as well
+# --------------------------------------------------------------------------
+
+
+def test_pauli_defaults_on_so_the_collapse_cannot_arrive_by_accident(client):
+    _, meta = _run(client, z=4)
+    assert meta["pauli"] is True
+    assert meta["collapse"] is None
+
+
+def test_pauli_off_with_exchange_on_is_refused_by_the_schema(client):
+    """422, and the body says why.
+
+    Not 400: 400 is the server declining a well-posed request, and this one is
+    not well posed. There is no such model to decline.
+    """
+    r = client.post("/api/jobs/hf", json={"z": 4, "pauli": False, "exchange": True})
+    assert r.status_code == 422
+    assert "antisymmetry" in r.text
+
+
+def test_pauli_off_collapses_the_configuration_to_one_orbital(client):
+    _, meta = _run(client, z=10, pauli=False, exchange=False)
+    assert meta["pauli"] is False
+    assert meta["exchange"] is False
+    assert meta["config"] == "1s10"
+    assert len(meta["orbitals"]) == 1
+    assert meta["orbitals"][0]["occupancy"] == 10
+    # Ground for its own rule, which is the only rule in force here.
+    assert meta["is_ground"] is True
+
+
+def test_the_collapsed_energy_arrives_counterfactual_everywhere(client):
+    _, meta = _run(client, z=10, pauli=False, exchange=False)
+    assert meta["total_energy"]["provenance"]["fidelity"] == "counterfactual"
+    assert all(
+        c["provenance"]["fidelity"] == "counterfactual" for c in meta["channels"]
+    )
+    assert all(
+        o["energy"]["provenance"]["fidelity"] == "counterfactual"
+        for o in meta["orbitals"]
+    )
+
+
+def test_the_collapsed_solve_brings_the_real_atom_with_it(client):
+    """Same reason the exchange energy travels with its solve.
+
+    A view that fetched "the real neon" from one job and "collapsed neon" from
+    another could difference a fine mesh against a coarse one and call the
+    remainder the cost of the exclusion principle.
+    """
+    _, meta = _run(client, z=10, pauli=False, exchange=False)
+    collapse = meta["collapse"]
+    assert collapse is not None
+    assert collapse["real_config"] == "1s2 2s2 2p6"
+    # More bound, and by a lot: nothing holds the electrons out of the well.
+    assert collapse["binding_change"]["value"] < 0
+    assert collapse["binding_change_ev"]["unit"] == "eV"
+    assert collapse["real_total_energy"]["value"] == pytest.approx(-128.55, abs=0.05)
+    # Smaller, which is the half of it a picture can show.
+    assert collapse["radius_ratio"]["value"] < 1.0
+    assert (
+        collapse["collapsed_radius"]["value"] < collapse["real_radius"]["value"]
+    )
+    assert collapse["real_radius"]["unit"] == "bohr"
+
+
+def test_the_external_check_travels_to_the_browser(client):
+    """The closed-form bound, so the page can show what the number was tested
+    against rather than asking to be believed."""
+    _, meta = _run(client, z=10, pauli=False, exchange=False)
+    collapse = meta["collapse"]
+    # zeta* = 10 - 45/16.
+    assert collapse["variational_zeta"]["value"] == pytest.approx(7.1875, abs=1e-9)
+    assert collapse["variational_energy"]["value"] == pytest.approx(-258.30, abs=0.01)
+    # And the SCF came in at or below it, which is the whole point of sending it.
+    assert meta["total_energy"]["value"] <= collapse["variational_energy"]["value"]
+
+
+def test_the_stronger_disclosure_replaces_the_weaker_one_over_the_wire(client):
+    """Phase 22 tells the browser the cap is still on. This must not."""
+    _, meta = _run(client, z=10, pauli=False, exchange=False)
+    joined = " ".join(meta["total_energy"]["provenance"]["assumptions"]).lower()
+    assert "occupancy cap is gone" in joined
+    assert "pauli principle is not switched off" not in joined
+    assert "term structure is undefined" in joined
+
+
+def test_a_hand_written_collapsed_configuration_is_accepted_without_a_comparison(
+    client,
+):
+    """1s3 2s1 is a legal configuration with the cap off, and has no twin.
+
+    There is no "same atom with Pauli on" for it to be measured against, so the
+    server sends no comparison rather than one against the Aufbau ground state,
+    which would report the distance between two different configurations as the
+    cost of the exclusion principle.
+    """
+    _, meta = _run(client, z=4, pauli=False, exchange=False, config="1s3 2s1")
+    assert meta["config"] == "1s3 2s1"
+    assert meta["collapse"] is None
+    assert meta["is_ground"] is False
+
+
+def test_the_cap_still_binds_when_pauli_is_on(client):
+    """The same configuration, refused, because the rule is back."""
+    r = client.post("/api/jobs/hf", json={"z": 4, "config": "1s3 2s1"})
+    assert r.status_code == 422
+    assert "exceeds capacity" in r.text
+
+
+def test_the_collapsed_orbital_still_serves_its_amplitude(client):
+    job_id, meta = _run(client, z=10, pauli=False, exchange=False)
+    channel = meta["orbitals"][0]["channel"]
+    assert channel == "P_1s"
+    r = client.get(f"/api/jobs/{job_id}/data", params={"channel": channel})
+    assert r.status_code == 200
+    amplitude = np.frombuffer(r.content, dtype=np.float32)
+    assert amplitude.size == meta["grid_points"]
