@@ -115,6 +115,7 @@ describe("serializeAppUrl", () => {
       config: null,
       model: "hf" as const,
       exchange: false,
+      pauli: false,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
@@ -424,5 +425,26 @@ describe("zeeman b-field url state", () => {
     const off = serializeAppUrl({ ...URL_DEFAULTS, exchange: false });
     expect(off).toContain("nox=1");
     expect(parseAppUrl(off).exchange).toBe(false);
+  });
+
+  it("the stronger counterfactual cannot arrive by omission either", () => {
+    expect(URL_DEFAULTS.pauli).toBe(true);
+    expect(serializeAppUrl(URL_DEFAULTS)).not.toContain("nopauli");
+    expect(parseAppUrl("?system=ne&model=hf").pauli).toBeUndefined();
+  });
+
+  it("writes both keys for the collapse, since it means both things", () => {
+    const off = serializeAppUrl({ ...URL_DEFAULTS, pauli: false, exchange: false });
+    expect(off).toContain("nopauli=1");
+    expect(off).toContain("nox=1");
+  });
+
+  it("reads a hand-trimmed nopauli=1 as the collapse it obviously means", () => {
+    // Honouring `nopauli=1` without `nox` literally would build a request the
+    // API answers 422 to, which is a worse reading of the intent than the
+    // obvious one: the cap and antisymmetry are one rule.
+    const parsed = parseAppUrl("?system=ne&model=hf&nopauli=1");
+    expect(parsed.pauli).toBe(false);
+    expect(parsed.exchange).toBe(false);
   });
 });

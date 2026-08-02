@@ -93,6 +93,19 @@ export interface UrlState {
    * near-collision too many already.
    */
   exchange: boolean;
+  /**
+   * Whether the Hartree-Fock solve keeps the occupancy cap.
+   *
+   * False collapses the configuration to 1s^N. Serialized as `nopauli=1`, same
+   * polarity and same reason as `nox`: absence means real physics, so no link
+   * written before this existed can put a reader inside a counterfactual.
+   *
+   * `nopauli=1` implies exchange off, and the parser enforces that rather than
+   * trusting the query string. A hand-edited `?nopauli=1` with no `nox` is not
+   * a state to honour literally — it names a model the API rejects — so it is
+   * read as the collapse it obviously means.
+   */
+  pauli: boolean;
 }
 
 export const URL_DEFAULTS: UrlState = {
@@ -131,6 +144,7 @@ export const URL_DEFAULTS: UrlState = {
   config: null,
   model: "gsz",
   exchange: true,
+  pauli: true,
 };
 
 // a config string is compact subshell tokens: "1s2 2s2 2p6 3p1"
@@ -209,6 +223,14 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   if (model) out.model = model;
 
   if (q.get("nox") === "1") out.exchange = false;
+  // The cap and antisymmetry are one rule, so `nopauli=1` carries `nox` with
+  // it whether or not the link says so. Honouring a bare `?nopauli=1`
+  // literally would build a request the API answers 422 to, which is a worse
+  // reading of the user's intent than the obvious one.
+  if (q.get("nopauli") === "1") {
+    out.pauli = false;
+    out.exchange = false;
+  }
 
   const basis = pickEnum(q.get("basis"), BASES);
   if (basis) out.basis = basis;
@@ -381,6 +403,10 @@ export function serializeAppUrl(state: UrlState): string {
   // carry the state it was written from.
   if (state.model !== URL_DEFAULTS.model) q.set("model", state.model);
   if (!state.exchange) q.set("nox", "1");
+  // Written alongside `nox` rather than instead of it. The pair round-trips
+  // through a parser that would infer the missing one anyway, but a link a
+  // user reads or edits should say both things it means.
+  if (!state.pauli) q.set("nopauli", "1");
   // note: '+' stays percent-encoded (%2B) — a literal '+' in a query string
   // reads back as a space, which would break the he+ round-trip
   const s = q.toString();

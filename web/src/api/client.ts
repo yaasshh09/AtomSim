@@ -319,6 +319,13 @@ export interface HFParams {
    * cannot ask for the counterfactual by forgetting a field.
    */
   exchange?: boolean;
+  /**
+   * False lifts the occupancy cap as well, collapsing the configuration to
+   * 1s^N. Requires `exchange: false`; the server answers 422 for the other
+   * combination rather than correcting it, because a determinant with two
+   * electrons in one spin-orbital is zero and there is no such model to run.
+   */
+  pauli?: boolean;
 }
 
 /**

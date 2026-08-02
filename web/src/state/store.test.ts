@@ -311,3 +311,70 @@ describe("exchange toggle (distinguishable electrons)", () => {
     expect(useAppStore.getState().exchange).toBe(true);
   });
 });
+
+describe("pauli toggle (configuration collapse)", () => {
+  it("defaults to real physics, like every other altered-physics switch", () => {
+    expect(useAppStore.getInitialState().pauli).toBe(true);
+  });
+
+  // Not a UI nicety. An exchange term exists because the wavefunction is
+  // antisymmetric, and antisymmetry is what the exclusion principle is, so
+  // there is no state with one and not the other for the store to hold.
+  it("turning Pauli off takes exchange with it", () => {
+    useAppStore.getState().setPauli(false);
+    expect(useAppStore.getState().pauli).toBe(false);
+    expect(useAppStore.getState().exchange).toBe(false);
+  });
+
+  it("turning Pauli back on restores real physics rather than the halfway one", () => {
+    useAppStore.getState().setPauli(false);
+    useAppStore.getState().setPauli(true);
+    expect(useAppStore.getState().exchange).toBe(true);
+  });
+
+  it("turning exchange back on restores the cap, for the same reason", () => {
+    useAppStore.setState({ pauli: false, exchange: false });
+    useAppStore.getState().setExchange(true);
+    expect(useAppStore.getState().pauli).toBe(true);
+  });
+
+  // The impossible combination is what the server answers 422 to. A store that
+  // could hold it would eventually send it.
+  it("never holds pauli off with exchange on", () => {
+    const store = useAppStore.getState();
+    for (const step of [
+      () => store.setPauli(false),
+      () => store.setExchange(false),
+      () => store.setExchange(true),
+      () => store.setPauli(false),
+      () => store.setPauli(true),
+    ]) {
+      step();
+      const s = useAppStore.getState();
+      expect(!s.pauli && s.exchange).toBe(false);
+    }
+  });
+
+  it("drops the solve, which was for a different atom entirely", () => {
+    useAppStore.setState({ hf: { fake: true } as never, hfStatus: "ready" });
+    useAppStore.getState().setPauli(false);
+    expect(useAppStore.getState().hf).toBeNull();
+    expect(useAppStore.getState().hfStatus).toBe("idle");
+  });
+
+  // A configuration carried across the switch is a different atom on one side
+  // of it, and the server withholds the comparison for exactly that reason -
+  // so keeping it would silently cost the user the comparison.
+  it("resets the configuration to whichever ground rule is now in force", () => {
+    useAppStore.setState({ config: "1s2 2s2 2p6" });
+    useAppStore.getState().setPauli(false);
+    expect(useAppStore.getState().config).toBeNull();
+  });
+
+  it("the collapse does not follow the user to the next atom", () => {
+    useAppStore.setState({ pauli: false, exchange: false });
+    useAppStore.getState().setSystem("ar");
+    expect(useAppStore.getState().pauli).toBe(true);
+    expect(useAppStore.getState().exchange).toBe(true);
+  });
+});

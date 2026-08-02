@@ -457,6 +457,35 @@ export interface HFOrbital {
 }
 
 /**
+ * The atom with the exclusion principle, next to the atom without it.
+ *
+ * Both halves come from one server-side comparison rather than two jobs the
+ * client differences, for the same reason the exchange energy does: two solves
+ * fetched separately are free to differ by their mesh as well as by their
+ * physics, and the gap between two calculations would get drawn as the gap
+ * between two models.
+ *
+ * The `variational_*` fields are the closed-form check on the collapsed number
+ * — N electrons in one 1s of exponent zeta — carried so the page can show what
+ * the result was tested against instead of asking to be believed.
+ */
+export interface PauliCollapse {
+  /** E(collapsed) − E(real). Negative, and large: the collapse binds hard. */
+  binding_change: Quantity;
+  binding_change_ev: Quantity;
+  real_total_energy: Quantity;
+  real_total_energy_ev: Quantity;
+  real_config: string;
+  real_radius: Quantity;
+  collapsed_radius: Quantity;
+  /** ⟨r⟩(collapsed) / ⟨r⟩(real): below 1, and falling with Z. */
+  radius_ratio: Quantity;
+  variational_zeta: Quantity;
+  variational_energy: Quantity;
+  variational_energy_ev: Quantity;
+}
+
+/**
  * A finished Hartree-Fock solve.
  *
  * Arrives on the job `meta` endpoint rather than as its own response, because
@@ -489,6 +518,20 @@ export interface HFLevels {
    */
   exchange_energy: Quantity | null;
   exchange_energy_ev: Quantity | null;
+  /**
+   * False means the occupancy cap went too and the configuration collapsed to
+   * 1s^N. Its own flag rather than something to infer from `exchange`, because
+   * exchange alone is the weaker counterfactual in which the cap still holds,
+   * and the two carry opposite disclosures.
+   */
+  pauli: boolean;
+  /**
+   * The real atom beside the collapsed one. Present only on a `pauli: false`
+   * solve of a ground configuration; a hand-written collapsed configuration has
+   * no twin with the cap on, so nothing is sent rather than a comparison
+   * against a different atom.
+   */
+  collapse: PauliCollapse | null;
   orbitals: HFOrbital[];
   total_energy: Quantity;
   total_energy_ev: Quantity;

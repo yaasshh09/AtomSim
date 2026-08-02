@@ -145,6 +145,19 @@ interface AppState {
    * front of them, not something inherited from the last one.
    */
   exchange: boolean;
+  /**
+   * Whether the Hartree-Fock solve keeps the occupancy cap.
+   *
+   * False is the stronger counterfactual: no cap, so every electron falls into
+   * the 1s and the atom has no shells left to have. It contains the exchange
+   * one — antisymmetry is what the exclusion principle IS — so the two flags
+   * are coupled here rather than left free, and `pauli: false, exchange: true`
+   * never leaves this store. The server would answer 422 for it, and building
+   * a request the API defines as meaningless is not a state to pass through.
+   *
+   * True by default and reset by setSystem, exactly like `exchange`.
+   */
+  pauli: boolean;
   labConst: ConstMultipliers;
   labZ: number;
   whatif: {
@@ -179,6 +192,7 @@ interface AppState {
   setConfig: (config: string | null) => void;
   setModel: (model: AtomModel) => void;
   setExchange: (exchange: boolean) => void;
+  setPauli: (pauli: boolean) => void;
   loadHF: () => Promise<void>;
   setBasis: (basis: Basis) => void;
   setView: (view: ViewMode) => void;
@@ -289,6 +303,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hf: null,
   hfStatus: "idle",
   exchange: true,
+  pauli: true,
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -309,6 +324,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       hfStatus: "idle" as SampleStatus,
       // and altered physics does not follow the user to the next atom
       exchange: true,
+      pauli: true,
     }),
   // config is its own physics input (screened atoms only): it clears the derived
   // level/spectrum/state payloads but keeps the selected system.
@@ -330,7 +346,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   // status goes back to idle rather than to sampling — nothing is running yet,
   // and a view that reported "solving" before a request existed would be
   // describing work nobody started.
-  setExchange: (exchange) => set({ exchange, hf: null, hfStatus: "idle" }),
+  // Turning exchange back ON also restores the cap, and that is physics rather
+  // than tidiness: an exchange term exists because the wavefunction is
+  // antisymmetric, and an antisymmetric wavefunction is what the exclusion
+  // principle is. There is no state with one and not the other, so the store
+  // cannot hold one.
+  setExchange: (exchange) =>
+    set((s) => ({
+      exchange,
+      pauli: exchange ? true : s.pauli,
+      hf: null,
+      hfStatus: "idle",
+    })),
+  // Off takes exchange with it, for the same reason in the other direction.
+  // Back on restores real physics rather than leaving the user in the weaker
+  // counterfactual they never asked for.
+  //
+  // Both directions clear `config`, so the solve uses the ground configuration
+  // of whichever rule is now in force: 1s^N with the cap off, Aufbau with it
+  // on. A configuration carried across the switch would be a different atom on
+  // one side of it, and the server withholds the comparison for exactly that
+  // reason — leaving it set would silently cost the user the comparison.
+  setPauli: (pauli) =>
+    set({
+      pauli,
+      exchange: pauli,
+      config: null,
+      hf: null,
+      hfStatus: "idle",
+    }),
   setBasis: (basis) =>
     set((s) => ({
       basis,
@@ -525,7 +569,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   loadHF: async () => {
-    const { system, config, systems, hfStatus, exchange } = get();
+    const { system, config, systems, hfStatus, exchange, pauli } = get();
     if (hfStatus === "sampling") return;
     // Z and the electron count live on the system table, so a solve cannot be
     // requested before it has loaded. Ask for it rather than guessing them
@@ -547,6 +591,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         n_electrons: info.n_electrons,
         config,
         exchange,
+        pauli,
       });
       // The solve reports no intermediate progress (the server says why), so
       // there is nothing to show between 0 and 1 and nothing is pretended.

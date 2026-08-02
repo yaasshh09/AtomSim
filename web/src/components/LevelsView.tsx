@@ -1,7 +1,7 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import { isScreenedLevels } from "../api/client";
-import type { HFLevels, ScreenedLevels } from "../api/types";
+import type { HFLevels, PauliCollapse, ScreenedLevels } from "../api/types";
 import { arrowsFor } from "../lib/levels";
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { useAppStore } from "../state/store";
@@ -83,6 +83,68 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
  * two are the same shape on screen and different claims underneath, which is
  * the point of letting you switch between them.
  */
+/**
+ * The real atom beside the collapsed one, as two numbers and their meaning.
+ *
+ * Both halves come off one server-side comparison, so this component never
+ * subtracts anything: differencing two payloads here would be free to mix a
+ * fine solve with a coarse one and call the remainder physics.
+ */
+function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
+  const gained = Math.abs(collapse.binding_change_ev.value);
+  // Exactly zero for an atom whose ground configuration is already 1s^N, which
+  // is helium and nothing else here. Not a missing number - the answer.
+  const noop = collapse.binding_change_ev.value === 0;
+  const shrink = collapse.radius_ratio.value;
+  return (
+    <>
+      <p className="caption">
+        <strong>
+          {noop
+            ? "The exclusion principle costs this atom nothing"
+            : `The exclusion principle costs this atom ${gained.toPrecision(4)} eV of binding`}
+        </strong>{" "}
+        {noop ? (
+          <>
+            — its ground configuration is already 1s
+            <sup>{2}</sup>, so lifting the cap has nothing to lift. Helium is
+            the calibration case rather than the demonstration: the two solves
+            agree to the last bit because they are the same solve.
+          </>
+        ) : (
+          <>
+            — the real atom ({collapse.real_config}) sits at{" "}
+            {collapse.real_total_energy_ev.value.toPrecision(6)} eV and the
+            collapsed one at{" "}
+            {(collapse.real_total_energy_ev.value + collapse.binding_change_ev.value)
+              .toPrecision(6)}{" "}
+            eV, both on the same mesh. Nothing holds the electrons out of the
+            deep well once the cap is gone.
+          </>
+        )}
+      </p>
+      <p className="caption">
+        <strong>And it is what makes the atom big.</strong> ⟨r⟩ falls from{" "}
+        {collapse.real_radius.value.toFixed(3)} to{" "}
+        {collapse.collapsed_radius.value.toFixed(3)} bohr, a factor of{" "}
+        {shrink.toFixed(3)}. With the cap on, atomic size rises and falls across
+        a period, and that oscillation is the periodic table. With it off, ⟨r⟩
+        decreases forever as Z grows — every element is a smaller version of the
+        last one, and there is no chemistry to have.
+      </p>
+      <p className="caption">
+        <strong>Checked against a closed form</strong>, not only against itself:
+        N electrons in a single 1s of exponent ζ minimize at ζ* ={" "}
+        {collapse.variational_zeta.value.toFixed(4)}, giving{" "}
+        {collapse.variational_energy_ev.value.toPrecision(6)} eV. The solve above
+        optimizes the radial function rather than an exponent, so it searches a
+        larger space and has to land at or below that number — and does. The
+        formula is textbook: at Z = N = 2 it is the variational helium result.
+      </p>
+    </>
+  );
+}
+
 function HFLadder({ levels }: { levels: HFLevels }) {
   const orbitals = levels.orbitals;
   // Binding energy, so the log is of a positive number. Every occupied HF
@@ -106,12 +168,20 @@ function HFLadder({ levels }: { levels: HFLevels }) {
     <div className="view-wrap">
       <div className="view-header">
         <span className="plot-title">
-          {levels.exchange ? "Hartree-Fock" : "Hartree (no exchange)"} orbital
-          energies ε_nl [eV] <Badge provenance={levels.provenance} />
+          {!levels.pauli
+            ? "No Pauli exclusion (1s^N)"
+            : levels.exchange
+              ? "Hartree-Fock"
+              : "Hartree (no exchange)"}{" "}
+          orbital energies ε_nl [eV] <Badge provenance={levels.provenance} />
         </span>
         <span className="plot-title">
           · {levels.symbol ?? `Z=${levels.z}`} {levels.config}
-          {levels.is_ground ? " (ground)" : " — excited (non-ground)"}
+          {levels.is_ground
+            ? levels.pauli
+              ? " (ground)"
+              : " (ground — with no cap left to obey)"
+            : " — excited (non-ground)"}
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
@@ -168,6 +238,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
             : "The Pauli occupancies are untouched — nothing has piled into the 1s."}
         </p>
       )}
+      {levels.collapse !== null && <PauliComparison collapse={levels.collapse} />}
       <p className="caption">
         <strong>Solve diagnostics</strong> (NUMERICAL — these describe the
         computation, not the atom): {levels.converged ? "converged" : "DID NOT CONVERGE"}{" "}
@@ -190,7 +261,7 @@ export function LevelsView() {
     n, l, system, fineStructure, dirac, setDirac, bField, setBField,
     eField, setEField, hyperfine, setHyperfine, levels, spectrum,
     loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
-    exchange,
+    exchange, pauli,
   } = useAppStore();
   const wantHF = model === "hf";
   useEffect(() => {
@@ -201,7 +272,7 @@ export function LevelsView() {
     // Only under the HF model, and only once per (system, config): the solve
     // costs seconds, so it is not something to fire on the chance it is wanted.
     if (wantHF && hf === null && hfStatus === "idle") void loadHF();
-  }, [wantHF, hf, hfStatus, system, config, exchange, loadHF]);
+  }, [wantHF, hf, hfStatus, system, config, exchange, pauli, loadHF]);
 
   if (wantHF) {
     if (hfStatus === "error") {

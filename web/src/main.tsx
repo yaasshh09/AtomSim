@@ -44,6 +44,7 @@ useAppStore.subscribe((s) => {
     config: s.config,
     model: s.model,
     exchange: s.exchange,
+    pauli: s.pauli,
   });
   const next = window.location.pathname + qs;
   if (next !== window.location.pathname + window.location.search) {

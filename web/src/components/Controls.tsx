@@ -24,9 +24,10 @@ export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
     colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
+    pauli,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
-    setExchange, loadSystems,
+    setExchange, setPauli, loadSystems,
   } = useAppStore();
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
@@ -131,14 +132,34 @@ export function Controls() {
                 <input
                   type="checkbox"
                   checked={!exchange}
+                  // Disabled rather than hidden while the cap is off, and
+                  // shown ticked: the weaker counterfactual is contained in
+                  // the stronger, so it is true and not available to change.
+                  // Hiding it would let a reader think exchange came back.
+                  disabled={!pauli}
                   onChange={(e) => setExchange(!e.target.checked)}
                 />
                 distinguishable electrons
               </label>
               <p className="panel-hint">
-                {exchange
-                  ? "Exchange on: the wavefunction is antisymmetric, as it is in this universe."
-                  : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched — this is not electrons piling into 1s."}
+                {!pauli
+                  ? "Forced on by the switch below: exchange energy comes from antisymmetry, and antisymmetry is the exclusion principle."
+                  : exchange
+                    ? "Exchange on: the wavefunction is antisymmetric, as it is in this universe."
+                    : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched — this is not electrons piling into 1s."}
+              </p>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!pauli}
+                  onChange={(e) => setPauli(!e.target.checked)}
+                />
+                no Pauli exclusion
+              </label>
+              <p className="panel-hint">
+                {pauli
+                  ? "Occupancies capped at 2(2l+1), which is why the atom has shells and the periodic table has periods."
+                  : "Counterfactual, and the stronger one. The cap is gone, so every electron falls into the 1s: one level, no shells, no chemistry. Compare the two energies and sizes on the Energy levels view."}
               </p>
             </>
           )}
