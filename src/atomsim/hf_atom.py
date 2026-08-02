@@ -53,11 +53,15 @@ from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 __all__ = [
     "HFOrbital",
     "HFResult",
+    "PauliCollapse",
+    "collapsed_variational_energy",
     "evaluate_hf_state",
     "hf_exchange_energy",
+    "hf_mean_radius",
     "hf_mesh",
     "hf_radial",
     "hf_valence_ionization_energy",
+    "pauli_collapse",
     "solve_hartree_fock",
 ]
 
@@ -122,6 +126,47 @@ _HARTREE_REFINEMENT = (
     "turn exchange back on; this model is not an approximation to the real "
     "atom that a better calculation would improve on"
 )
+
+# Everything below is the pauli=False branch: the exclusion principle removed.
+_NO_PAULI_METHOD = (
+    "self-consistent Hartree with the occupancy cap lifted; every electron "
+    "occupies the 1s, and neither exchange nor term structure exists"
+)
+_NO_PAULI_ALTERATION = (
+    "COUNTERFACTUAL: the Pauli exclusion principle is switched off, so the "
+    "2(2l+1) occupancy cap is gone and the ground configuration is 1s^N"
+)
+# Stated explicitly because Phase 22's weaker counterfactual promises the
+# opposite, in those words. A reader who learned that disclosure and then meets
+# this one must be told which of the two they are looking at.
+_NO_PAULI_IMPLIES_NO_EXCHANGE = (
+    "exchange is gone too, and was not a separate choice: exchange energy is a "
+    "consequence of antisymmetry, and antisymmetry is what the exclusion "
+    "principle is"
+)
+# Replaces, rather than omits, the configuration-average line the real atom
+# carries. Omitting it would read as "this configuration happens to be a single
+# term", which is a different and false claim.
+_NO_PAULI_NO_TERMS = (
+    "term structure is undefined, not averaged over: L-S terms are counted by "
+    "enumerating distinct spin-orbital assignments, which is the exclusion "
+    "principle's own combinatorics, so 1s^N spans no terms rather than many"
+)
+_NO_PAULI_REFINEMENT = (
+    "turn the exclusion principle back on; there is no calculation that makes "
+    "this the real atom, because the real atom has shells and this does not"
+)
+# Refused rather than computed. A Slater determinant with two electrons in the
+# same spin-orbital is identically zero, so there is no wavefunction to take an
+# exchange integral over: the combination names a state that does not exist,
+# and returning a number for it would be inventing physics.
+_NO_PAULI_WITH_EXCHANGE = (
+    "pauli=False with exchange=True is not a model: exchange energy is a "
+    "consequence of antisymmetry and the exclusion principle IS antisymmetry, "
+    "so there is nothing left for an exchange integral to act on. Pass "
+    "exchange=False explicitly - this is not flipped for you, because a caller "
+    "that asked for both was asking for something that does not exist."
+)
 _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would "
     "recover the correlation energy"
@@ -178,6 +223,11 @@ class HFResult:
     # Carried on the result rather than left implicit in the provenance text so
     # a caller can branch on it without parsing prose.
     exchange: bool
+    # False means the occupancy cap was lifted too, and the configuration
+    # collapsed to 1s^N. Kept as its own flag rather than inferred from
+    # `exchange` because the two are not the same statement: exchange=False
+    # alone is the Phase 22 half-step, in which the cap is still enforced.
+    pauli: bool
     orbitals: tuple[HFOrbital, ...]
     total_energy: Quantity  # APPROXIMATION, or COUNTERFACTUAL if exchange=False
     kinetic: Quantity  # NUMERICAL
@@ -336,7 +386,7 @@ def _relativistic_scale(z: int) -> float:
 
 
 def _energy_assumptions(
-    config: Configuration, z: int, exchange: bool = True
+    config: Configuration, z: int, exchange: bool = True, pauli: bool = True
 ) -> tuple[str, ...]:
     """What this configuration actually costs the reader, and nothing more.
 
@@ -351,9 +401,23 @@ def _energy_assumptions(
     term. Claiming otherwise would hand the reader an error bar that is not
     there. Carbon's 2p2 spans 3P, 1D and 1S, and there the average really is
     none of them.
+
+    With pauli=False both conditional lines are replaced rather than dropped.
+    "Open subshell" and "spans several terms" are counted by enumerating
+    distinct spin-orbital assignments, which is the exclusion principle's own
+    combinatorics; with the principle gone those two questions have no answers
+    to report, and staying silent about them would read as "neither limitation
+    applies here", which is a different and false claim.
     """
     out = list(_TOTAL_ENERGY_ASSUMPTIONS)
-    if not exchange:
+    if not pauli:
+        out[:0] = [
+            _NO_PAULI_ALTERATION,
+            _NO_PAULI_IMPLIES_NO_EXCHANGE,
+            _HARTREE_SELF_INTERACTION,
+            _NO_PAULI_NO_TERMS,
+        ]
+    elif not exchange:
         # Ahead of the rest, because these change what the number IS rather
         # than how close it lands to the truth. The correlation line keeps its
         # place behind them and stays true: Hartree is missing correlation as
@@ -369,10 +433,11 @@ def _energy_assumptions(
             f"by {100 * _relativistic_scale(z):.2f}% of its energy; that is the "
             f"scale of what is missing here, not a correction to apply"
         )
-    if open_subshells(config):
-        out.append(_OPEN_SHELL_ASSUMPTION)
-    if not is_single_term(config):
-        out.append(_MULTI_TERM_ASSUMPTION)
+    if pauli:
+        if open_subshells(config):
+            out.append(_OPEN_SHELL_ASSUMPTION)
+        if not is_single_term(config):
+            out.append(_MULTI_TERM_ASSUMPTION)
     return tuple(out)
 
 
@@ -408,7 +473,11 @@ def _solve_on_grid(
 
 @lru_cache(maxsize=8)
 def solve_hartree_fock(
-    z: int, n_electrons: int, config: Configuration, exchange: bool = True
+    z: int,
+    n_electrons: int,
+    config: Configuration,
+    exchange: bool = True,
+    pauli: bool = True,
 ) -> HFResult:
     """Converge the restricted Hartree-Fock equations for one atom or ion.
 
@@ -419,12 +488,27 @@ def solve_hartree_fock(
     are distinguishable - and the result comes back COUNTERFACTUAL rather than
     APPROXIMATION. It is a positional argument and part of the cache key, so
     the two models never share a cached solve.
+
+    pauli=False goes one step further and removes the occupancy cap, so the
+    configuration collapses to 1s^N. It requires exchange=False and refuses the
+    other combination rather than computing it; see _NO_PAULI_WITH_EXCHANGE.
+
+    No angular coefficient changes for q > 2(2l+1), and that is a derivation
+    rather than an observation that nothing crashed. What survives is the
+    direct potential's (q_a - 1) and the functional's q_a(q_a - 1)/2, which are
+    "how many other electrons an electron sees" and "how many pairs there are":
+    pure combinatorics on a count, blind to capacity, and correct for ten
+    electrons in one orbital (45 pairs) exactly as for two. Every coefficient
+    that would have needed rederiving carries a squared 3j symbol and belongs
+    to exchange, which is gone.
     """
     if z < 1:
         raise ValueError(f"Z must be >= 1, got {z}")
     if not 1 <= n_electrons <= z + 1:
         raise ValueError(f"N must be in [1, Z+1], got {n_electrons} (Z={z})")
-    validate_config(config)
+    if not pauli and exchange:
+        raise ValueError(_NO_PAULI_WITH_EXCHANGE)
+    validate_config(config, pauli)
     if total_electrons(config) != n_electrons:
         raise ValueError(
             f"configuration holds {total_electrons(config)} electrons, "
@@ -457,16 +541,25 @@ def solve_hartree_fock(
         z, solution.subshells, mesh, exchange=exchange
     )
 
-    assumptions = _energy_assumptions(config, z, exchange)
+    assumptions = _energy_assumptions(config, z, exchange, pauli)
+    # Three models share this solve, and each names itself. COUNTERFACTUAL
+    # rather than APPROXIMATION for the two altered ones is not cosmetic: the
+    # truth-distance tiers say how far a number is from the real atom, and
+    # these numbers are not trying to be the real atom at all. Calling them
+    # APPROXIMATION would invite the reader to treat the gap to the reference
+    # energy as an error, when the gap IS the physics the toggle exists to show.
+    if not pauli:
+        method, refinement = _NO_PAULI_METHOD, _NO_PAULI_REFINEMENT
+    elif not exchange:
+        method, refinement = _HARTREE_METHOD, _HARTREE_REFINEMENT
+    else:
+        method, refinement = _TOTAL_ENERGY_METHOD, _TOTAL_ENERGY_REFINEMENT
+    fidelity = (
+        Fidelity.APPROXIMATION if (exchange and pauli) else Fidelity.COUNTERFACTUAL
+    )
     energy_prov = Provenance(
-        # COUNTERFACTUAL rather than APPROXIMATION when exchange is off, and
-        # the distinction is not cosmetic. The truth-distance tiers say how far
-        # a number is from the real atom; this number is not trying to be the
-        # real atom at all. Calling it APPROXIMATION would invite the reader to
-        # treat the gap to the reference energy as an error, when the gap IS
-        # the physics the toggle exists to show.
-        fidelity=Fidelity.APPROXIMATION if exchange else Fidelity.COUNTERFACTUAL,
-        method=_TOTAL_ENERGY_METHOD if exchange else _HARTREE_METHOD,
+        fidelity=fidelity,
+        method=method,
         assumptions=assumptions,
         # Two independent error sources, added rather than maxed because they
         # are independent: the spread between the two meshes, which measures
@@ -480,7 +573,7 @@ def solve_hartree_fock(
         error_estimate=(
             abs(e_direct - e_coarse) + _MESH_FLOOR_RELATIVE * abs(e_direct)
         ),
-        refinement=_TOTAL_ENERGY_REFINEMENT if exchange else _HARTREE_REFINEMENT,
+        refinement=refinement,
     )
     diagnostic_prov = Provenance(
         fidelity=Fidelity.NUMERICAL,
@@ -502,13 +595,10 @@ def solve_hartree_fock(
         # The orbital SHAPE is as counterfactual as the energy. Exchange changes
         # the operator these came out of, so a Hartree 2s is a different curve,
         # not the same curve at a different accuracy.
-        fidelity=Fidelity.APPROXIMATION if exchange else Fidelity.COUNTERFACTUAL,
-        method=(
-            f"{_TOTAL_ENERGY_METHOD if exchange else _HARTREE_METHOD}; "
-            f"radial amplitude sampled on the solver mesh"
-        ),
+        fidelity=fidelity,
+        method=f"{method}; radial amplitude sampled on the solver mesh",
         assumptions=assumptions,
-        refinement=_TOTAL_ENERGY_REFINEMENT if exchange else _HARTREE_REFINEMENT,
+        refinement=refinement,
     )
 
     orbitals = tuple(
@@ -543,12 +633,14 @@ def solve_hartree_fock(
         # The key names the calculation, not just the atom, so a Hartree solve
         # and a Hartree-Fock solve of the same atom cannot be mistaken for each
         # other anywhere downstream that caches or labels by key.
-        key=f"z{z}n{n_electrons}" + ("" if exchange else "-nox"),
+        key=f"z{z}n{n_electrons}" + ("" if pauli else "-nopauli")
+        + ("" if exchange or not pauli else "-nox"),
         z=z,
         n_electrons=n_electrons,
         config=config,
-        is_ground=is_ground(config),
+        is_ground=is_ground(config, pauli),
         exchange=exchange,
+        pauli=pauli,
         orbitals=orbitals,
         total_energy=Quantity(e_direct, "hartree", "E_total", energy_prov),
         kinetic=Quantity(kinetic, "hartree", "T", diagnostic_prov),
@@ -665,6 +757,201 @@ def hf_exchange_energy(
                 "determinant misses, and is not included in this difference"
             ),
         ),
+    )
+
+
+def hf_mean_radius(result: HFResult) -> Quantity:
+    """<r> for the whole electron cloud: sum_a q_a <r>_a / N, in bohr.
+
+    The size of the atom as this solve actually has it, which is the number the
+    Pauli comparison turns on. Each subshell's <r>_a is integral P_a^2 r dr
+    divided by integral P_a^2 dr, so a P that drifted off unit norm cannot
+    scale the answer.
+
+    Fidelity is inherited from the solve rather than set to NUMERICAL: this is
+    a claim about how big the atom is, so a counterfactual atom's radius is
+    counterfactual. It carries NO error estimate, for the reason the orbital
+    shapes carry none - the solve estimates its spread in hartree, and pinning
+    a hartree number onto a length would be wrong in dimension, not merely
+    loose.
+    """
+    n_top = max(n for (n, _), _ in result.config)
+    mesh = hf_mesh(result.z, result.n_electrons, n_top, refinement=2)
+    weighted = 0.0
+    for orbital in result.orbitals:
+        p2 = orbital.P.values**2
+        weighted += orbital.occupancy * mesh.integrate(p2 * mesh.r) / mesh.integrate(p2)
+    base = result.total_energy.provenance
+    return Quantity(
+        weighted / result.n_electrons,
+        "bohr",
+        "<r>",
+        Provenance(
+            fidelity=base.fidelity,
+            method=(
+                f"{base.method}; <r> = sum_a q_a integral P_a^2 r dr / N, "
+                f"on the solver mesh"
+            ),
+            assumptions=base.assumptions,
+            refinement=base.refinement,
+        ),
+    )
+
+
+def collapsed_variational_energy(z: int, n_electrons: int) -> tuple[Quantity, Quantity]:
+    """The closed-form check on a collapsed atom: (zeta*, E(zeta*)), in hartree.
+
+    Put N electrons in one hydrogenic 1s of exponent zeta with no exchange.
+    Then <1s|h|1s> = zeta^2/2 - Z zeta and F_0(1s,1s) = 5 zeta / 8, so
+
+        E(zeta) = N (zeta^2/2 - Z zeta) + [N(N-1)/2] (5 zeta / 8)
+        zeta*   = Z - (5/16)(N - 1)
+
+    This is a ground truth nobody in this repo chose, which is unusual for a
+    counterfactual and is why it is worth carrying. At Z = N = 2 it gives
+    zeta* = 1.6875 and -2.8477 hartree, the textbook variational helium number.
+
+    The SCF optimizes the 1s radial FUNCTION rather than the best exponential,
+    so it searches a strictly larger space and must land at or below this:
+    E_SCF <= E(zeta*), and close. That inequality is the test, and it is a real
+    one - a wrong angular coefficient in the collapsed branch would still
+    converge smoothly, and would break it.
+
+    COUNTERFACTUAL rather than EXACT despite being closed form. The tier is
+    truth-distance from the real atom, not arithmetic precision, and this is an
+    exact statement about an atom that does not exist.
+    """
+    if z < 1:
+        raise ValueError(f"Z must be >= 1, got {z}")
+    if n_electrons < 1:
+        raise ValueError(f"N must be >= 1, got {n_electrons}")
+    n = n_electrons
+    zeta = z - (5.0 / 16.0) * (n - 1)
+    energy = n * (zeta**2 / 2 - z * zeta) + (n * (n - 1) / 2) * (5 * zeta / 8)
+    prov = Provenance(
+        fidelity=Fidelity.COUNTERFACTUAL,
+        method=(
+            "closed-form variational minimum for N electrons in one hydrogenic "
+            "1s of exponent zeta, with direct repulsion and no exchange"
+        ),
+        assumptions=(
+            _NO_PAULI_ALTERATION,
+            _NO_PAULI_IMPLIES_NO_EXCHANGE,
+            "the orbital is constrained to an exponential, so this is an upper "
+            "bound on the collapsed atom's energy and the SCF must come in at "
+            "or below it",
+        ),
+        refinement=_NO_PAULI_REFINEMENT,
+    )
+    return (
+        Quantity(zeta, "dimensionless", "zeta*", prov),
+        Quantity(energy, "hartree", "E(zeta*)", prov),
+    )
+
+
+@dataclass(frozen=True)
+class PauliCollapse:
+    """The real atom and the collapsed one, solved together and differenced.
+
+    Both solves live here rather than being fetched separately for the reason
+    hf_exchange_energy solves both models itself: the two energies have to come
+    off the same mesh at the same refinement, or the difference reported as
+    physics is partly the mesh spread.
+    """
+    z: int
+    n_electrons: int
+    real: HFResult
+    collapsed: HFResult
+    #: E(collapsed) - E(real). Negative: nothing holds the electrons out of the
+    #: deep well any more, so the collapsed atom is far more bound.
+    binding_change: Quantity
+    real_radius: Quantity
+    collapsed_radius: Quantity
+    #: <r>(collapsed) / <r>(real). Below 1, and it keeps falling with Z.
+    radius_ratio: Quantity
+    #: The closed-form bound from collapsed_variational_energy, carried so a
+    #: caller can show that the collapsed number was checked against something
+    #: outside this codebase rather than only against itself.
+    variational_zeta: Quantity
+    variational_energy: Quantity
+
+
+def pauli_collapse(z: int, n_electrons: int | None = None) -> PauliCollapse:
+    """Solve one atom twice - with the exclusion principle and without.
+
+    The teaching payoff stated as two numbers. With Pauli on, atomic size
+    oscillates across a period, and that oscillation is the periodic table;
+    with Pauli off every electron falls into the 1s, the atom shrinks like 1/Z
+    forever, and there is no chemistry to have.
+
+    Both halves are ground configurations for their own rule: Aufbau for the
+    real atom, 1s^N for the collapsed one.
+    """
+    if n_electrons is None:
+        n_electrons = z
+    real = solve_hartree_fock(z, n_electrons, aufbau_configuration(n_electrons))
+    collapsed = solve_hartree_fock(
+        z,
+        n_electrons,
+        aufbau_configuration(n_electrons, pauli=False),
+        exchange=False,
+        pauli=False,
+    )
+    real_radius = hf_mean_radius(real)
+    collapsed_radius = hf_mean_radius(collapsed)
+    zeta, e_var = collapsed_variational_energy(z, n_electrons)
+
+    compare_prov = Provenance(
+        fidelity=Fidelity.COUNTERFACTUAL,
+        method=(
+            "the same atom solved twice on the same mesh, once under the "
+            "exclusion principle and once with the occupancy cap lifted"
+        ),
+        assumptions=(
+            _NO_PAULI_ALTERATION,
+            _NO_PAULI_IMPLIES_NO_EXCHANGE,
+            "a difference between one real model and one impossible one, so it "
+            "is not an observable and has no measured value to be checked "
+            "against",
+        )
+        + _TOTAL_ENERGY_ASSUMPTIONS,
+        # Both solves' mesh spreads, added: the difference carries the error of
+        # each end, and they are independent solves.
+        error_estimate=(
+            (real.total_energy.provenance.error_estimate or 0.0)
+            + (collapsed.total_energy.provenance.error_estimate or 0.0)
+        ),
+        refinement=_NO_PAULI_REFINEMENT,
+    )
+    ratio_prov = dataclasses.replace(
+        compare_prov,
+        method=f"{compare_prov.method}; ratio of the two <r> values",
+        # A ratio of two lengths is dimensionless, so a hartree error bar would
+        # be wrong in dimension rather than merely loose. Same rule the orbital
+        # shapes follow.
+        error_estimate=None,
+    )
+    return PauliCollapse(
+        z=z,
+        n_electrons=n_electrons,
+        real=real,
+        collapsed=collapsed,
+        binding_change=Quantity(
+            collapsed.total_energy.value - real.total_energy.value,
+            "hartree",
+            "E(no Pauli) - E(atom)",
+            compare_prov,
+        ),
+        real_radius=real_radius,
+        collapsed_radius=collapsed_radius,
+        radius_ratio=Quantity(
+            collapsed_radius.value / real_radius.value,
+            "dimensionless",
+            "<r>(no Pauli) / <r>(atom)",
+            ratio_prov,
+        ),
+        variational_zeta=zeta,
+        variational_energy=e_var,
     )
 
 

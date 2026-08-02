@@ -31,9 +31,18 @@ def _madelung_order() -> list[Subshell]:
 _MADELUNG = _madelung_order()
 
 
-def aufbau_configuration(n_electrons: int) -> Configuration:
+def aufbau_configuration(n_electrons: int, pauli: bool = True) -> Configuration:
+    """The ground configuration for this many electrons.
+
+    pauli=False lifts the occupancy cap, and then the ground configuration is
+    1s^N: with nothing forbidding it, every electron sits in the lowest orbital.
+    That single line is the whole of "why chemistry exists" - the Madelung walk
+    below exists only because the cap makes it necessary.
+    """
     if n_electrons < 1:
         raise ValueError(f"n_electrons must be >= 1, got {n_electrons}")
+    if not pauli:
+        return (((1, 0), n_electrons),)
     remaining = n_electrons
     out: list[tuple[Subshell, int]] = []
     for n, l in _MADELUNG:
@@ -65,17 +74,24 @@ def total_electrons(config: Configuration) -> int:
     return sum(occ for _, occ in config)
 
 
-def is_ground(config: Configuration) -> bool:
-    return config == aufbau_configuration(total_electrons(config))
+def is_ground(config: Configuration, pauli: bool = True) -> bool:
+    return config == aufbau_configuration(total_electrons(config), pauli)
 
 
-def validate_config(config: Configuration) -> None:
+def validate_config(config: Configuration, pauli: bool = True) -> None:
+    """Reject a configuration this model cannot mean.
+
+    pauli=False drops only the capacity check. `n > l` stays: that one is not
+    the exclusion principle, it is what makes (n, l) name a radial function at
+    all, and a subshell with n <= l has no orbital to put an electron in
+    whether or not electrons exclude each other.
+    """
     for (n, l), occ in config:
         if n <= l:
             raise ValueError(f"n must be > l for a real subshell, got n={n}, l={l}")
         if occ < 0:
             raise ValueError(f"occupancy must be >= 0, got {occ}")
-        if occ > subshell_capacity(l):
+        if pauli and occ > subshell_capacity(l):
             raise ValueError(
                 f"occupancy {occ} exceeds capacity {subshell_capacity(l)} for l={l}"
             )
