@@ -110,3 +110,73 @@ the way Phase 22's is. What this one must additionally disclose:
 - Server: `pauli` on `HFRequest`, refusal as 422.
 - Frontend: a checkbox that disables and forces the Phase 22 one, since the
   weaker counterfactual is contained in the stronger.
+
+---
+
+## 8. What building it changed
+
+**Section 5 quoted the bound as if it were the answer.** "Neon should land near
+-258 hartree" is the exponential's number, and the SCF is required to come out
+below it. Neon actually lands at -264.35. The gap is the point rather than an
+error, and it widens with Z because a free radial function has more to buy the
+more electrons are stacked in one orbital: He 0.49%, Li 1.02%, Be 1.39%, C
+1.87%, Ne 2.34%, Ar 2.71% below `E(zeta*)`. "Within a few percent" survives
+through argon, but it is being spent steadily, so the test's tolerance is a
+relative one and argon sits at roughly half of it.
+
+**What the exclusion principle is worth, measured.** Total energy in hartree and
+mean radius in bohr, real atom against collapsed one:
+
+    He   -2.8617 / -2.8617     0.9273 / 0.9273  (no-op, exactly)
+    Li   -7.4327 / -8.5469     1.6733 / 0.6735
+    Be  -14.5729 / -19.0193    1.5322 / 0.5295
+    C   -37.6595 / -60.1798    1.1989 / 0.3713
+    Ne -128.5464 / -264.3490   0.7891 / 0.2328
+    Ar -526.8152 /-1487.9640   0.8928 / 0.1334
+
+Neon's binding roughly doubles and argon's nearly triples. Helium's equality is
+bit-exact in both columns, energy and radius, which is what makes it the
+calibration case rather than a suspiciously small difference.
+
+**The periodicity assertion is visible twice in that table, and needed to be.**
+The real radii are not monotone at Li over He (the 2s opens) and again at Ar
+over Ne (the 3s opens), while the collapsed ones fall from 0.927 to 0.133 with
+no feature anywhere. The test picks He, Be, Ne so that one such rise is inside
+the sample; a sample that missed every period boundary would have passed while
+asserting nothing.
+
+**Phase 22's convergence penalty was shell competition, not the missing
+exchange.** Neon, coarse SCF iterations: 15 with exchange and shells, 46 with
+the shells and no exchange, 16 with neither. Carbon: 16, 28, 14. Phase 22 saw
+the middle number next to the first and read the penalty as the cost of the
+toggle; the third says it takes both conditions, because one orbital and no
+exchange converges as fast as the real atom does. The reading of why, which the
+iteration counts support but do not prove, is that exchange-off leaves nothing
+holding distinct occupied orbitals apart while the cap still insists they stay
+distinct, and the mixing has to do that work instead.
+
+**The size half of the payoff had no number to report.** `<r>` existed
+analytically for hydrogen-like states and nowhere for an HF solve, so
+`hf_mean_radius` is new machinery rather than a lookup, checked against the one
+closed form available (a one-electron solve gives 3/2 bohr). It deliberately
+drops the solve's error estimate instead of inheriting it: that spread is in
+hartree, and carrying it onto a length would not be a loose bar, it would be a
+number in the wrong unit.
+
+**The refusal belongs to the request schema, not the endpoint.** `pauli=false`
+with `exchange=true` is answered 422 by validation rather than 400 by a handler
+check. 400 is the server declining a well-posed request, and this one is not
+well posed: there is no such model to decline.
+
+**The frontend coupling had to run both ways.** Section 7 said the Pauli
+checkbox would disable and force the exchange one, which is only half of it.
+Turning exchange back on also restores the cap, because a store that can hold
+`pauli=false, exchange=true` will eventually send it, and the only thing waiting
+there is the 422. Both directions clear the configuration too, so the solve uses
+the ground state of whichever rule is now in force rather than carrying a
+configuration across and quietly changing which atom is on one side.
+
+**A hand-written collapsed configuration gets no comparison.** `1s3 2s1` is
+legal with the cap off and has no twin with the cap on, so the server sends
+nothing rather than differencing it against a configuration that is not the same
+atom.
