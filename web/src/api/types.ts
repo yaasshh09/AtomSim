@@ -445,6 +445,41 @@ export interface PlaneMeta {
   provenance: Provenance;
 }
 
+/**
+ * A contour of |psi|^2 and the numbers that make it a claim about an atom.
+ *
+ * `target_fraction` is what was asked for and `enclosed_fraction` is what the
+ * grid delivered; they are close and they are not the same number, so both are
+ * carried. `outside_fraction` is the sentence textbooks leave out, and it is
+ * sent rather than derived in the browser so that the value on screen is the
+ * one the engine measured.
+ */
+export interface IsoMeta {
+  kind: "isosurface";
+  vertex_count: number;
+  triangle_count: number;
+  channels: ChannelInfo[];
+  target_fraction: number;
+  enclosed_fraction: Quantity;
+  outside_fraction: number;
+  level: Quantity;
+  escaped_fraction: Quantity;
+  mesh_volume: Quantity;
+  voxel_volume: Quantity;
+  area: Quantity;
+  components: number;
+  half_width: number;
+  resolution: number;
+  axis_unit: string;
+  n: number;
+  l: number;
+  m: number;
+  basis: string;
+  system: string;
+  label: string;
+  provenance: Provenance;
+}
+
 export interface HFOrbital {
   n: number;
   l: number;
@@ -548,4 +583,4 @@ export interface HFLevels {
   channels: ChannelInfo[];
 }
 
-export type JobMeta = SampleMeta | PlaneMeta | HFLevels;
+export type JobMeta = SampleMeta | PlaneMeta | IsoMeta | HFLevels;

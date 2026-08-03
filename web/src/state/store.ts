@@ -6,6 +6,7 @@ import type {
   ConstantsReport,
   ForceLawResult,
   HFLevels,
+  IsoMeta,
   LevelsResponse,
   PlaneMeta,
   RadialResponse,
@@ -38,6 +39,25 @@ export type ViewMode =
   | "whatif"
   | "forcelaw";
 export type ColorMode = "solid" | "density" | "phase";
+
+/**
+ * What the 3-D view draws: the sampled cloud, the enclosing surface, or both.
+ *
+ * Purely a choice of representation over the same state, so it invalidates
+ * nothing — the same rule the view and colour-mode toggles follow. The surface
+ * data it selects is invalidated, but by (n, l, m, system, basis) like every
+ * other derived payload, not by this.
+ */
+export type SurfaceMode = "cloud" | "surface" | "both";
+
+/**
+ * Fractions offered as one-click contours.
+ *
+ * 0.9 is the textbook lobe and the default, so the first surface a user sees is
+ * the one they have seen in books, with the 10% it leaves out stated. 0.99 is
+ * there because it looks nothing like a textbook lobe, which is the lesson.
+ */
+export const ISO_FRACTIONS = [0.5, 0.75, 0.9, 0.95, 0.99] as const;
 
 /**
  * Which many-electron model an atom's levels come from.
@@ -114,6 +134,17 @@ interface AppState {
   plane: { meta: PlaneMeta; values: Float32Array } | null;
   planeStatus: SampleStatus;
   planeProgress: number;
+  surfaceMode: SurfaceMode;
+  /** The fraction of the electron the surface must enclose. The level follows. */
+  isoFraction: number;
+  iso: {
+    meta: IsoMeta;
+    vertices: Float32Array;
+    triangles: Uint32Array;
+    phase: Float32Array;
+  } | null;
+  isoStatus: SampleStatus;
+  isoProgress: number;
   radial: RadialResponse | null;
   /** Hydrogenic keys return LevelsResponse; screened atoms return ScreenedLevels. */
   levels: LevelsResponse | ScreenedLevels | null;
@@ -217,6 +248,9 @@ interface AppState {
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
+  setSurfaceMode: (surfaceMode: SurfaceMode) => void;
+  setIsoFraction: (isoFraction: number) => void;
+  loadIso: () => Promise<void>;
   setFps: (fps: number) => void;
   loadSystems: () => Promise<void>;
   loadStateInfo: () => Promise<void>;
@@ -240,6 +274,13 @@ const INVALIDATED = {
   plane: null,
   planeStatus: "idle" as SampleStatus,
   planeProgress: 0,
+  // A mesh is a contour of one particular |psi|^2, so it is as stale as the
+  // cloud is the moment the state changes. The requested fraction is not in
+  // here: that is a question the user asked, and it survives to be asked again
+  // of the next orbital.
+  iso: null,
+  isoStatus: "idle" as SampleStatus,
+  isoProgress: 0,
   radial: null,
   levels: null,
   spectrum: null,
@@ -282,6 +323,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   systems: [],
   fps: 0,
   planeQuantity: "density",
+  surfaceMode: "cloud",
+  isoFraction: 0.9,
   labConst: { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 },
   labZ: 1,
   whatif: null,
@@ -527,6 +570,51 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ meta, positions, density, phase, status: "ready", progress: 1 });
     } catch (err) {
       set({ status: "error", error: err instanceof Error ? err.message : String(err) });
+    }
+  },
+  // Which of the two representations is drawn is a viewing choice over the same
+  // physics, so it clears nothing. The fraction is not: it names a different
+  // contour, so the mesh under the old one goes rather than sitting beneath a
+  // moved slider claiming to enclose something it does not.
+  setSurfaceMode: (surfaceMode) => set({ surfaceMode }),
+  setIsoFraction: (isoFraction) =>
+    set({
+      isoFraction: Math.min(0.999, Math.max(0.001, isoFraction)),
+      iso: null,
+      isoStatus: "idle",
+      isoProgress: 0,
+    }),
+  loadIso: async () => {
+    const { n, l, m, system, basis, isoFraction, isoStatus } = get();
+    if (isoStatus === "sampling") return;
+    set({ isoStatus: "sampling", isoProgress: 0, error: null });
+    try {
+      const job = await client.createIsoJob({
+        n,
+        l,
+        m,
+        system,
+        basis,
+        fraction: isoFraction,
+      });
+      await client.watchJob(job.id, (isoProgress) => set({ isoProgress }));
+      const [meta, vertices, triangles, phase] = await Promise.all([
+        client.getJobMeta(job.id),
+        client.getChannel(job.id, "vertices"),
+        client.getIndexChannel(job.id, "triangles"),
+        client.getChannel(job.id, "phase"),
+      ]);
+      if (meta.kind !== "isosurface") throw new Error("expected isosurface-job meta");
+      set({
+        iso: { meta, vertices, triangles, phase },
+        isoStatus: "ready",
+        isoProgress: 1,
+      });
+    } catch (err) {
+      set({
+        isoStatus: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   },
   loadPlane: async () => {

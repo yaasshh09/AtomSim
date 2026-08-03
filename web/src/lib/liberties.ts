@@ -163,6 +163,32 @@ export const HF_LADDER_AXIS_LIBERTY: Provenance = {
   refinement: "the eV value of every rung is printed beside it, on the linear scale it was computed on",
 };
 
+/**
+ * What the renderer adds on top of the engine's triangles.
+ *
+ * The mesh itself is measured: vertices sit where linear interpolation puts the
+ * level on a cell edge, and that is the engine's business and carries the
+ * engine's provenance. Three things here are the browser's own, and each of
+ * them makes the surface look more certain than it is. Smooth shading averages
+ * normals across facets, which hides the faceting that is the honest signature
+ * of a finite grid. A lit opaque shell says "edge" to the eye, which is the
+ * exact misreading the enclosed-fraction readout exists to prevent. And the
+ * surface is drawn slightly transparent so the cloud shows through it, which is
+ * a choice about legibility rather than about the atom.
+ */
+export const ISOSURFACE_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "three.js lit mesh of engine-extracted triangles, smooth-shaded and translucent",
+  assumptions: [
+    "vertex normals are averaged across facets: the faceting a finite grid really has is smoothed away",
+    "lighting and translucency are presentation; the geometry is the engine's, unmodified",
+    "a solid-looking shell is not an edge — the enclosed fraction beside it is the whole claim",
+    "vertex colour is arg(psi) through the same map the point cloud uses",
+  ],
+  error_estimate: null,
+  refinement: "the enclosed fraction, its grid-halving error and the escaped mass are printed live",
+};
+
 export const THUMBNAIL_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "server-rendered inferno PNG of |psi|^2 on the y=0 plane (navigation aid)",

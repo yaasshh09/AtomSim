@@ -35,6 +35,8 @@ useAppStore.subscribe((s) => {
     ghost: s.ghost,
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,
+    surfaceMode: s.surfaceMode,
+    isoFraction: s.isoFraction,
     labConst: s.labConst,
     labZ: s.labZ,
     forcePreset: s.forcePreset,

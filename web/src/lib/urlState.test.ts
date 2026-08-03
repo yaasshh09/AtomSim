@@ -116,6 +116,8 @@ describe("serializeAppUrl", () => {
       model: "hf" as const,
       exchange: false,
       pauli: false,
+      surfaceMode: "both" as const,
+      isoFraction: 0.5,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
@@ -147,6 +149,36 @@ describe("serializeAppUrl", () => {
     expect(parseAppUrl("?prof=1&rp=1").logResolvingPower).toBeUndefined();
     expect(parseAppUrl("?prof=1&rp=9").logResolvingPower).toBeUndefined();
     expect(parseAppUrl("?prof=1&rp=4.5").logResolvingPower).toBe(4.5);
+  });
+
+  it("round-trips the surface mode and the fraction it encloses", () => {
+    const link = serializeAppUrl({
+      ...URL_DEFAULTS, surfaceMode: "surface", isoFraction: 0.99,
+    });
+    expect(link).toContain("surf=surface");
+    expect(link).toContain("iso=0.99");
+    expect(parseAppUrl(link).surfaceMode).toBe("surface");
+    expect(parseAppUrl(link).isoFraction).toBe(0.99);
+  });
+
+  it("carries the fraction only when a surface is being drawn", () => {
+    // A contour nobody is looking at is a dead parameter, exactly like the
+    // profile controls with the profile off.
+    const cloud = serializeAppUrl({ ...URL_DEFAULTS, isoFraction: 0.5 });
+    expect(cloud).not.toContain("iso=");
+  });
+
+  it("takes a hand-written fraction that is not one of the presets", () => {
+    // 0.6827 is one sigma, and someone will type it. The presets are a
+    // convenience in the UI, not the set of questions that can be asked.
+    expect(parseAppUrl("?surf=surface&iso=0.6827").isoFraction).toBe(0.6827);
+  });
+
+  it("rejects fractions that are not contours", () => {
+    for (const bad of ["0", "1", "-0.5", "1.5", "abc"]) {
+      expect(parseAppUrl(`?surf=surface&iso=${bad}`).isoFraction).toBeUndefined();
+    }
+    expect(parseAppUrl("?surf=hologram").surfaceMode).toBeUndefined();
   });
 
   it("round-trips the intensities toggle, which defaults on", () => {

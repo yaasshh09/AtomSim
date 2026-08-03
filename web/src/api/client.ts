@@ -307,6 +307,52 @@ export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {
   return postJson("/api/jobs/plane", { resolution: 512, ...params });
 }
 
+export interface IsoParams {
+  n: number;
+  l: number;
+  m: number;
+  /**
+   * The fraction of the electron the surface must enclose, in (0, 1).
+   *
+   * Not a contour value: the level is what comes back, solved for on the grid.
+   * The server has no parameter for a level and this client cannot send one.
+   */
+  fraction: number;
+  basis: Basis;
+  system: string;
+  resolution?: number;
+}
+
+export function createIsoJob(params: IsoParams): Promise<JobInfo> {
+  return postJson("/api/jobs/isosurface", { resolution: 96, ...params });
+}
+
+/**
+ * Triangle indices, which are the one channel in this API that is not float32.
+ *
+ * Reading them with `getChannel` would reinterpret the same bytes as floats and
+ * hand back plausible-looking garbage rather than failing, so index data gets
+ * its own decoder instead of a flag on the float one.
+ */
+export async function getIndexChannel(
+  jobId: string,
+  channel: string,
+): Promise<Uint32Array> {
+  const url = `/api/jobs/${jobId}/data?channel=${channel}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return decodeIndices(await res.arrayBuffer());
+}
+
+export function decodeIndices(buffer: ArrayBuffer): Uint32Array {
+  if (buffer.byteLength % 12 !== 0) {
+    throw new Error(
+      `triangle byte length ${buffer.byteLength} is not a multiple of 12 (3 x uint32)`,
+    );
+  }
+  return new Uint32Array(buffer);
+}
+
 export interface HFParams {
   z: number;
   /** Defaults to neutral on the server; set it for an ion. */

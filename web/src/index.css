@@ -691,6 +691,39 @@ button.primary:disabled {
   gap: 0.4rem;
   color: var(--muted, #8fa3ad);
 }
+/* The isosurface readout. Same shape as .ghost-hud, neutral border: that one is
+   counterfactual pink, and a contour of the real |psi|^2 is real physics. */
+.surface-hud {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: rgba(10, 14, 18, 0.85);
+  font-size: 0.72rem;
+  max-width: 40ch;
+}
+.surface-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  color: var(--muted, #8fa3ad);
+  font-size: 0.75rem;
+}
+.surface-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.surface-controls select {
+  background: #10161c;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.75rem;
+}
 .forcelaw-svg { width: 100%; max-width: 680px; height: auto; }
 .forcelaw-ref { stroke: #4ade80; stroke-width: 2; stroke-dasharray: 4 3; opacity: 0.55; }
 .forcelaw-cf { stroke: #60a5fa; stroke-width: 2.5; }

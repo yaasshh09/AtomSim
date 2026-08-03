@@ -5,15 +5,24 @@ import type * as THREE from "three";
 import { formatSeconds, slowMotionFactor } from "../lib/classical";
 import { buildCloudColors } from "../lib/cloudColors";
 import {
+  buildSurfaceColors,
+  componentsCaption,
+  enclosedCaption,
+  surfaceExtent,
+} from "../lib/isoSurface";
+import {
   CLASSICAL_SLOWMO,
+  ISOSURFACE_LIBERTY,
   NUCLEUS_MARKER_LIBERTY,
   RENDER_LIBERTIES,
+  formatErrorScale,
 } from "../lib/liberties";
 import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
-import { useAppStore } from "../state/store";
+import { ISO_FRACTIONS, useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
+import { IsoSurface } from "./IsoSurface";
 import { Legend } from "./Legend";
 import { PointCloud } from "./PointCloud";
 
@@ -62,6 +71,14 @@ export function CloudView() {
     loadClassical,
     system,
     systems,
+    surfaceMode,
+    setSurfaceMode,
+    isoFraction,
+    setIsoFraction,
+    iso,
+    isoStatus,
+    isoProgress,
+    loadIso,
   } = useAppStore();
   // The ghost is a Kepler orbit, which exists because the field is exactly
   // 1/r. A screened atom's whole content is that its field is not, so there is
@@ -85,9 +102,28 @@ export function CloudView() {
     () => buildCloudColors(colorMode, density, phase),
     [colorMode, density, phase],
   );
-  const distance = stateInfo
+  const showSurface = surfaceMode !== "cloud";
+  const showCloud = surfaceMode !== "surface";
+  // The surface is fetched when it is asked to be shown, exactly like the
+  // classical ghost: a deep link can arrive with ?surf=surface set without ever
+  // passing through the toggle, and this is what it reaches.
+  useEffect(() => {
+    if (showSurface && isoStatus === "idle") void loadIso();
+  }, [showSurface, isoStatus, loadIso]);
+  const surfaceColors = useMemo(
+    () => (iso ? buildSurfaceColors(iso.phase) : null),
+    [iso],
+  );
+  const meanRadiusDistance = stateInfo
     ? Math.max(6 * stateInfo.mean_radius.value, 1e-3)
     : 5 * n * n + 3;
+  // In surface-only mode the cloud is not there to be framed, and a contour is
+  // smaller than the cloud around it, so framing on <r> would leave it small in
+  // the middle of an empty canvas.
+  const distance =
+    surfaceMode === "surface" && iso
+      ? Math.max(2.6 * surfaceExtent(iso.vertices), 1e-3)
+      : meanRadiusDistance;
   const sysInfo = stateInfo?.system ?? null;
   const nucleus = nucleusSphere(
     nucleusMode,
@@ -101,12 +137,25 @@ export function CloudView() {
         <color attach="background" args={["#0a0e12"]} />
         <CameraRig distance={distance} />
         <FpsMeter />
-        {positions && (
+        {showCloud && positions && (
           <PointCloud
             positions={positions}
             pointSize={distance / 350}
             colors={colors}
           />
+        )}
+        {showSurface && iso && surfaceColors && (
+          <>
+            {/* A lit material needs light, and the cloud never did. Both are
+                presentation and both ride on ISOSURFACE_LIBERTY. */}
+            <ambientLight intensity={0.65} />
+            <directionalLight position={[1, 1, 1]} intensity={1.1} />
+            <IsoSurface
+              vertices={iso.vertices}
+              triangles={iso.triangles}
+              colors={surfaceColors}
+            />
+          </>
         )}
         {ghost && classicalGhost && (
           <GhostOverlay ghost={classicalGhost} distance={distance} tauRef={ghostTauRef} />
@@ -121,12 +170,75 @@ export function CloudView() {
         )}
         <OrbitControls />
       </Canvas>
-      {!positions && <p className="hint">Choose a state and press Sample</p>}
+      {!positions && surfaceMode === "cloud" && (
+        <p className="hint">Choose a state and press Sample</p>
+      )}
       <div className="canvas-overlay">
         <Badge provenance={RENDER_LIBERTIES} />
         {nucleus?.kind === "marker" && <Badge provenance={NUCLEUS_MARKER_LIBERTY} />}
         {caption && <span className="nucleus-caption">{caption}</span>}
         <Legend mode={colorMode} />
+        <div className="surface-controls">
+          <label>
+            Draw
+            <select
+              value={surfaceMode}
+              onChange={(e) =>
+                setSurfaceMode(e.target.value as typeof surfaceMode)
+              }
+            >
+              <option value="cloud">point cloud</option>
+              <option value="surface">enclosing surface</option>
+              <option value="both">both</option>
+            </select>
+          </label>
+          {showSurface && (
+            <label>
+              Enclosing
+              <select
+                value={isoFraction}
+                onChange={(e) => setIsoFraction(Number(e.target.value))}
+              >
+                {ISO_FRACTIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {(f * 100).toFixed(0)}%
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {showSurface && isoStatus === "sampling" && (
+          <span className="ghost-readout">
+            solving the level… {Math.round(isoProgress * 100)}%
+          </span>
+        )}
+        {/* Deliberately not .ghost-hud: that box is bordered counterfactual
+            pink, and a contour of the real |psi|^2 is not a counterfactual. */}
+        {showSurface && iso && (
+          <div className="surface-hud">
+            <div className="ghost-readout">
+              {enclosedCaption(iso.meta)}{" "}
+              <Badge provenance={iso.meta.enclosed_fraction.provenance} />
+            </div>
+            <div className="ghost-readout">
+              |psi|^2 = {iso.meta.level.value.toExponential(3)} bohr^-3 on a{" "}
+              {iso.meta.resolution}^3 grid, {componentsCaption(iso.meta)}
+            </div>
+            <div className="ghost-readout">
+              {iso.meta.escaped_fraction.value.toExponential(1)} of the electron is
+              outside the box entirely
+              {iso.meta.provenance.error_estimate !== null && (
+                <>
+                  {" "}
+                  · halving the grid moves the enclosed fraction by{" "}
+                  {formatErrorScale(iso.meta.provenance.error_estimate)}
+                </>
+              )}
+            </div>
+            <Badge provenance={ISOSURFACE_LIBERTY} />
+          </div>
+        )}
         {kind === "hydrogenic" && (
           <label className="ghost-toggle">
             <input

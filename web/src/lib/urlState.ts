@@ -2,7 +2,7 @@
  * Phase 2 guided tour needs is addressable by URL alone. Parsing validates
  * hard — a junk parameter is dropped, never propagated into the store. */
 import type { Basis, ConstMultipliers, PlaneQuantity } from "../api/client";
-import type { AtomModel, ColorMode, ViewMode } from "../state/store";
+import type { AtomModel, ColorMode, SurfaceMode, ViewMode } from "../state/store";
 import type { NucleusMode } from "./nucleus";
 import {
   DEFAULT_EXPR,
@@ -56,6 +56,18 @@ export interface UrlState {
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
+  /** What the 3-D view draws: the cloud, the enclosing surface, or both. */
+  surfaceMode: SurfaceMode;
+  /**
+   * The fraction of the electron the surface encloses.
+   *
+   * Carried because it is the question the picture answers, not a display
+   * preference: "the 90% contour" and "the 50% contour" of one orbital are
+   * different claims about the same atom, and a link to a lesson about the
+   * difference has to survive being shared. Free-valued rather than restricted
+   * to the offered presets, so a hand-written ?iso=0.6827 works.
+   */
+  isoFraction: number;
   labConst: ConstMultipliers;
   labZ: number;
   forcePreset: ForcePreset;
@@ -135,6 +147,8 @@ export const URL_DEFAULTS: UrlState = {
   ghost: false,
   nucleusMode: "marker",
   planeQuantity: "density",
+  surfaceMode: "cloud",
+  isoFraction: 0.9,
   labConst: { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 },
   labZ: 1,
   forcePreset: "powerlaw",
@@ -160,6 +174,7 @@ const BASES: Basis[] = ["complex", "real"];
 const MODELS: AtomModel[] = ["gsz", "hf"];
 const NUCLEUS: NucleusMode[] = ["hidden", "true-scale", "marker"];
 const PLANES: PlaneQuantity[] = ["density", "psi"];
+const SURFACES: SurfaceMode[] = ["cloud", "surface", "both"];
 const FORCE_PRESETS: ForcePreset[] = [
   "powerlaw",
   "yukawa",
@@ -244,6 +259,15 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   if (nucleus) out.nucleusMode = nucleus;
   const plane = pickEnum(q.get("plane"), PLANES);
   if (plane) out.planeQuantity = plane;
+  const surf = pickEnum(q.get("surf"), SURFACES);
+  if (surf) out.surfaceMode = surf;
+  const isoFraction = pickFloat(q.get("iso"));
+  // Open interval, hard: 0 and 1 are not contours, and the server would answer
+  // 422 for either. A junk value drops back to the default rather than
+  // travelling into a request.
+  if (isoFraction !== undefined && isoFraction > 0 && isoFraction < 1) {
+    out.isoFraction = isoFraction;
+  }
 
   const fs = q.get("fs");
   if (fs === "1" || fs === "true") out.fineStructure = true;
@@ -381,6 +405,12 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);
   if (state.planeQuantity !== URL_DEFAULTS.planeQuantity) q.set("plane", state.planeQuantity);
+  if (state.surfaceMode !== URL_DEFAULTS.surfaceMode) q.set("surf", state.surfaceMode);
+  // Only when a surface is being drawn: a fraction in a link that shows a point
+  // cloud names a contour nobody is looking at.
+  if (state.surfaceMode !== "cloud" && state.isoFraction !== URL_DEFAULTS.isoFraction) {
+    q.set("iso", String(state.isoFraction));
+  }
   for (const k of CONSTANT_KEYS) {
     if (Math.abs(state.labConst[k] - URL_DEFAULTS.labConst[k]) > 1e-9) {
       q.set(CONST_PARAMS[k], String(state.labConst[k]));

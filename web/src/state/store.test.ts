@@ -77,6 +77,44 @@ describe("store transitions", () => {
     expect(s.positions).not.toBeNull();
   });
 
+  it("surface mode is a viewing choice: it clears nothing, not even the mesh", () => {
+    pretendLoaded();
+    useAppStore.setState({ iso: {} as never, isoStatus: "ready" });
+    useAppStore.getState().setSurfaceMode("both");
+    const s = useAppStore.getState();
+    expect(s.surfaceMode).toBe("both");
+    expect(s.iso).not.toBeNull();
+    expect(s.positions).not.toBeNull();
+  });
+
+  it("the enclosed fraction is not: a moved slider names a different contour", () => {
+    pretendLoaded();
+    useAppStore.setState({ iso: {} as never, isoStatus: "ready" });
+    useAppStore.getState().setIsoFraction(0.5);
+    const s = useAppStore.getState();
+    expect(s.isoFraction).toBe(0.5);
+    expect(s.iso).toBeNull();
+    expect(s.isoStatus).toBe("idle");
+    // and the cloud, which is the same physics either way, survives
+    expect(s.positions).not.toBeNull();
+  });
+
+  it("clamps the fraction into the open interval the server accepts", () => {
+    useAppStore.getState().setIsoFraction(1);
+    expect(useAppStore.getState().isoFraction).toBeLessThan(1);
+    useAppStore.getState().setIsoFraction(0);
+    expect(useAppStore.getState().isoFraction).toBeGreaterThan(0);
+  });
+
+  it("changing the state drops the mesh but keeps the question that was asked", () => {
+    useAppStore.setState({ iso: {} as never, isoStatus: "ready", isoFraction: 0.5 });
+    useAppStore.getState().setQuantumNumbers(3, 1, 0);
+    const s = useAppStore.getState();
+    expect(s.iso).toBeNull();
+    expect(s.isoStatus).toBe("idle");
+    expect(s.isoFraction).toBe(0.5);
+  });
+
   it("lab constant change clears only the what-if data, not main physics", () => {
     pretendLoaded();
     useAppStore.setState({ whatif: {} as never, whatifStatus: "ready" });
