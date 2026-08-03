@@ -155,3 +155,61 @@ literal mesh, and is available.
 `both` is the frame the phase exists for: the same 90% stated twice in one
 camera, once as the points the sampler drew and once as the skin the solve put
 around them.
+
+---
+
+## What building it changed
+
+**Tetrahedra instead of the 256-case table.** Section 4 planned marching cubes
+with the classical tables transcribed by hand. Nothing in this repo can check
+transcribed data, and one wrong row is a hole or a flipped facet in a rare
+configuration that no orbital in the test set need ever hit. Every tetrahedron
+case is derivable in four lines instead, so the table is built at import from the
+statement it comes from and the test checks it back against that same statement.
+The cost is about twice the triangles for a given grid, which the render budget
+absorbed without noticing.
+
+**The box could not be sized on the grid the surface is drawn on.** Section 3
+said grow the box until a coarse sum of `|psi|^2 dV` says it holds 99.9% of the
+electron. That sum gets worse as the box grows, because a fixed point count over
+a wider box is a coarser mesh over a cusp: for a hydrogen 1s it falls from 0.997
+at 8 bohr to 0.0005 at 134. The loop written against it grew the box forever and
+then failed to enclose 90% of the electron inside a 134 bohr cube. The tail is
+now measured where it lives, as a 1-D radial integral with the sphere average
+taken exactly, and the box is sized by its inscribed sphere so the escaped mass
+it reports is an upper bound rather than an estimate.
+
+**The error bar the spec asked for is nearly blind.** Section 3 said halve the
+grid and quote the movement in the enclosed fraction. It converges far too fast
+to be the error bar for a picture: the coarse and fine levels agree to fifteen
+digits for a hydrogen 2p at 50%, and for a 1s at 90% the fraction error comes out
+exactly 0.0 while the enclosed volume moves half a percent. The fraction and the
+shape are different claims, so the volume is extracted on the halved grid too and
+carries its own bar. A zero beside a surface that is 0.5% off in size would have
+been the quiet lie this project exists to prevent.
+
+**"2p is two lobes" is a claim about the continuum, not about any grid we can
+afford.** Section 5 listed the component count as a topology check with the
+answer assumed. The lobes really are separate for every contour, but the gap
+closes as the contour loosens - the surface meets the z axis at 0.60 bohr for a
+30% contour and 0.11 bohr for a 90% one - and separating a 90% p orbital needs
+about 0.1 bohr cells across a 30 bohr box, which is 300^3. So the count is
+reported as measured, with the cell size beside it and the caveat attached
+wherever an angular node could be doing the fusing.
+
+**The request names a fraction and cannot name a level.** Neither the API nor the
+client has a parameter for a contour value, and the box is not exposed either.
+A level without the grid it was measured on is meaningless, and a client able to
+send one would be choosing a picture rather than asking a question.
+
+**Triangle indices needed their own decoder.** They are the one channel in this
+API that is not float32, and index bytes are perfectly valid float32: reading
+them through the existing decoder returns plausible garbage rather than an error,
+which is the kind of failure that reaches a screenshot.
+
+**Hartree-Fock orbitals have a surface in the engine and no way to ask for one
+over HTTP.** `hf_isosurface` is built and tested; the endpoint accepts the same
+system keys the plane job does, which is hydrogen-like presets and GSZ screened
+atoms. Wiring the HF path through needs the request shape the `/api/jobs/hf`
+endpoint uses (Z, electron count, configuration) rather than a system key, and
+that is a phase of its own rather than a field bolted onto this one.
