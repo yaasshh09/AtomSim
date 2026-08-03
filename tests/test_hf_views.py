@@ -87,3 +87,43 @@ def test_orbital_carries_the_not_an_observable_claim():
     assert "not an observable" in joined
     assert "spherical" in joined
     assert joined == " ".join(p.provenance.assumptions)
+
+
+def test_hf_sampling_reduces_to_hydrogen():
+    """At Z=1, N=1 the Fock operator IS the bare Coulomb Hamiltonian.
+
+    There is no other electron, so no direct term, no exchange term, and
+    nothing for self-consistency to do. The sampler therefore has to reproduce
+    the closed-form 1s radial CDF, 1 - e^(-2r)(1 + 2r + 2r^2), and a KS test is
+    the check the analytic sampler already gets held to.
+
+    A ground truth this tier rarely has, which is why it is spent here.
+    """
+    from scipy import stats
+
+    from atomsim.sampling import sample_hf_density
+
+    cloud = sample_hf_density(1, 1, 1, 0, 0, 20_000, seed=7)
+    r = np.linalg.norm(cloud.positions.astype(np.float64), axis=1)
+
+    def cdf(x):
+        return 1.0 - np.exp(-2.0 * x) * (1.0 + 2.0 * x + 2.0 * x * x)
+
+    assert stats.kstest(r, cdf).pvalue > 0.01
+
+
+def test_hf_cloud_carries_the_solve_and_the_claim():
+    from atomsim.sampling import sample_hf_density
+
+    cloud = sample_hf_density(10, 10, 2, 1, 0, 2_000, seed=1)
+    joined = " ".join(cloud.provenance.assumptions)
+    assert cloud.provenance.fidelity is Fidelity.APPROXIMATION
+    assert "not an observable" in joined
+    assert "correlation" in joined  # the solve's own disclosure survived
+
+
+def test_hf_cloud_goes_counterfactual_with_exchange_off():
+    from atomsim.sampling import sample_hf_density
+
+    cloud = sample_hf_density(10, 10, 2, 1, 0, 2_000, seed=1, exchange=False)
+    assert cloud.provenance.fidelity is Fidelity.COUNTERFACTUAL
