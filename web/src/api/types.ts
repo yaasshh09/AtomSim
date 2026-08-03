@@ -45,6 +45,15 @@ export interface SystemInfo {
   kind: "hydrogenic" | "screened";
   /** Electron count for screened atoms; null for hydrogenic systems. */
   n_electrons: number | null;
+  /**
+   * Whether the GSZ screened model has published parameters for this atom.
+   *
+   * False for sulfur and chlorine only: Szydlik and Green never fitted Z = 16
+   * or 17, and Hartree-Fock needs no fitted table, so the atom is offered with
+   * one of its two models unavailable rather than withheld entirely. Always
+   * true for hydrogenic presets, where no screened model applies at all.
+   */
+  has_gsz: boolean;
 }
 
 export interface LevelInfo {

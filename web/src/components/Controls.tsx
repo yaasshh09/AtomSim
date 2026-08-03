@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isScreenedLevels } from "../api/client";
-import { subshellAvailable } from "../lib/hfModel";
+import { gszAvailable, subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
 import { useAppStore } from "../state/store";
@@ -47,6 +47,10 @@ export function Controls() {
   const hydrogenic = systems.filter((s) => s.kind === "hydrogenic");
   const screened = systems.filter((s) => s.kind === "screened");
   const isScreened = systems.find((s) => s.key === system)?.kind === "screened";
+  // Sulfur and chlorine are real atoms the engine solves; only one of the two
+  // models has parameters for them. The radio is disabled rather than hidden,
+  // so the missing option is visible and has a reason next to it.
+  const hasGsz = gszAvailable(systems, system);
   // The server echoes the resolved configuration on the levels payload.
   const resolved = levels !== null && isScreenedLevels(levels) ? levels : null;
 
@@ -75,8 +79,9 @@ export function Controls() {
               ))}
             </optgroup>
           )}
+          {/* Not "screened": two of these atoms have no screened model. */}
           {screened.length > 0 && (
-            <optgroup label="Atoms (screened, approx.)">
+            <optgroup label="Atoms (many-electron, approx.)">
               {screened.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.name}
@@ -117,6 +122,7 @@ export function Controls() {
               <input
                 type="radio"
                 checked={model === "gsz"}
+                disabled={!hasGsz}
                 onChange={() => setModel("gsz")}
               />
               screened (GSZ)
@@ -130,6 +136,15 @@ export function Controls() {
               Hartree-Fock
             </label>
           </div>
+          {!hasGsz && (
+            <p className="panel-hint">
+              Szydlik and Green never published neutral GSZ screening parameters
+              for this element, so the screened model has nothing to run on.
+              Hartree-Fock builds its potential out of the orbitals it is
+              solving for and needs no fitted table, which is why the atom is
+              here at all.
+            </p>
+          )}
           <p className="panel-hint">
             {model === "gsz"
               ? "Fitted central field: one potential for every electron, no self-consistency."

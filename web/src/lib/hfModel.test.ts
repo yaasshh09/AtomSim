@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { HFLevels } from "../api/types";
-import { HF_ORBITAL_CAPTION, manyElectronParams, subshellAvailable } from "./hfModel";
+import type { HFLevels, SystemInfo } from "../api/types";
+import {
+  HF_ORBITAL_CAPTION,
+  gszAvailable,
+  manyElectronParams,
+  resolveModel,
+  subshellAvailable,
+} from "./hfModel";
 
 const NEON = {
   kind: "hf",
@@ -66,6 +72,45 @@ describe("subshellAvailable", () => {
     expect(subshellAvailable(NEON, "hf", 1, 0)).toBe(true);
     expect(subshellAvailable(NEON, "hf", 3, 2)).toBe(false);
     expect(subshellAvailable(NEON, "hf", 3, 0)).toBe(false);
+  });
+});
+
+const TABLE = [
+  { key: "ar", kind: "screened", has_gsz: true },
+  { key: "s", kind: "screened", has_gsz: false },
+  { key: "h", kind: "hydrogenic", has_gsz: true },
+] as unknown as SystemInfo[];
+
+describe("gszAvailable", () => {
+  it("reads the flag off the table", () => {
+    expect(gszAvailable(TABLE, "ar")).toBe(true);
+    expect(gszAvailable(TABLE, "s")).toBe(false);
+  });
+
+  it("says yes for an atom the table has not described yet", () => {
+    // Same rule as subshellAvailable: greying a control on a guess is worse
+    // than greying it a moment after the table lands.
+    expect(gszAvailable([], "s")).toBe(true);
+    expect(gszAvailable(TABLE, "kr")).toBe(true);
+  });
+});
+
+describe("resolveModel", () => {
+  it("leaves a workable choice alone", () => {
+    expect(resolveModel(TABLE, "ar", "gsz")).toBe("gsz");
+    expect(resolveModel(TABLE, "ar", "hf")).toBe("hf");
+    expect(resolveModel(TABLE, "h", "gsz")).toBe("gsz");
+  });
+
+  it("moves sulfur off the model that has no parameters for it", () => {
+    // Leaving "gsz" selected here means every request refused with a 400 the
+    // picker already had the information to avoid.
+    expect(resolveModel(TABLE, "s", "gsz")).toBe("hf");
+    expect(resolveModel(TABLE, "s", "hf")).toBe("hf");
+  });
+
+  it("waits for the table rather than guessing", () => {
+    expect(resolveModel([], "s", "gsz")).toBe("gsz");
   });
 });
 

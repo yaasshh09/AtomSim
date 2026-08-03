@@ -25,7 +25,7 @@ import {
   defaultParams,
   type ForcePreset,
 } from "../lib/forceLaw";
-import { manyElectronParams } from "../lib/hfModel";
+import { manyElectronParams, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
 import { isAlphaValid } from "../lib/whatif";
@@ -362,8 +362,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setQuantumNumbers: (n, l, m) =>
     set({ ...clampState(n, l, m), ...INVALIDATED, classicalGhost: null, classicalStatus: "idle" }),
   setSystem: (system) =>
-    set({
+    set((state) => ({
       system,
+      // Sulfur and chlorine have no GSZ parameters, so the screened model
+      // cannot draw them at all. Selecting one moves to Hartree-Fock rather
+      // than leaving a model selected under which every request is refused.
+      model: resolveModel(state.systems, system, state.model),
       ...INVALIDATED,
       // selecting a system resets to the Aufbau ground config (server fills it)
       config: null,
@@ -377,7 +381,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // and altered physics does not follow the user to the next atom
       exchange: true,
       pauli: true,
-    }),
+    })),
   // config is its own physics input: it clears everything derived but keeps
   // the selected system.
   //
@@ -562,7 +566,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   loadSystems: async () => {
-    set({ systems: (await client.getSystems()).systems });
+    const systems = (await client.getSystems()).systems;
+    // A deep link can name ?system=s&model=gsz, which is only knowably wrong
+    // once the table saying sulfur has no GSZ parameters has arrived. This is
+    // the moment it arrives, so this is where that link gets corrected.
+    const { system, model } = get();
+    set({ systems, model: resolveModel(systems, system, model) });
   },
   loadStateInfo: async () => {
     const { n, l, m, system, fineStructure } = get();
@@ -716,6 +725,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   ensureHF: async () => {
+    // The table first, because it is what decides the model. A deep link can
+    // say ?system=s&model=gsz, and firing that request before the table lands
+    // spends a 400 on a question the client is one fetch away from answering
+    // itself. Cheap: after the first load `systems` is populated and this is
+    // a length check.
+    if (get().systems.length === 0) await get().loadSystems();
     if (get().model !== "hf") return true;
     if (get().hf !== null) return true;
     await get().loadHF();

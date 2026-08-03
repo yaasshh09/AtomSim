@@ -1,4 +1,4 @@
-import type { HFLevels, ManyElectronParams } from "../api/types";
+import type { HFLevels, ManyElectronParams, SystemInfo } from "../api/types";
 import type { AtomModel } from "../state/store";
 
 /**
@@ -38,6 +38,36 @@ export function manyElectronParams(s: ModelSelection): ManyElectronParams {
     exchange: s.model === "hf" ? s.exchange : true,
     pauli: s.model === "hf" ? s.pauli : true,
   };
+}
+
+/**
+ * Whether the GSZ screened model can speak for this atom at all.
+ *
+ * True while the system table is still loading: the flag is a fact about an
+ * atom the client has not been told about yet, and greying a control on a
+ * guess is worse than greying it a moment late. Also true for every
+ * hydrogenic preset, which no screened model touches.
+ */
+export function gszAvailable(systems: SystemInfo[], system: string): boolean {
+  const info = systems.find((s) => s.key === system);
+  return info === undefined || info.has_gsz;
+}
+
+/**
+ * The model to actually use for this atom.
+ *
+ * Sulfur and chlorine have no GSZ parameters, so leaving "gsz" selected there
+ * would mean every request refused with a 400 the picker could have avoided.
+ * Applied both when the system changes and when the system table arrives,
+ * because a deep link can name `?system=s&model=gsz` before the table that
+ * knows better has loaded.
+ */
+export function resolveModel(
+  systems: SystemInfo[],
+  system: string,
+  model: AtomModel,
+): AtomModel {
+  return gszAvailable(systems, system) ? model : "hf";
 }
 
 /**
