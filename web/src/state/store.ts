@@ -72,6 +72,15 @@ export type AtomModel = "gsz" | "hf";
 
 const N_MAX_DIAGRAM = 6;
 
+/**
+ * The `/api/systems` request currently in flight, or null.
+ *
+ * Module-level rather than store state on purpose: it is not something any
+ * view renders or should re-render on, it is bookkeeping for one fetch. See
+ * `loadSystems` for who races for it.
+ */
+let inFlightSystems: Promise<{ systems: SystemInfo[] }> | null = null;
+
 interface AppState {
   n: number;
   l: number;
@@ -566,7 +575,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   loadSystems: async () => {
-    const systems = (await client.getSystems()).systems;
+    // Three callers want this table on first paint: the Controls panel, the
+    // ensureHF gate, and loadHF. Each guards on `systems.length === 0`, which
+    // is still zero for all three until the first response lands, so without
+    // sharing the request in flight the app opens by fetching the same 16 kB
+    // three times. Cleared in `finally` so a failed load is retried rather
+    // than remembered.
+    if (inFlightSystems === null) inFlightSystems = client.getSystems();
+    let systems: SystemInfo[];
+    try {
+      systems = (await inFlightSystems).systems;
+    } finally {
+      inFlightSystems = null;
+    }
     // A deep link can name ?system=s&model=gsz, which is only knowably wrong
     // once the table saying sulfur has no GSZ parameters has arrived. This is
     // the moment it arrives, so this is where that link gets corrected.
@@ -694,9 +715,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (hfStatus === "sampling") return;
     // Z and the electron count live on the system table, so a solve cannot be
     // requested before it has loaded. Ask for it rather than guessing them
-    // from the key — the key is a label, the table is the authority.
-    const table = systems.length === 0 ? (await client.getSystems()).systems : systems;
-    if (systems.length === 0) set({ systems: table });
+    // from the key: the key is a label, the table is the authority. Through
+    // loadSystems rather than the client directly, so this shares the request
+    // any other caller already has in flight.
+    if (systems.length === 0) await get().loadSystems();
+    const table = get().systems;
     const info = table.find((s) => s.key === system);
     if (info === undefined || info.n_electrons === null) {
       set({
