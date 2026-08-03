@@ -228,14 +228,29 @@ export function CloudView() {
             <div className="ghost-readout">
               {iso.meta.escaped_fraction.value.toExponential(1)} of the electron is
               outside the box entirely
-              {iso.meta.provenance.error_estimate !== null && (
-                <>
-                  {" "}
-                  · halving the grid moves the enclosed fraction by{" "}
-                  {formatErrorScale(iso.meta.provenance.error_estimate)}
-                </>
-              )}
             </div>
+            {/* Both error bars, because they measure different claims and the
+                fraction one is nearly blind: the level hardly moves under a
+                halved grid, so the fraction converges long before the shape
+                does. Showing only "fraction ± 0" beside a surface that is half
+                a percent off in size would read as exactness. */}
+            {iso.meta.provenance.error_estimate !== null && (
+              <div className="ghost-readout">
+                halving the grid moves the enclosed fraction by{" "}
+                {formatErrorScale(iso.meta.provenance.error_estimate)}
+                {iso.meta.mesh_volume.provenance.error_estimate !== null && (
+                  <>
+                    {" "}
+                    and the volume by{" "}
+                    {(
+                      (100 * iso.meta.mesh_volume.provenance.error_estimate) /
+                      iso.meta.mesh_volume.value
+                    ).toFixed(2)}
+                    %
+                  </>
+                )}
+              </div>
+            )}
             <Badge provenance={ISOSURFACE_LIBERTY} />
           </div>
         )}

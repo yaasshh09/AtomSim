@@ -312,6 +312,39 @@ def test_the_error_bar_is_a_grid_halving_on_the_fraction():
     assert surface.enclosed_fraction.provenance.error_estimate is not None
 
 
+def test_the_volume_gets_its_own_error_bar_because_the_fraction_one_is_blind():
+    """Two claims, two convergence rates, and quoting only the fast one lies.
+
+    The level barely moves under halving, so the fraction it encloses comes back
+    right to about 1e-4 or better - for a 1s at 90% the two grids agree exactly
+    and the fraction error is 0.0. Where the contour sits is a different matter:
+    the same halving moves the enclosed volume by half a percent. An error bar
+    of zero beside a surface that is half a percent off in size is precisely the
+    quiet lie this project exists to prevent, so the volume carries its own.
+    """
+    surface = isosurface(1, 0, 0, target_fraction=0.9, resolution=96)
+    fraction_error = surface.provenance.error_estimate
+    volume_error = surface.mesh_volume.provenance.error_estimate
+
+    assert fraction_error is not None and volume_error is not None
+    assert fraction_error < 1e-3
+    # The point of the test: the geometric error is orders larger, and real.
+    assert volume_error / surface.mesh_volume.value > 1e-3
+    text = " ".join(surface.provenance.assumptions)
+    assert "enclosed volume by" in text
+    assert "converges long before the surface does" in text
+
+
+def test_the_volume_error_bar_shrinks_as_the_grid_refines():
+    """It is an error estimate, so it has to behave like one."""
+    errors = [
+        isosurface(2, 1, 0, target_fraction=0.9, resolution=n, basis="real")
+        for n in (48, 96)
+    ]
+    relative = [s.mesh_volume.provenance.error_estimate / s.mesh_volume.value for s in errors]
+    assert relative[1] < relative[0]
+
+
 def test_the_achieved_fraction_is_what_is_reported_not_the_request():
     """They are close, and the reported one is the measured one anyway."""
     surface = isosurface(2, 1, 0, target_fraction=0.9, resolution=64)

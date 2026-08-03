@@ -289,27 +289,37 @@ def _build(
     level = solve_level(grid, cell, target_fraction)
     achieved = fraction_above(grid, cell, level)
 
-    # Grid halving: solve the same target on every second point and ask what
-    # THAT level would have enclosed here. The gap is what the grid costs.
+    spacing = float(axis[1] - axis[0])
+    mesh: Mesh = marching_tets(grid, level, origin=(-half_width,) * 3, spacing=spacing)
+    phase = _phase_at(evaluator, mesh.vertices)
+    mesh_vol = enclosed_volume(mesh)
+    voxel_vol = float((grid >= level).sum() * cell)
+    components = connected_components(mesh)
+
+    # Grid halving, twice over, because the two things this surface claims do
+    # not converge at the same rate and one of them is nearly blind.
+    #
+    # The level itself barely moves under halving - for a hydrogen 2p at 50% the
+    # coarse and fine levels agree to fifteen digits - so the enclosed fraction
+    # comes back accurate to 1e-4 and an error bar built only from it reads as
+    # near zero. It is a true statement about the fraction and it would be a
+    # false impression of the surface: WHERE the contour sits carries far more
+    # error than WHAT it encloses, and volume is the quantity that sees it.
     coarse = grid[::2, ::2, ::2]
     try:
         # Every second point, so cells are twice as wide and eight times as big.
         coarse_level = solve_level(coarse, 8.0 * cell, target_fraction)
         fraction_error = abs(fraction_above(grid, cell, coarse_level) - achieved)
+        coarse_mesh = marching_tets(
+            coarse, coarse_level, origin=(-half_width,) * 3, spacing=2.0 * spacing
+        )
+        volume_error = abs(enclosed_volume(coarse_mesh) - mesh_vol)
     except ValueError:
         # The halved grid resolves the peak too poorly to hold the target at
         # all. That is a statement about the coarse grid, not about this one,
         # and inventing an error bar from it would be worse than saying so.
         fraction_error = None
-
-    mesh: Mesh = marching_tets(
-        grid, level, origin=(-half_width,) * 3, spacing=axis[1] - axis[0]
-    )
-    phase = _phase_at(evaluator, mesh.vertices)
-    mesh_vol = enclosed_volume(mesh)
-    voxel_vol = float((grid >= level).sum() * cell)
-    components = connected_components(mesh)
-    spacing = float(axis[1] - axis[0])
+        volume_error = None
 
     outside = 1.0 - achieved
     assumptions = psi_assumptions + extra_assumptions + (
@@ -330,7 +340,11 @@ def _build(
         f"the looser the contour the nearer the node they part",
         (
             f"level solved on a {resolution}^3 grid; halving it moves the enclosed "
-            f"fraction by {fraction_error:.2e}"
+            f"fraction by {fraction_error:.2e} and the enclosed volume by "
+            f"{volume_error:.2e} bohr^3 "
+            f"({volume_error / mesh_vol if mesh_vol > 0 else float('nan'):.2%}). The second "
+            f"number is the honest one for the shape: the level is nearly grid-"
+            f"independent, so the fraction converges long before the surface does"
             if fraction_error is not None
             else f"level solved on a {resolution}^3 grid; the halved grid could not "
             f"hold {target_fraction:.4g} of the probability, so no grid-halving "
@@ -371,7 +385,9 @@ def _build(
         enclosed_fraction=scalar(achieved, "1", "enclosed probability", fraction_error),
         level=scalar(level, "bohr^-3", "|psi|^2 contour level"),
         escaped_fraction=scalar(escaped, "1", "probability outside the box"),
-        mesh_volume=scalar(mesh_vol, "bohr^3", "volume enclosed by the surface"),
+        mesh_volume=scalar(
+            mesh_vol, "bohr^3", "volume enclosed by the surface", volume_error
+        ),
         voxel_volume=scalar(voxel_vol, "bohr^3", "volume of cells above the level"),
         area=scalar(surface_area(mesh), "bohr^2", "surface area"),
         components=components,

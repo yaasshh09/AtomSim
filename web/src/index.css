@@ -218,13 +218,21 @@ button.primary:disabled {
   padding: 2rem;
 }
 
+/* Wrapping, and nothing in here allowed to shrink: this row started as three
+   badges and now carries a whole readout. Flex's default shrink squeezed the
+   surface HUD into a one-word column running off the canvas. */
 .canvas-overlay {
   position: absolute;
   left: 1rem;
+  right: 1rem;
   bottom: 1rem;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  align-items: center;
+  align-items: flex-end;
+}
+.canvas-overlay > * {
+  flex: 0 0 auto;
 }
 
 .nucleus-caption {
