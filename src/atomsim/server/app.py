@@ -52,6 +52,7 @@ from atomsim.hf_atom import (
     evaluate_hf_state,
     hf_exchange_energy,
     hf_radial,
+    hf_total_radial_density,
     pauli_collapse,
     solve_hartree_fock,
 )
@@ -229,6 +230,11 @@ class RadialResponse(BaseModel):
     system: SystemModel
     r_wavefunction: FieldModel
     radial_probability: FieldModel
+    #: D(r) for the whole cloud, summed over occupied subshells. Present only
+    #: under the Hartree-Fock model, which is the one that knows the
+    #: occupancies from its own solve. Null elsewhere rather than omitted, so a
+    #: client reads one response shape whichever model it asked for.
+    total_density: FieldModel | None = None
 
 
 class SpectrumResponse(BaseModel):
@@ -1201,6 +1207,14 @@ def create_app() -> FastAPI:
                 hf_z, hf_n, n, l, points=points,
                 config=hf_config, exchange=exchange, pauli=pauli,
             )
+            # Free beside the orbital: the same cached solve, summed rather
+            # than picked from. Sent unasked because the two curves above it
+            # carry a caption saying they are not observable, and shipping that
+            # claim without the thing it points at is half a sentence.
+            density = hf_total_radial_density(
+                hf_z, hf_n, config=hf_config, exchange=exchange, pauli=pauli,
+                points=points,
+            )
             element = atom_for_key(system)
             return RadialResponse(
                 n=n, l=l,
@@ -1211,6 +1225,7 @@ def create_app() -> FastAPI:
                 ),
                 r_wavefunction=FieldModel.from_field(rw),
                 radial_probability=FieldModel.from_field(p),
+                total_density=FieldModel.from_field(density),
             )
         if _is_screened(system):
             element = atom_for_key(system)

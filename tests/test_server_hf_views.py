@@ -179,6 +179,22 @@ def test_radial_refuses_an_unoccupied_subshell(client):
     assert "not occupied" in r.json()["detail"]
 
 
+def test_radial_carries_the_total_density_under_hartree_fock(client):
+    body = client.get("/api/radial/2/1?system=ne&model=hf").json()
+    d = body["total_density"]
+    assert d is not None
+    assert d["unit"] == "electrons/bohr"
+    assert "observable" in " ".join(d["provenance"]["assumptions"])
+    # It accounts for all ten electrons, which is the point of sending it.
+    assert np.trapezoid(d["values"], d["grid"]) == pytest.approx(10.0, rel=1e-3)
+
+
+def test_screened_radial_has_no_total_density(client):
+    """Null rather than absent: the field exists and this model does not fill it."""
+    body = client.get("/api/radial/2/1?system=ne").json()
+    assert body["total_density"] is None
+
+
 def test_radial_counterfactual_flips_the_tier(client):
     r = client.get("/api/radial/2/1?system=ne&model=hf&exchange=false")
     assert r.status_code == 200
