@@ -31,6 +31,7 @@ from atomsim.analytic.zeeman import zeeman_sublevels
 from atomsim.atoms import (
     ATOM_KEYS,
     SUBSHELL_LABELS,
+    Configuration,
     atom_for_key,
     aufbau_configuration,
     element_by_z,
@@ -47,6 +48,7 @@ from atomsim.constants_lab import analyze_constants
 from atomsim.hf_atom import (
     HFResult,
     PauliCollapse,
+    evaluate_hf_state,
     hf_exchange_energy,
     pauli_collapse,
     solve_hartree_fock,
@@ -54,15 +56,21 @@ from atomsim.hf_atom import (
 from atomsim.isosurface import (
     GRID_SIZES,
     Isosurface,
+    hf_isosurface,
     isosurface,
     screened_isosurface,
 )
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
-from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
+from atomsim.plane import PlaneGrid, hf_plane_grid, plane_grid, screened_plane_grid
 from atomsim.populations import ThermalConditions
 from atomsim.provenance import Field, Quantity
-from atomsim.sampling import SampleCloud, sample_density, sample_screened_density
+from atomsim.sampling import (
+    SampleCloud,
+    sample_density,
+    sample_hf_density,
+    sample_screened_density,
+)
 from atomsim.screened_atom import (
     evaluate_screened_state,
     screened_radial,
@@ -240,7 +248,52 @@ class SpectrumResponse(BaseModel):
     profile_note: str | None = None
 
 
-class SampleRequest(BaseModel):
+class ManyElectronRequest(BaseModel):
+    """The four fields that pick which many-electron model draws a picture.
+
+    Shared by the sample, plane and isosurface requests rather than repeated,
+    because the pauli/exchange rule below has to be the same rule in all three
+    and a copied validator is a rule waiting to drift.
+
+    Every default is the already-shipped screened behaviour, so a client that
+    has never heard of any of these fields cannot accidentally ask for
+    Hartree-Fock or for a counterfactual. This mirrors HFRequest.
+    """
+
+    model: Literal["gsz", "hf"] = "gsz"
+    #: Electron configuration, e.g. "1s2 2s2 2p5 3s1". None is the ground
+    #: configuration for the rule in force. Ignored under model="gsz", which
+    #: has no per-subshell solve for it to change.
+    config: str | None = None
+    exchange: bool = True
+    pauli: bool = True
+
+    @model_validator(mode="after")
+    def _pauli_off_implies_exchange_off(self) -> "ManyElectronRequest":
+        """Refuse the combination rather than quietly flipping a flag.
+
+        Same rule and the same 422 as HFRequest: a Slater determinant holding
+        two electrons in one spin-orbital is identically zero, so there is no
+        wavefunction there for an exchange integral to act on. Correcting it
+        for the client would hide that they asked for a state that does not
+        exist.
+
+        Scoped to model="hf" because these two flags name Hartree-Fock's rules
+        and the screened model has neither an exchange term nor an occupancy
+        cap of its own. A stale switch left set while switching models is not
+        an incoherent request; it is a control that does not apply.
+        """
+        if self.model == "hf" and not self.pauli and self.exchange:
+            raise ValueError(
+                "pauli=false requires exchange=false: exchange energy is a "
+                "consequence of antisymmetry and the exclusion principle IS "
+                "antisymmetry, so with the principle off there is nothing for "
+                "an exchange integral to act on"
+            )
+        return self
+
+
+class SampleRequest(ManyElectronRequest):
     n: int
     l: int
     m: int
@@ -268,6 +321,11 @@ class SampleMetaModel(BaseModel):
     m: int
     basis: str
     system: str
+    #: Which many-electron model drew this. Echoed from the request so the
+    #: browser can name what it is looking at without parsing the provenance
+    #: prose, which is a thing a view that has to parse prose eventually gets
+    #: wrong.
+    model: str = "gsz"
     provenance: ProvenanceModel
     channels: list[ChannelModel]
 
@@ -280,7 +338,7 @@ class SampleJobResult:
     psi: WavefunctionValues
 
 
-class PlaneRequest(BaseModel):
+class PlaneRequest(ManyElectronRequest):
     n: int
     l: int
     m: int
@@ -305,10 +363,12 @@ class PlaneMetaModel(BaseModel):
     m: int
     basis: str
     system: str
+    #: Which many-electron model drew this; see SampleMetaModel.model.
+    model: str = "gsz"
     provenance: ProvenanceModel
 
 
-class IsoRequest(BaseModel):
+class IsoRequest(ManyElectronRequest):
     """An isosurface asked for by the fraction it encloses, never by a level.
 
     A raw contour value is meaningless without the grid it was measured on, and
@@ -359,6 +419,8 @@ class IsoMetaModel(BaseModel):
     m: int
     basis: str
     system: str
+    #: Which many-electron model drew this; see SampleMetaModel.model.
+    model: str = "gsz"
     label: str
     provenance: ProvenanceModel
 
@@ -678,6 +740,10 @@ def create_app() -> FastAPI:
     jobs = JobStore()
     app.state.jobs = jobs
     app.state.job_systems = {}
+    # Parallel to job_systems, and for the same reason: the meta endpoint sees
+    # only the finished result object, and a SampleCloud does not know which
+    # model produced it.
+    app.state.job_models = {}
     app.add_middleware(
         CORSMiddleware, allow_origins=_DEV_ORIGINS, allow_methods=["*"], allow_headers=["*"]
     )
@@ -750,6 +816,53 @@ def create_app() -> FastAPI:
                 ),
             )
         return cfg
+
+    def _hf_view_target(req) -> tuple[int, int, Configuration]:
+        """(Z, N, configuration) for a Hartree-Fock picture, or a refusal.
+
+        Every refusal here is synchronous and carries its reason, because the
+        alternative is a job that dies several seconds in with an engine
+        message the client has to guess at. The occupancy check needs no solve:
+        which subshells exist is a property of the configuration, and the
+        configuration is in the request.
+        """
+        if not _is_screened(req.system):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"model='hf' needs an atom with a known electron count, "
+                    f"and {req.system!r} is a one-electron system; its "
+                    f"wavefunction is already exact in the other views, so "
+                    f"there is nothing a self-consistent field would add"
+                ),
+            )
+        element = atom_for_key(req.system)
+        n_electrons = element.z
+        config = (
+            aufbau_configuration(n_electrons, req.pauli)
+            if req.config is None
+            else _parse_config_or_422(req.config, req.pauli)
+        )
+        _validate_hf_request(element.z, n_electrons, config, req.pauli)
+        if (req.n, req.l) not in [nl for nl, _ in config]:
+            held = ", ".join(f"{n}{SUBSHELL_LABELS[l]}" for (n, l), _ in config)
+            why = (
+                "the occupancy cap is lifted, so every electron is in the 1s "
+                "and no other orbital exists to draw"
+                if not req.pauli
+                else "Hartree-Fock builds one Fock operator per occupied "
+                "subshell, so an empty one has no operator to be an "
+                "eigenfunction of, and borrowing another subshell's operator "
+                "would answer a different question silently"
+            )
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{req.n}{SUBSHELL_LABELS[req.l]} is not occupied in "
+                    f"{element.symbol} ({held}); {why}"
+                ),
+            )
+        return element.z, n_electrons, config
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -1411,8 +1524,34 @@ def create_app() -> FastAPI:
     @app.post("/api/jobs/sample", response_model=JobModel)
     async def create_sample_job(req: SampleRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
+        # Resolved before the job exists, so a refusal does not leave an orphan
+        # job sitting in the store for a client that never got an id back.
+        hf_target = _hf_view_target(req) if req.model == "hf" else None
         job = jobs.create()
         app.state.job_systems[job.id] = req.system
+        app.state.job_models[job.id] = req.model
+
+        if hf_target is not None:
+            hf_z, hf_n, hf_config = hf_target
+
+            def work(progress):
+                cloud = sample_hf_density(
+                    hf_z, hf_n, req.n, req.l, req.m, req.count,
+                    seed=req.seed, progress=lambda f: progress(0.9 * f),
+                    basis=req.basis, config=hf_config,
+                    exchange=req.exchange, pauli=req.pauli,
+                )
+                psi = evaluate_hf_state(
+                    hf_z, hf_n, req.n, req.l, req.m,
+                    cloud.positions.astype(np.float64), basis=req.basis,
+                    config=hf_config, exchange=req.exchange, pauli=req.pauli,
+                )
+                progress(1.0)
+                return SampleJobResult(cloud=cloud, psi=psi)
+
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, jobs.run, job.id, work)
+            return _job_model(job)
 
         if _is_screened(req.system):
             element = atom_for_key(req.system)
@@ -1455,8 +1594,25 @@ def create_app() -> FastAPI:
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
+        hf_target = _hf_view_target(req) if req.model == "hf" else None
         job = jobs.create()
         app.state.job_systems[job.id] = req.system
+        app.state.job_models[job.id] = req.model
+
+        if hf_target is not None:
+            hf_z, hf_n, hf_config = hf_target
+
+            def work(progress):
+                return hf_plane_grid(
+                    hf_z, hf_n, req.n, req.l, req.m,
+                    quantity=req.quantity, basis=req.basis,
+                    resolution=req.resolution, progress=progress,
+                    config=hf_config, exchange=req.exchange, pauli=req.pauli,
+                )
+
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, jobs.run, job.id, work)
+            return _job_model(job)
 
         if _is_screened(req.system):
             element = atom_for_key(req.system)
@@ -1494,10 +1650,23 @@ def create_app() -> FastAPI:
         closed-form state and several for a screened one.
         """
         _validate_state(req.n, req.l, req.m)
+        hf_target = _hf_view_target(req) if req.model == "hf" else None
         job = jobs.create()
         app.state.job_systems[job.id] = req.system
+        app.state.job_models[job.id] = req.model
 
-        if _is_screened(req.system):
+        if hf_target is not None:
+            hf_z, hf_n, hf_config = hf_target
+
+            def work(progress):
+                return hf_isosurface(
+                    hf_z, hf_n, req.n, req.l, req.m,
+                    target_fraction=req.fraction, basis=req.basis,
+                    resolution=req.resolution, progress=progress,
+                    config=hf_config, exchange=req.exchange, pauli=req.pauli,
+                )
+
+        elif _is_screened(req.system):
             element = atom_for_key(req.system)
 
             def work(progress):
@@ -1581,7 +1750,9 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail=f"unknown job: {job_id}")
         return _job_model(job)
 
-    def _sample_meta(res: SampleJobResult, system_key: str) -> SampleMetaModel:
+    def _sample_meta(
+        res: SampleJobResult, system_key: str, model_key: str
+    ) -> SampleMetaModel:
         cloud = res.cloud
         channels = [
             ChannelModel(
@@ -1603,12 +1774,14 @@ def create_app() -> FastAPI:
         return SampleMetaModel(
             count=cloud.positions.shape[0], dtype="float32", layout="xyz-interleaved",
             unit="bohr", n=cloud.n, l=cloud.l, m=cloud.m, basis=cloud.basis,
-            system=system_key,
+            system=system_key, model=model_key,
             provenance=ProvenanceModel.from_provenance(cloud.provenance),
             channels=channels,
         )
 
-    def _plane_meta(pg: PlaneGrid, system_key: str) -> PlaneMetaModel:
+    def _plane_meta(
+        pg: PlaneGrid, system_key: str, model_key: str
+    ) -> PlaneMetaModel:
         return PlaneMetaModel(
             resolution=pg.values.shape[0],
             dtype="float32",
@@ -1616,10 +1789,13 @@ def create_app() -> FastAPI:
             quantity=pg.quantity, unit=pg.unit, label=pg.label,
             half_extent=float(pg.axis[-1]), axis_unit="bohr",
             n=pg.n, l=pg.l, m=pg.m, basis=pg.basis, system=system_key,
+            model=model_key,
             provenance=ProvenanceModel.from_provenance(pg.provenance),
         )
 
-    def _iso_meta(surf: Isosurface, system_key: str) -> IsoMetaModel:
+    def _iso_meta(
+        surf: Isosurface, system_key: str, model_key: str
+    ) -> IsoMetaModel:
         prov = ProvenanceModel.from_provenance(surf.provenance)
         return IsoMetaModel(
             vertex_count=int(surf.vertices.shape[0]),
@@ -1649,6 +1825,7 @@ def create_app() -> FastAPI:
             resolution=surf.resolution,
             axis_unit="bohr",
             n=surf.n, l=surf.l, m=surf.m, basis=surf.basis, system=system_key,
+            model=model_key,
             label=surf.label,
             provenance=prov,
         )
@@ -1662,16 +1839,17 @@ def create_app() -> FastAPI:
     ) -> SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel:
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
+        model_key = app.state.job_models.get(job_id, "gsz")
         if isinstance(res, PlaneGrid):
-            return _plane_meta(res, system_key)
+            return _plane_meta(res, system_key, model_key)
         if isinstance(res, Isosurface):
-            return _iso_meta(res, system_key)
+            return _iso_meta(res, system_key, model_key)
         if isinstance(res, HFJobResult):
             # Unlike sample and plane, the whole scientific result is here: the
             # energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
-        return _sample_meta(res, system_key)
+        return _sample_meta(res, system_key, model_key)
 
     def _iso_channel_payload(surf: Isosurface, channel: str | None) -> np.ndarray:
         """Three channels, because a mesh is three arrays of different shapes.
