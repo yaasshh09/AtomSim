@@ -1,4 +1,4 @@
-import { scaleLinear } from "d3-scale";
+import { scaleLinear, scaleLog } from "d3-scale";
 import { useEffect } from "react";
 import type { FieldData, Quantity } from "../api/types";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
@@ -10,11 +10,52 @@ const W = 640;
 const H = 240;
 const M = { top: 16, right: 16, bottom: 34, left: 56 };
 
-function FieldPlot({ field, marker }: { field: FieldData; marker?: Quantity }) {
-  const x = scaleLinear(
-    [0, field.grid[field.grid.length - 1]],
-    [M.left, W - M.right],
-  );
+/** Powers of ten inside [lo, hi]. */
+function decades([lo, hi]: [number, number]): number[] {
+  const out: number[] = [];
+  for (let e = Math.ceil(Math.log10(lo)); e <= Math.floor(Math.log10(hi)); e++) {
+    out.push(10 ** e);
+  }
+  return out;
+}
+
+/** "0.01", "1", "10" rather than "1e-2" — these are bohr, and readers know bohr. */
+function decadeLabel(t: number): string {
+  return t >= 0.01 ? String(Number(t.toFixed(2))) : t.toExponential(0);
+}
+
+/**
+ * A radial curve.
+ *
+ * `logX` puts r on a log axis, which is not decoration and not a liberty: the
+ * axis is labeled with the values it carries, so nothing is hidden or clipped.
+ * It exists because a many-electron atom is logarithmic in r and a linear axis
+ * cannot show it. Argon's solve box runs to 48 bohr while its K shell sits near
+ * 0.06 and its M shell near 1.4, so on a linear axis all three shells pile into
+ * the first 3% of the width and the plot shows one spike and 45 bohr of
+ * nothing. The solver's own mesh is exponential for exactly this reason.
+ */
+function FieldPlot({
+  field,
+  marker,
+  logX = false,
+}: {
+  field: FieldData;
+  marker?: Quantity;
+  logX?: boolean;
+}) {
+  const rMax = field.grid[field.grid.length - 1];
+  const x = logX
+    ? scaleLog(
+        // The first grid point, not zero: log has no zero, and the mesh starts
+        // where it does precisely so r = 0 is never needed.
+        [Math.max(field.grid[0], 1e-4), rMax],
+        [M.left, W - M.right],
+      )
+    : scaleLinear([0, rMax], [M.left, W - M.right]);
+  // Decades only on a log axis. d3's own log ticks include every 2x, 3x, ... in
+  // each decade, and at this width they overprint into an unreadable band.
+  const xTicks = logX ? decades(x.domain() as [number, number]) : x.ticks(6);
   const lo = Math.min(0, ...field.values);
   const hi = Math.max(...field.values);
   const y = scaleLinear([lo, hi], [H - M.bottom, M.top]).nice();
@@ -29,11 +70,11 @@ function FieldPlot({ field, marker }: { field: FieldData; marker?: Quantity }) {
           className="axis"
         />
         <line x1={M.left} y1={M.top} x2={M.left} y2={H - M.bottom} className="axis" />
-        {x.ticks(6).map((t) => (
+        {xTicks.map((t) => (
           <g key={t} transform={`translate(${x(t)},${H - M.bottom})`}>
             <line y2="5" className="axis" />
             <text y="18" textAnchor="middle" className="tick">
-              {t}
+              {logX ? decadeLabel(t) : t}
             </text>
           </g>
         ))}
@@ -63,7 +104,7 @@ function FieldPlot({ field, marker }: { field: FieldData; marker?: Quantity }) {
         <text
           x={(M.left + W - M.right) / 2} y={H - 4} textAnchor="middle" className="tick"
         >
-          r [{field.grid_unit}]
+          r [{field.grid_unit}]{logX ? " (log)" : ""}
         </text>
       </svg>
     </figure>
@@ -89,6 +130,20 @@ export function RadialView() {
         marker={stateInfo?.mean_radius ?? undefined}
       />
       {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}
+      {radial.total_density && (
+        <>
+          <FieldPlot field={radial.total_density} logX />
+          <p className="hint-block">
+            This one is measurable. Each peak is a shell, the area under it is
+            how many electrons that shell holds, and the whole curve integrates
+            to {radial.system.n_electrons ?? "N"} — which is what makes it a
+            density rather than a curve. Neon has two peaks and argon has three;
+            that is the periodic table, drawn. r is on a log axis because the
+            shells are decades apart in size, not to flatter the shape. The
+            plots above are one orbital out of the basis this was summed from.
+          </p>
+        </>
+      )}
     </div>
   );
 }

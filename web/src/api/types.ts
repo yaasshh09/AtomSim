@@ -182,6 +182,14 @@ export interface RadialResponse {
   system: SystemInfo;
   r_wavefunction: FieldData;
   radial_probability: FieldData;
+  /**
+   * Total radial electron density, present only under Hartree-Fock.
+   *
+   * The observable, unlike the two curves above it: its peaks are the shells,
+   * and the area under each is that shell's electron count. Null under the
+   * screened model rather than absent, so this stays one response shape.
+   */
+  total_density: FieldData | null;
 }
 
 export interface SpectralLineInfo {
