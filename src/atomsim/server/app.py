@@ -37,6 +37,7 @@ from atomsim.atoms import (
     aufbau_configuration,
     element_by_z,
     format_config,
+    has_gsz_parameters,
     is_atom_key,
     parse_config,
     total_electrons,
@@ -774,7 +775,37 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     def _is_screened(key: str) -> bool:
+        """Whether this key names a many-electron atom, whatever model draws it."""
         return is_atom_key(key)
+
+    def _gsz_element(key: str):
+        """The element, or a refusal if the GSZ model has no parameters for it.
+
+        Called at the top of every screened branch, in place of the bare
+        `atom_for_key` those branches used when the two lists were one. Sulfur
+        and chlorine reach these endpoints now - they are real atoms and the
+        picker offers them - and without this they would fault somewhere inside
+        the screening table with a ValueError that names no way forward.
+
+        400 rather than 422: the request is well posed and understood, and the
+        server is declining it, which is the same split `_validate_hf_request`
+        already draws for a neutral potassium atom.
+        """
+        element = atom_for_key(key)
+        if not has_gsz_parameters(element.z):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{element.name} has no published GSZ screening parameters: "
+                    f"Szydlik and Green, Phys. Rev. A 9, 1885 (1974), tabulate "
+                    f"neutral He to P and Ar and skip Z = 16 and 17. Inventing "
+                    f"them would be shipping physics with no source. Ask for "
+                    f"model='hf' instead - Hartree-Fock builds its potential "
+                    f"out of the orbitals it is solving for and needs no fitted "
+                    f"table, which is why this atom is offered at all"
+                ),
+            )
+        return element
 
     def _resolve_thermal(
         temperature_k: float | None, electron_density_cm3: float | None
@@ -878,16 +909,33 @@ def create_app() -> FastAPI:
 
     @app.get("/api/systems", response_model=SystemsResponse)
     def systems() -> SystemsResponse:
+        """Every system the application can select, and what can speak for it.
+
+        All seventeen atoms are listed, including the two the GSZ model has no
+        parameters for. `has_gsz` is what tells them apart, so the client greys
+        one control rather than hiding an atom the engine solves perfectly
+        well; the description carries the same fact in words, because a greyed
+        control with no sentence beside it is a dead end.
+        """
+
+        def describe(element) -> str:
+            if has_gsz_parameters(element.z):
+                return (
+                    f"{element.name}: GSZ screened central-field model "
+                    f"(APPROXIMATION), or self-consistent Hartree-Fock."
+                )
+            return (
+                f"{element.name}: Hartree-Fock only (APPROXIMATION). Szydlik "
+                f"and Green never published neutral GSZ screening parameters "
+                f"for Z = {element.z}, and Hartree-Fock needs none."
+            )
+
         hydrogenic = [SystemModel.from_system(s) for s in list_systems()]
         screened = [
             SystemModel.from_atom(
-                atom_for_key(k), n_electrons=atom_for_key(k).z,
-                description=(
-                    f"{atom_for_key(k).name}: GSZ screened central-field model "
-                    "(APPROXIMATION)."
-                ),
+                el, n_electrons=el.z, description=describe(el),
             )
-            for k in ATOM_KEYS
+            for el in (atom_for_key(k) for k in ATOM_KEYS)
         ]
         return SystemsResponse(systems=hydrogenic + screened)
 
@@ -939,7 +987,7 @@ def create_app() -> FastAPI:
                         e_field: float = 0.0,
                         hyperfine: bool = False):
         if _is_screened(system):
-            element = atom_for_key(system)
+            element = _gsz_element(system)
             cfg = _resolve_config(system, config)
             result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
             return ScreenedLevelsModel(
@@ -1228,7 +1276,7 @@ def create_app() -> FastAPI:
                 total_density=FieldModel.from_field(density),
             )
         if _is_screened(system):
-            element = atom_for_key(system)
+            element = _gsz_element(system)
             rw, p = screened_radial(element.z, element.z, n, l, points=points)
             return RadialResponse(
                 n=n, l=l,
@@ -1337,7 +1385,7 @@ def create_app() -> FastAPI:
             )
         zoom = _resolve_zoom(lambda_min, lambda_max)
         if _is_screened(system):
-            element = atom_for_key(system)
+            element = _gsz_element(system)
             cfg = _resolve_config(system, config)
             result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
             lines = screened_transition_lines(
@@ -1437,7 +1485,7 @@ def create_app() -> FastAPI:
         lines exist would be two answers about one gas.
         """
         if _is_screened(system):
-            element = atom_for_key(system)
+            element = _gsz_element(system)
             cfg = _resolve_config(system, config)
             result = solve_screened_atom(element.z, total_electrons(cfg), cfg)
             lines = screened_transition_lines(result, intensities=True, thermal=thermal)
@@ -1612,7 +1660,7 @@ def create_app() -> FastAPI:
             return _job_model(job)
 
         if _is_screened(req.system):
-            element = atom_for_key(req.system)
+            element = _gsz_element(req.system)
 
             def work(progress):
                 cloud = sample_screened_density(
@@ -1673,7 +1721,7 @@ def create_app() -> FastAPI:
             return _job_model(job)
 
         if _is_screened(req.system):
-            element = atom_for_key(req.system)
+            element = _gsz_element(req.system)
 
             def work(progress):
                 return screened_plane_grid(
@@ -1725,7 +1773,7 @@ def create_app() -> FastAPI:
                 )
 
         elif _is_screened(req.system):
-            element = atom_for_key(req.system)
+            element = _gsz_element(req.system)
 
             def work(progress):
                 return screened_isosurface(

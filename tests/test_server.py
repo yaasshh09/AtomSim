@@ -518,9 +518,21 @@ def test_systems_list_includes_screened_atoms(client):
     assert keys["h"]["kind"] == "hydrogenic"
 
 
-def test_systems_list_excludes_unsourced_sulfur_chlorine(client):
-    keys = {s["key"] for s in client.get("/api/systems").json()["systems"]}
-    assert "s" not in keys and "cl" not in keys  # no published GSZ parameters
+def test_systems_list_offers_sulfur_chlorine_but_flags_the_missing_model(client):
+    """They used to be absent from the list entirely. That was too much.
+
+    No published GSZ parameters is a fact about one model, and the list is not
+    a list of things GSZ can draw - it is every system the app can select, and
+    Hartree-Fock solves these two like any other atom. So they are here, with
+    `has_gsz` false, and the screened endpoints refuse them by name. The full
+    argument, and the refusals, are in tests/test_sulfur_chlorine.py.
+    """
+    keys = {s["key"]: s for s in client.get("/api/systems").json()["systems"]}
+    assert keys["s"]["has_gsz"] is False and keys["cl"]["has_gsz"] is False
+    assert keys["na"]["has_gsz"] is True
+    # Hydrogenic presets are not screened atoms at all; the flag defaults true
+    # rather than pretending to answer a question nobody asks of them.
+    assert keys["h"]["has_gsz"] is True
 
 
 def test_cloud_job_screened_atom_end_to_end(client):

@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from atomsim.atoms import has_gsz_parameters
 from atomsim.broadening import SyntheticSpectrum
 from atomsim.classical import BohrOrbit, ClassicalGhost
 from atomsim.constants import BOHR_RADIUS_FM
@@ -187,6 +188,11 @@ class SystemModel(BaseModel):
     # Hydrogenic presets stay exactly as before; screened atoms set kind/n_electrons.
     kind: Literal["hydrogenic", "screened"] = "hydrogenic"
     n_electrons: int | None = None
+    #: Whether the GSZ screened model has published parameters for this atom.
+    #: False for sulfur and chlorine, which Hartree-Fock solves anyway, so the
+    #: client can grey one model choice instead of hiding the whole element.
+    #: Meaningless for hydrogenic presets, which no screened model touches.
+    has_gsz: bool = True
 
     @classmethod
     def from_system(cls, s: System) -> "SystemModel":
@@ -216,6 +222,10 @@ class SystemModel(BaseModel):
             mu_ratio=QuantityModel.from_quantity(mu), m_over_m_nucleus=0.0,
             description=description, nuclear_radius=None, nuclear_radius_fm=None,
             kind="screened", n_electrons=n_electrons,
+            # Derived, never passed in: a caller that had to remember this flag
+            # would eventually forget it, and the wrong answer here is the app
+            # offering a model that has no parameters to run on.
+            has_gsz=has_gsz_parameters(element.z),
         )
 
 
