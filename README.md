@@ -80,6 +80,10 @@ Everything below landed in M1–M3:
   fitted parameters and so covers S and Cl too, along with ions that have no
   named preset. Both are `APPROXIMATION`, of different things, and each says
   which on its own badge
+- The total radial density D(r) beside the orbitals, under both models, with
+  the electron count as its error bar. This is the observable one: the orbital
+  plots are a basis choice and the shell peaks are not, which is why neon has
+  two of them and argon three
 - Numerical radial solver for **arbitrary central potentials** (the engine that
   will power real atoms, screened models, and counterfactual force laws alike),
   validated against closed-form hydrogen and harmonic-oscillator solutions —
