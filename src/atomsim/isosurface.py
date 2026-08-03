@@ -30,6 +30,7 @@ import numpy as np
 from atomsim.analytic.angular import validate_angular
 from atomsim.analytic.hydrogen import validate_quantum_numbers
 from atomsim.analytic.wavefunction import evaluate_state
+from atomsim.atoms import Configuration
 from atomsim.hf_atom import evaluate_hf_state
 from atomsim.numerics.marching_tets import (
     Mesh,
@@ -499,14 +500,30 @@ def hf_isosurface(
     resolution: int = 96,
     half_width: float | None = None,
     progress: Callable[[float], None] | None = None,
+    *,
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
 ) -> Isosurface:
-    """Same surface for a self-consistent Hartree-Fock orbital."""
+    """Same surface for a self-consistent Hartree-Fock orbital.
+
+    `APPROXIMATION`, taking the weaker of the two tiers for the reason
+    screened_isosurface gives: the model's distance from the real atom is
+    larger than the grid's distance from the model. With either counterfactual
+    switch thrown it is COUNTERFACTUAL instead, and that is read off the solve
+    rather than decided here.
+    """
     validate_quantum_numbers(n, l)
     validate_angular(l, m)
 
     def evaluator(pos):
-        return evaluate_hf_state(z, n_electrons, n, l, m, pos, basis=basis)
+        return evaluate_hf_state(
+            z, n_electrons, n, l, m, pos,
+            basis=basis, config=config, exchange=exchange, pauli=pauli,
+        )
 
+    fidelity = evaluator(np.zeros((1, 3))).provenance.fidelity
+    counterfactual = fidelity is Fidelity.COUNTERFACTUAL
     z_net = max(z - n_electrons + 1, 1)
     return _build(
         evaluator,
@@ -515,12 +532,26 @@ def hf_isosurface(
         resolution=resolution,
         half_width=half_width,
         start_half_width=default_half_width(n, z_net, 1.0),
-        fidelity=Fidelity.APPROXIMATION,
-        method_prefix="Hartree-Fock psi_nlm",
-        extra_assumptions=(
-            "the enclosed fraction is exact for the Hartree-Fock orbital, which "
-            "neglects correlation",
+        fidelity=fidelity,
+        method_prefix=(
+            "Hartree psi_nlm" if counterfactual else "Hartree-Fock psi_nlm"
         ),
-        refinement="raise the grid resolution or widen the box",
+        extra_assumptions=(
+            (
+                "the enclosed fraction is exact for the orbital this solve "
+                "produced, and that solve is a counterfactual: the fraction is "
+                "not a statement about any real atom"
+            )
+            if counterfactual
+            else (
+                "the enclosed fraction is exact for the Hartree-Fock orbital, "
+                "which neglects correlation"
+            ),
+        ),
+        refinement=(
+            "turn the altered rule back on"
+            if counterfactual
+            else "raise the grid resolution or widen the box"
+        ),
         progress=progress,
     )
