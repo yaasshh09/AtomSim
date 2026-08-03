@@ -362,3 +362,39 @@ git commit -m "Draw the shells, and say which of the three plots is real"
 - [ ] **Step 1:** Run `pytest -q` and `ruff check .`; both clean.
 - [ ] **Step 2:** Append a short note to the Phase 26 spec's section 9 recording that the deferred radial curve landed, with a pointer to this plan.
 - [ ] **Step 3:** Commit, confirm `git status --short` is empty.
+
+---
+
+## What building it changed
+
+**The error bar earned its keep on the first run, and the plan's grid was wrong.**
+This document specified `np.linspace` for the display grid. Built that way, the
+closure residual came back at 0.35 electrons out of neon's 10, and argon
+reported two shells instead of three. The cause was not the sum: a uniform
+400-point grid over a 48 bohr box has 0.12 bohr spacing, and neon's 1s peaks
+near 0.1 bohr and is narrower than the spacing, so the K shell fell between two
+grid points entirely. The grid is now `np.geomspace`, which is the same
+reasoning `numerics/mesh.py` applies to the solve itself.
+
+This is the argument for computing an error bar out of the physics rather than
+trusting a grid. Nothing else in the phase would have caught it: the curve
+looked plausible, the peaks that survived were in the right places, and no
+energy check touches this quantity. Only `integral D dr = N` knew.
+
+**The tolerance was wrong too, and convergence is what settles it.** With the
+log grid the residual is 1.8e-3 electrons at 400 points, over the 1e-3 the plan
+asserted. Refining says why: the error falls by 4.03, 4.06 and 4.21 as the
+points double, which is the trapezoid rule's h^2 and nothing else. A fixed
+tolerance cannot tell quadrature from a dropped orbital, so the suite now
+asserts the convergence rate rather than a magic number, and
+`test_the_closure_residual_is_quadrature_and_not_a_defect` is the test that
+would have caught the original bug on its own (a uniform grid's shortfall does
+not converge away, however fine it gets).
+
+**The plot needed a log axis, which the plan did not anticipate.** Argon's box
+runs to 48 bohr and all three shells sit inside 2, so on the linear axis the
+other plots use, the answer was one spike and 45 bohr of nothing. `FieldPlot`
+gained a `logX` option, used only here. It is not a disclosed liberty: the axis
+is labeled with the values it carries and nothing is clipped or rescaled. d3's
+own log ticks had to be replaced with decades, since every 2x and 3x tick
+overprinted into an unreadable band at this width.

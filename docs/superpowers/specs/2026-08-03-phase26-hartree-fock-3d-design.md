@@ -222,6 +222,11 @@ existing Hartree-Fock ones and records what it actually is.
   Section 2 gives the reason for 3-D. The radial curve is genuinely interesting,
   since the shell structure lives there, but it is a new quantity in a view this
   phase is otherwise only branching, and it can be its own small piece later.
+
+  *Landed immediately afterwards as Phase 27, in
+  `docs/superpowers/plans/2026-08-03-phase27-total-density.md`. The Radial view
+  now draws D(r) under Hartree-Fock, so the caption this phase added ("an
+  orbital is not an observable") points at something the reader can see.*
 - **Ions with no preset.** Section 4.
 - **Showing the screened and Hartree-Fock orbitals in one camera.** The model
   selector switches between them. A comparison view is a different design.
