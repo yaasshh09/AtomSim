@@ -51,6 +51,12 @@ from atomsim.hf_atom import (
     pauli_collapse,
     solve_hartree_fock,
 )
+from atomsim.isosurface import (
+    GRID_SIZES,
+    Isosurface,
+    isosurface,
+    screened_isosurface,
+)
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import PlaneGrid, plane_grid, screened_plane_grid
@@ -299,6 +305,61 @@ class PlaneMetaModel(BaseModel):
     m: int
     basis: str
     system: str
+    provenance: ProvenanceModel
+
+
+class IsoRequest(BaseModel):
+    """An isosurface asked for by the fraction it encloses, never by a level.
+
+    A raw contour value is meaningless without the grid it was measured on, and
+    a client that could pass one would be choosing a picture rather than asking
+    a question. `fraction` is the question, and the level is what comes back.
+
+    The box is not exposed either. It is fitted to hold 99.9% of the electron
+    and the remainder is reported, so the only way to get a surface here is to
+    get one whose escaped mass has been measured.
+    """
+
+    n: int
+    l: int
+    m: int
+    fraction: float = PydanticField(default=0.9, gt=0.0, lt=1.0)
+    resolution: int = 96
+    basis: Literal["complex", "real"] = "complex"
+    system: str = "h"
+
+    @model_validator(mode="after")
+    def _resolution_is_offered(self) -> "IsoRequest":
+        if self.resolution not in GRID_SIZES:
+            raise ValueError(
+                f"resolution must be one of {GRID_SIZES}, got {self.resolution}"
+            )
+        return self
+
+
+class IsoMetaModel(BaseModel):
+    kind: Literal["isosurface"] = "isosurface"
+    vertex_count: int
+    triangle_count: int
+    channels: list[ChannelModel]
+    target_fraction: float
+    enclosed_fraction: QuantityModel
+    outside_fraction: float
+    level: QuantityModel
+    escaped_fraction: QuantityModel
+    mesh_volume: QuantityModel
+    voxel_volume: QuantityModel
+    area: QuantityModel
+    components: int
+    half_width: float
+    resolution: int
+    axis_unit: str
+    n: int
+    l: int
+    m: int
+    basis: str
+    system: str
+    label: str
     provenance: ProvenanceModel
 
 
@@ -1424,6 +1485,43 @@ def create_app() -> FastAPI:
         loop.run_in_executor(None, jobs.run, job.id, work)
         return _job_model(job)
 
+    @app.post("/api/jobs/isosurface", response_model=JobModel)
+    async def create_iso_job(req: IsoRequest) -> JobModel:
+        """Start an isosurface extraction.
+
+        A job for the same reason the cloud is: 96^3 is nearly a million psi
+        evaluations before a triangle is cut, which is about a second for a
+        closed-form state and several for a screened one.
+        """
+        _validate_state(req.n, req.l, req.m)
+        job = jobs.create()
+        app.state.job_systems[job.id] = req.system
+
+        if _is_screened(req.system):
+            element = atom_for_key(req.system)
+
+            def work(progress):
+                return screened_isosurface(
+                    element.z, element.z, req.n, req.l, req.m,
+                    target_fraction=req.fraction, basis=req.basis,
+                    resolution=req.resolution, progress=progress,
+                )
+
+        else:
+            sys_ = _resolve_system(req.system)
+
+            def work(progress):
+                return isosurface(
+                    req.n, req.l, req.m,
+                    target_fraction=req.fraction, basis=req.basis,
+                    Z=sys_.Z, mu_ratio=sys_.mu_ratio.value,
+                    resolution=req.resolution, progress=progress,
+                )
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, jobs.run, job.id, work)
+        return _job_model(job)
+
     @app.post("/api/jobs/hf", response_model=JobModel)
     async def create_hf_job(req: HFRequest) -> JobModel:
         """Start a Hartree-Fock solve.
@@ -1521,21 +1619,77 @@ def create_app() -> FastAPI:
             provenance=ProvenanceModel.from_provenance(pg.provenance),
         )
 
+    def _iso_meta(surf: Isosurface, system_key: str) -> IsoMetaModel:
+        prov = ProvenanceModel.from_provenance(surf.provenance)
+        return IsoMetaModel(
+            vertex_count=int(surf.vertices.shape[0]),
+            triangle_count=int(surf.triangles.shape[0]),
+            channels=[
+                ChannelModel(
+                    name="vertices", dtype="float32", unit="bohr", provenance=prov
+                ),
+                ChannelModel(
+                    name="triangles", dtype="uint32", unit="1", provenance=prov
+                ),
+                ChannelModel(
+                    name="phase", dtype="float32", unit="rad",
+                    provenance=ProvenanceModel.from_provenance(surf.level.provenance),
+                ),
+            ],
+            target_fraction=surf.target_fraction,
+            enclosed_fraction=QuantityModel.from_quantity(surf.enclosed_fraction),
+            outside_fraction=surf.outside_fraction,
+            level=QuantityModel.from_quantity(surf.level),
+            escaped_fraction=QuantityModel.from_quantity(surf.escaped_fraction),
+            mesh_volume=QuantityModel.from_quantity(surf.mesh_volume),
+            voxel_volume=QuantityModel.from_quantity(surf.voxel_volume),
+            area=QuantityModel.from_quantity(surf.area),
+            components=surf.components,
+            half_width=surf.half_width,
+            resolution=surf.resolution,
+            axis_unit="bohr",
+            n=surf.n, l=surf.l, m=surf.m, basis=surf.basis, system=system_key,
+            label=surf.label,
+            provenance=prov,
+        )
+
     @app.get(
         "/api/jobs/{job_id}/meta",
-        response_model=SampleMetaModel | PlaneMetaModel | HFResultModel,
+        response_model=SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel,
     )
-    def job_meta(job_id: str) -> SampleMetaModel | PlaneMetaModel | HFResultModel:
+    def job_meta(
+        job_id: str,
+    ) -> SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel:
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
         if isinstance(res, PlaneGrid):
             return _plane_meta(res, system_key)
+        if isinstance(res, Isosurface):
+            return _iso_meta(res, system_key)
         if isinstance(res, HFJobResult):
             # Unlike sample and plane, the whole scientific result is here: the
             # energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
         return _sample_meta(res, system_key)
+
+    def _iso_channel_payload(surf: Isosurface, channel: str | None) -> np.ndarray:
+        """Three channels, because a mesh is three arrays of different shapes.
+
+        `triangles` goes out as uint32 rather than the engine's int32: WebGL
+        index buffers are unsigned, and converting here rather than in the
+        browser keeps the client from having to know that.
+        """
+        if channel is None or channel == "vertices":
+            return surf.vertices.astype(np.float32)
+        if channel == "triangles":
+            return surf.triangles.astype(np.uint32)
+        if channel == "phase":
+            return surf.vertex_phase.astype(np.float32)
+        raise HTTPException(
+            status_code=422,
+            detail=f"no channel {channel!r} on this job; it has vertices, triangles, phase",
+        )
 
     def _hf_channel_payload(res: HFResult, channel: str | None) -> np.ndarray:
         if channel is None or channel == "grid":
@@ -1560,6 +1714,8 @@ def create_app() -> FastAPI:
                     status_code=422, detail="plane jobs have a single channel"
                 )
             payload = res.values.astype(np.float32)
+        elif isinstance(res, Isosurface):
+            payload = _iso_channel_payload(res, channel)
         elif isinstance(res, HFJobResult):
             payload = _hf_channel_payload(res.result, channel)
         elif (channel or "positions") == "positions":
