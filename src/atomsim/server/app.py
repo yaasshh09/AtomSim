@@ -78,6 +78,7 @@ from atomsim.sampling import (
 from atomsim.screened_atom import (
     evaluate_screened_state,
     screened_radial,
+    screened_total_radial_density,
     solve_screened_atom,
 )
 from atomsim.server.jobs import Job, JobStatus, JobStore
@@ -1278,6 +1279,15 @@ def create_app() -> FastAPI:
         if _is_screened(system):
             element = _gsz_element(system)
             rw, p = screened_radial(element.z, element.z, n, l, points=points)
+            # The orbital above does not depend on the configuration - in a
+            # central field it cannot, the field is fixed by (Z, N) alone - but
+            # the density does, because the configuration is what says which
+            # orbitals are occupied. So this is the first thing on this branch
+            # that has to ask.
+            density = screened_total_radial_density(
+                element.z, element.z,
+                config=_resolve_config(system, config), points=points,
+            )
             return RadialResponse(
                 n=n, l=l,
                 system=SystemModel.from_atom(
@@ -1286,6 +1296,7 @@ def create_app() -> FastAPI:
                 ),
                 r_wavefunction=FieldModel.from_field(rw),
                 radial_probability=FieldModel.from_field(p),
+                total_density=FieldModel.from_field(density),
             )
         sys_ = _resolve_system(system)
         mu = sys_.mu_ratio.value

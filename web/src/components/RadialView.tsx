@@ -134,14 +134,31 @@ export function RadialView() {
         <>
           <FieldPlot field={radial.total_density} logX />
           <p className="hint-block">
-            This one is measurable. Each peak is a shell, the area under it is
-            how many electrons that shell holds, and the whole curve integrates
-            to {radial.system.n_electrons ?? "N"} — which is what makes it a
-            density rather than a curve. Neon has two peaks and argon has three;
-            that is the periodic table, drawn. r is on a log axis because the
-            shells are decades apart in size, not to flatter the shape. The
-            plots above are one orbital out of the basis this was summed from.
+            This one is measurable. Each peak is a shell, integrating across
+            one peak in r gives roughly how many electrons it holds, and the
+            whole curve integrates to {radial.system.n_electrons ?? "N"}, which
+            is what makes it a density rather than a curve. Roughly, because
+            neighbouring shells overlap and the dip between two of them is not
+            a wall: cut argon at its minima and the K shell comes out near 2.2,
+            not 2, under either model. Neon has two peaks and argon has three;
+            that is the periodic table, drawn.
           </p>
+          <p className="hint-block">
+            r is on a log axis because the shells are decades apart in size,
+            not to flatter the shape. The price is that the areas visible here
+            are not those integrals: the axis stretches the inner shell and
+            squeezes the outer one, so read the peaks, and trust a number only
+            where it is written down. The plots above are one orbital out of
+            the basis this was summed from.
+          </p>
+          {model === "gsz" && (
+            <p className="hint-block">
+              Measurable, and this model is further from it than usual: GSZ was
+              fitted to reproduce a potential, not a density, and every shell
+              here sees the same one. Switch to Hartree-Fock, where each
+              subshell gets its own field and nothing is fitted, and compare.
+            </p>
+          )}
         </>
       )}
     </div>
