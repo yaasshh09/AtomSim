@@ -133,11 +133,12 @@ def test_open_subshells_ignores_full_ones():
     assert open_subshells(aufbau_configuration(6)) == (((2, 1), 2),)
 
 
-def test_atom_keys_cover_he_to_ar_minus_s_cl():
-    # Presets span He..Ar but omit S and Cl, which have no published neutral GSZ
-    # parameters (Szydlik & Green 1974, Table I) — 15 atoms, not 17.
+def test_atom_keys_cover_he_to_ar():
+    # Every many-electron atom the app can name, He..Ar inclusive. Sulfur and
+    # chlorine belong here even though Szydlik & Green never fitted them: what
+    # one model lacks parameters for is GSZ_ATOM_KEYS' question, not this list's.
     assert ATOM_KEYS[0] == "he" and ATOM_KEYS[-1] == "ar"
-    assert len(ATOM_KEYS) == 15
+    assert len(ATOM_KEYS) == 17
     assert is_atom_key("na") and not is_atom_key("h")
-    assert not is_atom_key("s") and not is_atom_key("cl")
+    assert is_atom_key("s") and is_atom_key("cl")
     assert atom_for_key("na").z == 11 and element_by_symbol("Na").z == 11

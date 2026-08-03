@@ -218,14 +218,33 @@ _BY_Z = {e.z: e for e in ELEMENTS}
 # and hf_atom.solve_hartree_fock runs sulfur and chlorine like any other atom.
 NO_GSZ_PARAMETERS: frozenset[int] = frozenset({16, 17})  # S, Cl
 
-# Named screened-atom presets: the atoms the GSZ model can speak for, neutral
-# He..P and Ar (H stays hydrogenic/analytic; S and Cl are absent, see
-# NO_GSZ_PARAMETERS). The server treats membership here as "this key means the
-# screened model", so it stays the GSZ list rather than a list of every atom the
-# engine can solve.
+# Every many-electron atom the application can name, neutral He..Ar. Membership
+# means "this key identifies an atom", and nothing more.
+#
+# It used to mean "this key means the screened model" as well, and the two were
+# the same list because GSZ was the only model that could draw anything. Since
+# Hartree-Fock reaches every view that stopped being true, and the conflation
+# had a visible cost: sulfur and chlorine were absent from the application
+# entirely - including the Levels view, which runs on Hartree-Fock and needs no
+# fitted parameters - purely because a 1974 paper does not tabulate them. The
+# atom the engine can solve and the atom one model has parameters for are two
+# different questions, so they are two lists.
 ATOM_KEYS: tuple[str, ...] = tuple(
-    e.symbol.lower() for e in ELEMENTS if e.z >= 2 and e.z not in NO_GSZ_PARAMETERS
+    e.symbol.lower() for e in ELEMENTS if e.z >= 2
 )
+
+# The atoms the GSZ screened model can speak for: neutral He..P and Ar. Callers
+# that are about to build a screened potential want this one, and owe the
+# reader a refusal naming NO_GSZ_PARAMETERS rather than a ValueError from
+# inside the screening table.
+GSZ_ATOM_KEYS: tuple[str, ...] = tuple(
+    k for k in ATOM_KEYS if _BY_SYMBOL[k.capitalize()].z not in NO_GSZ_PARAMETERS
+)
+
+
+def has_gsz_parameters(z: int) -> bool:
+    """Whether Szydlik and Green fitted this element. See NO_GSZ_PARAMETERS."""
+    return z not in NO_GSZ_PARAMETERS
 
 
 def element_by_symbol(sym: str) -> Element:
