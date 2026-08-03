@@ -178,6 +178,12 @@ button.primary:disabled {
 
 .center-col {
   display: grid;
+  /* Naming the column is the whole point. With only the rows declared, the one
+     implicit column is auto-sized, so it grew to its content (848 px inside a
+     680 px track) and every plot painted 144 px of itself underneath the right
+     panel, invisibly. min-width: 0 on this element does not help: the element
+     was the right size all along, its own grid column was not. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr auto;
   min-width: 0;
   min-height: 0;
