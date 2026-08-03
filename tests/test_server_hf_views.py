@@ -154,3 +154,33 @@ def test_counterfactual_flags_are_ignored_under_the_screened_model(client):
     meta = client.get(f"/api/jobs/{job}/meta").json()
     assert meta["model"] == "gsz"
     assert meta["provenance"]["fidelity"] == "approximation"
+
+
+def test_radial_under_hartree_fock(client):
+    r = client.get("/api/radial/2/1?system=ne&model=hf")
+    assert r.status_code == 200
+    body = r.json()
+    joined = " ".join(body["r_wavefunction"]["provenance"]["assumptions"])
+    assert "not an observable" in joined
+    assert body["r_wavefunction"]["provenance"]["fidelity"] == "approximation"
+
+
+def test_radial_hartree_fock_differs_from_screened(client):
+    hf = client.get("/api/radial/2/1?system=ne&model=hf").json()
+    gsz = client.get("/api/radial/2/1?system=ne").json()
+    assert not np.allclose(
+        hf["r_wavefunction"]["values"], gsz["r_wavefunction"]["values"]
+    )
+
+
+def test_radial_refuses_an_unoccupied_subshell(client):
+    r = client.get("/api/radial/3/2?system=ne&model=hf")
+    assert r.status_code == 422
+    assert "not occupied" in r.json()["detail"]
+
+
+def test_radial_counterfactual_flips_the_tier(client):
+    r = client.get("/api/radial/2/1?system=ne&model=hf&exchange=false")
+    assert r.status_code == 200
+    prov = r.json()["r_wavefunction"]["provenance"]
+    assert prov["fidelity"] == "counterfactual"

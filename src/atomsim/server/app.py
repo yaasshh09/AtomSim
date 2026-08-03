@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Literal
 
 import numpy as np
@@ -50,6 +51,7 @@ from atomsim.hf_atom import (
     PauliCollapse,
     evaluate_hf_state,
     hf_exchange_energy,
+    hf_radial,
     pauli_collapse,
     solve_hartree_fock,
 )
@@ -1165,10 +1167,51 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/api/radial/{n}/{l}", response_model=RadialResponse)
-    def radial(n: int, l: int, system: str = "h", points: int = 400) -> RadialResponse:
+    def radial(
+        n: int,
+        l: int,
+        system: str = "h",
+        points: int = 400,
+        model: Literal["gsz", "hf"] = "gsz",
+        config: str | None = None,
+        exchange: bool = True,
+        pauli: bool = True,
+    ) -> RadialResponse:
         _validate_state(n, l, 0)
         if not 50 <= points <= 2000:
             raise HTTPException(status_code=422, detail="points must be in [50, 2000]")
+        if model == "hf":
+            if not pauli and exchange:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "pauli=false requires exchange=false: exchange energy "
+                        "is a consequence of antisymmetry and the exclusion "
+                        "principle IS antisymmetry, so with the principle off "
+                        "there is nothing for an exchange integral to act on"
+                    ),
+                )
+            # Presented as an object because _hf_view_target reads attributes,
+            # and one resolver behind four views is what keeps the refusals
+            # from drifting apart between the picture endpoints and this one.
+            hf_z, hf_n, hf_config = _hf_view_target(
+                SimpleNamespace(system=system, config=config, pauli=pauli, n=n, l=l)
+            )
+            rw, p = hf_radial(
+                hf_z, hf_n, n, l, points=points,
+                config=hf_config, exchange=exchange, pauli=pauli,
+            )
+            element = atom_for_key(system)
+            return RadialResponse(
+                n=n, l=l,
+                system=SystemModel.from_atom(
+                    element, element.z,
+                    f"{element.name}: self-consistent Hartree-Fock "
+                    f"(APPROXIMATION; COUNTERFACTUAL with a switch thrown).",
+                ),
+                r_wavefunction=FieldModel.from_field(rw),
+                radial_probability=FieldModel.from_field(p),
+            )
         if _is_screened(system):
             element = atom_for_key(system)
             rw, p = screened_radial(element.z, element.z, n, l, points=points)
