@@ -288,6 +288,13 @@ button.primary:disabled {
   display: grid;
   place-items: center;
   min-height: 0;
+  /* Same reasoning as .levels-svg below. .view-wrap is a flex column, so the
+     frame shrank on a short viewport while the square canvas inside it kept
+     its size and spilled 50-odd pixels over the caption underneath, which is
+     the line that discloses the colour map. A disclosure printed behind the
+     picture it discloses is not a disclosure. The wrapper already scrolls, so
+     the caption moves below the plane instead of under it. */
+  flex-shrink: 0;
 }
 
 .plane-canvas {
