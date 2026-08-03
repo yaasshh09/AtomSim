@@ -60,6 +60,7 @@ __all__ = [
     "hf_mean_radius",
     "hf_mesh",
     "hf_radial",
+    "hf_total_radial_density",
     "hf_valence_ionization_energy",
     "pauli_collapse",
     "solve_hartree_fock",
@@ -815,6 +816,88 @@ def hf_mean_radius(result: HFResult) -> Quantity:
                 f"on the solver mesh"
             ),
             assumptions=base.assumptions,
+            refinement=base.refinement,
+        ),
+    )
+
+
+_TOTAL_DENSITY_IS_OBSERVABLE = (
+    "this one IS an observable: the total electron density, summed over every "
+    "occupied subshell, is what an X-ray diffraction experiment measures. Its "
+    "peaks are the shells, and the orbitals plotted elsewhere are the basis it "
+    "was assembled from rather than things that can be measured one at a time"
+)
+
+
+def hf_total_radial_density(
+    z: int,
+    n_electrons: int,
+    *,
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
+    points: int = 400,
+) -> Field:
+    """D(r) = sum_a q_a P_a(r)^2, in electrons per bohr.
+
+    The radial distribution of the whole electron cloud, so integral D dr = N
+    and the area under each peak is how many electrons that shell holds. This
+    is the observable the orbital plots are not: the angular part of the total
+    density is exactly uniform (Unsold on each filled subshell, and the
+    average-of-configuration spreads a partly filled one equally over m), so
+    all of the structure is here, in r, and none of it is a basis choice.
+
+    Unlike every other shape this module returns, this one carries an error
+    estimate, and the reason is dimensional rather than a change of policy.
+    Each P_a is normalized so that integral P_a^2 dr = 1 in the solver mesh's
+    own quadrature, which makes integral D dr = N exactly there. Resampling
+    for display breaks that, and the residual is a real error measured in
+    electrons - the unit of the quantity it describes. An error bar the
+    quantity's own normalization hands you is one worth reporting.
+
+    The display grid is logarithmic, and that is not a cosmetic choice. A
+    uniform grid cannot carry this quantity at all: neon's box runs to 48 bohr
+    while its 1s peaks near 0.1 bohr and is narrower than that, so 400 uniform
+    points step straight over the K shell. Built that way first, this function
+    lost 0.35 of neon's 10 electrons and reported argon as having two shells
+    instead of three. The closure residual below is what caught it, on the
+    first run, which is the whole argument for computing an error bar from the
+    physics rather than trusting a grid to be fine enough. Log spacing is the
+    same reasoning numerics/mesh.py already applies to the solve.
+    """
+    cfg = aufbau_configuration(n_electrons, pauli) if config is None else config
+    result = solve_hartree_fock(z, n_electrons, cfg, exchange, pauli)
+
+    solver_r = result.orbitals[0].P.grid
+    grid = np.geomspace(solver_r[0], solver_r[-1], points)
+    values = np.zeros_like(grid)
+    for orbital in result.orbitals:
+        values += (
+            orbital.occupancy
+            * np.interp(grid, orbital.P.grid, orbital.P.values) ** 2
+        )
+
+    # The closure check, kept as the error bar rather than asserted away. A
+    # transcription slip in the sum above moves this immediately, which is
+    # exactly what an error bar computed from the physics is for.
+    residual = abs(float(np.trapezoid(values, grid)) - float(n_electrons))
+
+    base = result.total_energy.provenance
+    return Field(
+        values=values,
+        grid=grid,
+        unit="electrons/bohr",
+        grid_unit="bohr",
+        label=f"D(r) = sum_a q_a P_a(r)^2 (N = {n_electrons})",
+        provenance=Provenance(
+            fidelity=base.fidelity,
+            method=(
+                f"{base.method}; total radial density summed over occupied "
+                f"subshells and resampled onto {points} logarithmically "
+                f"spaced points (a uniform grid steps over the 1s)"
+            ),
+            assumptions=base.assumptions + (_TOTAL_DENSITY_IS_OBSERVABLE,),
+            error_estimate=residual,
             refinement=base.refinement,
         ),
     )
