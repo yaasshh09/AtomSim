@@ -171,6 +171,28 @@ _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would "
     "recover the correlation energy"
 )
+
+# Attached to every orbital this module hands out for drawing, because the
+# picture invites exactly the reading it denies.
+#
+# The total electron density IS an observable, and for every atom this solver
+# produces it is exactly spherical: the orbitals are central-field, P_nl(r)/r
+# times Y_lm; a filled subshell sums over m to (2l+1)/4pi by Unsold's theorem;
+# and the average-of-configuration functional spreads a partly filled subshell
+# equally over m, so the m-sum is spherical there too. Carbon, oxygen and
+# chlorine are all perfect balls.
+#
+# Drawing the observable instead would therefore produce a sphere for every
+# atom in the application, honestly and uselessly. The decision is to draw the
+# orbital and state the sphere in words. The counterweight belongs beside it
+# and is also true: restricted Hartree-Fock on a spherically averaged
+# configuration leaves the angular dependence exactly Y_lm, so the lobes are
+# this model's own answer rather than hydrogen's answer reused.
+_ORBITAL_NOT_OBSERVABLE = (
+    "this is one orbital of a self-consistent field, and an orbital is not an "
+    "observable: the total density of this atom is exactly spherical, so the "
+    "shape drawn here is a basis choice rather than a photograph"
+)
 #: Below this Z the neglected relativity is under a tenth of a percent of the
 #: deepest orbital, which is far under the correlation energy already disclosed
 #: above it, so quantifying it separately would be noise. Set from the formula
@@ -955,7 +977,15 @@ def pauli_collapse(z: int, n_electrons: int | None = None) -> PauliCollapse:
     )
 
 
-def _occupied_orbital(z: int, n_electrons: int, n: int, l: int) -> HFOrbital:
+def _occupied_orbital(
+    z: int,
+    n_electrons: int,
+    n: int,
+    l: int,
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
+) -> HFOrbital:
     """The converged orbital for one subshell, or a refusal.
 
     Hartree-Fock cannot hand back an arbitrary channel the way a central-field
@@ -964,25 +994,48 @@ def _occupied_orbital(z: int, n_electrons: int, n: int, l: int) -> HFOrbital:
     no operator to be an eigenfunction of. Asking for one is a question this
     model cannot answer, and inventing a channel by borrowing another
     subshell's operator would answer a different question silently.
+
+    `config` defaults to the ground configuration for the rule in force, which
+    is Aufbau normally and 1s^N with the cap lifted. It is a parameter and not
+    a constant because the caller may have chosen a different one, and drawing
+    the Aufbau orbital under a label that says otherwise is the same class of
+    lie as drawing the wrong model.
     """
     if n <= l:
         raise ValueError(f"n must be > l, got n={n}, l={l}")
-    # The ground configuration for however many electrons are present, which
-    # for a neutral atom is just the element's own.
-    result = solve_hartree_fock(z, n_electrons, aufbau_configuration(n_electrons))
+    cfg = aufbau_configuration(n_electrons, pauli) if config is None else config
+    result = solve_hartree_fock(z, n_electrons, cfg, exchange, pauli)
     for orbital in result.orbitals:
         if (orbital.n, orbital.l) == (n, l):
             return orbital
     held = ", ".join(f"{o.n}{'spdf'[o.l]}" for o in result.orbitals)
+    # Two different facts wear the same shape here, and the reader is owed the
+    # one that applies. Under the exclusion principle an empty subshell is a
+    # contingent fact about this atom. With the cap lifted it is the switch the
+    # caller just flipped: there is one orbital and every electron is in it.
+    why = (
+        "the occupancy cap is lifted, so every electron is in the 1s and no "
+        "other orbital exists to be an eigenfunction of anything"
+        if not pauli
+        else "Hartree-Fock builds one Fock operator per occupied subshell, so "
+        "there is no operator for an empty one"
+    )
     raise ValueError(
         f"subshell {n}{'spdf'[l]} is not occupied in Z={z}, N={n_electrons} "
-        f"(which holds {held}); Hartree-Fock builds one Fock operator per "
-        f"occupied subshell, so there is no operator for an empty one"
+        f"(which holds {held}); {why}"
     )
 
 
 def hf_radial(
-    z: int, n_electrons: int, n: int, l: int, points: int = 400,
+    z: int,
+    n_electrons: int,
+    n: int,
+    l: int,
+    points: int = 400,
+    *,
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
 ) -> tuple[Field, Field]:
     """R_nl(r) and the radial density r^2 R^2, on a uniform display grid.
 
@@ -991,8 +1044,15 @@ def hf_radial(
     solver's own HFOrbital.P is the amplitude P = r R, a different quantity
     with a different unit; the naming follows screened_atom because these are
     what a caller plots.
+
+    Every Hartree-Fock picture in this application routes through here - the
+    radial plot directly, the cloud through its inverse CDF, the plane and the
+    surface through evaluate_hf_state - so this is the one place the
+    orbital-is-not-an-observable claim has to be attached to reach all four.
     """
-    orbital = _occupied_orbital(z, n_electrons, n, l)
+    orbital = _occupied_orbital(
+        z, n_electrons, n, l, config=config, exchange=exchange, pauli=pauli
+    )
     solver_r = orbital.P.grid
     grid = np.linspace(solver_r[0], solver_r[-1], points)
     # R = P / r. The mesh never reaches r = 0, so this needs no special case,
@@ -1001,6 +1061,7 @@ def hf_radial(
     prov = dataclasses.replace(
         orbital.P.provenance,
         method=f"{orbital.P.provenance.method}; R_nl = P/r resampled uniformly",
+        assumptions=orbital.P.provenance.assumptions + (_ORBITAL_NOT_OBSERVABLE,),
     )
     r_field = Field(
         values=values, grid=grid, unit="bohr^-3/2", grid_unit="bohr",
@@ -1022,6 +1083,9 @@ def evaluate_hf_state(
     positions: np.ndarray,
     *,
     basis: str = "complex",
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
 ) -> WavefunctionValues:
     """psi_nlm = Hartree-Fock R_nl(|r|) x hydrogenic Y_lm, at (N, 3) positions.
 
@@ -1029,6 +1093,11 @@ def evaluate_hf_state(
     harmonic: restricted Hartree-Fock on a spherically averaged configuration
     leaves the angular dependence exactly Y_lm, so this is the model's own
     shape rather than a convenience.
+
+    `config`, `exchange` and `pauli` name which solve the orbital comes out of
+    and are forwarded unchanged. The tier below is read off that solve rather
+    than asserted here, so a counterfactual picture cannot arrive wearing the
+    real atom's badge.
     """
     pos = np.asarray(positions, dtype=float)
     if pos.ndim != 2 or pos.shape[1] != 3:
@@ -1040,7 +1109,10 @@ def evaluate_hf_state(
     theta = np.where(r > 0.0, theta, 0.0)
     phi = np.arctan2(pos[:, 1], pos[:, 0])
 
-    r_field, _ = hf_radial(z, n_electrons, n, l, points=_HF_EVAL_POINTS)
+    r_field, _ = hf_radial(
+        z, n_electrons, n, l, points=_HF_EVAL_POINTS,
+        config=config, exchange=exchange, pauli=pauli,
+    )
     # Inside the first mesh point, hold R flat rather than extrapolating; past
     # the box, zero. Both match evaluate_screened_state.
     R = np.interp(r, r_field.grid, r_field.values, left=r_field.values[0], right=0.0)
@@ -1048,7 +1120,10 @@ def evaluate_hf_state(
 
     base = r_field.provenance
     prov = Provenance(
-        fidelity=Fidelity.APPROXIMATION,
+        # Inherited, never asserted. A Hartree orbital under an APPROXIMATION
+        # badge would be a badge advertising the real atom over a picture of a
+        # different universe, which is worse than no badge at all.
+        fidelity=base.fidelity,
         method=(
             f"psi_nlm = Hartree-Fock R_nl (P/r) x {angular.provenance.method}; "
             f"{base.method}"
