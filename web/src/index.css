@@ -561,6 +561,15 @@ button.primary:disabled {
   color: var(--accent);
 }
 
+/* An empty subshell under Hartree-Fock: still listed, because "n = 3 has a 3d"
+   is true of the hydrogen-like state space this strip enumerates, and still
+   unclickable, because this atom has no 3d orbital to draw. The title says
+   which. */
+.thumb:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
 .physics {
   margin-top: 1.25rem;
   border-top: 1px solid var(--edge);

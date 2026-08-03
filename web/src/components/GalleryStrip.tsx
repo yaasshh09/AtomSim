@@ -1,6 +1,7 @@
 import { thumbnailUrl } from "../api/client";
 import type { Basis } from "../api/client";
 import { galleryStates } from "../lib/gallery";
+import { subshellAvailable } from "../lib/hfModel";
 import { THUMBNAIL_LIBERTY } from "../lib/liberties";
 import { stateLabel } from "../lib/quantum";
 import { isHydrogenic } from "../lib/systemKind";
@@ -8,7 +9,7 @@ import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 
 export function GalleryStrip() {
-  const { n, l, m, system, systems, basis, setQuantumNumbers } = useAppStore();
+  const { n, l, m, system, systems, basis, setQuantumNumbers, hf, model } = useAppStore();
   // /api/thumbnail renders a hydrogenic plane inline and 422s on a screened
   // atom, so asking without knowing means a broken image icon on every tile.
   // Positive knowledge only, per lib/systemKind.
@@ -26,12 +27,24 @@ export function GalleryStrip() {
       <div className="gallery-scroll">
         {galleryStates(n).map((s) => {
           const active = s.l === l && s.m === m;
+          // The same question the n and l pickers ask, asked here too. Under
+          // Hartree-Fock a subshell nobody occupies has no Fock operator to be
+          // an eigenfunction of, and the server refuses it. This strip sits
+          // directly under a picker that greys 3d for chlorine; offering the
+          // 3d tiles anyway is the same request by another route.
+          const reachable = subshellAvailable(hf, model, s.n, s.l);
           return (
             <button
               key={`${s.l},${s.m}`}
               type="button"
               className={active ? "thumb thumb-active" : "thumb"}
-              title={stateLabel(s.n, s.l, s.m)}
+              disabled={!reachable}
+              title={
+                reachable
+                  ? stateLabel(s.n, s.l, s.m)
+                  : `${stateLabel(s.n, s.l, s.m)}: empty in this configuration, ` +
+                    `so Hartree-Fock has no orbital for it`
+              }
               onClick={() => setQuantumNumbers(s.n, s.l, s.m)}
             >
               {hasThumbnails ? (
