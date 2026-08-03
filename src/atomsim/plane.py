@@ -15,6 +15,8 @@ import numpy as np
 from atomsim.analytic.angular import validate_angular
 from atomsim.analytic.hydrogen import validate_quantum_numbers
 from atomsim.analytic.wavefunction import evaluate_state
+from atomsim.atoms import Configuration
+from atomsim.hf_atom import evaluate_hf_state
 from atomsim.provenance import Fidelity, Provenance
 from atomsim.screened_atom import evaluate_screened_state
 
@@ -182,6 +184,83 @@ def screened_plane_grid(
         ),
         assumptions=psi_assumptions + extra,
         refinement="increase resolution, extent, or radial solver resolution",
+    )
+    return PlaneGrid(
+        values=values, axis=axis, quantity=quantity, unit=unit, label=label,
+        n=n, l=l, m=m, Z=z, mu_ratio=1.0, basis=basis, provenance=provenance,
+    )
+
+
+def hf_plane_grid(
+    z: int,
+    n_electrons: int,
+    n: int,
+    l: int,
+    m: int,
+    quantity: str = "density",
+    basis: str = "complex",
+    resolution: int = 512,
+    half_extent: float | None = None,
+    progress: Callable[[float], None] | None = None,
+    *,
+    config: Configuration | None = None,
+    exchange: bool = True,
+    pauli: bool = True,
+) -> PlaneGrid:
+    """|psi|^2 or signed psi for a Hartree-Fock orbital on the y=0 plane.
+
+    Structurally the screened routine with one line changed, which is the
+    point: the two many-electron models have to be comparable in the same
+    frame, and a plane that fitted its own extent differently would put half
+    the difference between the pictures into the axes.
+    """
+    validate_quantum_numbers(n, l)
+    validate_angular(l, m)
+    if quantity not in ("density", "psi"):
+        raise ValueError(f"quantity must be 'density' or 'psi', got {quantity!r}")
+    if resolution < 2:
+        raise ValueError(f"resolution must be >= 2, got {resolution}")
+    z_net = max(z - n_electrons + 1, 1)  # asymptotic core charge sets display extent
+    he = default_half_extent(n, z_net, 1.0) if half_extent is None else float(half_extent)
+    if he <= 0.0:
+        raise ValueError(f"half_extent must be positive, got {he}")
+
+    def evaluator(pos):
+        return evaluate_hf_state(
+            z, n_electrons, n, l, m, pos,
+            basis=basis, config=config, exchange=exchange, pauli=pauli,
+        )
+
+    values, axis, psi_assumptions = _plane_values(
+        evaluator, quantity, resolution, he, progress
+    )
+    # The tier the solve came back with, read off the psi that was just
+    # evaluated rather than assumed from the model's name. Costs one extra
+    # interpolation against an already-cached solve, and buys a badge that
+    # cannot drift out of step with the physics it sits over.
+    fidelity = evaluator(np.zeros((1, 3))).provenance.fidelity
+
+    if quantity == "density":
+        unit = "bohr^-3"
+        label = f"|psi_{n},{l},{m}|^2 on the y=0 plane"
+        qdesc = "|psi|^2 (probability density)"
+        extra = ("plane y=0 contains the z quantization axis",)
+    else:
+        unit = "bohr^-3/2"
+        label = f"psi_{n},{l},{m} on the y=0 plane"
+        qdesc = "signed psi"
+        extra = (
+            "plane y=0 contains the z quantization axis",
+            "psi is real on y=0 (e^{i m phi} = +/-1 there), so a signed plot is honest",
+        )
+    provenance = Provenance(
+        fidelity=fidelity,
+        method=(
+            f"{qdesc} from a Hartree-Fock psi_nlm on a {resolution}x{resolution} "
+            f"y=0 grid, half-extent {he:g} bohr"
+        ),
+        assumptions=psi_assumptions + extra,
+        refinement="increase resolution, extent, or the solver mesh refinement",
     )
     return PlaneGrid(
         values=values, axis=axis, quantity=quantity, unit=unit, label=label,

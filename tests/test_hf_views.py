@@ -127,3 +127,49 @@ def test_hf_cloud_goes_counterfactual_with_exchange_off():
 
     cloud = sample_hf_density(10, 10, 2, 1, 0, 2_000, seed=1, exchange=False)
     assert cloud.provenance.fidelity is Fidelity.COUNTERFACTUAL
+
+
+def test_hf_plane_agrees_with_the_evaluator_it_is_built_on():
+    """The grid is not allowed to be its own authority.
+
+    A plane routine can be wrong in two ways that look identical on screen: a
+    transposed axis pair, and an off-by-one in the half-extent. Both survive
+    every self-consistent check the grid can run on itself, and both die
+    against psi evaluated directly at the same Cartesian points.
+    """
+    from atomsim.plane import hf_plane_grid
+
+    pg = hf_plane_grid(10, 10, 2, 1, 0, quantity="psi", resolution=33)
+    axis = pg.axis
+    # Row i is z = axis[i], column j is x = axis[j]; see the layout string the
+    # server publishes for this array.
+    for i in (3, 16, 29):
+        for j in (5, 16, 27):
+            direct = evaluate_hf_state(
+                10, 10, 2, 1, 0,
+                np.array([[axis[j], 0.0, axis[i]]]),
+            )
+            assert pg.values[i, j] == pytest.approx(
+                float(np.real(direct.values[0])), rel=1e-9, abs=1e-12
+            )
+
+
+def test_hf_psi_is_real_on_the_y_zero_plane():
+    """e^(i m phi) = +/-1 there, so a signed plot is honest and is labeled so."""
+    from atomsim.plane import hf_plane_grid
+
+    pg = hf_plane_grid(10, 10, 2, 1, 1, quantity="psi", resolution=33)
+    pos = np.array([[0.7, 0.0, 0.9], [-1.3, 0.0, 0.4]])
+    psi = evaluate_hf_state(10, 10, 2, 1, 1, pos).values
+    assert np.max(np.abs(np.imag(psi))) < 1e-12
+    assert "psi is real on y=0" in " ".join(pg.provenance.assumptions)
+
+
+def test_hf_plane_inherits_the_counterfactual_tier():
+    from atomsim.plane import hf_plane_grid
+
+    real = hf_plane_grid(10, 10, 2, 1, 0, resolution=17)
+    hartree = hf_plane_grid(10, 10, 2, 1, 0, resolution=17, exchange=False)
+    assert real.provenance.fidelity is Fidelity.APPROXIMATION
+    assert hartree.provenance.fidelity is Fidelity.COUNTERFACTUAL
+    assert not np.allclose(real.values, hartree.values)
