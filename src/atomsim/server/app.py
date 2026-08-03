@@ -1405,7 +1405,7 @@ def create_app() -> FastAPI:
             reference = load_reference(system)
             comparison = citation = tol = None
             if reference is not None:
-                tol = 0.05  # 5% pass bar — disclosed, not hidden
+                tol = 0.05  # 5% pass bar, disclosed rather than hidden
                 # Wide association window (25%): a GSZ valence line sits a few
                 # percent off the real wavelength but is the correct transition,
                 # so report it as a residual instead of silently dropping it.

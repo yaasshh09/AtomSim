@@ -58,7 +58,7 @@ box and orbital scale together. A density has to hold the outermost occupied
 shell while resolving the innermost, and those are Z apart. Measured on neutral
 argon: the `_r_max` box is 640 bohr, the default 48000 points put h at 0.013,
 and the 1s peaks at 0.055. The density then **loses 0.13 of an electron and
-splits the K shell into two maxima at 0.054 and 0.066 bohr** — a fourth shell
+splits the K shell into two maxima at 0.054 and 0.066 bohr**, a fourth shell
 argon does not have, smooth and plausible and wrong. Neither survives being
 looked for on the display grid, because neither is a display problem.
 

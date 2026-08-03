@@ -111,7 +111,7 @@ export function Controls() {
             {config === null
               ? "Aufbau ground configuration (default)"
               : resolved
-                ? `${resolved.config}${resolved.is_ground ? "" : " — excited (non-ground)"}`
+                ? `${resolved.config}${resolved.is_ground ? "" : " (excited, non-ground)"}`
                 : "custom configuration"}
           </p>
           <button type="button" className="ghost" onClick={() => setConfig(null)}>
@@ -170,7 +170,7 @@ export function Controls() {
                   ? "Forced on by the switch below: exchange energy comes from antisymmetry, and antisymmetry is the exclusion principle."
                   : exchange
                     ? "Exchange on: the wavefunction is antisymmetric, as it is in this universe."
-                    : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched — this is not electrons piling into 1s."}
+                    : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched, so this is not electrons piling into 1s."}
               </p>
               <label className="check">
                 <input

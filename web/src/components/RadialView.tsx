@@ -19,7 +19,7 @@ function decades([lo, hi]: [number, number]): number[] {
   return out;
 }
 
-/** "0.01", "1", "10" rather than "1e-2" — these are bohr, and readers know bohr. */
+/** "0.01", "1", "10" rather than "1e-2": these are bohr, and readers know bohr. */
 function decadeLabel(t: number): string {
   return t >= 0.01 ? String(Number(t.toFixed(2))) : t.toExponential(0);
 }
