@@ -412,6 +412,21 @@ export interface ChannelInfo {
   provenance: Provenance;
 }
 
+/**
+ * Which many-electron model a picture job asks for, and under which rules.
+ *
+ * Every field defaults on the server to the already-shipped screened
+ * behaviour, so omitting the object entirely cannot ask for Hartree-Fock or
+ * for a counterfactual.
+ */
+export interface ManyElectronParams {
+  model: "gsz" | "hf";
+  /** Electron configuration, e.g. "1s2 2s2 2p5 3s1". null is the ground one. */
+  config: string | null;
+  exchange: boolean;
+  pauli: boolean;
+}
+
 export interface SampleMeta {
   kind: "sample";
   count: number;
@@ -423,6 +438,14 @@ export interface SampleMeta {
   m: number;
   basis: string;
   system: string;
+  /**
+   * Which many-electron model drew this: "gsz" or "hf".
+   *
+   * Read this rather than sniffing the provenance prose. A view that has to
+   * parse a sentence to learn which physics it is drawing will eventually
+   * parse it wrong and draw the other one.
+   */
+  model: string;
   provenance: Provenance;
   channels: ChannelInfo[];
 }
@@ -442,6 +465,8 @@ export interface PlaneMeta {
   m: number;
   basis: string;
   system: string;
+  /** Which many-electron model drew this; see SampleMeta.model. */
+  model: string;
   provenance: Provenance;
 }
 
@@ -476,6 +501,8 @@ export interface IsoMeta {
   m: number;
   basis: string;
   system: string;
+  /** Which many-electron model drew this; see SampleMeta.model. */
+  model: string;
   label: string;
   provenance: Provenance;
 }

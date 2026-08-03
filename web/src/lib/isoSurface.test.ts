@@ -44,6 +44,7 @@ function meta(over: Partial<IsoMeta> = {}): IsoMeta {
     m: 0,
     basis: "complex",
     system: "h",
+    model: "gsz",
     label: "test",
     provenance: prov,
     ...over,

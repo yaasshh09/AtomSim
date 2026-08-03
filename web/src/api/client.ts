@@ -7,6 +7,7 @@ import type {
   JobInfo,
   JobMeta,
   LevelsResponse,
+  ManyElectronParams,
   RadialResponse,
   ScreenedLevels,
   CurveOfGrowthInfo,
@@ -117,9 +118,20 @@ export function getRadial(
   l: number,
   system: string,
   points?: number,
+  many?: ManyElectronParams,
 ): Promise<RadialResponse> {
   const p = points === undefined ? "" : `&points=${points}`;
-  return getJson(`/api/radial/${n}/${l}?system=${key(system)}${p}`);
+  // Only the non-default half is written, so a screened request produces the
+  // same URL it produced before Phase 26 and nothing downstream has to know
+  // these parameters exist.
+  let extra = "";
+  if (many !== undefined && many.model === "hf") {
+    extra = "&model=hf";
+    if (many.config !== null) extra += `&config=${encodeURIComponent(many.config)}`;
+    if (!many.exchange) extra += "&exchange=false";
+    if (!many.pauli) extra += "&pauli=false";
+  }
+  return getJson(`/api/radial/${n}/${l}?system=${key(system)}${p}${extra}`);
 }
 
 export function getLevels(
@@ -279,7 +291,14 @@ export function getAbsorption(p: AbsorptionParams): Promise<AbsorptionInfo> {
   );
 }
 
-export interface SampleParams {
+/**
+ * The many-electron fields are optional on every picture job.
+ *
+ * Omitting them is the screened model with real physics, which is what the
+ * server defaults to, so a caller cannot ask for Hartree-Fock or for a
+ * counterfactual by forgetting a field.
+ */
+export interface SampleParams extends Partial<ManyElectronParams> {
   n: number;
   l: number;
   m: number;
@@ -293,7 +312,7 @@ export function createSampleJob(params: SampleParams): Promise<JobInfo> {
   return postJson("/api/jobs/sample", { seed: 0, ...params });
 }
 
-export interface PlaneParams {
+export interface PlaneParams extends Partial<ManyElectronParams> {
   n: number;
   l: number;
   m: number;
@@ -307,7 +326,7 @@ export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {
   return postJson("/api/jobs/plane", { resolution: 512, ...params });
 }
 
-export interface IsoParams {
+export interface IsoParams extends Partial<ManyElectronParams> {
   n: number;
   l: number;
   m: number;

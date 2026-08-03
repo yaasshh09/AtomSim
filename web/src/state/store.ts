@@ -25,6 +25,7 @@ import {
   defaultParams,
   type ForcePreset,
 } from "../lib/forceLaw";
+import { manyElectronParams } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
 import { isAlphaValid } from "../lib/whatif";
@@ -225,6 +226,14 @@ interface AppState {
   setExchange: (exchange: boolean) => void;
   setPauli: (pauli: boolean) => void;
   loadHF: () => Promise<void>;
+  /**
+   * Solve the atom before drawing it, under Hartree-Fock only.
+   *
+   * The solve is what says which subshells exist, so a picture fired before it
+   * lands is a picture that may be about to be refused. Resolves to whether a
+   * solve is available; false means the reason is already on `error`.
+   */
+  ensureHF: () => Promise<boolean>;
   setBasis: (basis: Basis) => void;
   setView: (view: ViewMode) => void;
   setColorMode: (colorMode: ColorMode) => void;
@@ -369,17 +378,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       exchange: true,
       pauli: true,
     }),
-  // config is its own physics input (screened atoms only): it clears the derived
-  // level/spectrum/state payloads but keeps the selected system.
-  setConfig: (config) =>
-    set({
-      config,
-      levels: null,
-      spectrum: null,
-      stateInfo: null,
-      hf: null,
-      hfStatus: "idle",
-    }),
+  // config is its own physics input: it clears everything derived but keeps
+  // the selected system.
+  //
+  // The full INVALIDATED spread rather than the four level payloads it used to
+  // clear. Since Phase 26 the configuration reaches the cloud, the plane, the
+  // surface and the radial curve as well, because a Hartree-Fock picture is an
+  // orbital of one particular configuration. A 2p drawn under 1s2 2s2 2p6
+  // sitting beneath a picker that now reads 1s2 2s2 2p5 3s1 is exactly the
+  // stale-physics render this block exists to make impossible.
+  setConfig: (config) => set({ config, ...INVALIDATED, hf: null, hfStatus: "idle" }),
   // Switching model changes what the numbers mean, so everything derived under
   // the old one goes. The HF solve itself survives: it is keyed on the atom,
   // not on which model is being displayed, so switching away and back is free.
@@ -394,10 +402,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   // antisymmetric, and an antisymmetric wavefunction is what the exclusion
   // principle is. There is no state with one and not the other, so the store
   // cannot hold one.
+  //
+  // INVALIDATED goes with it since Phase 26: the switch reaches the cloud, the
+  // plane, the surface and the radial curve now, and a Hartree orbital is a
+  // different curve rather than the same curve at a different accuracy.
   setExchange: (exchange) =>
     set((s) => ({
       exchange,
       pauli: exchange ? true : s.pauli,
+      ...INVALIDATED,
       hf: null,
       hfStatus: "idle",
     })),
@@ -415,6 +428,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       pauli,
       exchange: pauli,
       config: null,
+      ...INVALIDATED,
       hf: null,
       hfStatus: "idle",
     }),
@@ -555,10 +569,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ stateInfo: await client.getState(n, l, m, system, fineStructure) });
   },
   sample: async () => {
+    if (!(await get().ensureHF())) return;
     const { n, l, m, count, basis, system } = get();
     set({ status: "sampling", progress: 0, error: null });
     try {
-      const job = await client.createSampleJob({ n, l, m, count, basis, system });
+      const job = await client.createSampleJob({
+        n, l, m, count, basis, system, ...manyElectronParams(get()),
+      });
       await client.watchJob(job.id, (progress) => set({ progress }));
       const [meta, positions, density, phase] = await Promise.all([
         client.getJobMeta(job.id),
@@ -585,8 +602,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       isoProgress: 0,
     }),
   loadIso: async () => {
-    const { n, l, m, system, basis, isoFraction, isoStatus } = get();
-    if (isoStatus === "sampling") return;
+    if (get().isoStatus === "sampling") return;
+    if (!(await get().ensureHF())) return;
+    const { n, l, m, system, basis, isoFraction } = get();
     set({ isoStatus: "sampling", isoProgress: 0, error: null });
     try {
       const job = await client.createIsoJob({
@@ -596,6 +614,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         system,
         basis,
         fraction: isoFraction,
+        ...manyElectronParams(get()),
       });
       await client.watchJob(job.id, (isoProgress) => set({ isoProgress }));
       const [meta, vertices, triangles, phase] = await Promise.all([
@@ -618,6 +637,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   loadPlane: async () => {
+    if (!(await get().ensureHF())) return;
     const { n, l, m, system, basis, planeQuantity } = get();
     set({ planeStatus: "sampling", planeProgress: 0, error: null });
     try {
@@ -628,6 +648,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         system,
         basis,
         quantity: planeQuantity,
+        ...manyElectronParams(get()),
       });
       await client.watchJob(job.id, (planeProgress) => set({ planeProgress }));
       const [meta, values] = await Promise.all([
@@ -644,8 +665,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   loadRadial: async () => {
+    if (!(await get().ensureHF())) return;
     const { n, l, system } = get();
-    set({ radial: await client.getRadial(n, l, system) });
+    set({
+      radial: await client.getRadial(n, l, system, undefined, manyElectronParams(get())),
+    });
   },
   loadLevels: async () => {
     const { system, fineStructure, config, dirac, bField, eField, hyperfine } = get();
@@ -690,6 +714,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ hfStatus: "error", error: err instanceof Error ? err.message : String(err) });
     }
+  },
+  ensureHF: async () => {
+    if (get().model !== "hf") return true;
+    if (get().hf !== null) return true;
+    await get().loadHF();
+    return get().hf !== null;
   },
   loadCurveOfGrowth: async (lambdaNm) => {
     const {
