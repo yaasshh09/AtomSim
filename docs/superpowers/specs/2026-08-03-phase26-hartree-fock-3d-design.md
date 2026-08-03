@@ -1,6 +1,6 @@
 # Phase 26: Hartree-Fock in three dimensions
 
-Status: designed, not implemented.
+Status: implemented. See section 10 for what building it changed.
 Predecessors: Phase 21 (Hartree-Fock atoms), Phase 22 (exchange off), Phase 24
 (Pauli off), Phase 25 (isosurfaces).
 
@@ -225,3 +225,66 @@ existing Hartree-Fock ones and records what it actually is.
 - **Ions with no preset.** Section 4.
 - **Showing the screened and Hartree-Fock orbitals in one camera.** The model
   selector switches between them. A comparison view is a different design.
+
+## 10. What building it changed
+
+Six things the design did not have right.
+
+**The tier was hardcoded one layer below where section 6 assumed.** Section 6
+says the pictures go `COUNTERFACTUAL` with a switch thrown, and reads as though
+that follows from the solve. It did not. `evaluate_hf_state` wrote
+`fidelity=Fidelity.APPROXIMATION` as a literal in its `Provenance` constructor,
+and `hf_isosurface` passed the same literal to `_build`. Threading the flags
+through without touching those two lines would have produced exactly the badge
+section 3 warns about, from the opposite direction: a Hartree orbital under the
+real atom's tier. Both now read the tier off the solve they came out of, and
+`hf_plane_grid` and `sample_hf_density` were built that way from the start.
+Three engine tests assert the flip rather than the value.
+
+**The Pauli cross-check compared two different questions.** Section 7 proposed
+ordering the collapsed and real atoms by the 90% enclosure radius and by
+`hf_mean_radius`, on the grounds that two code paths agreeing on a sign is
+worth more than an asserted direction. The two disagreed, and the code was
+right both times: for beryllium the whole atom shrinks under the collapse
+(`<r>` 1.53 to 0.53 bohr, because the 2s stops existing) while its 1s swells
+(0.42 to 0.53 bohr, because four electrons in one orbital see three others
+each instead of one). `hf_mean_radius` is a whole-atom average and the surface
+draws one orbital. The check now runs the surface against a 1-D quadrature on
+the same subshell, which is still two independent paths, and a second test
+pins both facts side by side so the next reader does not call one of them a
+bug. The design's instinct was right and its comparator was wrong.
+
+**Refusal 2 is configuration-driven, not a 1s rule.** Section 6 states it as
+"`pauli=false` for anything but 1s". Implemented that way it would wrongly
+refuse a hand-written collapsed configuration like `1s5 2s3`, which the HF
+endpoint already accepts. The check asks the actual configuration instead and
+switches only its explanation on `pauli`, which covers the case section 6 names
+and one it did not.
+
+**The claim attaches in `hf_radial`, and so reaches four views from one edit.**
+Section 6 scopes it to the 3-D views. `hf_radial` is upstream of all of them
+plus the radial plot, and a single orbital's radial curve is no more an
+observable than its lobes, so that is where it lives.
+
+**Two frontend sentences had gone stale and one had to be re-scoped.** The
+`Controls.tsx` line section 1 quotes was the known one. `InfoPanel.tsx` also
+carried "other views still use the screened field", which this phase makes
+false everywhere; a correction that has itself gone stale is worse than none,
+because the reader was told to trust it. Separately, the subshell picker needed
+the solve in order to grey anything, and under the Cloud view nothing requests
+it, since sampling is a button. `Controls` now asks for the solve itself
+whenever the model is Hartree-Fock, rather than relying on whichever view
+happens to be open.
+
+**Performance matched the prediction and the cache did not move.** Section 8
+expected the isosurface cost profile to match the screened path: a 96^3
+Hartree-Fock surface is 1.92s with the solve warm, against roughly 1.9s for the
+screened one. The five cache keys a user reaches by flipping switches on one
+atom fit inside `maxsize=8` with no eviction, so the number stays where it is,
+now with `tests/test_hf_view_performance.py` recording why.
+
+**Still not reachable: sulfur and chlorine.** Section 1 is right that the
+engine solves them and GSZ cannot, but `ATOM_KEYS` excludes Z = 16 and 17
+because they have no GSZ parameters, so neither the picture views nor the
+Levels view can select them. Giving them keys touches every screened code path
+and is its own change. The shipped `Controls.tsx` copy does not claim them.
