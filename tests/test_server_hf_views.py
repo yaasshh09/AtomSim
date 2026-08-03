@@ -189,10 +189,24 @@ def test_radial_carries_the_total_density_under_hartree_fock(client):
     assert np.trapezoid(d["values"], d["grid"]) == pytest.approx(10.0, rel=1e-3)
 
 
-def test_screened_radial_has_no_total_density(client):
-    """Null rather than absent: the field exists and this model does not fill it."""
-    body = client.get("/api/radial/2/1?system=ne").json()
-    assert body["total_density"] is None
+def test_the_screened_model_fills_the_total_density_too_now(client):
+    """It did not when this file was written, and the null was the whole test.
+
+    Both many-electron models ship D(r) as of tests/test_screened_total_density,
+    so what is left to check here is that the two are distinguishable: the
+    screened one is summed from u_a and the Hartree-Fock one from P_a, and the
+    labels say which. A response carrying one model's density under the other
+    model's name is the failure this replaces the null check with.
+    """
+    gsz = client.get("/api/radial/2/1?system=ne").json()["total_density"]
+    hf = client.get("/api/radial/2/1?system=ne&model=hf").json()["total_density"]
+    assert "u_a" in gsz["label"] and "P_a" in hf["label"]
+    assert np.trapezoid(gsz["values"], gsz["grid"]) == pytest.approx(10.0, abs=5e-3)
+
+
+def test_a_one_electron_system_still_has_none(client):
+    """Null rather than absent: the field exists and no model fills it here."""
+    assert client.get("/api/radial/2/1?system=h").json()["total_density"] is None
 
 
 def test_radial_counterfactual_flips_the_tier(client):
