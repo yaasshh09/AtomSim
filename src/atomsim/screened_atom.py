@@ -16,7 +16,7 @@ import numpy as np
 
 from atomsim.analytic.angular import spherical_harmonic
 from atomsim.analytic.wavefunction import WavefunctionValues
-from atomsim.atoms import Configuration, is_ground
+from atomsim.atoms import Configuration, aufbau_configuration, is_ground
 from atomsim.numerics.dipole import (
     dipole_box_radius,
     dipole_from_solutions,
@@ -162,6 +162,114 @@ def screened_radial(
     p_field = Field(values=grid**2 * R_i**2, grid=grid, unit="bohr^-1",
                     grid_unit="bohr", label=f"P_{n},{l}(r) = r^2 R^2", provenance=prov)
     return r_field, p_field
+
+
+def _density_grid(z: int, n_electrons: int, n_top: int) -> tuple[float, int]:
+    """Box and point count for a whole atom's density, not for one orbital.
+
+    `_r_max` above sizes a box around the orbital being asked for, and the
+    solver's default point count then sets the spacing to whatever falls out.
+    For one orbital that is fine, because the box and the orbital scale
+    together. For a density it is not: the box has to hold the outermost
+    occupied shell while the spacing has to resolve the innermost, and those
+    two are Z apart.
+
+    Measured, on neutral argon: the `_r_max` box is 640 bohr, the default
+    48000 points put h at 0.013, and the 1s peaks at 0.055 with about four
+    points across it. The density then loses 0.13 of an electron and splits
+    the K shell into two maxima at 0.054 and 0.066 bohr, a fourth shell argon
+    does not have. Both survive any refinement of the display grid, because
+    neither is a display problem.
+
+    So the box is sized to the valence and the spacing to the core. 4(n+1)^2 /
+    Z_net still clears the outermost orbital by tens of decay lengths (argon's
+    3p is bound at 0.6 hartree, so 64 bohr is e^-140 out), and h = 1/(40 Z)
+    puts about fifty points across a 1s of scale 1/Z. Against the wider box
+    this MOVES the deep orbitals: argon's 1s goes from -111.88 to -114.05
+    hartree, and shrinking the box further to 25 bohr moves it only another
+    0.005, so the narrow answer is the converged one. The valence energies,
+    which are what the screened model is judged on, move by under 0.002
+    hartree either way.
+    """
+    r_max = 4.0 * (n_top + 1) ** 2 / (z - n_electrons + 1)
+    return r_max, int(np.ceil(r_max * 40.0 * z))
+
+
+def screened_total_radial_density(
+    z: int, n_electrons: int, config: Configuration | None = None,
+    points: int = 400,
+) -> Field:
+    """D(r) = sum_a q_a u_a(r)^2, the whole atom's radial density in electrons/bohr.
+
+    The observable one. A single orbital is a basis choice, and this sum is not:
+    integrate it over any shell and you get how many electrons are in it. The
+    GSZ counterpart of `hf_atom.hf_total_radial_density`, and the two disagree
+    in a way worth looking at, which is the point of having both.
+
+    The error estimate is the closure residual |integral D dr - N| in electrons.
+    Every u_a is normalized to one on the solver's mesh, so N is exact there and
+    what is left after resampling is a real error in the right unit. It settles
+    at a floor set by the solve rather than falling to zero, because
+    interpolating u and then squaring sits just under the true u^2 between
+    nodes.
+
+    APPROXIMATION, and of a different thing than the energies: GSZ was fitted to
+    reproduce a potential, so a density read off its orbitals is further from
+    the data the model was built on than any energy this module returns.
+    """
+    cfg = aufbau_configuration(n_electrons) if config is None else config
+    occupied = [(nl, q) for nl, q in cfg if q > 0]
+    if not occupied:
+        raise ValueError("no occupied subshells, so no density")
+    n_top = max(n for (n, _), _ in occupied)
+    l_max = max(l for (_, l), _ in occupied)
+    r_max, n_points = _density_grid(z, n_electrons, n_top)
+
+    potential = screened_potential(z, n_electrons)
+    channels = {
+        l: solve_radial(
+            potential, l=l, mu_ratio=1.0, r_max=r_max,
+            n_points=n_points, n_states=n_top - l,
+        )
+        for l in range(l_max + 1)
+    }
+
+    solver_r = channels[0].r
+    grid = np.geomspace(solver_r[0], solver_r[-1], points)
+    values = np.zeros_like(grid)
+    for (n, l), q in occupied:
+        if n <= l:
+            raise ValueError(f"n must be > l for a real subshell, got n={n}, l={l}")
+        u = channels[l].u[n - l - 1]
+        values += q * np.interp(grid, channels[l].r, u) ** 2
+
+    n_total = sum(q for _, q in occupied)
+    residual = abs(float(np.trapezoid(values, grid)) - float(n_total))
+    model = screening_provenance(z, n_electrons)
+    return Field(
+        values=values, grid=grid, unit="electrons/bohr", grid_unit="bohr",
+        label=f"D(r) = sum_a q_a u_a(r)^2 (N = {n_total})",
+        provenance=Provenance(
+            fidelity=Fidelity.APPROXIMATION,
+            method=(
+                f"{model.method}; occupancy-weighted sum of the squared radial "
+                f"functions, resampled onto a logarithmic grid"
+            ),
+            assumptions=model.assumptions + (
+                "GSZ was fitted to a potential, not to a density, so this shape "
+                "is further from the model's own data than its energies are",
+                "one central field for every electron, so the shells share a "
+                "potential rather than each seeing the others",
+                f"solved in a {r_max:.0f} bohr box at h = {r_max / n_points:.1e} "
+                f"bohr, sized to hold the valence and resolve the core",
+            ),
+            error_estimate=residual,
+            refinement=(
+                "an orbital-dependent potential, i.e. Hartree-Fock, which this "
+                "engine also solves and which needs no fitted parameters"
+            ),
+        ),
+    )
 
 
 #: Deliberately small. These entries are not cheap objects: a solved channel on
