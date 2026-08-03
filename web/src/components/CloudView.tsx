@@ -19,6 +19,7 @@ import {
 } from "../lib/liberties";
 import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
+import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { ISO_FRACTIONS, useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
@@ -79,6 +80,7 @@ export function CloudView() {
     isoStatus,
     isoProgress,
     loadIso,
+    model,
   } = useAppStore();
   // The ghost is a Kepler orbit, which exists because the field is exactly
   // 1/r. A screened atom's whole content is that its field is not, so there is
@@ -254,6 +256,7 @@ export function CloudView() {
             <Badge provenance={ISOSURFACE_LIBERTY} />
           </div>
         )}
+        {model === "hf" && <span className="orbital-claim">{HF_ORBITAL_CAPTION}</span>}
         {kind === "hydrogenic" && (
           <label className="ghost-toggle">
             <input

@@ -1,6 +1,7 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import type { FieldData, Quantity } from "../api/types";
+import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { linePath } from "../lib/plot";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -70,10 +71,15 @@ function FieldPlot({ field, marker }: { field: FieldData; marker?: Quantity }) {
 }
 
 export function RadialView() {
-  const { n, l, system, radial, stateInfo, loadRadial } = useAppStore();
+  const { n, l, system, radial, stateInfo, loadRadial, model, config, exchange, pauli } =
+    useAppStore();
   useEffect(() => {
     void loadRadial();
-  }, [n, l, system, loadRadial]);
+    // The Hartree-Fock inputs are dependencies too: each of them names a
+    // different solve, so a curve fetched under one and left on screen under
+    // another would be the stale render the store's INVALIDATED block exists
+    // to prevent, arriving by a different door.
+  }, [n, l, system, model, config, exchange, pauli, loadRadial]);
   if (!radial) return <p className="hint-block">loading radial functions…</p>;
   return (
     <div className="view-wrap">
@@ -82,6 +88,7 @@ export function RadialView() {
         field={radial.radial_probability}
         marker={stateInfo?.mean_radius ?? undefined}
       />
+      {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}
     </div>
   );
 }

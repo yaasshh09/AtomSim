@@ -699,6 +699,18 @@ button.primary:disabled {
   gap: 0.4rem;
   color: var(--muted, #8fa3ad);
 }
+/* The orbital-is-not-an-observable claim, over the 3-D canvas.
+   Capped and wrapping rather than a .ghost-readout flex row: that class is
+   sized for a phrase, and this is three sentences, so unconstrained it runs
+   off the canvas panel and lands on top of the right-hand controls. */
+.orbital-claim {
+  display: block;
+  max-width: 44ch;
+  color: var(--muted, #8fa3ad);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 /* The isosurface readout. Same shape as .ghost-hud, neutral border: that one is
    counterfactual pink, and a contour of the real |psi|^2 is real physics. */
 .surface-hud {

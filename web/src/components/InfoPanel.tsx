@@ -40,13 +40,18 @@ export function InfoPanel() {
       {/*
         The description above is the preset's, and every screened preset names
         GSZ in it. With the Hartree-Fock model selected that sentence is
-        describing a model this session is not using for its levels, so it gets
+        describing a model this session is not using at all, so it gets
         corrected here rather than left to be read as the active one.
+
+        The second half of this note used to read "other views still use the
+        screened field", which was true until Phase 26 and is now false in
+        every view. A correction that has itself gone stale is worse than no
+        correction, because the reader has been told to trust it.
       */}
       {isScreened && model === "hf" && (
         <p className="system-desc">
-          Energy levels below are solved by Hartree-Fock, not by the screened
-          field named above. Other views still use the screened field.
+          Every view in this session is solved by Hartree-Fock, not by the
+          screened field named above.
         </p>
       )}
       <p className="state-label">

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { rasterize } from "../lib/rasterize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -69,6 +70,7 @@ export function PlaneView() {
             : "Diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
         </p>
       )}
+      {plane?.meta.model === "hf" && <p className="caption">{HF_ORBITAL_CAPTION}</p>}
     </div>
   );
 }

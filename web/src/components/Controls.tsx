@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { isScreenedLevels } from "../api/client";
+import { subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
 import { useAppStore } from "../state/store";
@@ -24,14 +25,22 @@ export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
     colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
-    pauli,
+    pauli, hf,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
-    setExchange, setPauli, loadSystems,
+    setExchange, setPauli, loadSystems, ensureHF,
   } = useAppStore();
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
   }, [systems.length, loadSystems]);
+  // The picker greys subshells the configuration does not occupy, and it can
+  // only know which those are from the solve. Asked for here rather than left
+  // to whichever view is open: the Cloud samples on a button press, so under
+  // that view nothing else would ever request it and the picker would offer
+  // every subshell right up until the job came back 422.
+  useEffect(() => {
+    if (model === "hf") void ensureHF();
+  }, [model, ensureHF]);
   const lChoices = Array.from({ length: n }, (_, i) => i);
   const mChoices = Array.from({ length: 2 * l + 1 }, (_, i) => i - l);
 
@@ -124,7 +133,7 @@ export function Controls() {
           <p className="panel-hint">
             {model === "gsz"
               ? "Fitted central field: one potential for every electron, no self-consistency."
-              : "Self-consistent field, solved per subshell. Reaches the Energy levels view only — the cloud, cross-section and radial views are still the screened model, and say so on their own badges."}
+              : "Self-consistent field, solved per subshell, with no fitted parameters. Every view draws it: cloud, cross-section, radial and surface. What you see is one orbital, not the total density, which for these atoms is exactly spherical."}
           </p>
           {model === "hf" && (
             <>
@@ -181,7 +190,19 @@ export function Controls() {
         n
         <select value={n} onChange={(e) => setQuantumNumbers(Number(e.target.value), l, m)}>
           {N_CHOICES.map((v) => (
-            <option key={v} value={v}>
+            <option
+              key={v}
+              value={v}
+              // A shell is offered when any subshell in it is occupied. Under
+              // the screened model that is always, since a fitted central
+              // field has a solution in every channel whether or not an
+              // electron is in it.
+              disabled={
+                !Array.from({ length: v }, (_, i) => i).some((li) =>
+                  subshellAvailable(hf, model, v, li),
+                )
+              }
+            >
               {v}
             </option>
           ))}
@@ -191,12 +212,19 @@ export function Controls() {
         l
         <select value={l} onChange={(e) => setQuantumNumbers(n, Number(e.target.value), m)}>
           {lChoices.map((v) => (
-            <option key={v} value={v}>
+            <option key={v} value={v} disabled={!subshellAvailable(hf, model, n, v)}>
               {v}
             </option>
           ))}
         </select>
       </label>
+      {model === "hf" && hf !== null && (
+        <p className="panel-hint">
+          Greyed subshells are empty in {hf.config}. Hartree-Fock builds one Fock
+          operator per occupied subshell, so an empty one has no operator to be an
+          eigenfunction of.
+        </p>
+      )}
       <label>
         m
         <select value={m} onChange={(e) => setQuantumNumbers(n, l, Number(e.target.value))}>
