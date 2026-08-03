@@ -54,15 +54,15 @@ split their shared face along the same diagonal and the mesh stays watertight.
 
 **Files:** `src/atomsim/numerics/marching_tets.py`, `tests/test_marching_tets.py`
 
-- [ ] Kuhn decomposition of the cell grid into six tetrahedra, vectorized over
+- [x] Kuhn decomposition of the cell grid into six tetrahedra, vectorized over
       all cells, chunked over z so a 128³ grid never materializes more than a
       slab of tetrahedra at once.
-- [ ] Per-tetrahedron classification, linear interpolation of the crossing point
+- [x] Per-tetrahedron classification, linear interpolation of the crossing point
       on each cut edge, triangle emission with outward orientation (normal
       pointing down the field gradient, out of the enclosed region).
-- [ ] Vertex welding by the sorted pair of grid-corner indices, so the mesh is
+- [x] Vertex welding by the sorted pair of grid-corner indices, so the mesh is
       indexed and shared vertices are one vertex.
-- [ ] `enclosed_volume(vertices, triangles)` by the divergence theorem.
+- [x] `enclosed_volume(vertices, triangles)` by the divergence theorem.
 
 **Verification:** a sphere field `r² - a²` at N = 32, 64, 128: area against
 `4 pi a²` and volume against `(4/3) pi a³`, both converging as the grid refines;
@@ -73,14 +73,14 @@ volume positive); a plane field for exactness on a case with no curvature error.
 
 **Files:** `src/atomsim/isosurface.py`, `tests/test_isosurface.py`
 
-- [ ] `density_grid(state, half_width, n)` evaluating |ψ|² on the cubic grid for
+- [x] `density_grid(state, half_width, n)` evaluating |ψ|² on the cubic grid for
       analytic states, reusing `analytic/wavefunction.py`.
-- [ ] Automatic half-width from the state's ⟨r⟩ and the tail, then the measured
+- [x] Automatic half-width from the state's ⟨r⟩ and the tail, then the measured
       captured mass and the escaped remainder.
-- [ ] `solve_level(grid, target_fraction)` by descending sort and cumulative sum,
+- [x] `solve_level(grid, target_fraction)` by descending sort and cumulative sum,
       interpolating between bracketing densities; raises when the box cannot
       support the target.
-- [ ] `isosurface(...)` assembling grid, level, mesh, and provenance.
+- [x] `isosurface(...)` assembling grid, level, mesh, and provenance.
 
 **Verification:** hydrogen 1s at f = 0.9 gives the closed-form sphere radius
 2.6612 bohr; achieved fraction matches the target; escaped mass shrinks as the
@@ -90,26 +90,26 @@ box grows; grid halving gives the error estimate.
 
 **Files:** `tests/test_isosurface.py`
 
-- [ ] Cross-check against the Phase 1 sampler: the fraction of sampled points
+- [x] Cross-check against the Phase 1 sampler: the fraction of sampled points
       with `rho >= level` matches the target within binomial error.
-- [ ] Topology: 1s at 90% is one component, 2p_z is two, counted by union-find
+- [x] Topology: 1s at 90% is one component, 2p_z is two, counted by union-find
       over the welded mesh.
-- [ ] Provenance: `NUMERICAL` for analytic states, inherits `APPROXIMATION` from
+- [x] Provenance: `NUMERICAL` for analytic states, inherits `APPROXIMATION` from
       screened and HF ones, and the disclosures the spec names.
 
 ### Task 4: Screened and Hartree-Fock states
 
 **Files:** `src/atomsim/isosurface.py`, `tests/test_isosurface.py`
 
-- [ ] Density from `screened_atom.evaluate_state` / `hf_atom.evaluate_hf_state`
+- [x] Density from `screened_atom.evaluate_state` / `hf_atom.evaluate_hf_state`
       on the same grid path, with the tier taken as the weaker of the two.
 
 ### Task 5: Server
 
 **Files:** `src/atomsim/server/app.py`, `schemas.py`, `tests/test_server_iso.py`
 
-- [ ] `isosurface` job, meta JSON, binary vertices / triangles / vertex signs.
-- [ ] Validation: fraction in (0, 1), n in the allowed grid sizes, 422 on a
+- [x] `isosurface` job, meta JSON, binary vertices / triangles / vertex signs.
+- [x] Validation: fraction in (0, 1), n in the allowed grid sizes, 422 on a
       target the box cannot support.
 
 ### Task 6: Frontend
@@ -118,13 +118,13 @@ box grows; grid halving gives the error estimate.
 `components/IsoSurface.tsx`, `components/CloudView.tsx`, `lib/urlState.ts`,
 `lib/liberties.ts`, plus tests
 
-- [ ] `surfaceMode` (`cloud` | `surface` | `both`) and `isoFraction` in the
+- [x] `surfaceMode` (`cloud` | `surface` | `both`) and `isoFraction` in the
       store, cleared by the same invalidation that clears the cloud.
-- [ ] `IsoSurface` mesh with vertex colors from the shared LUTs, smooth shading
+- [x] `IsoSurface` mesh with vertex colors from the shared LUTs, smooth shading
       disclosed as a liberty.
-- [ ] URL keys `surf` and `iso`, round-trip tested.
+- [x] URL keys `surf` and `iso`, round-trip tested.
 
 ### Task 7: Close out
 
-- [ ] `pytest`, `ruff check .`, `npm test`, `npm run build` all green.
-- [ ] "What building it changed" section appended to the spec.
+- [x] `pytest`, `ruff check .`, `npm test`, `npm run build` all green.
+- [x] "What building it changed" section appended to the spec.
