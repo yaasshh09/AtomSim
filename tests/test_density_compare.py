@@ -138,6 +138,30 @@ def test_depth_is_the_relative_drop_into_the_preceding_minimum():
     assert peaks[1][1] == pytest.approx(1.0, abs=0.01)  # the valley reaches zero
 
 
+def test_the_noise_floor_keeps_the_faint_shell_and_drops_the_fainter_wiggle():
+    """The floor sits between two measured numbers, not at a round one.
+
+    Sodium's outermost Hartree-Fock peak sits at 2.2e-2 of the tallest one and
+    is a real shell, so a bump of that size must survive. Argon's Hartree-Fock
+    tail beyond 40 bohr sign-flips at about 1e-34 of the tallest, so a wiggle
+    of that character (scaled up to 1e-30 here, still twenty-two orders below
+    the floor, so a coarse grid can resolve the point) must not turn into a
+    second shell. Both curves are built by hand, not by running either solver,
+    so this checks the floor's placement directly rather than through a slow
+    physics run that could pass or fail for unrelated reasons.
+    """
+    r = np.linspace(0.0, 3.0, 3001)
+    tall = np.exp(-((r - 1.0) ** 2) / 0.01)
+
+    real_bump = 0.022 * np.exp(-((r - 2.0) ** 2) / 0.01)
+    with_real_shell = _peaks_with_depth(r, tall + real_bump)
+    assert len(with_real_shell) == 2, "a 2.2 percent peak is a real shell"
+
+    noise = 1e-30 * np.sign(np.sin(r * 5000.0))
+    with_noise = _peaks_with_depth(r, tall + noise)
+    assert len(with_noise) == 1, "a 1e-30 wiggle is noise, not a second shell"
+
+
 # --- the two atoms where the models disagree about how many shells there are -
 
 
