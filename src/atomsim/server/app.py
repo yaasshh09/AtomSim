@@ -857,33 +857,50 @@ def create_app() -> FastAPI:
             )
         return cfg
 
-    def _hf_view_target(req) -> tuple[int, int, Configuration]:
-        """(Z, N, configuration) for a Hartree-Fock picture, or a refusal.
+    def _many_electron_target(
+        system: str, config: str | None, pauli: bool
+    ) -> tuple[int, int, Configuration]:
+        """(Z, N, configuration) for any many-electron picture, or a refusal.
+
+        The half of the old `_hf_view_target` that is about which atom is being
+        solved rather than which orbital is being drawn. Split out because the
+        total density needs the atom and does not depend on (n, l) at all, so
+        refusing a density comparison over an unoccupied subshell would refuse
+        a legitimate request about an orbital nobody asked for.
 
         Every refusal here is synchronous and carries its reason, because the
         alternative is a job that dies several seconds in with an engine
-        message the client has to guess at. The occupancy check needs no solve:
-        which subshells exist is a property of the configuration, and the
-        configuration is in the request.
+        message the client has to guess at.
         """
-        if not _is_screened(req.system):
+        if not _is_screened(system):
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    f"model='hf' needs an atom with a known electron count, "
-                    f"and {req.system!r} is a one-electron system; its "
+                    f"this model needs an atom with a known electron count, "
+                    f"and {system!r} is a one-electron system; its "
                     f"wavefunction is already exact in the other views, so "
                     f"there is nothing a self-consistent field would add"
                 ),
             )
-        element = atom_for_key(req.system)
+        element = atom_for_key(system)
         n_electrons = element.z
-        config = (
-            aufbau_configuration(n_electrons, req.pauli)
-            if req.config is None
-            else _parse_config_or_422(req.config, req.pauli)
+        cfg = (
+            aufbau_configuration(n_electrons, pauli)
+            if config is None
+            else _parse_config_or_422(config, pauli)
         )
-        _validate_hf_request(element.z, n_electrons, config, req.pauli)
+        _validate_hf_request(element.z, n_electrons, cfg, pauli)
+        return element.z, n_electrons, cfg
+
+    def _hf_view_target(req) -> tuple[int, int, Configuration]:
+        """The atom, plus the occupancy check that only an orbital picture needs.
+
+        The occupancy check needs no solve: which subshells exist is a property
+        of the configuration, and the configuration is in the request.
+        """
+        z, n_electrons, config = _many_electron_target(
+            req.system, req.config, req.pauli
+        )
         if (req.n, req.l) not in [nl for nl, _ in config]:
             held = ", ".join(f"{n}{SUBSHELL_LABELS[l]}" for (n, l), _ in config)
             why = (
@@ -899,10 +916,10 @@ def create_app() -> FastAPI:
                 status_code=422,
                 detail=(
                     f"{req.n}{SUBSHELL_LABELS[req.l]} is not occupied in "
-                    f"{element.symbol} ({held}); {why}"
+                    f"{atom_for_key(req.system).symbol} ({held}); {why}"
                 ),
             )
-        return element.z, n_electrons, config
+        return z, n_electrons, config
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
