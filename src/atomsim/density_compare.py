@@ -153,9 +153,12 @@ def _peaks_with_depth(
     shell count, which comes from the configuration rather than from either
     peak list.
 
-    Minima are floored too, and by the same argument. A minimum found inside
-    the noise would otherwise become the "valley" reported for a real peak
-    above it, and the depth beside that peak would be a measurement of nothing.
+    The floor is on the maxima only. A deep valley is what "well separated"
+    means, so flooring the minima would discard the measurement the depth
+    number exists to make, and would discard it hardest in the clearest cases.
+    It would also protect against nothing: the noise lives beyond every real
+    peak, and the valley reported for a peak is the last minimum BEFORE it, so
+    a minimum out in the tail is never the one selected.
     """
     floor = _NOISE_FLOOR * float(np.max(values))
     big = values > floor
@@ -167,7 +170,7 @@ def _peaks_with_depth(
     minima = [
         i
         for i in range(1, len(values) - 1)
-        if big[i] and values[i] < values[i - 1] and values[i] <= values[i + 1]
+        if values[i] < values[i - 1] and values[i] <= values[i + 1]
     ]
     out: list[tuple[float, float | None]] = []
     for i in maxima:
