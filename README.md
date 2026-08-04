@@ -84,6 +84,12 @@ Everything below landed in M1–M3:
   the electron count as its error bar. This is the observable one: the orbital
   plots are a basis choice and the shell peaks are not, which is why neon has
   two of them and argon three
+- Both models on one axis, with the disagreement counted in electrons and each
+  shell's peak radius listed under each. They agree far better than their
+  energies do, under 1.5% of the electrons placed differently for every atom
+  both cover. Where they part company is sodium's outermost shell: the screened
+  model finds no third maximum at all, and Hartree-Fock's is a dip 0.3% deep,
+  so the table says "no separate peak" rather than leaving a cell blank
 - Numerical radial solver for **arbitrary central potentials** (the engine that
   will power real atoms, screened models, and counterfactual force laws alike),
   validated against closed-form hydrogen and harmonic-oscillator solutions —

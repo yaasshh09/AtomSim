@@ -1750,3 +1750,67 @@ git commit -m "Say what the two models actually disagree about, and close out th
 Run: `git status --short`
 Expected: no output. Nothing staged-but-uncommitted, nothing untracked that
 belongs in the repo.
+
+---
+
+## What building it changed
+
+**The peak finder needed a noise floor, and the design did not have one.** The
+spec said "local maxima" and stopped there. Both solvers produce sign-flipping
+jitter out in the tail where the orbital amplitude has decayed past what a
+float64 eigensolve can represent: about 1e-34 of the peak for argon under
+Hartree-Fock past 40 bohr, and 1e-60 for neon under the screened model past 11
+bohr with the occupancy cap off. Every one of those wiggles is a local maximum,
+and the shell table raised on all of them. The floor went to 1e-8 of the tallest
+value, which is six orders below the faintest real shell in He..Ar (sodium's
+outermost Hartree-Fock peak, at 2.2e-2) and twenty-six above the loudest noise.
+
+**The floor belongs on the maxima only, and getting that wrong cost a round.**
+The first fix floored both, which broke a legitimate deep valley: a minimum that
+reaches near zero is not noise, it is the measurement that says two shells are
+well separated. Flooring the minima discards that number hardest in exactly the
+cases where it is clearest. It also protects against nothing, because the noise
+lives beyond every real peak and the valley reported for a peak is the last
+minimum before it.
+
+**Helium does not take the branch it was designed for.** The spec expected the
+"models agree to within the resolution" wording to fire there. Measured, helium
+displaces 0.000343 electrons against a 0.000179 bar, so the number is 1.9 times
+its own bar and the readout is right to state it. What the thin margin actually
+needed was the other half of the same idea: `toFixed(3)` printed that resolved
+measurement as "0.000 plus or minus 0.000", a zero standing in for something
+that is not zero. The decimals now follow the bar, carried to two significant
+figures. Both branches survive; only one of them was the one helium needed.
+
+**The number came out the friendly way, and a caption was wrong because of it.**
+The Radial view's GSZ caption said the screened model was "further from it than
+usual" on the density. The measurement says the opposite: under 1.5% of the
+electrons placed differently for every atom both models cover. GSZ was fitted
+against Hartree-Fock potentials, so a close density is what the fit bought, and
+where the fitted model gives out is the energy (2 to 24 percent off NIST on
+valence ionization) rather than the shape. The caption now says what was
+measured. The rule this phase kept re-learning is that the caption states a
+number a test pins, never the other way round.
+
+**Two curves that agree this well are nearly one curve.** On sodium at the y
+scale the K and L peaks set, the dashed overlay sits underneath the solid one
+and the eye cannot separate them. That is honest and it is the lesson, but it
+means the plot is not what carries the finding: the displaced-charge readout and
+the shell table are. The M row is where the disagreement is legible, and it is
+legible only because "no separate peak" is printed as an answer rather than left
+as an empty cell.
+
+**A legend drawn in the caption's colour names nothing.** The swatch rules
+inherited the figcaption's muted grey, so neither of them matched either curve.
+They take the accent now, which is the colour the curves were already using and
+introduces no hue that was not already in the app. `vertical-align: middle` on a
+zero-height rule still leaves it riding the top of the line box, so the legend
+row is an inline-flex with `align-items: center`.
+
+**`compare` had to go into the RadialView effect's dependency list.** It names no
+different solve, which is why it is deliberately not in the store's `INVALIDATED`
+block: the cloud, the plane and the surface are all still exactly as true after
+the toggle as before it, and throwing them away would be seconds of solve spent
+to tell the user nothing. But it does name a field the payload is missing, and
+`setCompare` drops the radial payload. Without the dependency the view cleared
+and never refetched.

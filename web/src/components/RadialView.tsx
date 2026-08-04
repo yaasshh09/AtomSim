@@ -256,10 +256,13 @@ export function RadialView() {
           </p>
           {model === "gsz" && (
             <p className="hint-block">
-              Measurable, and this model is further from it than usual: GSZ was
-              fitted to reproduce a potential, not a density, and every shell
-              here sees the same one. Switch to Hartree-Fock, where each
-              subshell gets its own field and nothing is fitted, and compare.
+              GSZ was fitted to reproduce a potential rather than a density, and
+              every shell here sees the same one. That turns out to cost less
+              than it sounds: turn the comparison on and the two models place
+              under 1.5% of the electrons differently for every atom they both
+              cover, because the fit was made against Hartree-Fock in the first
+              place. Where the fitted model gives out is the energy, not the
+              shape.
             </p>
           )}
         </>

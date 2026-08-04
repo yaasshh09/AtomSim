@@ -1,6 +1,6 @@
 # Phase 29: The two densities, on one axis
 
-Status: designed, not implemented.
+Status: implemented. See the plan's closeout for what building it changed.
 Predecessors: Phase 21 (Hartree-Fock atoms), Phase 27 (total density under HF),
 Phase 28 (total density under GSZ, in
 `plans/2026-08-04-sulfur-chlorine-and-the-screened-density.md`).
@@ -142,11 +142,17 @@ argon that is 0.0036 + 0.0019 + 0.0006, against a displaced charge of 0.0600. It
 is a tenth of the signal, which is worth knowing and worth printing.
 
 **When the bar exceeds the number, the readout says so instead of printing a
-figure.** Helium's displaced charge is 0.0003 against a bar of about 0.0001,
-which is a real measurement, but the margin is thin enough that the interface has
-to be able to report "the two models agree to within the resolution of this
-comparison" rather than a spuriously precise decimal. That branch is designed in
-now because it is cheap now and a retrofit later.
+figure.** That branch is designed in now because it is cheap now and a retrofit
+later.
+
+Helium was expected to be the case that fires it, and it is not. Measured, its
+displaced charge is 0.000343 against a bar of 0.000179, so the number is 1.9
+times its own bar: thin, but resolved, and the readout is right to state it.
+What the thin margin actually needed was the other half of the same idea, since
+a fixed three decimals renders that measurement "0.000 plus or minus 0.000",
+which is a zero standing in for something that is not zero. The decimals follow
+the bar instead, carrying it to two significant figures, so no atom in He..Ar
+can print a resolved disagreement as nothing.
 
 **Provenance takes the weaker of the two tiers.** Both models are
 `APPROXIMATION` at rest, so the comparison is too. With exchange or Pauli off
@@ -156,8 +162,21 @@ overlay is now a fitted model against a deliberately broken one. This is what
 makes it a legitimate second question rather than a trap: how much of the gap
 between the models is exchange.
 
-**Shell labelling.** Peaks are found on the common grid as local maxima, matched
-to shells in order of increasing radius, and labelled K, L, M by position. Where
+**Shell labelling.** Peaks are found on the common grid as local maxima above a
+noise floor, matched to shells in order of increasing radius, and labelled K, L,
+M by position.
+
+The floor is not in the original design and was added under measurement. Both
+solvers produce sign-flipping jitter out in the tail where the orbital amplitude
+has decayed past what a float64 eigensolve can represent, at about 1e-34 of the
+peak for argon under Hartree-Fock and 1e-60 for neon under the screened model
+with the occupancy cap off, and every one of those wiggles is a local maximum.
+The floor sits at 1e-8 of the tallest value: six orders below the faintest real
+shell in He..Ar, which is sodium's outermost Hartree-Fock peak at 2.2e-2, and
+twenty-six orders above the loudest noise. It applies to the maxima only. A deep
+valley is what "well separated" means, so flooring the minima would discard the
+measurement the depth number exists to make, and would discard it hardest in the
+clearest cases. Where
 one model has fewer maxima than the other, the missing entries are the outer
 ones (that is what Na and Mg do, and it is what physically happens: a valence
 shell that fails to separate merges into the tail, not into the core), so
