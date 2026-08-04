@@ -34,6 +34,21 @@ describe("displacedChargeText", () => {
   it("handles an unknown electron count without inventing one", () => {
     expect(displacedChargeText(q(0.06, 0.006), null)).not.toContain("null");
   });
+
+  it("never prints a resolved number as zero", () => {
+    // Helium as measured: 0.00034 electrons displaced against a 0.00018 bar.
+    // The number is small but it is nearly twice its own bar, so it is a
+    // measurement, and three fixed decimals would render it "0.000 ± 0.000".
+    const text = displacedChargeText(q(0.0003431, 0.000179), 2);
+    expect(text).toContain("0.00034");
+    expect(text).not.toMatch(/0\.000 /);
+  });
+
+  it("keeps the bar to two figures on a coarser comparison", () => {
+    // Argon: the bar is millielectrons, so five decimals would be noise
+    // dressed as precision in the other direction.
+    expect(displacedChargeText(q(0.06, 0.0024), 18)).toContain("0.0600 ± 0.0024");
+  });
 });
 
 describe("shellCells", () => {

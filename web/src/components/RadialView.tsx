@@ -28,6 +28,20 @@ function decadeLabel(t: number): string {
 const SHALLOW = 0.05;
 
 /**
+ * Decimals enough to carry the error bar to two significant figures.
+ *
+ * A fixed three decimals prints helium's 0.00034 electrons displaced as
+ * "0.000 ± 0.000", which is a zero standing in for a measurement that is not
+ * zero, and a resolved one: the bar there is 0.00018, so the number is about
+ * twice it. The bar sets the precision because the bar is the thing that says
+ * how much precision there is.
+ */
+function decimalsFor(bar: number): number {
+  if (!(bar > 0)) return 4;
+  return Math.max(3, 1 - Math.floor(Math.log10(bar)));
+}
+
+/**
  * The disagreement in words, or an admission that it is under the noise.
  *
  * A number smaller than its own error bar is not a measurement of anything,
@@ -38,15 +52,16 @@ const SHALLOW = 0.05;
 export function displacedChargeText(q: Quantity, nElectrons: number | null): string {
   const bar = q.provenance.error_estimate ?? 0;
   const of = nElectrons === null ? "" : ` of the atom's ${nElectrons}`;
+  const d = decimalsFor(bar);
   if (q.value <= bar) {
     return (
       `The two models agree to within the resolution of this comparison ` +
-      `(${q.value.toFixed(4)} electrons displaced, against a ${bar.toFixed(4)} bar).`
+      `(${q.value.toFixed(d)} electrons displaced, against a ${bar.toFixed(d)} bar).`
     );
   }
   return (
-    `The two models disagree about where ${q.value.toFixed(3)} ± ` +
-    `${bar.toFixed(3)} electrons${of} are.`
+    `The two models disagree about where ${q.value.toFixed(d)} ± ` +
+    `${bar.toFixed(d)} electrons${of} are.`
   );
 }
 

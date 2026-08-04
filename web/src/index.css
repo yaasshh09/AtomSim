@@ -375,21 +375,32 @@ button.primary:disabled {
   opacity: 0.85;
 }
 
+/* inline-flex rather than plain inline: vertical-align on a zero-height rule
+   still leaves it riding the top of the line box, and centring the row is the
+   thing that makes the swatch read as belonging to the label beside it. */
 .legend-inline {
+  display: inline-flex;
+  align-items: center;
   margin-left: 0.8rem;
   white-space: nowrap;
 }
 
+/* The accent, not currentColor: a legend line drawn in the caption's muted grey
+   names nothing, because neither curve is grey. This is the same accent the
+   curves already use, so it introduces no hue the app did not have. */
 .swatch-line {
   display: inline-block;
+  /* flex-shrink off: the rule is the legend, and a squeezed one names nothing. */
+  flex: 0 0 auto;
   width: 1.4em;
-  border-top: 2px solid currentColor;
-  vertical-align: middle;
+  height: 0;
+  border-top: 2px solid var(--accent);
   margin: 0 0.3em 0 0.6em;
 }
 
 .swatch-line.dashed {
   border-top-style: dashed;
+  opacity: 0.85;
 }
 
 .compare-block {
