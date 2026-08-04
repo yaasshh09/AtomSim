@@ -25,6 +25,8 @@ export interface UrlState {
   colorMode: ColorMode;
   fineStructure: boolean;
   dirac: boolean;
+  /** Both models' total density on one axis in the Radial view; defaults off. */
+  compare: boolean;
   bField: number;
   eField: number;
   hyperfine: boolean;
@@ -130,6 +132,7 @@ export const URL_DEFAULTS: UrlState = {
   colorMode: "solid",
   fineStructure: false,
   dirac: false,
+  compare: false,
   bField: 0,
   eField: 0,
   hyperfine: false,
@@ -275,6 +278,8 @@ export function parseAppUrl(search: string): Partial<UrlState> {
 
   if (q.get("dirac") === "1") out.dirac = true;
 
+  if (q.get("compare") === "1") out.compare = true;
+
   const b = Number(q.get("b"));
   if (Number.isFinite(b) && b > 0) out.bField = b;
 
@@ -376,6 +381,7 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.colorMode !== URL_DEFAULTS.colorMode) q.set("color", state.colorMode);
   if (state.fineStructure !== URL_DEFAULTS.fineStructure) q.set("fs", "1");
   if (state.dirac && state.fineStructure) q.set("dirac", "1");
+  if (state.compare) q.set("compare", "1");
   if (state.bField > 0 && state.fineStructure) q.set("b", String(state.bField));
   if (state.eField > 0) q.set("ef", String(state.eField));
   if (state.hyperfine) q.set("hf", "1");

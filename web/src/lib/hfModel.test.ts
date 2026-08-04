@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { HFLevels, SystemInfo } from "../api/types";
 import {
   HF_ORBITAL_CAPTION,
+  compareAvailable,
   gszAvailable,
   manyElectronParams,
+  resolveCompare,
   resolveModel,
   subshellAvailable,
 } from "./hfModel";
@@ -111,6 +113,37 @@ describe("resolveModel", () => {
 
   it("waits for the table rather than guessing", () => {
     expect(resolveModel([], "s", "gsz")).toBe("gsz");
+  });
+});
+
+describe("compareAvailable", () => {
+  it("is true for an atom both models can draw", () => {
+    expect(compareAvailable(TABLE, "ar")).toBe(true);
+  });
+
+  it("is false where GSZ has no parameters, since there is nothing to compare", () => {
+    expect(compareAvailable(TABLE, "s")).toBe(false);
+  });
+
+  it("is false for a one-electron system, which has no total density at all", () => {
+    expect(compareAvailable(TABLE, "h")).toBe(false);
+  });
+
+  it("is false while the system table is still loading", () => {
+    // The opposite default from gszAvailable, and deliberately so: greying a
+    // control a moment late is cheap, but firing a request that 422s on a deep
+    // link before the table lands is the bug Phase 28 found.
+    expect(compareAvailable([], "ar")).toBe(false);
+  });
+});
+
+describe("resolveCompare", () => {
+  it("turns a deep-linked compare off where it cannot run", () => {
+    expect(resolveCompare(TABLE, "s", true)).toBe(false);
+  });
+
+  it("leaves it alone where it can", () => {
+    expect(resolveCompare(TABLE, "ar", true)).toBe(true);
   });
 });
 

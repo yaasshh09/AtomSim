@@ -119,6 +119,7 @@ export function getRadial(
   system: string,
   points?: number,
   many?: ManyElectronParams,
+  compare = false,
 ): Promise<RadialResponse> {
   const p = points === undefined ? "" : `&points=${points}`;
   // Only the non-default half is written, so a screened request produces the
@@ -131,6 +132,7 @@ export function getRadial(
     if (!many.exchange) extra += "&exchange=false";
     if (!many.pauli) extra += "&pauli=false";
   }
+  if (compare) extra += "&compare=true";
   return getJson(`/api/radial/${n}/${l}?system=${key(system)}${p}${extra}`);
 }
 

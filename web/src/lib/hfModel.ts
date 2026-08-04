@@ -71,6 +71,30 @@ export function resolveModel(
 }
 
 /**
+ * Whether both models can draw this atom's total density.
+ *
+ * Needs a many-electron atom (a one-electron system has no total density for
+ * either model) and GSZ parameters (sulfur and chlorine have none). False while
+ * the system table is still loading, which is the opposite default from
+ * `gszAvailable` and deliberate: that one greys a control, and greying late is
+ * harmless, while this one gates a request that would come back 422 if a deep
+ * link named it before the table landed.
+ */
+export function compareAvailable(systems: SystemInfo[], system: string): boolean {
+  const info = systems.find((s) => s.key === system);
+  return info !== undefined && info.kind === "screened" && info.has_gsz;
+}
+
+/** A deep-linked `compare=1` forced off where it cannot run. */
+export function resolveCompare(
+  systems: SystemInfo[],
+  system: string,
+  compare: boolean,
+): boolean {
+  return compareAvailable(systems, system) && compare;
+}
+
+/**
  * Whether (n, l) can be drawn under the current model.
  *
  * Hartree-Fock builds one Fock operator per occupied subshell, so an empty one

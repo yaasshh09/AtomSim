@@ -20,6 +20,7 @@ useAppStore.subscribe((s) => {
     colorMode: s.colorMode,
     fineStructure: s.fineStructure,
     dirac: s.dirac,
+    compare: s.compare,
     bField: s.bField,
     eField: s.eField,
     hyperfine: s.hyperfine,

@@ -100,6 +100,7 @@ describe("serializeAppUrl", () => {
       forceL: 0,
       forceExpr: "-1/r",
       dirac: false,
+      compare: true,
       bField: 0,
       eField: 0,
       hyperfine: true,
@@ -478,5 +479,18 @@ describe("zeeman b-field url state", () => {
     const parsed = parseAppUrl("?system=ne&model=hf&nopauli=1");
     expect(parsed.pauli).toBe(false);
     expect(parsed.exchange).toBe(false);
+  });
+});
+
+describe("density comparison url state", () => {
+  it("round-trips the compare toggle", () => {
+    const q = serializeAppUrl({ ...URL_DEFAULTS, system: "na", compare: true });
+    expect(q).toContain("compare=1");
+    const back = { ...URL_DEFAULTS, ...parseAppUrl(q) };
+    expect(back.compare).toBe(true);
+  });
+
+  it("omits compare when off", () => {
+    expect(serializeAppUrl({ ...URL_DEFAULTS, compare: false })).not.toContain("compare");
   });
 });

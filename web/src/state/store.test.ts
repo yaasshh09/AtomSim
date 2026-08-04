@@ -416,3 +416,21 @@ describe("pauli toggle (configuration collapse)", () => {
     expect(useAppStore.getState().exchange).toBe(true);
   });
 });
+
+describe("setCompare", () => {
+  it("clears the radial payload, which is the one missing a field", () => {
+    pretendLoaded();
+    useAppStore.getState().setCompare(true);
+    expect(useAppStore.getState().radial).toBeNull();
+  });
+
+  it("leaves the cloud, the plane and the levels alone", () => {
+    // The atom did not change, so seconds of solve should not be thrown away
+    // to add one curve to a different view.
+    pretendLoaded();
+    useAppStore.getState().setCompare(true);
+    expect(useAppStore.getState().positions).not.toBeNull();
+    expect(useAppStore.getState().plane).not.toBeNull();
+    expect(useAppStore.getState().levels).not.toBeNull();
+  });
+});

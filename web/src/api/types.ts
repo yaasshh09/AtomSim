@@ -199,6 +199,31 @@ export interface RadialResponse {
    * screened model rather than absent, so this stays one response shape.
    */
   total_density: FieldData | null;
+  /**
+   * Both models' total density on one grid, present only when asked for.
+   *
+   * Null rather than absent when the toggle is off, so this stays one response
+   * shape whichever model the orbital plots are drawn under.
+   */
+  density_comparison: DensityComparison | null;
+}
+
+export interface ShellPeak {
+  label: string;
+  /** null: this model's density has no local maximum for this shell. */
+  gsz_radius: number | null;
+  hf_radius: number | null;
+  /** Relative drop into the minimum before the peak; null for the innermost. */
+  gsz_depth: number | null;
+  hf_depth: number | null;
+}
+
+export interface DensityComparison {
+  gsz: FieldData;
+  hf: FieldData;
+  displaced_charge: Quantity;
+  shells: ShellPeak[];
+  provenance: Provenance;
 }
 
 export interface SpectralLineInfo {

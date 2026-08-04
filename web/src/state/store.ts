@@ -25,7 +25,7 @@ import {
   defaultParams,
   type ForcePreset,
 } from "../lib/forceLaw";
-import { manyElectronParams, resolveModel } from "../lib/hfModel";
+import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
 import { isAlphaValid } from "../lib/whatif";
@@ -199,6 +199,16 @@ interface AppState {
    * True by default and reset by setSystem, exactly like `exchange`.
    */
   pauli: boolean;
+  /**
+   * Whether the density plot draws both models at once.
+   *
+   * Not in INVALIDATED and not spread with it. It names an extra curve on one
+   * payload rather than a different atom, so the cloud, the plane and the
+   * surface are all still exactly as true as they were; throwing them away
+   * would be seconds of solve spent to tell the user nothing. Only the radial
+   * response goes, because only the radial response is missing a field.
+   */
+  compare: boolean;
   labConst: ConstMultipliers;
   labZ: number;
   whatif: {
@@ -234,6 +244,7 @@ interface AppState {
   setModel: (model: AtomModel) => void;
   setExchange: (exchange: boolean) => void;
   setPauli: (pauli: boolean) => void;
+  setCompare: (compare: boolean) => void;
   loadHF: () => Promise<void>;
   /**
    * Solve the atom before drawing it, under Hartree-Fock only.
@@ -365,6 +376,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hfStatus: "idle",
   exchange: true,
   pauli: true,
+  compare: false,
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -390,6 +402,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       // and altered physics does not follow the user to the next atom
       exchange: true,
       pauli: true,
+      // nor does a comparison: it is something the user asked for about the
+      // atom in front of them, and the next one may not have both models.
+      compare: false,
     })),
   // config is its own physics input: it clears everything derived but keeps
   // the selected system.
@@ -445,6 +460,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       hf: null,
       hfStatus: "idle",
     }),
+  // The one many-electron control that is not a physics input. Nothing about
+  // the atom changed, so the solve, the cloud, the plane and the surface all
+  // stand; only the radial response goes, because only it is missing a field.
+  setCompare: (compare) => set({ compare, radial: null }),
   setBasis: (basis) =>
     set((s) => ({
       basis,
@@ -696,9 +715,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   loadRadial: async () => {
     if (!(await get().ensureHF())) return;
-    const { n, l, system } = get();
+    const { n, l, system, systems, compare } = get();
     set({
-      radial: await client.getRadial(n, l, system, undefined, manyElectronParams(get())),
+      radial: await client.getRadial(
+        n,
+        l,
+        system,
+        undefined,
+        manyElectronParams(get()),
+        resolveCompare(systems, system, compare),
+      ),
     });
   },
   loadLevels: async () => {
