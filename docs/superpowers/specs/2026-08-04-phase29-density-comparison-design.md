@@ -136,10 +136,17 @@ counterfactual question instead of two. This also routes around
 are interpolated onto it; `displaced_charge` is `0.5 * trapezoid(|D_hf - D_gsz|)`
 over that grid.
 
-**The error bar has three terms and states all three**: both models' own closure
-residuals, plus the charge that falls outside the common window. Measured for
-argon that is 0.0036 + 0.0019 + 0.0006, against a displaced charge of 0.0600. It
-is a tenth of the signal, which is worth knowing and worth printing.
+**The error bar has four terms and states all four**: each model's own closure
+residual, plus the charge each model holds outside the common window. The design
+counted three and folded the window loss into one, which the implementation
+could not do, because the two models lose different amounts at different ends.
+
+Measured for argon, at implementation rather than at design time: 0.00085 (HF
+closure) + 0.00029 (GSZ closure) + 0.00077 (GSZ outside the window) + 0.00049
+(HF outside) = 0.0024, against a displaced charge of 0.0599. That is about a
+twenty-fifth of the signal rather than the tenth the design estimated, and no
+single term dominates, which is why all four are summed instead of one being
+kept and the others called negligible.
 
 **When the bar exceeds the number, the readout says so instead of printing a
 figure.** That branch is designed in now because it is cheap now and a retrofit

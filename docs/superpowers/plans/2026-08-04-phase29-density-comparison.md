@@ -1826,3 +1826,17 @@ the whole list and lithium is pinned on its own, because a bound is only as good
 as its binding case and folding it in with fourteen roomier atoms reads as
 though nothing in particular is holding it up. Cost: the density-comparison file
 goes from 12.5s to 24.9s, which is 4% of the full suite.
+
+**The error bar has four terms, not the three the design counted, and it is a
+twenty-fifth of the signal rather than a tenth.** The design folded the window
+loss into a single number. The implementation cannot: the two models lose
+different amounts at different ends of the shared window, so there are two
+losses. Measured for argon: 0.00085 (HF closure) + 0.00029 (GSZ closure) +
+0.00077 (GSZ outside) + 0.00049 (HF outside) = 0.0024, against a displaced
+charge of 0.0599. The design's estimate of 0.0036 + 0.0019 + 0.0006 = 0.0061 was
+high by two and a half times, and the code comment inherited the "about a tenth"
+figure from it. Both are corrected, and a test now pins the composition: the
+four terms sum to the bar, no single one carries more than half of it (the
+largest is 35 percent), and the bar is 4 percent of the number it qualifies. A
+term silently dropped would break the first assertion; a bar that came to rest
+on one term would break the second and mean the other three were decoration.

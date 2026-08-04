@@ -265,8 +265,12 @@ def compare_total_densities(
 
     # Four terms, all measured: each model's own closure residual, plus the
     # charge each holds outside the window they share. None of them is assumed
-    # negligible, and for argon they come to about a tenth of the number they
-    # are the bar on, which is worth printing.
+    # negligible. For argon they are 0.00085 (HF closure), 0.00029 (GSZ
+    # closure), 0.00077 (GSZ outside the window) and 0.00049 (HF outside),
+    # totalling 0.0024 against a displaced charge of 0.0599: about a
+    # twenty-fifth of the number they are the bar on, and no single term
+    # dominates, which is why all four are added rather than one being kept
+    # and the rest called negligible.
     bar = (
         (hf.provenance.error_estimate or 0.0)
         + (gsz.provenance.error_estimate or 0.0)

@@ -116,6 +116,8 @@ from atomsim.density_compare import (  # noqa: E402
     _shell_table,
     compare_total_densities,
 )
+from atomsim.hf_atom import hf_total_radial_density  # noqa: E402
+from atomsim.screened_atom import screened_total_radial_density  # noqa: E402
 
 # --- peaks, and how well separated they are ---------------------------------
 
@@ -286,6 +288,36 @@ def test_the_window_costs_less_than_the_bar_it_is_folded_into(z):
     loss = _window_loss(c.gsz, c.grid) + _window_loss(c.hf, c.grid)
     assert loss < c.displaced_charge.provenance.error_estimate
     assert loss < 5e-3
+
+
+def test_the_bar_is_four_measured_terms_and_no_one_of_them_carries_it():
+    """Argon's bar, broken back out into the four things it is made of.
+
+    The design said three terms and folded the window loss into one number.
+    The implementation cannot: the two models lose different amounts at
+    different ends of the shared window, so there are two losses, not one.
+
+    Both halves matter. If the four stopped summing to the bar, some term would
+    have been quietly dropped. If one term ever grew to carry the whole thing,
+    the other three would be decoration and the honest move would be to say so
+    instead of adding them. Today the largest is 35 percent of the total.
+    """
+    c = compare_total_densities(18, 18)
+    cfg = aufbau_configuration(18)
+    hf = hf_total_radial_density(18, 18, config=cfg, points=800)
+    gsz = screened_total_radial_density(18, 18, config=cfg, points=800)
+    terms = (
+        hf.provenance.error_estimate,
+        gsz.provenance.error_estimate,
+        _window_loss(gsz, c.grid),
+        _window_loss(hf, c.grid),
+    )
+    bar = c.displaced_charge.provenance.error_estimate
+    assert sum(terms) == pytest.approx(bar, rel=1e-12)
+    assert max(terms) / bar < 0.5
+    # And the bar is a small fraction of the number it qualifies, which is what
+    # makes argon's 0.06 a measurement rather than a coin flip.
+    assert bar / c.displaced_charge.value == pytest.approx(0.040, abs=0.01)
 
 
 #: Every atom both models cover: He..Ar, less sulfur and chlorine, which have no
