@@ -130,11 +130,12 @@ class DensityComparison:
 #: magnitude. The faintest real shell in He..Ar is sodium's outermost
 #: Hartree-Fock peak at 2.2e-2 of the tallest, and magnesium's is 5.3e-2. The
 #: loudest noise is argon's Hartree-Fock tail beyond 40 bohr, which jitters at
-#: about 1e-34 of the peak because the orbital amplitude out there has decayed
-#: past what a float64 eigensolve can represent and starts changing sign; the
-#: screened solver does the same thing past 11 bohr for neon with the
-#: occupancy cap off, at 1e-60. This floor sits six orders below the faintest
-#: shell and twenty-six above the loudest noise.
+#: about 1e-32 against a peak density of about 51, which is about 1e-34
+#: relative, because the orbital amplitude out there has decayed past what a
+#: float64 eigensolve can represent and starts changing sign; the screened
+#: solver does the same thing past 11 bohr for neon with the occupancy cap
+#: off, at 1e-60. This floor sits six orders below the faintest shell and
+#: twenty-six above the loudest noise.
 _NOISE_FLOOR = 1e-8
 
 
@@ -178,8 +179,8 @@ def _peaks_with_depth(
         if not before:
             out.append((float(grid[i]), None))
             continue
-        floor = values[before[-1]]
-        out.append((float(grid[i]), float((values[i] - floor) / values[i])))
+        valley = values[before[-1]]
+        out.append((float(grid[i]), float((values[i] - valley) / values[i])))
     return out
 
 

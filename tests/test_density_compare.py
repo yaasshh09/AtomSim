@@ -113,6 +113,7 @@ def test_resampling_carries_the_provenance_and_discloses_itself():
 from atomsim.atoms import aufbau_configuration  # noqa: E402
 from atomsim.density_compare import (  # noqa: E402
     _peaks_with_depth,
+    _shell_table,
     compare_total_densities,
 )
 
@@ -211,6 +212,51 @@ def test_the_shell_count_comes_from_the_configuration_not_from_the_peaks():
     c = compare_total_densities(11, 11)
     n_shells = len({n for (n, _), _ in aufbau_configuration(11)})
     assert len(c.shells) == n_shells == 3
+
+
+def test_more_maxima_than_shells_raises_with_enough_to_diagnose_it():
+    """A density with more shells than the atom has is an unresolved orbital.
+
+    Phase 28's argon box bug looked exactly like this: a spurious maximum on
+    top of the atom's real ones. A table that quietly dropped the extra row
+    would hide that kind of solver failure, so `_shell_table` raises instead.
+    Before the noise floor existed, six failing tests tripped this branch by
+    accident; now nothing does, so it needs its own deliberate test, built
+    from hand-made arrays rather than a solver, with a message specific
+    enough to diagnose which model and which radii without re-running
+    anything: the model name, the count, and at least one of the radii.
+    """
+    r = np.linspace(0.0, 10.0, 2001)
+    v = (
+        np.exp(-((r - 1.0) ** 2) / 0.01)
+        + 0.8 * np.exp(-((r - 3.0) ** 2) / 0.01)
+        + 0.6 * np.exp(-((r - 5.0) ** 2) / 0.01)
+        + 0.4 * np.exp(-((r - 7.0) ** 2) / 0.01)
+    )
+    config = (((1, 0), 2), ((2, 0), 2), ((3, 0), 2))  # three shells, four peaks
+    with pytest.raises(ValueError) as excinfo:
+        _shell_table(r, v, v, config)
+    message = str(excinfo.value)
+    assert "GSZ" in message
+    assert "4 maxima" in message
+    assert "7" in message  # the outermost of the four radii, at r = 7 bohr
+
+
+# --- the innermost shell has nothing before it to be separated from --------
+
+
+@pytest.mark.parametrize("z", [2, 6, 10, 11, 14, 18])
+def test_the_innermost_shell_has_no_measured_separation_under_either_model(z):
+    """`ShellPeak`'s docstring claims this; this is what makes it a checked claim.
+
+    A non-None depth here would mean a spurious minimum exists at small r,
+    before the K peak, and the depth reported beside that peak would be a
+    measurement of nothing rather than of how separated two shells are.
+    """
+    c = compare_total_densities(z, z)
+    k = c.shells[0]
+    assert k.gsz_depth is None
+    assert k.hf_depth is None
 
 
 # --- the number, on real atoms ----------------------------------------------
