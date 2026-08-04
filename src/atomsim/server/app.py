@@ -47,6 +47,7 @@ from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
+from atomsim.density_compare import compare_total_densities
 from atomsim.hf_atom import (
     HFResult,
     PauliCollapse,
@@ -89,6 +90,7 @@ from atomsim.server.schemas import (
     ComparisonModel,
     ConstantsReportModel,
     CurveOfGrowthModel,
+    DensityComparisonModel,
     FieldModel,
     ForceLawLevelModel,
     ForceLawModel,
@@ -237,6 +239,10 @@ class RadialResponse(BaseModel):
     #: occupancies from its own solve. Null elsewhere rather than omitted, so a
     #: client reads one response shape whichever model it asked for.
     total_density: FieldModel | None = None
+    #: Both models' D(r) on one grid, present only when the request asked for
+    #: it, because it costs a second solve. Null rather than omitted for the
+    #: same reason as above: one response shape, asked for or not.
+    density_comparison: DensityComparisonModel | None = None
 
 
 class SpectrumResponse(BaseModel):
@@ -1248,10 +1254,40 @@ def create_app() -> FastAPI:
         config: str | None = None,
         exchange: bool = True,
         pauli: bool = True,
+        compare: bool = False,
     ) -> RadialResponse:
         _validate_state(n, l, 0)
         if not 50 <= points <= 2000:
             raise HTTPException(status_code=422, detail="points must be in [50, 2000]")
+
+        def _comparison() -> DensityComparisonModel | None:
+            """Both densities, or nothing, or a refusal with the reason.
+
+            Calls the two resolvers that already know when a model cannot
+            speak, so the wording and the status codes cannot drift from the
+            ones the model radio shows: 400 from `_gsz_element` for sulfur and
+            chlorine, 422 from `_many_electron_target` for a one-electron
+            system. Nothing new is refused here.
+
+            The configuration comes from the Hartree-Fock side and is handed to
+            both, so that with the occupancy cap off the overlay compares two
+            models of the same altered atom rather than two different atoms.
+
+            Order matters. `_many_electron_target` runs first because it is the
+            one that refuses a one-electron system, and `_gsz_element` expects
+            an atom key: asked about hydrogen first it would fail looking the
+            element up rather than returning the 422 that says why.
+            """
+            if not compare:
+                return None
+            z, n_electrons, cfg = _many_electron_target(system, config, pauli)
+            _gsz_element(system)
+            return DensityComparisonModel.from_comparison(
+                compare_total_densities(
+                    z, n_electrons, config=cfg, exchange=exchange, pauli=pauli,
+                )
+            )
+
         if model == "hf":
             if not pauli and exchange:
                 raise HTTPException(
@@ -1292,6 +1328,7 @@ def create_app() -> FastAPI:
                 r_wavefunction=FieldModel.from_field(rw),
                 radial_probability=FieldModel.from_field(p),
                 total_density=FieldModel.from_field(density),
+                density_comparison=_comparison(),
             )
         if _is_screened(system):
             element = _gsz_element(system)
@@ -1314,6 +1351,7 @@ def create_app() -> FastAPI:
                 r_wavefunction=FieldModel.from_field(rw),
                 radial_probability=FieldModel.from_field(p),
                 total_density=FieldModel.from_field(density),
+                density_comparison=_comparison(),
             )
         sys_ = _resolve_system(system)
         mu = sys_.mu_ratio.value
@@ -1332,6 +1370,7 @@ def create_app() -> FastAPI:
             n=n, l=l, system=SystemModel.from_system(sys_),
             r_wavefunction=FieldModel.from_field(rw),
             radial_probability=FieldModel.from_field(p),
+            density_comparison=_comparison(),
         )
 
     def _resolve_zoom(
