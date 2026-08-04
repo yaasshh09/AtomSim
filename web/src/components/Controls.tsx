@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isScreenedLevels } from "../api/client";
-import { gszAvailable, subshellAvailable } from "../lib/hfModel";
+import { compareAvailable, gszAvailable, subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
 import { useAppStore } from "../state/store";
@@ -25,10 +25,10 @@ export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
     colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
-    pauli, hf,
+    pauli, hf, compare,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
-    setExchange, setPauli, loadSystems, ensureHF,
+    setExchange, setPauli, setCompare, loadSystems, ensureHF,
   } = useAppStore();
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
@@ -51,6 +51,9 @@ export function Controls() {
   // models has parameters for them. The radio is disabled rather than hidden,
   // so the missing option is visible and has a reason next to it.
   const hasGsz = gszAvailable(systems, system);
+  // The overlay needs both models to speak, so it is offered exactly where the
+  // radio above it has two live options.
+  const canCompare = compareAvailable(systems, system);
   // The server echoes the resolved configuration on the levels payload.
   const resolved = levels !== null && isScreenedLevels(levels) ? levels : null;
 
@@ -145,6 +148,20 @@ export function Controls() {
               here at all.
             </p>
           )}
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={compare}
+              disabled={!canCompare}
+              onChange={(e) => setCompare(e.target.checked)}
+            />
+            Compare both models
+          </label>
+          <p className="panel-hint">
+            {canCompare
+              ? "Draws the total density under both models on one axis, with the number of electrons they place differently. The orbital plots stay on the model selected above."
+              : "Needs both models, and only one of them has parameters for this element."}
+          </p>
           <p className="panel-hint">
             {model === "gsz"
               ? "Fitted central field: one potential for every electron, no self-consistency."
