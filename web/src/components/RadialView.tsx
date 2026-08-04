@@ -1,6 +1,6 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { useEffect } from "react";
-import type { FieldData, Quantity } from "../api/types";
+import type { FieldData, Quantity, ShellPeak } from "../api/types";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { linePath } from "../lib/plot";
 import { useAppStore } from "../state/store";
@@ -24,6 +24,54 @@ function decadeLabel(t: number): string {
   return t >= 0.01 ? String(Number(t.toFixed(2))) : t.toExponential(0);
 }
 
+/** Below which a peak's valley is too shallow to read as a shell boundary. */
+const SHALLOW = 0.05;
+
+/**
+ * The disagreement in words, or an admission that it is under the noise.
+ *
+ * A number smaller than its own error bar is not a measurement of anything,
+ * and four decimals of it would read as precision the comparison does not
+ * have. Helium is that case: 0.0003 electrons displaced against a bar of the
+ * same size.
+ */
+export function displacedChargeText(q: Quantity, nElectrons: number | null): string {
+  const bar = q.provenance.error_estimate ?? 0;
+  const of = nElectrons === null ? "" : ` of the atom's ${nElectrons}`;
+  if (q.value <= bar) {
+    return (
+      `The two models agree to within the resolution of this comparison ` +
+      `(${q.value.toFixed(4)} electrons displaced, against a ${bar.toFixed(4)} bar).`
+    );
+  }
+  return (
+    `The two models disagree about where ${q.value.toFixed(3)} ± ` +
+    `${bar.toFixed(3)} electrons${of} are.`
+  );
+}
+
+/** One row of the shell table, with "no peak" as an answer rather than a gap. */
+export function shellCells(s: ShellPeak): {
+  label: string;
+  gsz: string;
+  hf: string;
+  note: string | null;
+} {
+  const cell = (r: number | null) => (r === null ? "no separate peak" : r.toFixed(3));
+  const shallow = [s.gsz_depth, s.hf_depth].filter(
+    (d): d is number => d !== null && d < SHALLOW,
+  );
+  return {
+    label: s.label,
+    gsz: cell(s.gsz_radius),
+    hf: cell(s.hf_radius),
+    note:
+      shallow.length === 0
+        ? null
+        : `barely separated: the dip before it is ${(Math.min(...shallow) * 100).toFixed(1)}% deep`,
+  };
+}
+
 /**
  * A radial curve.
  *
@@ -39,10 +87,12 @@ function FieldPlot({
   field,
   marker,
   logX = false,
+  overlay,
 }: {
   field: FieldData;
   marker?: Quantity;
   logX?: boolean;
+  overlay?: { field: FieldData; label: string; selfLabel: string };
 }) {
   const rMax = field.grid[field.grid.length - 1];
   const x = logX
@@ -56,13 +106,22 @@ function FieldPlot({
   // Decades only on a log axis. d3's own log ticks include every 2x, 3x, ... in
   // each decade, and at this width they overprint into an unreadable band.
   const xTicks = logX ? decades(x.domain() as [number, number]) : x.ticks(6);
-  const lo = Math.min(0, ...field.values);
-  const hi = Math.max(...field.values);
+  // Both curves share one y domain, because two densities on separate scales
+  // would show a disagreement neither model has.
+  const all = overlay ? [...field.values, ...overlay.field.values] : field.values;
+  const lo = Math.min(0, ...all);
+  const hi = Math.max(...all);
   const y = scaleLinear([lo, hi], [H - M.bottom, M.top]).nice();
   return (
     <figure className="plot">
       <figcaption>
         {field.label} [{field.unit}] <Badge provenance={field.provenance} />
+        {overlay && (
+          <span className="legend-inline">
+            <span className="swatch-line" /> {overlay.selfLabel}
+            <span className="swatch-line dashed" /> {overlay.label}
+          </span>
+        )}
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} role="img">
         <line
@@ -90,6 +149,12 @@ function FieldPlot({
           <line x1={M.left} x2={W - M.right} y1={y(0)} y2={y(0)} className="zero" />
         )}
         <path d={linePath(field.grid, field.values, x, y)} className="curve" />
+        {overlay && (
+          <path
+            d={linePath(overlay.field.grid, overlay.field.values, x, y)}
+            className="curve curve-overlay"
+          />
+        )}
         {marker && (
           <g>
             <line
@@ -112,15 +177,21 @@ function FieldPlot({
 }
 
 export function RadialView() {
-  const { n, l, system, radial, stateInfo, loadRadial, model, config, exchange, pauli } =
-    useAppStore();
+  const {
+    n, l, system, radial, stateInfo, loadRadial, model, config, exchange, pauli, compare,
+  } = useAppStore();
   useEffect(() => {
     void loadRadial();
     // The Hartree-Fock inputs are dependencies too: each of them names a
     // different solve, so a curve fetched under one and left on screen under
     // another would be the stale render the store's INVALIDATED block exists
     // to prevent, arriving by a different door.
-  }, [n, l, system, model, config, exchange, pauli, loadRadial]);
+    //
+    // `compare` is here for the opposite reason. It names no different solve,
+    // but it does name a field the payload is missing, and setCompare drops
+    // the payload rather than the atom. Without it here the view would sit on
+    // "loading" forever after the toggle.
+  }, [n, l, system, model, config, exchange, pauli, compare, loadRadial]);
   if (!radial) return <p className="hint-block">loading radial functions…</p>;
   return (
     <div className="view-wrap">
@@ -132,7 +203,24 @@ export function RadialView() {
       {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}
       {radial.total_density && (
         <>
-          <FieldPlot field={radial.total_density} logX />
+          {/* The primary curve stays the one the model radio selected, so the
+              plot the reader was already looking at does not move under them. */}
+          <FieldPlot
+            field={radial.total_density}
+            logX
+            overlay={
+              radial.density_comparison
+                ? {
+                    field:
+                      model === "hf"
+                        ? radial.density_comparison.gsz
+                        : radial.density_comparison.hf,
+                    label: model === "hf" ? "screened (GSZ)" : "Hartree-Fock",
+                    selfLabel: model === "hf" ? "Hartree-Fock" : "screened (GSZ)",
+                  }
+                : undefined
+            }
+          />
           <p className="hint-block">
             This one is measurable. Each peak is a shell, integrating across
             one peak in r gives roughly how many electrons it holds, and the
@@ -160,6 +248,37 @@ export function RadialView() {
             </p>
           )}
         </>
+      )}
+      {radial.density_comparison && (
+        <div className="compare-block">
+          <p className="hint-block">
+            {displacedChargeText(
+              radial.density_comparison.displaced_charge,
+              radial.system.n_electrons ?? null,
+            )}{" "}
+            <Badge provenance={radial.density_comparison.provenance} />
+          </p>
+          <table className="shell-table">
+            <caption>Shell peak radii [bohr]</caption>
+            <thead>
+              <tr>
+                <th>shell</th>
+                <th>GSZ</th>
+                <th>Hartree-Fock</th>
+              </tr>
+            </thead>
+            <tbody>
+              {radial.density_comparison.shells.map(shellCells).map((c) => (
+                <tr key={c.label}>
+                  <th scope="row">{c.label}</th>
+                  <td>{c.gsz}</td>
+                  <td>{c.hf}</td>
+                  {c.note && <td className="shell-note">{c.note}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -367,6 +367,65 @@ button.primary:disabled {
   stroke-width: 1.5;
 }
 
+/* Dashed rather than a second hue: this plot sits beside canvases whose colour
+   comes from the generated LUTs, and a hue chosen here would be the one colour
+   in the app that is not from the single authority in lib/luts.ts. */
+.curve-overlay {
+  stroke-dasharray: 5 3;
+  opacity: 0.85;
+}
+
+.legend-inline {
+  margin-left: 0.8rem;
+  white-space: nowrap;
+}
+
+.swatch-line {
+  display: inline-block;
+  width: 1.4em;
+  border-top: 2px solid currentColor;
+  vertical-align: middle;
+  margin: 0 0.3em 0 0.6em;
+}
+
+.swatch-line.dashed {
+  border-top-style: dashed;
+}
+
+.compare-block {
+  padding: 0 2rem 2rem;
+}
+
+.shell-table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.shell-table caption {
+  text-align: left;
+  padding-bottom: 0.4rem;
+}
+
+.shell-table th,
+.shell-table td {
+  border: 1px solid var(--edge);
+  padding: 0.25rem 0.7rem;
+  text-align: right;
+}
+
+.shell-table thead th,
+.shell-table tbody th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.shell-note {
+  border: 0;
+  text-align: left;
+  font-style: italic;
+}
+
 .zero {
   stroke: var(--muted);
   stroke-dasharray: 2 4;
