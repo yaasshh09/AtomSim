@@ -117,9 +117,21 @@ class DensityComparison:
 
 `compare_total_densities(z, n_electrons, *, config, exchange, pauli, points)`
 builds it. It keeps `n_electrons` separate from `z` to match the signature both
-density functions already take, and does not itself refuse N != Z; that refusal
-is a statement about where the GSZ parameters are valid and belongs at the
-server boundary with the other two, in section 4. The common grid is
+density functions already take, and guards N != Z with a `ValueError`, because
+the Szydlik-Green (d, K) parameters are fitted to neutral atoms and comparing
+Hartree-Fock against a model run outside its own fit is not a comparison. The
+guard is on the engine's claim rather than on a request: `/api/radial` cannot
+produce N != Z in the first place, since `_hf_view_target` sets
+`n_electrons = element.z` (`app.py:880`) and `_resolve_config` rejects any
+configuration that does not hold exactly `element.z` electrons (`app.py:850`).
+An HTTP refusal for it would be a branch no request can reach.
+
+**With Pauli off, both models take the same configuration.** The Hartree-Fock
+side resolves to `1s^N`, and the GSZ side is handed that same configuration
+object rather than being resolved separately, so the overlay answers one
+counterfactual question instead of two. This also routes around
+`_resolve_config`, which validates against the occupancy cap and would reject
+`1s^18` on the way past. The common grid is
 `np.geomspace(max(lo_hf, lo_gsz), min(hi_hf, hi_gsz), points)`; both densities
 are interpolated onto it; `displaced_charge` is `0.5 * trapezoid(|D_hf - D_gsz|)`
 over that grid.
@@ -174,18 +186,24 @@ Turning compare on adds at most one cold HF solve, which is a cost this GET
 already pays whenever `model=hf`. The Hartree-Fock solve is cached and the GSZ
 solve is cheap, so the steady-state cost of the toggle is about 70 ms.
 
-**Refusals, each by name.** `compare=true` is rejected with 422 and a reason for:
+**Refusals, two of them, and neither is new.** `compare=true` needs both models
+to be able to speak, so it calls the two resolvers that already say when they
+cannot, and inherits their status codes and their wording:
 
-- systems with no GSZ parameters (sulfur, chlorine), naming Szydlik-Green as the
-  model radio already does;
-- hydrogen-like systems, which have no total density at all;
-- ions and any `config` with N != Z, because the GSZ (d, K) parameters are
-  fitted to neutral atoms and running them at N != Z compares Hartree-Fock
-  against a model outside its own fit. This one is the least obvious and gets
-  the longest reason.
+- `_gsz_element` refuses sulfur and chlorine with 400, naming Szydlik and Green,
+  exactly as the model radio already does;
+- the hydrogen-like refusal (422) that `_hf_view_target` carries today, since a
+  one-electron system has no total density for either model to draw.
 
-The refusals live in one resolver so the endpoint and the client cannot drift
-apart, the way `_hf_view_target` already holds the HF refusals for four views.
+**One refusal has to be split out rather than reused.** `_hf_view_target` also
+refuses an unoccupied (n, l), and that check belongs to the orbital plots, not
+to the density, which does not depend on (n, l) at all. Reusing it whole would
+refuse a legitimate comparison because of an orbital the reader is not asking
+Hartree-Fock to draw. So the shared part, the hydrogenic refusal plus the
+configuration resolution plus `_validate_hf_request`, moves into
+`_many_electron_target(system, config, pauli)`, and `_hf_view_target` becomes
+that call plus the occupancy check it owns. One resolver for the shared
+refusals, no duplication, and the two cannot drift apart.
 
 ## 5. The frontend
 
