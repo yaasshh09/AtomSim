@@ -560,27 +560,49 @@ class DensityComparison:
     provenance: Provenance
 
 
+#: Maxima below this fraction of the tallest are numerical noise, not shells.
+#: Set from both ends of a measured gap that spans thirty-two orders of
+#: magnitude. The faintest real shell in He..Ar is sodium's outermost
+#: Hartree-Fock peak at 2.2e-2 of the tallest, and magnesium's is 5.3e-2. The
+#: loudest noise is argon's Hartree-Fock tail beyond 40 bohr, which jitters at
+#: about 1e-34 of the peak because the orbital amplitude out there has decayed
+#: past what a float64 eigensolve can represent and starts changing sign; the
+#: screened solver does the same thing past 11 bohr for neon with the
+#: occupancy cap off, at 1e-60. This floor sits six orders below the faintest
+#: shell and twenty-six above the loudest noise.
+_NOISE_FLOOR = 1e-8
+
+
 def _peaks_with_depth(
     grid: np.ndarray, values: np.ndarray
 ) -> list[tuple[float, float | None]]:
-    """Interior maxima, each with the relative depth of the minimum before it.
+    """Interior maxima above the noise floor, each with the depth of the valley before it.
 
-    No amplitude floor. A floor is how a real shell gets dropped: sodium's
-    outermost Hartree-Fock peak stands at 2 percent of the tallest one, and
-    argon's box bug in Phase 28 produced a spurious peak at nearly full height,
-    so height sorts neither case correctly. What separates them is the depth of
-    the valley, which is reported rather than thresholded on, and the shell
-    count, which comes from the configuration.
+    The floor is as low as it can be while still doing its job, because a floor
+    is also how a real shell gets dropped: sodium's outermost Hartree-Fock peak
+    stands at 2 percent of the tallest one, and argon's box bug in Phase 28
+    produced a spurious peak at nearly full height, so height alone sorts
+    neither case correctly. What sorts them is the combination of three things:
+    this floor, which only ever removes values the solve cannot represent; the
+    depth of each valley, which is reported rather than thresholded on; and the
+    shell count, which comes from the configuration rather than from either
+    peak list.
+
+    Minima are floored too, and by the same argument. A minimum found inside
+    the noise would otherwise become the "valley" reported for a real peak
+    above it, and the depth beside that peak would be a measurement of nothing.
     """
+    floor = _NOISE_FLOOR * float(np.max(values))
+    big = values > floor
     maxima = [
         i
         for i in range(1, len(values) - 1)
-        if values[i] > values[i - 1] and values[i] >= values[i + 1]
+        if big[i] and values[i] > values[i - 1] and values[i] >= values[i + 1]
     ]
     minima = [
         i
         for i in range(1, len(values) - 1)
-        if values[i] < values[i - 1] and values[i] <= values[i + 1]
+        if big[i] and values[i] < values[i - 1] and values[i] <= values[i + 1]
     ]
     out: list[tuple[float, float | None]] = []
     for i in maxima:
