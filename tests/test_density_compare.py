@@ -288,16 +288,42 @@ def test_the_window_costs_less_than_the_bar_it_is_folded_into(z):
     assert loss < 5e-3
 
 
+#: Every atom both models cover: He..Ar, less sulfur and chlorine, which have no
+#: published neutral GSZ parameters. The Radial view's caption and the README
+#: both say "every atom they both cover", so the test says the same list rather
+#: than a sample of it.
+BOTH_MODELS = (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18)
+
+
 def test_the_models_agree_far_better_than_their_energies_do():
     """The lesson of the view, as an assertion rather than a caption.
 
     GSZ was fitted to reproduce Hartree-Fock potentials, so a close density is
     what the fit bought. Its valence ionization energies are 2 to 24 percent
-    off NIST; its density is inside 1.5 percent of HF's for every atom here.
+    off NIST; its density is inside 1.5 percent of HF's for every atom both
+    models can draw.
+
+    The whole list, not a sample, because the caption quotes the bound for the
+    whole list. Lithium is what sets it, at 1.45 percent, so the margin under
+    the stated 1.5 is about three percent of the bound and not the comfortable
+    gap the other fourteen suggest: aluminium is next at 0.98 and nothing else
+    passes 0.95. A solver change that moves lithium is the one that makes the
+    caption wrong, and it is the only atom here that would.
     """
-    for z in (2, 3, 6, 10, 11, 14, 18):
+    for z in BOTH_MODELS:
         c = compare_total_densities(z, z)
-        assert c.displaced_charge.value / z < 0.015
+        assert c.displaced_charge.value / z < 0.015, f"Z={z}"
+
+
+def test_lithium_is_the_atom_that_sets_the_bound():
+    """Pinned separately, because a bound is only as good as its binding case.
+
+    Folded into the loop above this would be one assertion among fifteen and
+    would read as no more load-bearing than fluorine's, which has six times the
+    room. Lithium is the whole margin.
+    """
+    c = compare_total_densities(3, 3)
+    assert c.displaced_charge.value / 3 == pytest.approx(0.0145, abs=5e-4)
 
 
 # --- provenance -------------------------------------------------------------

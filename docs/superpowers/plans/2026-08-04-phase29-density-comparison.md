@@ -1814,3 +1814,15 @@ the toggle as before it, and throwing them away would be seconds of solve spent
 to tell the user nothing. But it does name a field the payload is missing, and
 `setCompare` drops the radial payload. Without the dependency the view cleared
 and never refetched.
+
+**The 1.5% caption was true and under-pinned, and lithium is the whole margin.**
+The caption and the README both say "under 1.5% for every atom they both cover",
+which is fifteen atoms (He..Ar less sulfur and chlorine). The test checked
+seven. Measuring all fifteen: the claim holds, but lithium sits at 1.45%, so the
+margin under the stated bound is about three percent of the bound. Aluminium is
+next at 0.98% and nothing else passes 0.95%, so the comfortable gap the sampled
+atoms suggested was an artifact of which ones were sampled. The loop now runs
+the whole list and lithium is pinned on its own, because a bound is only as good
+as its binding case and folding it in with fourteen roomier atoms reads as
+though nothing in particular is holding it up. Cost: the density-comparison file
+goes from 12.5s to 24.9s, which is 4% of the full suite.
