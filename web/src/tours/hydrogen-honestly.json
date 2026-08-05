@@ -1,0 +1,27 @@
+{
+  "id": "hydrogen-honestly",
+  "title": "The Hydrogen Atom, Honestly",
+  "blurb": "One electron, one proton, and every liberty the picture takes.",
+  "steps": [
+    {
+      "id": "the-only-one-we-can-solve",
+      "title": "Start with the only atom we can solve",
+      "body": [
+        "One electron, one proton, and a potential that goes as 1 over r. This is the last atom in the periodic table with a closed-form answer, and everything you are about to see is that answer rather than a fit to it.",
+        "The cloud is a hundred thousand points drawn from the exact probability density. Nothing here was tuned to look right."
+      ],
+      "state": { "n": 1, "l": 0, "m": 0, "view": "cloud" },
+      "spotlight": "view-list"
+    },
+    {
+      "id": "a-probability-not-a-shell",
+      "title": "A probability, not a shell",
+      "body": [
+        "There is no orbit and no surface. The electron has a probability of being found anywhere, and the cloud is that probability drawn as density.",
+        "The nucleus is now at true scale, which is why you cannot see it. At this magnification a proton is well under a pixel across, and the marker the app shows by default is a labelled visual liberty rather than a size."
+      ],
+      "state": { "n": 1, "l": 0, "m": 0, "view": "cloud", "nucleusMode": "true-scale" },
+      "spotlight": "nucleus-picker"
+    }
+  ]
+}
