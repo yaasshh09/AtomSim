@@ -1,6 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import { useEffect, useState } from "react";
 import type { LineWidthInfo, ProfileInfo, SpectralLineInfo } from "../api/types";
+import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
 import {
   PROFILE_DECADES,
   SPECTRUM_EMISSIVITY_LIBERTY,
@@ -192,6 +193,10 @@ export function wavelengthWindow(lines: SpectralLineInfo[], full: boolean) {
 }
 
 const ZOOM_H = 210;
+/* The zoom's x axis sits high enough to leave a row for the tick labels and a
+   row under them for the axis title, which names the wavelength the offsets
+   are measured from. At the old baseline the title overprinted the ticks. */
+const ZOOM_BASE = ZOOM_H - 40;
 
 /**
  * One line, plotted linearly on both axes: the only place in the app where a
@@ -211,11 +216,15 @@ function ZoomPanel({
   const w = prof.widths.length > 0 ? prof.widths[0] : null;
   const max = Math.max(...prof.intensity, 0);
   const x = scaleLinear(window_, [M.left, W - M.right]);
-  const y = scaleLinear([0, max > 0 ? max : 1], [ZOOM_H - 30, 16]);
+  const y = scaleLinear([0, max > 0 ? max : 1], [ZOOM_BASE - 6, 16]);
   const path = profilePath(
     prof.wavelength_nm, prof.intensity, x, (t) => t, (v) => y(v),
   );
   const half = w ? w.fwhm_nm / 2 : 0;
+  // Offsets from the window centre, not absolute wavelengths. Across eight
+  // half-widths of a natural line the absolute value is constant to every
+  // decimal a label has room for, so the old axis printed "121.568" six times.
+  const axis = offsetAxis(window_[0], window_[1]);
   return (
     <>
       <div className="view-header">
@@ -230,17 +239,27 @@ function ZoomPanel({
       </div>
       <svg viewBox={`0 0 ${W} ${ZOOM_H}`} role="img" className="levels-svg">
         <line
-          x1={M.left} x2={W - M.right} y1={ZOOM_H - 24} y2={ZOOM_H - 24}
+          x1={M.left} x2={W - M.right} y1={ZOOM_BASE} y2={ZOOM_BASE}
           className="axis"
         />
-        {x.ticks(6).map((t) => (
-          <g key={t} transform={`translate(${x(t)},${ZOOM_H - 24})`}>
+        {offsetTicks(axis, window_[0], window_[1]).map((t) => (
+          <g key={t} transform={`translate(${x(t)},${ZOOM_BASE})`}>
             <line y2="5" className="axis" />
             <text y="17" textAnchor="middle" className="tick">
-              {t.toFixed(3)}
+              {formatOffset(axis, t)}
             </text>
           </g>
         ))}
+        {/* The axis names what the offsets are offsets from. Without this the
+            numbers are a scale with no origin. */}
+        <text
+          x={(M.left + W - M.right) / 2}
+          y={ZOOM_H - 4}
+          textAnchor="middle"
+          className="tick"
+        >
+          λ − {axis.centreNm.toFixed(axis.centreDecimals)} nm [{axis.unit}]
+        </text>
         {w && max > 0 && (
           <>
             {/* FWHM drawn where it is defined: across the profile at half its
@@ -521,7 +540,12 @@ export function SpectrumView() {
           x1={M.left} x2={W - M.right} y1={LINES_H - 24} y2={LINES_H - 24}
           className="axis"
         />
-        {x.ticks(8).map((t) => (
+        {/* Thinned: this axis is logarithmic, so d3's tick set puts 5000 and
+            6000 about four pixels apart and the top two decades printed as one
+            run of digits ("5006007008009001000"). Ticks are dropped by drawn
+            position rather than by value, so the rule holds whatever range the
+            line list spans. */}
+        {thinTicks(x.ticks(8), x, 34).map((t) => (
           <g key={t} transform={`translate(${x(t)},${LINES_H - 24})`}>
             <line y2="5" className="axis" />
             <text y="17" textAnchor="middle" className="tick">
