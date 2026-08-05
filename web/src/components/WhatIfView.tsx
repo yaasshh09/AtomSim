@@ -177,7 +177,7 @@ export function WhatIfView() {
         )}
       </svg>
 
-      <div className="const-sliders">
+      <div className="const-sliders" data-tour="const-sliders">
         {CONSTANT_KEYS.map((k) => (
           <label key={k}>
             <span>

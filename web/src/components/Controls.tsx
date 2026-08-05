@@ -69,7 +69,7 @@ export function Controls() {
   return (
     <aside className="panel">
       <h2>System</h2>
-      <label>
+      <label data-tour="system-picker">
         preset
         <select value={system} onChange={(e) => setSystem(e.target.value)}>
           {systems.length === 0 && <option value={system}>{system}</option>}
@@ -120,7 +120,7 @@ export function Controls() {
           <button type="button" className="ghost" onClick={() => setConfig(null)}>
             Reset to Aufbau
           </button>
-          <div className="radio-row">
+          <div className="radio-row" data-tour="model-picker">
             <label className="radio">
               <input
                 type="radio"
@@ -148,7 +148,7 @@ export function Controls() {
               here at all.
             </p>
           )}
-          <label className="check">
+          <label className="check" data-tour="compare-toggle">
             <input
               type="checkbox"
               checked={compare}
@@ -169,7 +169,7 @@ export function Controls() {
           </p>
           {model === "hf" && (
             <>
-              <label className="check">
+              <label className="check" data-tour="exchange-toggle">
                 <input
                   type="checkbox"
                   checked={!exchange}
@@ -189,7 +189,7 @@ export function Controls() {
                     ? "Exchange on: the wavefunction is antisymmetric, as it is in this universe."
                     : "Counterfactual. Exchange removed, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched, so this is not electrons piling into 1s."}
               </p>
-              <label className="check">
+              <label className="check" data-tour="pauli-toggle">
                 <input
                   type="checkbox"
                   checked={!pauli}

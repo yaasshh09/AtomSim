@@ -440,7 +440,7 @@ export function SpectrumView() {
           ))}
         </span>
       </div>
-      <label className="check">
+      <label className="check" data-tour="spectrum-options">
         <input
           type="checkbox"
           checked={intensities}
@@ -602,7 +602,7 @@ export function SpectrumView() {
       )}
       {prof && profileZoom && (
         <>
-          <label className="check">
+          <label className="check" data-tour="curve-of-growth-toggle">
             <input
               type="checkbox"
               checked={showCurveOfGrowth}

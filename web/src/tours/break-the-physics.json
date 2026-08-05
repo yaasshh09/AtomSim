@@ -1,0 +1,53 @@
+{
+  "id": "break-the-physics",
+  "title": "Break the physics",
+  "blurb": "Change a constant, change a force law, switch off exclusion. Rigorously.",
+  "steps": [
+    {
+      "id": "turn-up-alpha",
+      "title": "Turn up the fine-structure constant",
+      "body": [
+        "Alpha is about 1 over 137 and nothing in the theory says why. Here you can move it and watch the level structure respond.",
+        "The badge says COUNTERFACTUAL, which is a specific promise: the physics was altered deliberately and then solved properly under the altered rules. It is not a cartoon."
+      ],
+      "state": { "view": "whatif", "n": 2, "l": 1, "m": 0 },
+      "spotlight": "const-sliders"
+    },
+    {
+      "id": "change-the-force-law",
+      "title": "Change the force law itself",
+      "body": [
+        "Coulomb is 1 over r. Replace it with a Yukawa, a power law, or an expression you type, and the same numerical solver finds the states of whatever you wrote.",
+        "This is why the engine is a radial Schrodinger solver rather than a table of hydrogen formulas. The counterfactual and the real atom go through the same code."
+      ],
+      "state": { "view": "forcelaw" },
+      "spotlight": "force-preset"
+    },
+    {
+      "id": "distinguishable-electrons",
+      "title": "Electrons that repel but do not exclude",
+      "body": [
+        "Switch off exchange and helium's electrons still repel, but they stop being identical particles. The energy moves, and the direction it moves is the whole content of the exchange term.",
+        "Nothing here is a fudge. It is the same Hartree-Fock solver with one term dropped, and the result is labelled for what it is."
+      ],
+      "state": { "system": "he", "model": "hf", "view": "radial", "exchange": false },
+      "spotlight": "exchange-toggle"
+    },
+    {
+      "id": "pauli-off",
+      "title": "Switch off exclusion and watch the atom collapse",
+      "body": [
+        "With no occupancy cap every electron falls into the 1s. Argon becomes 1s to the eighteenth, and the periodic table stops existing.",
+        "This is the strongest counterfactual in the app and it contains the previous one: antisymmetry is what exclusion is, so you cannot switch off one and keep the other."
+      ],
+      "state": {
+        "system": "ar",
+        "model": "hf",
+        "view": "radial",
+        "exchange": false,
+        "pauli": false
+      },
+      "spotlight": "pauli-toggle"
+    }
+  ]
+}

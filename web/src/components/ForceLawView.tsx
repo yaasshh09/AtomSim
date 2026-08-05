@@ -115,7 +115,7 @@ export function ForceLawView() {
   return (
     <div className="forcelaw">
       <div className="whatif-controls">
-        <label>
+        <label data-tour="force-preset">
           Potential
           <select
             value={forcePreset}

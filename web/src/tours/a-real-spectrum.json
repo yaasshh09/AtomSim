@@ -1,0 +1,90 @@
+{
+  "id": "a-real-spectrum",
+  "title": "A spectrum you could observe",
+  "blurb": "From which lines exist to what a telescope would actually record.",
+  "steps": [
+    {
+      "id": "which-lines-are-strong",
+      "title": "Which lines are strong",
+      "body": [
+        "Selection rules say which transitions happen. The dipole engine says how fast, and the bars are scaled by the spontaneous emission rate.",
+        "That is a rate, not a brightness. Nothing about how many atoms are in the upper level has been said yet."
+      ],
+      "state": { "n": 4, "l": 3, "m": 0, "view": "spectrum", "intensities": true },
+      "spotlight": "view-list"
+    },
+    {
+      "id": "how-many-atoms",
+      "title": "How many atoms are actually there",
+      "body": [
+        "Boltzmann populates the levels, Saha decides how much of the gas is still neutral, and now the bars mean emission rather than capability.",
+        "Move the temperature and watch lines appear and vanish. Above about twenty thousand kelvin almost nothing is neutral and every line fades, however hot it gets."
+      ],
+      "state": {
+        "n": 4,
+        "l": 3,
+        "m": 0,
+        "view": "spectrum",
+        "intensities": true,
+        "thermal": true,
+        "temperatureK": 10000
+      },
+      "spotlight": "spectrum-options"
+    },
+    {
+      "id": "what-shape-is-a-line",
+      "title": "What shape is a line",
+      "body": [
+        "A line is not a spike. The upper level's finite lifetime gives Lorentzian wings, thermal motion gives a Gaussian core, and the real profile is their convolution.",
+        "The full-range axis cannot show this: a line there is a fraction of a pixel wide. Click one to plot it linearly and see the actual shape."
+      ],
+      "state": {
+        "n": 4,
+        "l": 3,
+        "m": 0,
+        "view": "spectrum",
+        "intensities": true,
+        "thermal": true,
+        "profile": true
+      },
+      "spotlight": "spectrum-options"
+    },
+    {
+      "id": "when-a-line-stops-measuring",
+      "title": "When a line stops measuring anything",
+      "body": [
+        "Put more gas in the way and a weak line grows in proportion. A strong one does not: once its core is black it cannot absorb more, and a hundred times the gas barely widens it.",
+        "Tick the ringed box to plot that. The curve of growth is a state of this view rather than a state of the app, so this step cannot switch it on for you and will not pretend the picture above already shows it. Its middle branch is where a line stops being a measurement of how much gas there is."
+      ],
+      "state": {
+        "n": 4,
+        "l": 3,
+        "m": 0,
+        "view": "spectrum",
+        "intensities": true,
+        "thermal": true,
+        "profile": true
+      },
+      "spotlight": "curve-of-growth-toggle"
+    },
+    {
+      "id": "absorption",
+      "title": "Put the gas in front of a star",
+      "body": [
+        "Now the same atoms sit between you and a continuum. Each line absorbs using only the atoms in its own lower level, which is why the Lyman lines go black while the Balmer lines are invisible in the very same gas.",
+        "That is the thing an emission spectrum cannot tell you, and it is why absorption spectroscopy is how we know what stars are made of."
+      ],
+      "state": {
+        "n": 4,
+        "l": 3,
+        "m": 0,
+        "view": "spectrum",
+        "intensities": true,
+        "thermal": true,
+        "absorption": true,
+        "logColumn": 22
+      },
+      "spotlight": "spectrum-options"
+    }
+  ]
+}
