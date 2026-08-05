@@ -26,3 +26,13 @@ export const TOURS: Tour[] = [
 export function tourById(id: string): Tour | null {
   return TOURS.find((t) => t.id === id) ?? null;
 }
+
+/**
+ * The tour a first-time reader is offered.
+ *
+ * Named rather than read as TOURS[0] so that reordering the menu cannot
+ * quietly change which tour the invitation opens, and so a rename of the JSON
+ * id breaks a test instead of an invitation button. registry.test.ts asserts
+ * it resolves.
+ */
+export const FLAGSHIP_TOUR_ID = "hydrogen-honestly";

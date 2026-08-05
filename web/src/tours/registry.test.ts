@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAppUrl, serializeAppUrl } from "../lib/urlState";
-import { TOURS, tourById } from "./registry";
+import { FLAGSHIP_TOUR_ID, TOURS, tourById } from "./registry";
 import { stepState } from "./step";
 import { CLAIM_KINDS } from "./types";
 
@@ -79,6 +79,12 @@ describe("registry", () => {
         }
       }
     }
+  });
+
+  it("resolves the flagship the invitation offers", () => {
+    // The invitation opens this id by name. A rename in the JSON has to fail
+    // here rather than at a button a first-time reader clicks once.
+    expect(tourById(FLAGSHIP_TOUR_ID)).not.toBeNull();
   });
 
   it("never writes an em dash", () => {
