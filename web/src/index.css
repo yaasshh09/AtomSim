@@ -1269,15 +1269,20 @@ button.ghost:hover {
   color: var(--accent);
 }
 
-/* The caret is the selection marker. A hidden one on every inactive row keeps
-   the labels on a single left edge, so the list does not shift as it changes. */
+/* The caret is the selection marker. Inactive rows reserve its width with an
+   empty box rather than a transparent glyph: at opacity 0 the character is
+   still in the accessibility tree, so every option announced itself as
+   "▸ 2D cross-section" and the marker stopped meaning anything. */
 .view-option::before {
-  content: "▸";
-  opacity: 0;
+  content: "";
+  display: inline-block;
+  width: 0.62em;
+  flex: none;
 }
 
 .view-option-on::before {
-  opacity: 1;
+  content: "▸";
+  width: auto;
 }
 
 /* n, l, m as three tiles. The active quantum number is the one the whole left
@@ -1408,4 +1413,158 @@ input[type="radio"] {
 
 .thumb-active {
   box-shadow: 0 0 0 3px rgb(52 224 161 / 0.12);
+}
+
+/* ============================================================
+   Plots — the instrument's typography inside the SVGs
+   ============================================================ */
+
+/* Every number in a plot is mono and tabular, the same as every number in the
+   rails. SVG text does not inherit font-variant-numeric from an ancestor rule
+   reliably across engines, so both are set here on the element that draws. */
+.tick,
+.forcelaw-label,
+.forcelaw-col {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tick {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* Axis rules pick up the shell's mint edge rather than staying neutral grey,
+   so a plot frame and a panel frame are the same line. */
+.axis {
+  stroke: var(--edge-strong);
+}
+
+.plot svg,
+.levels-svg,
+.forcelaw-svg {
+  background: rgb(8 12 14 / 0.55);
+  border-color: var(--edge);
+}
+
+.plot-title {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.caption,
+.plot figcaption {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.view-header {
+  gap: 0.6rem;
+}
+
+/* Segmented control, restyled off the rail's language. */
+.seg {
+  border-color: var(--edge-strong);
+  border-radius: 3px;
+}
+
+.seg button {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
+.line-table,
+.shell-table {
+  font-family: var(--mono);
+}
+
+.line-table th,
+.line-table td,
+.shell-table th,
+.shell-table td {
+  border-color: var(--edge-faint);
+}
+
+/* Canvas-overlay controls sit on the stage, so they match the stage chrome
+   rather than the browser default. */
+.surface-controls,
+.ghost-toggle,
+.ghost-readout,
+.nucleus-caption,
+.orbital-claim,
+.legend {
+  font-family: var(--mono);
+}
+
+.surface-controls select {
+  background: var(--panel);
+  border-color: var(--edge-strong);
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.surface-hud,
+.ghost-hud {
+  background: rgb(6 10 9 / 0.9);
+  border-radius: 3px;
+}
+
+.surface-hud {
+  border-color: var(--edge-strong);
+}
+
+/* The x/y/z tips of the 3-D axis triad. */
+.axis-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-shadow: 0 0 6px rgb(0 0 0 / 0.9);
+  user-select: none;
+}
+
+/* Sliders take the accent too. Without this the range track stayed the
+   browser's default blue, the one control in the app that was not on palette. */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* The What-If and force-law control clusters. These lay their own labels out
+   (stacked, not the panel's dashed row), so they need the shell's type
+   explicitly — left alone they rendered a size larger and in the sans, and
+   read as headings rather than as controls. */
+.whatif-controls label,
+.const-sliders label,
+.forcelaw-legend {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--label);
+}
+
+.whatif-controls select,
+.whatif-controls input[type="text"] {
+  font-size: 0.72rem;
+}
+
+/* Prose inside a view: the notes under a plot that say what it is claiming.
+   Sized off the caption rather than the body, so a paragraph of disclosure
+   does not outweigh the plot it is disclosing. */
+.hint-block,
+.physics-note {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.error {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.counterfactual-banner {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  border-radius: 3px;
 }
