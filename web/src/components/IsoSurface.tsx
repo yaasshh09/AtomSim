@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
+import { PHYSICS_TO_SCREEN } from "../lib/frame";
 
 interface Props {
   vertices: Float32Array;
@@ -35,7 +36,7 @@ export function IsoSurface({ vertices, triangles, colors }: Props) {
     // Same rotation as the point cloud: physics z is drawn screen-vertical, and
     // a surface that disagreed with the cloud it sits inside would be worse
     // than either convention on its own.
-    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh geometry={geometry} rotation={PHYSICS_TO_SCREEN}>
       <meshStandardMaterial
         vertexColors
         side={THREE.DoubleSide}
