@@ -28,7 +28,11 @@ import {
 import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
+import { currentUrlState, type UrlState } from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
+import { tourReset } from "../tours/apply";
+import { tourById } from "../tours/registry";
+import { clampStep, stepState } from "../tours/step";
 
 export type SampleStatus = "idle" | "sampling" | "ready" | "error";
 export type ViewMode =
@@ -245,6 +249,19 @@ interface AppState {
   setExchange: (exchange: boolean) => void;
   setPauli: (pauli: boolean) => void;
   setCompare: (compare: boolean) => void;
+  /**
+   * The tour being taken, or null.
+   *
+   * `savedState` is the reader's own state, snapshotted on entry and restored
+   * on exit. A reader three minutes into a chlorine Hartree-Fock solve should
+   * not lose it by clicking a tour out of curiosity.
+   */
+  tourId: string | null;
+  stepIndex: number;
+  savedState: UrlState | null;
+  startTour: (id: string, step?: number) => void;
+  exitTour: () => void;
+  goToStep: (i: number) => void;
   loadHF: () => Promise<void>;
   /**
    * Solve the atom before drawing it, under Hartree-Fock only.
@@ -291,7 +308,7 @@ interface AppState {
 }
 
 /** Everything derived from (n, l, m, system, basis) — cleared when any of them changes. */
-const INVALIDATED = {
+export const INVALIDATED = {
   stateInfo: null,
   positions: null,
   density: null,
@@ -377,6 +394,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   exchange: true,
   pauli: true,
   compare: false,
+  tourId: null,
+  stepIndex: 0,
+  savedState: null,
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -464,6 +484,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   // the atom changed, so the solve, the cloud, the plane and the surface all
   // stand; only the radial response goes, because only it is missing a field.
   setCompare: (compare) => set({ compare, radial: null }),
+  // A tour step is a whole app state, not a patch, so it goes through
+  // tourReset rather than a raw setState: see the comment on tourReset for
+  // what would otherwise render under the new labels.
+  startTour: (id, step = 0) =>
+    set((s) => {
+      const tour = tourById(id);
+      if (!tour) return {};
+      const i = clampStep(tour, step);
+      return {
+        ...tourReset(stepState(tour.steps[i]), s.systems),
+        tourId: id,
+        stepIndex: i,
+        // Only on entry. Re-entering mid-tour must not overwrite the reader's
+        // own state with a tour step's.
+        savedState: s.savedState ?? currentUrlState(s),
+      };
+    }),
+  goToStep: (i) =>
+    set((s) => {
+      const tour = s.tourId ? tourById(s.tourId) : null;
+      if (!tour) return {};
+      const next = clampStep(tour, i);
+      return { ...tourReset(stepState(tour.steps[next]), s.systems), stepIndex: next };
+    }),
+  exitTour: () =>
+    set((s) => ({
+      ...(s.savedState ? tourReset(s.savedState, s.systems) : {}),
+      tourId: null,
+      stepIndex: 0,
+      savedState: null,
+    })),
   setBasis: (basis) =>
     set((s) => ({
       basis,

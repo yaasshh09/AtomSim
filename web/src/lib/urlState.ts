@@ -212,6 +212,56 @@ function pickFloat(raw: string | null): number | undefined {
   return Number.isFinite(v) ? v : undefined;
 }
 
+/**
+ * The addressable slice of a store snapshot.
+ *
+ * Lives here rather than in main.tsx because two callers now need the same
+ * list: the subscriber that keeps the URL describing the live state, and the
+ * tour, which snapshots the reader's state on entry and restores it on exit. A
+ * second hand-maintained copy of thirty-seven field names is how the two drift.
+ */
+export function currentUrlState(s: UrlState): UrlState {
+  return {
+    n: s.n,
+    l: s.l,
+    m: s.m,
+    system: s.system,
+    basis: s.basis,
+    view: s.view,
+    colorMode: s.colorMode,
+    fineStructure: s.fineStructure,
+    dirac: s.dirac,
+    compare: s.compare,
+    bField: s.bField,
+    eField: s.eField,
+    hyperfine: s.hyperfine,
+    intensities: s.intensities,
+    thermal: s.thermal,
+    temperatureK: s.temperatureK,
+    logNe: s.logNe,
+    profile: s.profile,
+    logResolvingPower: s.logResolvingPower,
+    profileZoom: s.profileZoom,
+    absorption: s.absorption,
+    logColumn: s.logColumn,
+    ghost: s.ghost,
+    nucleusMode: s.nucleusMode,
+    planeQuantity: s.planeQuantity,
+    surfaceMode: s.surfaceMode,
+    isoFraction: s.isoFraction,
+    labConst: s.labConst,
+    labZ: s.labZ,
+    forcePreset: s.forcePreset,
+    forceParams: s.forceParams,
+    forceL: s.forceL,
+    forceExpr: s.forceExpr,
+    config: s.config,
+    model: s.model,
+    exchange: s.exchange,
+    pauli: s.pauli,
+  };
+}
+
 /** Validated partial state from a query string; invalid params are dropped. */
 export function parseAppUrl(search: string): Partial<UrlState> {
   const q = new URLSearchParams(search);
