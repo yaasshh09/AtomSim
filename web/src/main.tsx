@@ -4,6 +4,10 @@ import App from "./App";
 import { parseAppUrl, serializeAppUrl } from "./lib/urlState";
 import { useAppStore } from "./state/store";
 import "katex/dist/katex.min.css";
+// Bundled, not fetched from a CDN: `atomsim serve` is a local app and the
+// typography is part of the instrument, so it has to survive being offline.
+import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
 
 // Deep links (demo-script hooks): apply the URL before first render, then keep
