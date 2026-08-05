@@ -21,11 +21,17 @@ import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { ISO_FRACTIONS, useAppStore } from "../state/store";
+import { AxisTriad, axisArmLength } from "./AxisTriad";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
 import { IsoSurface } from "./IsoSurface";
 import { Legend } from "./Legend";
 import { PointCloud } from "./PointCloud";
+
+/** Axis arm length, at a precision the number can support. */
+function formatArm(length: number): string {
+  return length.toFixed(length >= 100 ? 0 : length >= 10 ? 1 : 2);
+}
 
 function CameraRig({ distance }: { distance: number }) {
   const camera = useThree((s) => s.camera as THREE.PerspectiveCamera);
@@ -143,6 +149,7 @@ export function CloudView() {
         <color attach="background" args={["#080c0e"]} />
         <CameraRig distance={distance} />
         <FpsMeter />
+        <AxisTriad distance={distance} />
         {showCloud && positions && (
           <PointCloud
             positions={positions}
@@ -192,6 +199,13 @@ export function CloudView() {
         <Badge provenance={RENDER_LIBERTIES} />
         {nucleus?.kind === "marker" && <Badge provenance={NUCLEUS_MARKER_LIBERTY} />}
         {caption && <span className="nucleus-caption">{caption}</span>}
+        {/* The triad's scale. Drawn here rather than in 3-D so it cannot land
+            on top of the z tip, and so the arm length is stated in the data's
+            own units next to the rest of the disclosures. */}
+        <span className="ghost-readout">
+          axes ±{formatArm(axisArmLength(distance))} a{"₀"} · z is the
+          quantization axis
+        </span>
         <Legend mode={colorMode} />
         <div className="surface-controls">
           <label>
