@@ -2,10 +2,26 @@ import { describe, expect, it } from "vitest";
 import type { GrowthRegime } from "../api/types";
 import {
   decadeTicks,
+  exponentLabel,
   logDomain,
   logLogPath,
   regimeSegments,
 } from "./CurveOfGrowthView";
+
+describe("exponentLabel", () => {
+  it("is plain digits, for a tspan to raise", () => {
+    // Not ⁰¹²³⁴⁵⁶⁷⁸⁹: the mono gives those the advance of a full-size digit,
+    // so "10²³" printed spaced like "10 ² ³".
+    expect(exponentLabel(23)).toBe("23");
+    expect(exponentLabel(0)).toBe("0");
+  });
+
+  it("signs a negative exponent with a minus, not a hyphen", () => {
+    // U+2212, the same character the zoomed axes are named with.
+    expect(exponentLabel(-7)).toBe("−7");
+    expect(exponentLabel(-7)).not.toBe("-7");
+  });
+});
 
 const R = (s: string, n: number): GrowthRegime[] =>
   Array(n).fill(s) as GrowthRegime[];

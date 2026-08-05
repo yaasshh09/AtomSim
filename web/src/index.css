@@ -1434,6 +1434,15 @@ input[type="radio"] {
   letter-spacing: 0.02em;
 }
 
+/* Decade exponents on a log tick. The mono gives a Unicode superscript the same
+   advance as a full-size digit, which is what made "10²³" read as three
+   separated characters; a raised tspan sets its own size and drops the tracking
+   the mantissa keeps. */
+.tick .exponent {
+  font-size: 0.72em;
+  letter-spacing: 0;
+}
+
 /* Axis rules pick up the shell's mint edge rather than staying neutral grey,
    so a plot frame and a panel frame are the same line. */
 .axis {

@@ -130,7 +130,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
           <g key={e} transform={`translate(${x(e)},${H - M.bottom})`}>
             <line y2="5" className="axis" />
             <text y="17" textAnchor="middle" className="tick">
-              10{sup(e)}
+              10<tspan className="exponent" dy="-3.5">{exponentLabel(e)}</tspan>
             </text>
           </g>
         ))}
@@ -138,7 +138,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
           <g key={e} transform={`translate(${M.left},${y(e)})`}>
             <line x2="-5" className="axis" />
             <text x="-9" dy="3" textAnchor="end" className="tick">
-              10{sup(e)}
+              10<tspan className="exponent" dy="-3.5">{exponentLabel(e)}</tspan>
             </text>
           </g>
         ))}
@@ -186,10 +186,19 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
   );
 }
 
-/** Unicode superscript for a decade exponent, since SVG text has no tspan baseline
- *  shifting worth the complexity here. */
-function sup(e: number): string {
-  const digits = "⁰¹²³⁴⁵⁶⁷⁸⁹";
-  const s = Math.abs(e).toString().split("").map((d) => digits[Number(d)]).join("");
-  return (e < 0 ? "⁻" : "") + s;
+/**
+ * The exponent of a decade tick, for a raised `tspan` rather than Unicode
+ * superscript characters.
+ *
+ * These labels used to be built from ⁰¹²³⁴⁵⁶⁷⁸⁹. Every number in a plot is set
+ * in the mono, and the mono gives a superscript glyph the same advance as a
+ * full-size digit — so "10²³" came out spaced like "10 ² ³" and the exponent
+ * read as detached from its mantissa. A tspan carries its own size and
+ * tracking, so the exponent sits tight against the ten and stays tabular.
+ *
+ * U+2212 for the sign, matching the minus the zoomed axes are named with, not
+ * the hyphen a keyboard gives.
+ */
+export function exponentLabel(e: number): string {
+  return (e < 0 ? "−" : "") + Math.abs(e).toString();
 }
