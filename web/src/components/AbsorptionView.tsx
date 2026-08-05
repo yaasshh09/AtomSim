@@ -1,12 +1,19 @@
-import { scaleLinear } from "d3-scale";
+import { scaleLinear, scaleLog } from "d3-scale";
 import type { AbsorptionInfo, AbsorbingLineInfo } from "../api/types";
+import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
 import { Badge } from "./Badge";
 import { REGIME_COLOR, REGIME_LABEL } from "./CurveOfGrowthView";
 
 const W = 680;
 const H = 250;
-const BAND_H = 34;
+/* Room under the plot for the band and its label. The band used to start six
+   units above this line, which put it directly under the axis title — muted
+   text on a white continuum. It now clears the title completely. */
+const BAND_H = 50;
 const M = { left: 62, right: 16, top: 18, bottom: 34 };
+const BAND_LABEL_Y = H + 14;
+const BAND_Y = H + 20;
+const BAND_BAR_H = 22;
 
 /**
  * Transmission as a path over a log wavelength axis.
@@ -47,11 +54,139 @@ export function transmissionGrey(t: number): string {
   return `rgb(${v} ${v} ${v})`;
 }
 
-/** Decade ticks over a log range, as exponents. */
-function decades(lo: number, hi: number): number[] {
-  const out: number[] = [];
-  for (let e = Math.ceil(lo); e <= Math.floor(hi); e++) out.push(e);
+/**
+ * Whether the wavelength axis can carry absolute labels, or needs offsets.
+ *
+ * This panel is drawn over two very different windows. Unzoomed it spans the
+ * whole line list (97 nm to 1876 nm), where "100" and "1000" are the natural
+ * labels. Zoomed to one line it spans a few half-widths — 0.14 nm for
+ * Lyman-alpha, and femtometres for a natural width — where every absolute label
+ * rounds to the same string. Decade ticks failed at both ends: two labels
+ * across the full range, and *none at all* on a zoom, because a window narrower
+ * than a decade contains no whole power of ten.
+ *
+ * The threshold is a span of 5% of the centre, which is about where four
+ * significant digits stop separating neighbouring ticks.
+ */
+export function absorptionAxisMode(loNm: number, hiNm: number): "log" | "offset" {
+  const centre = (loNm + hiNm) / 2;
+  if (!(centre > 0)) return "offset";
+  return (hiNm - loNm) / centre >= 0.05 ? "log" : "offset";
+}
+
+/** One drawn column of the band under the axis. */
+export interface BandColumn {
+  /** Left edge, in viewBox units. */
+  x: number;
+  /** Deepest transmission of any sample in the column. This is what is drawn. */
+  deepest: number;
+  /**
+   * Flux-weighted mean over the column: what a detector pixel spanning these
+   * wavelengths would actually record. Reported as a number, not drawn.
+   */
+  mean: number;
+}
+
+/**
+ * Bin the transmission grid onto whole drawable columns.
+ *
+ * The band used to draw one rectangle per grid point. The engine's grid is
+ * adaptive, so on the full range that is ~6000 rectangles across 602 units of
+ * axis — most of them a third of a unit wide. Adjacent sub-pixel rectangles do
+ * not tile: each is composited with its own edge coverage, so a shared boundary
+ * lands at about 75% of full white instead of 100%. The result was a grey
+ * barcode across the whole band, including past 400 nm where the transmission
+ * never drops below 0.98. The band was showing lines that are not in the data,
+ * which is the one thing this project does not do.
+ *
+ * Two readings come out of each column and they are wildly different, so the
+ * band has to say which one it draws. `mean` is the honest photograph: a
+ * detector pixel spanning these wavelengths integrates the flux across them, so
+ * a line far narrower than a column dilutes into it. Over the whole line list
+ * that is the truth and it is also useless — every column comes back above
+ * 0.98, and the strip renders blank white. `deepest` is the deepest sample in
+ * the column, which keeps the lines locatable at the cost of overstating how
+ * dark a pixel would look. The view draws `deepest`, labels it as such, and
+ * prints the worst `mean` alongside so the photographic answer is still stated.
+ */
+export function bandColumns(
+  logLambda: number[],
+  transmission: number[],
+  x: (logLambda: number) => number,
+  x0: number,
+  x1: number,
+): BandColumn[] {
+  const span = x1 - x0;
+  if (!(span > 0) || logLambda.length === 0) return [];
+  const n = Math.max(1, Math.round(span));
+  const width = span / n;
+  const sum = new Float64Array(n);
+  const weight = new Float64Array(n);
+  const deepest = new Float64Array(n).fill(Infinity);
+
+  for (let i = 0; i < logLambda.length; i++) {
+    // The strip this sample speaks for: half-way to each neighbour.
+    const left = i === 0 ? logLambda[i] : (logLambda[i - 1] + logLambda[i]) / 2;
+    const right =
+      i === logLambda.length - 1
+        ? logLambda[i]
+        : (logLambda[i] + logLambda[i + 1]) / 2;
+    const xa = Math.max(x0, Math.min(x(left), x(right)));
+    const xb = Math.min(x1, Math.max(x(left), x(right)));
+    if (!(xb > xa)) continue;
+    const first = Math.min(n - 1, Math.max(0, Math.floor((xa - x0) / width)));
+    const last = Math.min(n - 1, Math.max(0, Math.floor((xb - x0) / width)));
+    for (let c = first; c <= last; c++) {
+      const overlap =
+        Math.min(xb, x0 + (c + 1) * width) - Math.max(xa, x0 + c * width);
+      if (overlap <= 0) continue;
+      sum[c] += transmission[i] * overlap;
+      weight[c] += overlap;
+      if (transmission[i] < deepest[c]) deepest[c] = transmission[i];
+    }
+  }
+
+  // A column the grid does not reach carries the last value rather than a hole:
+  // a gap would read as a black line, which is the opposite of no information.
+  const out: BandColumn[] = [];
+  let carriedDeep = transmission[0];
+  let carriedMean = transmission[0];
+  for (let c = 0; c < n; c++) {
+    if (weight[c] > 0) {
+      carriedMean = sum[c] / weight[c];
+      carriedDeep = deepest[c];
+    }
+    out.push({ x: x0 + c * width, deepest: carriedDeep, mean: carriedMean });
+  }
   return out;
+}
+
+/**
+ * What the band's column width costs the lines, in words.
+ *
+ * The two readings of a column diverge only when a line is narrower than the
+ * column. Zoomed onto one line the columns are far finer than the profile and
+ * the two agree exactly; over the whole line list a column spans about a
+ * nanometre while the line is a thousandth of that, and they disagree
+ * completely. A caption that announced a gap in both cases would be describing
+ * a picture that is not on the screen half the time, so it has to check.
+ */
+export function bandResolutionNote(drawn: number, mean: number): string {
+  if (mean - drawn < 0.05) {
+    return (
+      "Here the columns are finer than the lines are wide, so a detector pixel"
+      + " of the same width would record the same depth: the strip and the"
+      + " curve agree."
+    );
+  }
+  return (
+    `A detector pixel that wide integrates the flux across it and would reach`
+    + ` only ${(100 * mean).toFixed(1)}% of the continuum, against the`
+    + ` ${(100 * drawn).toFixed(1)}% the curve reaches at full resolution. That`
+    + ` gap is not a drawing error — it is why a low-resolution spectrum of this`
+    + ` same gas looks almost blank, and it is exactly the dilution the`
+    + ` equivalent width above is immune to.`
+  );
 }
 
 /**
@@ -85,16 +220,30 @@ export function AbsorptionView({
   const y = scaleLinear([0, 1], [H - M.bottom, M.top]);
   const path = transmissionPath(abs.wavelength_nm, abs.transmission, x, y);
 
-  // One rectangle per grid point for the eye's-view band. The engine's grid is
-  // adaptive, so the strips are narrow exactly where the lines are.
-  const strips = abs.wavelength_nm.map((lam, i) => {
-    const left = i === 0 ? logLambda[i] : (logLambda[i - 1] + logLambda[i]) / 2;
-    const right =
-      i === logLambda.length - 1
-        ? logLambda[i]
-        : (logLambda[i] + logLambda[i + 1]) / 2;
-    return { lam, x0: x(left), x1: x(right), t: abs.transmission[i] };
-  });
+  const loNm = 10 ** lo;
+  const hiNm = 10 ** hi;
+  const mode = absorptionAxisMode(loNm, hiNm);
+  // Offsets are placed through the same log scale as everything else. Over a
+  // window this narrow log is linear to well under a pixel, so the ticks come
+  // out evenly spaced; over a wide one this branch is not taken.
+  const offset = offsetAxis(loNm, hiNm);
+  const xTicks =
+    mode === "log"
+      ? thinTicks(
+          scaleLog([loNm, hiNm], [M.left, W - M.right]).ticks(8),
+          (v) => x(Math.log10(v)),
+          34,
+        )
+      : offsetTicks(offset, loNm, hiNm);
+  const xLabel = (v: number) =>
+    mode === "log" ? `${v}` : formatOffset(offset, v);
+
+  const band = bandColumns(logLambda, abs.transmission, x, M.left, W - M.right);
+  const bandWidth = band.length > 1 ? band[1].x - band[0].x : 1;
+  // The two readings of the band: what is drawn, and what a real pixel of the
+  // same width would record. They agree on a zoom and diverge on the full range.
+  const deepestDrawn = band.reduce((m, c) => Math.min(m, c.deepest), 1);
+  const deepestMean = band.reduce((m, c) => Math.min(m, c.mean), 1);
 
   const strongest = [...abs.lines].sort((a, b) => b.tau_centre - a.tau_centre);
   const present = [...new Set(abs.lines.map((d) => d.regime))];
@@ -122,11 +271,11 @@ export function AbsorptionView({
           className="axis"
         />
         <line x1={M.left} x2={M.left} y1={M.top} y2={H - M.bottom} className="axis" />
-        {decades(lo, hi).map((e) => (
-          <g key={e} transform={`translate(${x(e)},${H - M.bottom})`}>
+        {xTicks.map((v) => (
+          <g key={v} transform={`translate(${x(Math.log10(v))},${H - M.bottom})`}>
             <line y2="5" className="axis" />
             <text y="17" textAnchor="middle" className="tick">
-              {(10 ** e).toString()}
+              {xLabel(v)}
             </text>
           </g>
         ))}
@@ -145,21 +294,39 @@ export function AbsorptionView({
         />
         <path d={path} className="transmission-curve" />
 
-        {/* The same numbers as an eye would see them: a bright continuum with
-            dark lines cut into it. */}
-        {strips.map((s, i) => (
+        {/* Where the gas absorbs, as brightness. crispEdges because these tile —
+            anti-aliased edges on abutting rectangles leave a seam at every
+            boundary, and a seam here reads as a line. */}
+        {band.map((c, i) => (
           <rect
             key={i}
-            x={s.x0}
-            y={H - 6}
-            width={Math.max(0.5, s.x1 - s.x0)}
-            height={BAND_H - 12}
-            fill={transmissionGrey(s.t)}
+            x={c.x}
+            y={BAND_Y}
+            width={bandWidth}
+            height={BAND_BAR_H}
+            fill={transmissionGrey(c.deepest)}
+            shapeRendering="crispEdges"
           />
         ))}
-        <text x={W - M.right} y={H - 4} textAnchor="end" className="tick">
-          wavelength [nm, log]
+        <text x={M.left} y={BAND_LABEL_Y} className="tick">
+          deepest absorption in each column, as brightness
         </text>
+        {mode === "log" ? (
+          <text x={W - M.right} y={H - 4} textAnchor="end" className="tick">
+            wavelength [nm, log]
+          </text>
+        ) : (
+          /* Same treatment as the zoomed line profile beside it: name the
+             centre once and label the ticks as offsets from it. */
+          <text
+            x={(M.left + W - M.right) / 2}
+            y={H - 4}
+            textAnchor="middle"
+            className="tick"
+          >
+            λ − {offset.centreNm.toFixed(offset.centreDecimals)} nm [{offset.unit}]
+          </text>
+        )}
         <text x={4} y={12} className="tick">
           I / I₀
         </text>
@@ -173,6 +340,13 @@ export function AbsorptionView({
         saturated or overlapped, so the spectrum is showing{" "}
         <strong>{(100 * abs.saturation).toFixed(1)}%</strong> of what a naive
         sum predicts. Read plainly: {saturationVerdict(abs.saturation)}.
+      </p>
+
+      <p className="caption">
+        The strip is {band.length} columns wide, and each is drawn at the{" "}
+        <em>deepest</em> transmission anywhere inside it — which is what makes a
+        line narrower than a column findable at all.{" "}
+        {bandResolutionNote(deepestDrawn, deepestMean)}
       </p>
 
       {!zoomed && (
