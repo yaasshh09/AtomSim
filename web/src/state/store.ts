@@ -32,6 +32,7 @@ import { currentUrlState, type UrlState } from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
 import { tourReset } from "../tours/apply";
 import { tourById } from "../tours/registry";
+import { readMemory, rememberCompleted, rememberDismissed, shouldInvite } from "../tours/seen";
 import { clampStep, stepState } from "../tours/step";
 
 export type SampleStatus = "idle" | "sampling" | "ready" | "error";
@@ -261,7 +262,20 @@ interface AppState {
   savedState: UrlState | null;
   startTour: (id: string, step?: number) => void;
   exitTour: () => void;
+  /** Leave the tour and record that this reader read it to the end. */
+  finishTour: () => void;
   goToStep: (i: number) => void;
+  /**
+   * Whether the first-visit invitation is still on screen.
+   *
+   * Seeded from the browser's memory, so a reader who has already answered it,
+   * by taking a tour or by skipping past it, never meets it again. The app is
+   * usable underneath it either way: the invitation is a bar, not a gate.
+   */
+  inviteOpen: boolean;
+  /** Tours this reader has read to the last step, for the menu's done marks. */
+  completedTours: string[];
+  dismissInvite: () => void;
   loadHF: () => Promise<void>;
   /**
    * Solve the atom before drawing it, under Hartree-Fock only.
@@ -338,6 +352,16 @@ export const INVALIDATED = {
   profileZoom: null as [number, number] | null,
 };
 
+/**
+ * What the browser remembers about tours, read once at startup.
+ *
+ * Read here rather than in the components that need it because the record only
+ * ever changes through this store's actions, so one read at load and the store
+ * as the live copy cannot disagree. A second tab that finishes a tour will not
+ * be noticed until reload, which costs a returning reader nothing.
+ */
+const startingMemory = readMemory();
+
 export const useAppStore = create<AppState>((set, get) => ({
   n: 1,
   l: 0,
@@ -397,6 +421,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   tourId: null,
   stepIndex: 0,
   savedState: null,
+  inviteOpen: shouldInvite(startingMemory),
+  completedTours: startingMemory.completed,
   ...INVALIDATED,
   // classical ghost data depends on (n, system) but not (l, m, basis), so it is
   // reset explicitly here rather than living in INVALIDATED (basis changes keep it).
@@ -487,20 +513,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   // A tour step is a whole app state, not a patch, so it goes through
   // tourReset rather than a raw setState: see the comment on tourReset for
   // what would otherwise render under the new labels.
-  startTour: (id, step = 0) =>
+  startTour: (id, step = 0) => {
+    const tour = tourById(id);
+    // An id nobody knows leaves everything alone, the invitation included: a
+    // stale deep link should not cost a reader the offer of a tour.
+    if (!tour) return;
+    // Starting one answers the invitation whichever door it came through: the
+    // invitation's own button, the menu, or a link someone shared.
+    rememberDismissed();
     set((s) => {
-      const tour = tourById(id);
-      if (!tour) return {};
       const i = clampStep(tour, step);
       return {
         ...tourReset(stepState(tour.steps[i]), s.systems),
         tourId: id,
         stepIndex: i,
+        inviteOpen: false,
         // Only on entry. Re-entering mid-tour must not overwrite the reader's
         // own state with a tour step's.
         savedState: s.savedState ?? currentUrlState(s),
       };
-    }),
+    });
+  },
   goToStep: (i) =>
     set((s) => {
       const tour = s.tourId ? tourById(s.tourId) : null;
@@ -515,6 +548,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       stepIndex: 0,
       savedState: null,
     })),
+  // Leaving and finishing differ by one fact worth keeping: that this reader
+  // reached the end. The exit itself is exitTour's, not a second copy of it.
+  finishTour: () => {
+    const id = get().tourId;
+    if (id) set({ completedTours: rememberCompleted(id).completed });
+    get().exitTour();
+  },
+  dismissInvite: () => {
+    rememberDismissed();
+    set({ inviteOpen: false });
+  },
   setBasis: (basis) =>
     set((s) => ({
       basis,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { defaultParams } from "../lib/forceLaw";
+import { FLAGSHIP_TOUR_ID } from "../tours/registry";
 import { useAppStore } from "./store";
 
 const initial = useAppStore.getState();
@@ -432,5 +433,58 @@ describe("setCompare", () => {
     expect(useAppStore.getState().positions).not.toBeNull();
     expect(useAppStore.getState().plane).not.toBeNull();
     expect(useAppStore.getState().levels).not.toBeNull();
+  });
+});
+
+describe("the tour invitation", () => {
+  // vitest runs without a window, so every test here starts from a reader the
+  // browser has no memory of, which is the state the invitation exists for.
+  it("is open for a reader who has never answered it", () => {
+    expect(useAppStore.getState().inviteOpen).toBe(true);
+    expect(useAppStore.getState().completedTours).toEqual([]);
+  });
+
+  it("closes when the reader skips it", () => {
+    useAppStore.getState().dismissInvite();
+    expect(useAppStore.getState().inviteOpen).toBe(false);
+  });
+
+  it("closes when a tour starts, whichever door it came through", () => {
+    // The menu and a shared deep link both land here, not only the
+    // invitation's own button.
+    useAppStore.getState().startTour(FLAGSHIP_TOUR_ID, 0);
+    expect(useAppStore.getState().inviteOpen).toBe(false);
+  });
+
+  it("stays open when a tour id nobody knows is asked for", () => {
+    useAppStore.getState().startTour("no-such-tour", 0);
+    expect(useAppStore.getState().tourId).toBeNull();
+    expect(useAppStore.getState().inviteOpen).toBe(true);
+  });
+});
+
+describe("finishTour", () => {
+  it("records the tour and leaves it", () => {
+    useAppStore.getState().startTour(FLAGSHIP_TOUR_ID, 0);
+    useAppStore.getState().finishTour();
+    const s = useAppStore.getState();
+    expect(s.completedTours).toEqual([FLAGSHIP_TOUR_ID]);
+    expect(s.tourId).toBeNull();
+  });
+
+  it("gives the reader their own state back, exactly as leaving does", () => {
+    // The tour is a detour, not a redirect: finishing it must not strand the
+    // reader on the last step's atom.
+    useAppStore.getState().setQuantumNumbers(4, 2, 1);
+    useAppStore.getState().startTour(FLAGSHIP_TOUR_ID, 0);
+    useAppStore.getState().finishTour();
+    const s = useAppStore.getState();
+    expect([s.n, s.l, s.m]).toEqual([4, 2, 1]);
+    expect(s.savedState).toBeNull();
+  });
+
+  it("does nothing when no tour is running", () => {
+    useAppStore.getState().finishTour();
+    expect(useAppStore.getState().completedTours).toEqual([]);
   });
 });
