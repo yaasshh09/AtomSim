@@ -1,9 +1,37 @@
 import { describe, expect, it } from "vitest";
 import type { GrowthRegime } from "../api/types";
-import { decadeTicks, logLogPath, regimeSegments } from "./CurveOfGrowthView";
+import {
+  decadeTicks,
+  logDomain,
+  logLogPath,
+  regimeSegments,
+} from "./CurveOfGrowthView";
 
 const R = (s: string, n: number): GrowthRegime[] =>
   Array(n).fill(s) as GrowthRegime[];
+
+describe("logDomain", () => {
+  it("spans the values present", () => {
+    expect(logDomain([1e15, 1e20, 1e25])).toEqual([15, 25]);
+  });
+
+  it("ignores values a log axis cannot place", () => {
+    // `logLogPath` already skips these. Clamping them into the domain instead
+    // stretched the axis down 300 decades and squashed the curve into a sliver
+    // at the top of the panel.
+    expect(logDomain([0, 1e15, 1e20])).toEqual([15, 20]);
+    expect(logDomain([-1, 1e15, 1e20, Number.NaN, Infinity])).toEqual([15, 20]);
+  });
+
+  it("opens out a constant curve instead of collapsing it to a line", () => {
+    expect(logDomain([1e10, 1e10])).toEqual([9, 11]);
+  });
+
+  it("returns a drawable range when nothing is placeable", () => {
+    expect(logDomain([])).toEqual([0, 1]);
+    expect(logDomain([0, -3])).toEqual([0, 1]);
+  });
+});
 
 describe("regimeSegments", () => {
   it("splits a curve into one run per branch", () => {

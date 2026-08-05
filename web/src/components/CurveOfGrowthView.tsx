@@ -62,6 +62,21 @@ export function logLogPath(
   return parts.join(" ");
 }
 
+/**
+ * The log₁₀ range of the values a log axis can place, as [min, max].
+ *
+ * Zero and negative values are not points on a log axis, and neither is a
+ * degenerate range: a constant array would collapse the scale onto one pixel,
+ * so it is opened out by a decade either side instead.
+ */
+export function logDomain(values: number[]): [number, number] {
+  const logs = values.filter((v) => v > 0 && Number.isFinite(v)).map(Math.log10);
+  if (logs.length === 0) return [0, 1];
+  const lo = Math.min(...logs);
+  const hi = Math.max(...logs);
+  return hi > lo ? [lo, hi] : [lo - 1, hi + 1];
+}
+
 /** Decade tick values spanning a log range, as exponents. */
 export function decadeTicks(lo: number, hi: number, max = 8): number[] {
   const first = Math.ceil(lo);
@@ -74,14 +89,14 @@ export function decadeTicks(lo: number, hi: number, max = 8): number[] {
 }
 
 export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
-  const logN = cog.column_density_m2.map((v) => Math.log10(v));
-  const logW = cog.equivalent_width_nm.map((v) => Math.log10(Math.max(v, 1e-300)));
-  const x = scaleLinear(
-    [Math.min(...logN), Math.max(...logN)], [M.left, W - M.right],
-  );
-  const y = scaleLinear(
-    [Math.min(...logW), Math.max(...logW)], [H - M.bottom, M.top],
-  );
+  // Only the points a log axis can actually place. `logLogPath` already skips
+  // the rest, so taking the domain from the raw arrays let a single zero
+  // equivalent width stretch the axis down 300 decades while the curve stayed
+  // in the top percent of the panel.
+  const logN = logDomain(cog.column_density_m2);
+  const logW = logDomain(cog.equivalent_width_nm);
+  const x = scaleLinear(logN, [M.left, W - M.right]);
+  const y = scaleLinear(logW, [H - M.bottom, M.top]);
   const segments = regimeSegments(cog.regime);
   const present = [...new Set(cog.regime)];
 
