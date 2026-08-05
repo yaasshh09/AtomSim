@@ -22,6 +22,109 @@
       ],
       "state": { "n": 1, "l": 0, "m": 0, "view": "cloud", "nucleusMode": "true-scale" },
       "spotlight": "nucleus-picker"
+    },
+    {
+      "id": "n-sets-size-l-sets-shape",
+      "title": "n sets the size, l sets the shape",
+      "body": [
+        "Same n, different l. The 2s is a ball with a gap inside it and the 2p is two lobes, and the gap is a real node: a surface where the electron is never found.",
+        "The mean radius moves too. The 2s sits at 318 pm and the 2p at 265 pm, so the rounder state is also the bigger one."
+      ],
+      "state": { "n": 2, "l": 1, "m": 0, "view": "cloud" },
+      "spotlight": "l-picker",
+      "claims": [
+        { "of": "mean_r_pm", "n": 2, "l": 0, "is": 317.7, "tol": 1.0 },
+        { "of": "mean_r_pm", "n": 2, "l": 1, "is": 264.7, "tol": 1.0 }
+      ]
+    },
+    {
+      "id": "accidental-degeneracy",
+      "title": "Same energy, different shape",
+      "body": [
+        "Those two states look nothing alike, and they sit at exactly the same -3.40 eV. Nothing about their shapes says they should.",
+        "This is the accidental degeneracy, and accidental is the right word: it belongs to the 1 over r potential and to nothing else. Put a second electron in the way to screen the nucleus and it breaks immediately, which is why no other atom does this."
+      ],
+      "state": { "n": 2, "l": 1, "m": 0, "view": "levels" },
+      "spotlight": "view-list",
+      "claims": [{ "of": "energy_eV", "n": 2, "is": -3.3996, "tol": 0.002 }]
+    },
+    {
+      "id": "the-basis-is-a-choice",
+      "title": "m, and a basis is a choice",
+      "body": [
+        "The chemistry orbitals you were taught, p_x and p_y, are not more real than the complex states with definite m. They are sums of them, and which set you call the answer is a choice of basis rather than a fact about the atom.",
+        "Both are first-class here and the badge says which one you are looking at. Switch and watch the same physics wear a different face."
+      ],
+      "state": { "n": 2, "l": 1, "m": 1, "view": "cloud", "basis": "real" },
+      "spotlight": "basis-picker"
+    },
+    {
+      "id": "a-contour-not-a-boundary",
+      "title": "A surface is a contour, not a boundary",
+      "body": [
+        "Textbook orbital pictures draw a surface and leave you to assume the electron is inside it. This one encloses 90% of the electron, and it says so, because the other 10% is genuinely outside and goes on forever.",
+        "Drag the fraction and the surface breathes. There is no radius at which the atom stops."
+      ],
+      "state": {
+        "n": 3,
+        "l": 2,
+        "m": 0,
+        "view": "cloud",
+        "surfaceMode": "surface",
+        "isoFraction": 0.9
+      },
+      "spotlight": "surface-controls"
+    },
+    {
+      "id": "the-degeneracy-was-the-models-lie",
+      "title": "So the degeneracy was the model's lie",
+      "body": [
+        "Turn on fine structure and the level that was one line becomes several. The 2s and the 2p were never exactly equal; the model that said so had left three things out.",
+        "The badge changes from EXACT to APPROXIMATION, and it names what is missing rather than implying nothing is. This is an alpha-squared perturbation, correct to that order and no further."
+      ],
+      "state": { "n": 2, "l": 1, "m": 0, "view": "levels", "fineStructure": true },
+      "spotlight": "fine-structure"
+    },
+    {
+      "id": "dirac-and-the-gap-it-leaves",
+      "title": "Dirac, exactly, and the gap it still leaves",
+      "body": [
+        "The Dirac equation solves hydrogen in closed form, relativity included, so this goes back to EXACT. It gives the fine structure the perturbation was approximating.",
+        "It is still not the measured answer. The 2s and 2p at the same j are exactly degenerate here and are not in the laboratory, and that difference is the Lamb shift. This engine does not model it, and says so rather than quietly closing the gap."
+      ],
+      "state": {
+        "n": 2,
+        "l": 1,
+        "m": 0,
+        "view": "levels",
+        "fineStructure": true,
+        "dirac": true
+      },
+      "spotlight": "dirac-toggle"
+    },
+    {
+      "id": "levels-become-lines",
+      "title": "Levels become lines",
+      "body": [
+        "Every arrow between two levels is a photon, and its wavelength is fixed by the gap. The 2 to 1 transition gives 121.57 nm and the 3 to 2 gives 656.47 nm, the red line in every hydrogen discharge tube you have seen.",
+        "The dots on the axis are vendored NIST measurements, not a fit. The residual panel shows the engine agreeing with them, which is the only reason to believe anything above."
+      ],
+      "state": { "n": 3, "l": 2, "m": 0, "view": "spectrum" },
+      "spotlight": "view-list",
+      "claims": [
+        { "of": "wavelength_nm", "n_upper": 2, "n_lower": 1, "is": 121.57, "tol": 0.02 },
+        { "of": "wavelength_nm", "n_upper": 3, "n_lower": 2, "is": 656.47, "tol": 0.05 }
+      ]
+    },
+    {
+      "id": "what-the-picture-cost",
+      "title": "What the picture cost",
+      "body": [
+        "Every badge on this screen is a claim about how much to trust what is next to it. EXACT means a closed-form solution of the stated model. APPROXIMATION names its assumptions. VISUAL LIBERTY means the choice was presentational and it is disclosed anyway.",
+        "The nucleus marker is a liberty. The colour map is a liberty. The point size is a liberty. None of them changes a number, and all of them are labelled, because a picture that hides its choices is a picture you cannot check."
+      ],
+      "state": { "n": 3, "l": 2, "m": 0, "view": "cloud", "colorMode": "density" },
+      "spotlight": "state-card"
     }
   ]
 }

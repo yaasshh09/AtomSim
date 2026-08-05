@@ -114,7 +114,4 @@ class TestTourContent:
                 f"Either the prose is now wrong or the engine changed."
             )
             checked += 1
-        # Tightened to `> 0` once the flagship's numeric steps land. Until
-        # then the tours quote no numbers, so demanding one here would fail on
-        # content that is simply not written yet.
-        assert checked >= 0
+        assert checked > 0, "no claims checked; the tours declare none"

@@ -316,7 +316,7 @@ export function LevelsView() {
           </span>
         )}
         {fineStructure && (
-          <label className="levels-model">
+          <label className="levels-model" data-tour="dirac-toggle">
             <input type="checkbox" checked={dirac} onChange={(e) => setDirac(e.target.checked)} />
             Dirac (exact)
           </label>
