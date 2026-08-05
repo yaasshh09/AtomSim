@@ -8,6 +8,8 @@ import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
 import { SpectrumView } from "./components/SpectrumView";
 import { TopBar } from "./components/TopBar";
+import { TourPanel } from "./components/TourPanel";
+import { TourSpotlight } from "./components/TourSpotlight";
 import { WhatIfView } from "./components/WhatIfView";
 import { useAppStore } from "./state/store";
 
@@ -27,9 +29,11 @@ export default function App() {
           {view === "whatif" && <WhatIfView />}
           {view === "forcelaw" && <ForceLawView />}
           <GalleryStrip />
+          <TourPanel />
         </main>
         <Controls />
       </div>
+      <TourSpotlight />
     </div>
   );
 }

@@ -207,7 +207,7 @@ export function CloudView() {
           quantization axis
         </span>
         <Legend mode={colorMode} />
-        <div className="surface-controls">
+        <div className="surface-controls" data-tour="surface-controls">
           <label>
             Draw
             <select

@@ -210,7 +210,7 @@ export function Controls() {
       {/* A list, not a dropdown: seven views are the whole instrument, and a
           closed <select> hides six of them behind a click. Still one radio
           group's worth of behaviour — `aria-pressed` says which is live. */}
-      <div className="view-list">
+      <div className="view-list" data-tour="view-list">
         {VIEW_OPTIONS.map((v) => (
           <button
             key={v.value}
@@ -225,7 +225,7 @@ export function Controls() {
       </div>
       <h2>Quantum no.</h2>
       <div className="qn-tiles">
-        <label className="qn-tile">
+        <label className="qn-tile" data-tour="n-picker">
           <span className="qn-tile-name">n</span>
           <select
             value={n}
@@ -250,7 +250,7 @@ export function Controls() {
             ))}
           </select>
         </label>
-        <label className="qn-tile">
+        <label className="qn-tile" data-tour="l-picker">
           <span className="qn-tile-name">ℓ</span>
           <select
             value={l}
@@ -263,7 +263,7 @@ export function Controls() {
             ))}
           </select>
         </label>
-        <label className="qn-tile">
+        <label className="qn-tile" data-tour="m-picker">
           <span className="qn-tile-name">m</span>
           <select
             value={m}
@@ -285,7 +285,7 @@ export function Controls() {
         </p>
       )}
       <h2>Physics</h2>
-      <div className="radio-row">
+      <div className="radio-row" data-tour="basis-picker">
         <label className="radio">
           <input
             type="radio"
@@ -299,7 +299,7 @@ export function Controls() {
           real S<sub>lm</sub>
         </label>
       </div>
-      <label className="check">
+      <label className="check" data-tour="fine-structure">
         <input
           type="checkbox"
           checked={fineStructure}
@@ -331,7 +331,7 @@ export function Controls() {
           </option>
         </select>
       </label>
-      <label>
+      <label data-tour="nucleus-picker">
         nucleus
         <select
           value={nucleusMode}

@@ -52,7 +52,7 @@ export function InfoPanel() {
   const rMax = pr && end > 0 ? pr.grid[end - 1] : null;
   return (
     <aside className="panel">
-      <div className="state-card">
+      <div className="state-card" data-tour="state-card">
         <div className="state-card-eyebrow">
           State vector{sys ? ` · ${sys.name} Z=${sys.z}` : ""}
         </div>
