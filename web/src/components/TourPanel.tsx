@@ -8,7 +8,7 @@ import { tourById } from "../tours/registry";
  * prose is about, and a card on top of it would cover the evidence.
  */
 export function TourPanel() {
-  const { tourId, stepIndex, goToStep, exitTour } = useAppStore();
+  const { tourId, stepIndex, goToStep, exitTour, finishTour } = useAppStore();
   const tour = tourId ? tourById(tourId) : null;
   if (!tour) return null;
   const step = tour.steps[stepIndex];
@@ -40,7 +40,9 @@ export function TourPanel() {
           ‹ back
         </button>
         {stepIndex === last ? (
-          <button type="button" className="link-button" onClick={exitTour}>
+          // finishTour, not exitTour: reaching the end is the one fact worth
+          // remembering about a tour, and it is what marks it done in the menu.
+          <button type="button" className="link-button" onClick={finishTour}>
             finish ›
           </button>
         ) : (

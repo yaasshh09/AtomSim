@@ -55,7 +55,12 @@ body {
    the panels were already `overflow-y: auto` and stay that way. */
 .app-shell {
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr);
+  /* Three rows, and the middle one is the first-visit tour invitation. It is
+     absent from the DOM for everyone who has answered it, so the columns name
+     their row explicitly below: auto-placement alone would put them in the
+     invitation's `auto` row on every later visit and collapse the app to
+     nothing. */
+  grid-template-rows: 48px auto minmax(0, 1fr);
 }
 
 /* Both rails at 300px. The left one carries the widest single string in the
@@ -63,6 +68,7 @@ body {
    under the label on every row. */
 .app-grid {
   display: grid;
+  grid-row: 3;
   grid-template-columns: 300px minmax(0, 1fr) 300px;
   min-height: 0;
 }
@@ -1721,4 +1727,73 @@ input[type="range"] {
   font-size: 0.62rem;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.tour-menu-done {
+  margin-left: 0.5rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--edge-strong);
+  border-radius: 2px;
+  color: var(--muted);
+}
+
+/* The first-visit invitation, as a row of the shell between the bar and the
+   columns. Deliberately not a modal and not a floating card: a reader who has
+   done this before should be able to work the app while it sits there, and the
+   skip should be a convenience rather than the only way back to the
+   instrument. It leaves the DOM once answered, which is why .app-grid names
+   its row rather than relying on being the second child. */
+.tour-invite {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.55rem 1rem;
+  background: var(--edge-fill);
+  border-bottom: 1px solid var(--edge-strong);
+}
+
+.tour-invite-text {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 80ch;
+}
+
+.tour-invite-lead {
+  color: var(--text);
+}
+
+.tour-invite-count {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.tour-invite-take {
+  background: linear-gradient(180deg, var(--accent-dim), #1fc987);
+  color: var(--accent-deep);
+  border: 0;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+.tour-invite-note {
+  margin: 0;
+  flex-basis: 100%;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--muted);
+  opacity: 0.75;
 }

@@ -8,6 +8,7 @@ import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
 import { SpectrumView } from "./components/SpectrumView";
 import { TopBar } from "./components/TopBar";
+import { TourInvite } from "./components/TourInvite";
 import { TourPanel } from "./components/TourPanel";
 import { TourSpotlight } from "./components/TourSpotlight";
 import { WhatIfView } from "./components/WhatIfView";
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <TopBar />
+      <TourInvite />
       <div className="app-grid">
         <InfoPanel />
         <main className="center-col">
