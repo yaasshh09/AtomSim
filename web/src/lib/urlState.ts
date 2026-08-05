@@ -120,6 +120,15 @@ export interface UrlState {
    * read as the collapse it obviously means.
    */
   pauli: boolean;
+  /**
+   * The tour being taken, and how far into it.
+   *
+   * Carried so the demo script is a URL: "?tour=hydrogen-honestly&step=4" is a
+   * thing you can send someone. `step` is written only alongside a tour,
+   * because a bare step number describes nothing.
+   */
+  tour: string | null;
+  step: number;
 }
 
 export const URL_DEFAULTS: UrlState = {
@@ -162,6 +171,8 @@ export const URL_DEFAULTS: UrlState = {
   model: "gsz",
   exchange: true,
   pauli: true,
+  tour: null,
+  step: 0,
 };
 
 // a config string is compact subshell tokens: "1s2 2s2 2p6 3p1"
@@ -220,7 +231,7 @@ function pickFloat(raw: string | null): number | undefined {
  * tour, which snapshots the reader's state on entry and restores it on exit. A
  * second hand-maintained copy of thirty-seven field names is how the two drift.
  */
-export function currentUrlState(s: UrlState): UrlState {
+export function currentUrlState(s: Omit<UrlState, "tour" | "step">): UrlState {
   return {
     n: s.n,
     l: s.l,
@@ -259,6 +270,12 @@ export function currentUrlState(s: UrlState): UrlState {
     model: s.model,
     exchange: s.exchange,
     pauli: s.pauli,
+    // Not read off the snapshot. The store holds these as tourId/stepIndex,
+    // and the two callers want opposite things: the URL subscriber overrides
+    // both with the live tour, while the tour's own entry snapshot wants the
+    // reader's state without a tour in it, since that is what exiting restores.
+    tour: null,
+    step: 0,
   };
 }
 
@@ -416,6 +433,16 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   const config = q.get("config");
   if (config !== null && CONFIG_RE.test(config)) out.config = config;
 
+  const tour = q.get("tour");
+  if (tour) {
+    out.tour = tour;
+    const step = pickInt(q.get("step"));
+    // Clamped to the tour's real length by clampStep at apply time; here it
+    // only has to be a non-negative integer, since this module does not know
+    // how long any tour is.
+    out.step = step !== undefined && step >= 0 ? step : 0;
+  }
+
   return out;
 }
 
@@ -493,6 +520,10 @@ export function serializeAppUrl(state: UrlState): string {
   // through a parser that would infer the missing one anyway, but a link a
   // user reads or edits should say both things it means.
   if (!state.pauli) q.set("nopauli", "1");
+  if (state.tour) {
+    q.set("tour", state.tour);
+    if (state.step !== URL_DEFAULTS.step) q.set("step", String(state.step));
+  }
   // note: '+' stays percent-encoded (%2B) — a literal '+' in a query string
   // reads back as a space, which would break the he+ round-trip
   const s = q.toString();

@@ -119,6 +119,8 @@ describe("serializeAppUrl", () => {
       pauli: false,
       surfaceMode: "both" as const,
       isoFraction: 0.5,
+      tour: null,
+      step: 0,
     };
     const parsed = parseAppUrl(serializeAppUrl(state));
     expect({ ...URL_DEFAULTS, ...parsed }).toEqual(state);
@@ -492,5 +494,36 @@ describe("density comparison url state", () => {
 
   it("omits compare when off", () => {
     expect(serializeAppUrl({ ...URL_DEFAULTS, compare: false })).not.toContain("compare");
+  });
+});
+
+describe("tour deep links", () => {
+  it("carries a tour and a step", () => {
+    const s = parseAppUrl("?tour=hydrogen-honestly&step=4");
+    expect(s.tour).toBe("hydrogen-honestly");
+    expect(s.step).toBe(4);
+  });
+
+  it("defaults the step to the first one", () => {
+    expect(parseAppUrl("?tour=hydrogen-honestly").step).toBe(0);
+  });
+
+  it("drops a junk step rather than throwing", () => {
+    // Same contract as every other parameter here: junk never reaches the
+    // store, so a typo'd link still opens the app.
+    expect(parseAppUrl("?tour=x&step=banana").step).toBe(0);
+    expect(parseAppUrl("?tour=x&step=-3").step).toBe(0);
+  });
+
+  it("omits the step when there is no tour", () => {
+    // A bare ?step= describes nothing and would survive into a shared link as
+    // noise.
+    const qs = serializeAppUrl({ ...URL_DEFAULTS, tour: null, step: 5 });
+    expect(qs).not.toContain("step=");
+  });
+
+  it("round-trips", () => {
+    const want = { ...URL_DEFAULTS, tour: "hydrogen-honestly", step: 3 };
+    expect({ ...want, ...parseAppUrl(serializeAppUrl(want)) }).toEqual(want);
   });
 });

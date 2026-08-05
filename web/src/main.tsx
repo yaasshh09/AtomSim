@@ -13,8 +13,20 @@ import "./index.css";
 // Deep links (demo-script hooks): apply the URL before first render, then keep
 // the URL describing the live state so any moment of a session is shareable.
 useAppStore.setState(parseAppUrl(window.location.search));
+
+// A tour link has to run the step's state through the store's tour action, not
+// just land its id in the store: the step's own physics has to be applied and
+// everything derived cleared. Deferred to a microtask so the store's initial
+// state exists before startTour reads it.
+const opening = parseAppUrl(window.location.search);
+if (opening.tour) {
+  const id = opening.tour;
+  const step = opening.step ?? 0;
+  queueMicrotask(() => useAppStore.getState().startTour(id, step));
+}
+
 useAppStore.subscribe((s) => {
-  const qs = serializeAppUrl(currentUrlState(s));
+  const qs = serializeAppUrl({ ...currentUrlState(s), tour: s.tourId, step: s.stepIndex });
   const next = window.location.pathname + qs;
   if (next !== window.location.pathname + window.location.search) {
     window.history.replaceState(null, "", next);
