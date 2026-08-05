@@ -1,6 +1,7 @@
 import { stateLabel } from "../lib/quantum";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { TourMenu } from "./TourMenu";
 
 /**
  * The session header: what is loaded, and what tier its energy came out of.
@@ -41,6 +42,7 @@ export function TopBar() {
           <span className="topbar-stat">FPS {fps}</span>
         )}
         {stateInfo && <Badge provenance={stateInfo.energy.provenance} />}
+        <TourMenu />
       </div>
     </header>
   );

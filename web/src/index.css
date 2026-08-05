@@ -1655,3 +1655,70 @@ input[type="range"] {
     height 140ms ease;
   z-index: 50;
 }
+
+/* The tour picker, in the top bar. One button, which becomes "leave tour"
+   while a tour is running so there are never two ways out with different
+   meanings. */
+.tour-entry-wrap {
+  position: relative;
+}
+
+.tour-entry {
+  background: transparent;
+  border: 1px solid var(--edge-strong);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+}
+
+.tour-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 60;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  width: 22rem;
+  max-width: 90vw;
+  background: var(--panel);
+  border: 1px solid var(--edge-strong);
+  border-radius: 3px;
+}
+
+.tour-menu button {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.tour-menu button:hover {
+  background: var(--edge-fill);
+}
+
+.tour-menu-title {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.tour-menu-blurb {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.tour-menu-count {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
