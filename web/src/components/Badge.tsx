@@ -2,12 +2,17 @@ import { useState } from "react";
 import type { Provenance } from "../api/types";
 import { formatErrorScale } from "../lib/liberties";
 
+/* Tuned to the instrument palette: EXACT is the shell's own mint, so the tier
+   the engine is proudest of is the colour the whole UI is built around.
+   Counterfactual pink is unchanged on purpose — index.css uses that exact hue
+   for the ghost HUD, the counterfactual banner and the counterfactual rungs,
+   and a badge that drifted off it would stop matching the thing it labels. */
 const COLORS: Record<string, string> = {
-  exact: "#4ade80",
-  numerical: "#60a5fa",
+  exact: "#34e0a1",
+  numerical: "#6cb7ff",
   approximation: "#fbbf24",
   counterfactual: "#f472b6",
-  visual_liberty: "#a78bfa",
+  visual_liberty: "#b48bd9",
 };
 
 export function Badge({ provenance }: { provenance: Provenance }) {

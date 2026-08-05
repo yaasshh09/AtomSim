@@ -81,6 +81,7 @@ export function CloudView() {
     isoProgress,
     loadIso,
     model,
+    meta,
   } = useAppStore();
   // The ghost is a Kepler orbit, which exists because the field is exactly
   // 1/r. A screened atom's whole content is that its field is not, so there is
@@ -136,7 +137,10 @@ export function CloudView() {
   return (
     <div className="canvas-wrap">
       <Canvas camera={{ fov: 50 }}>
-        <color attach="background" args={["#0a0e12"]} />
+        {/* Matches --stage in index.css. The 3-D canvas paints its own opaque
+            background, so this is the one place the stage colour is not read
+            from the stylesheet and the two have to be kept in step by hand. */}
+        <color attach="background" args={["#080c0e"]} />
         <CameraRig distance={distance} />
         <FpsMeter />
         {showCloud && positions && (
@@ -172,6 +176,15 @@ export function CloudView() {
         )}
         <OrbitControls />
       </Canvas>
+      {/* What the stage is showing, in its top-left corner. The design also put
+          a random seed and a "1px = N pm" scale here; the sampler does not
+          report a seed and the camera is a live orbit with no fixed pixel
+          scale, so both would have been decoration reading as instrumentation. */}
+      {meta && (
+        <div className="stage-caption">
+          |ψ|² Monte-Carlo · {meta.count.toLocaleString()} draws
+        </div>
+      )}
       {!positions && surfaceMode === "cloud" && (
         <p className="hint">Choose a state and press Sample</p>
       )}

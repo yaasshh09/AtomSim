@@ -7,25 +7,29 @@ import { LevelsView } from "./components/LevelsView";
 import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
 import { SpectrumView } from "./components/SpectrumView";
+import { TopBar } from "./components/TopBar";
 import { WhatIfView } from "./components/WhatIfView";
 import { useAppStore } from "./state/store";
 
 export default function App() {
   const view = useAppStore((s) => s.view);
   return (
-    <div className="app-grid">
-      <InfoPanel />
-      <main className="center-col">
-        {view === "cloud" && <CloudView />}
-        {view === "plane" && <PlaneView />}
-        {view === "radial" && <RadialView />}
-        {view === "levels" && <LevelsView />}
-        {view === "spectrum" && <SpectrumView />}
-        {view === "whatif" && <WhatIfView />}
-        {view === "forcelaw" && <ForceLawView />}
-        <GalleryStrip />
-      </main>
-      <Controls />
+    <div className="app-shell">
+      <TopBar />
+      <div className="app-grid">
+        <InfoPanel />
+        <main className="center-col">
+          {view === "cloud" && <CloudView />}
+          {view === "plane" && <PlaneView />}
+          {view === "radial" && <RadialView />}
+          {view === "levels" && <LevelsView />}
+          {view === "spectrum" && <SpectrumView />}
+          {view === "whatif" && <WhatIfView />}
+          {view === "forcelaw" && <ForceLawView />}
+          <GalleryStrip />
+        </main>
+        <Controls />
+      </div>
     </div>
   );
 }

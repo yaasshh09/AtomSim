@@ -25,7 +25,7 @@ export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
     colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
-    pauli, hf, compare,
+    pauli, hf, compare, meta,
     setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
     setExchange, setPauli, setCompare, loadSystems, ensureHF,
@@ -206,50 +206,77 @@ export function Controls() {
           )}
         </div>
       )}
-      <h2>View</h2>
-      <label>
-        mode
-        <select value={view} onChange={(e) => setView(e.target.value as ViewMode)}>
-          {VIEW_OPTIONS.map((v) => (
-            <option key={v.value} value={v.value}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <h2>State</h2>
-      <label>
-        n
-        <select value={n} onChange={(e) => setQuantumNumbers(Number(e.target.value), l, m)}>
-          {N_CHOICES.map((v) => (
-            <option
-              key={v}
-              value={v}
-              // A shell is offered when any subshell in it is occupied. Under
-              // the screened model that is always, since a fitted central
-              // field has a solution in every channel whether or not an
-              // electron is in it.
-              disabled={
-                !Array.from({ length: v }, (_, i) => i).some((li) =>
-                  subshellAvailable(hf, model, v, li),
-                )
-              }
-            >
-              {v}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        l
-        <select value={l} onChange={(e) => setQuantumNumbers(n, Number(e.target.value), m)}>
-          {lChoices.map((v) => (
-            <option key={v} value={v} disabled={!subshellAvailable(hf, model, n, v)}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </label>
+      <h2>View mode</h2>
+      {/* A list, not a dropdown: seven views are the whole instrument, and a
+          closed <select> hides six of them behind a click. Still one radio
+          group's worth of behaviour — `aria-pressed` says which is live. */}
+      <div className="view-list">
+        {VIEW_OPTIONS.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            className={`view-option${view === v.value ? " view-option-on" : ""}`}
+            aria-pressed={view === v.value}
+            onClick={() => setView(v.value)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+      <h2>Quantum no.</h2>
+      <div className="qn-tiles">
+        <label className="qn-tile">
+          <span className="qn-tile-name">n</span>
+          <select
+            value={n}
+            onChange={(e) => setQuantumNumbers(Number(e.target.value), l, m)}
+          >
+            {N_CHOICES.map((v) => (
+              <option
+                key={v}
+                value={v}
+                // A shell is offered when any subshell in it is occupied. Under
+                // the screened model that is always, since a fitted central
+                // field has a solution in every channel whether or not an
+                // electron is in it.
+                disabled={
+                  !Array.from({ length: v }, (_, i) => i).some((li) =>
+                    subshellAvailable(hf, model, v, li),
+                  )
+                }
+              >
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="qn-tile">
+          <span className="qn-tile-name">ℓ</span>
+          <select
+            value={l}
+            onChange={(e) => setQuantumNumbers(n, Number(e.target.value), m)}
+          >
+            {lChoices.map((v) => (
+              <option key={v} value={v} disabled={!subshellAvailable(hf, model, n, v)}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="qn-tile">
+          <span className="qn-tile-name">m</span>
+          <select
+            value={m}
+            onChange={(e) => setQuantumNumbers(n, l, Number(e.target.value))}
+          >
+            {mChoices.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {model === "hf" && hf !== null && (
         <p className="panel-hint">
           Greyed subshells are empty in {hf.config}. Hartree-Fock builds one Fock
@@ -257,16 +284,6 @@ export function Controls() {
           eigenfunction of.
         </p>
       )}
-      <label>
-        m
-        <select value={m} onChange={(e) => setQuantumNumbers(n, l, Number(e.target.value))}>
-          {mChoices.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </label>
       <h2>Physics</h2>
       <div className="radio-row">
         <label className="radio">
@@ -333,9 +350,37 @@ export function Controls() {
         disabled={status === "sampling"}
         onClick={() => void sample()}
       >
-        {status === "sampling" ? `Sampling ${(progress * 100).toFixed(0)}%` : "Sample"}
+        {status === "sampling"
+          ? `SAMPLING ${(progress * 100).toFixed(0)}%`
+          : "▶ EXECUTE SAMPLE"}
       </button>
-      {status === "error" && error && <p className="error">{error}</p>}
+      {/* The engine log. The design had it reading "engine ready · CDF ok"
+          before anything had run, which is a claim about a solver that has not
+          been asked a question yet. This reports the job that actually
+          happened, and says "awaiting input" when none has. */}
+      <div className="term" role="status" aria-live="polite">
+        {status === "error" && error ? (
+          <div className="term-line term-err">{error}</div>
+        ) : status === "sampling" ? (
+          <div className="term-line">
+            sampling {(progress * 100).toFixed(0)}%
+            <span className="term-cursor">_</span>
+          </div>
+        ) : meta ? (
+          <div className="term-line">
+            {meta.count.toLocaleString()} points drawn
+            {/* The model is only worth naming when there is a choice of one.
+                `meta.model` reads "gsz" for hydrogen too, and printing that
+                beside a one-electron atom claims a screened field that is not
+                there and could not be. */}
+            {isScreened ? ` · ${meta.model}` : ""}
+          </div>
+        ) : (
+          <div className="term-line">
+            awaiting input<span className="term-cursor">_</span>
+          </div>
+        )}
+      </div>
       <ShowPhysics />
     </aside>
   );
