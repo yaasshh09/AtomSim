@@ -6,8 +6,31 @@ build-backend = "setuptools.build_meta"
 name = "atomsim"
 version = "0.1.0"
 description = "A physically rigorous, deeply customizable quantum atom model. Never quietly lies about physics."
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+authors = [{ name = "Yash Gupta", email = "yashgupta2009yg@gmail.com" }]
+keywords = [
+    "quantum-mechanics",
+    "atomic-physics",
+    "hartree-fock",
+    "schrodinger",
+    "spectroscopy",
+    "visualization",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    # No "License :: OSI Approved :: MIT License" classifier: PEP 639 replaced
+    # those with the `license` expression above, and setuptools refuses the
+    # build outright if both are present.
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
 dependencies = [
     "numpy>=2.0",
     "scipy>=1.15",
@@ -18,6 +41,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-cov", "ruff", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/yaasshh09/AtomSim"
+Repository = "https://github.com/yaasshh09/AtomSim"
+Issues = "https://github.com/yaasshh09/AtomSim/issues"
 
 [project.scripts]
 atomsim = "atomsim.cli:main"
