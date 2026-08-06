@@ -345,6 +345,29 @@ option:disabled {
   color: var(--label);
 }
 
+/* The group heading inside the list, and the one thing `color-scheme: dark` did
+   not reach: with no background of its own it fell back to the platform's light
+   default and came up as a near-white slab with unreadable text over it. Dim and
+   mono is how a heading reads everywhere else in the rail. */
+optgroup {
+  background-color: var(--panel);
+  color: var(--label);
+  font-family: var(--mono);
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* The selected row, which the platform otherwise paints in the OS accent: on
+   Windows that put a band of blue in the one dropdown of an all-mint
+   instrument. This is as far as the page can reach while the popup still
+   belongs to the browser, and some browsers paint their highlight over it
+   anyway. The `base-select` block below is what takes the popup away from them
+   for good; this is the floor, not the fix. */
+option:checked {
+  background-color: var(--edge-fill);
+  color: var(--accent);
+}
+
 /* On a dashed control row the select is the value being read, so it drops its
    box and sits flush right like the numbers above it. The border comes back on
    hover and focus, which is where the affordance is actually needed. */
@@ -361,6 +384,130 @@ option:disabled {
 .panel > label > select:hover,
 .config-panel > label > select:hover {
   border-color: var(--edge-strong);
+}
+
+/* Where the browser supports it, the page takes the popup off the platform
+   entirely: `base-select` makes ::picker(select) a real element in the page, so
+   the selected row can carry the accent instead of the OS highlight, which no
+   amount of `option` styling could reach. Both the control and its picker have
+   to opt in, one without the other does nothing.
+
+   Everything the block restates is restated because base appearance drops the
+   native rendering of the closed control too, not just of the list. A rule
+   missing here is a control that changes shape in Chrome and not in Firefox.
+
+   The condition tests the picker selector as well as the property, and not out
+   of superstition: `select, ::picker(select)` is one selector list, so a
+   browser that knows the property but not the pseudo-element would throw the
+   whole list away and leave the control in base appearance with a platform
+   popup still attached to it, which is worse than either end alone. Asking for
+   both means the block is all or nothing. */
+@supports (appearance: base-select) and selector(::picker(select)) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  /* The button part is a flex box, so the flush right of a dashed panel row is
+     `justify-content` now and no longer `text-align`, which only ever moved
+     inline content inside the box. Same for the centred quantum-number tiles. */
+  .panel > label > select,
+  .config-panel > label > select {
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  .qn-tile select {
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  /* The arrow is the browser's again under base appearance. Dim it to --label
+     so it reads as punctuation on the row rather than a second value. */
+  select::picker-icon {
+    color: var(--label);
+  }
+
+  ::picker(select) {
+    background: var(--panel);
+    border: 1px solid var(--edge-strong);
+    border-radius: 4px;
+    padding: 4px;
+    /* Twenty-odd presets in two groups is taller than the rail and, on a short
+       window, taller than the window. The popup is the page's box now, so its
+       height is the page's problem. */
+    max-height: min(22rem, 60vh);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--edge-strong) transparent;
+    /* Type comes from the page, not inherited from the control it came out of:
+       a closed select sits flush right on its row, but a list of names reads
+       from the left. */
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-align: left;
+  }
+
+  /* The size is stated here and not left to the picker, because an option in a
+     group inherits from its <optgroup>, not from the list: with the size only
+     on the picker, every grouped row came out at the heading's 0.63rem and the
+     ungrouped ones did not. A row is 0.72rem wherever it sits. */
+  option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+
+  option:hover {
+    border-color: var(--edge-strong);
+    color: var(--text);
+  }
+
+  /* Exactly the treatment `.view-option-on` gives the selected view, caret and
+     all. These are two lists of the same kind and looking like two different
+     widgets was never a decision anyone made. */
+  option:checked {
+    border-color: var(--edge-strong);
+    background: rgb(52 224 161 / 0.09);
+    color: var(--accent);
+  }
+
+  /* Base appearance adds a tick to the selected option. The caret already says
+     which row is selected, and two markers for one fact is one too many. */
+  option::checkmark {
+    display: none;
+  }
+
+  /* Inactive rows reserve the caret's width with an empty box rather than a
+     transparent glyph, for the reason spelled out on `.view-option::before`: at
+     opacity 0 the character is still in the accessibility tree and every option
+     announces itself as "▸ Hydrogen". */
+  option::before {
+    content: "";
+    display: inline-block;
+    width: 0.62em;
+    flex: none;
+  }
+
+  option:checked::before {
+    content: "▸";
+    width: auto;
+  }
+
+  optgroup {
+    background: transparent;
+    padding: 0.55rem 0.5rem 0.2rem;
+    font-size: 0.63rem;
+    letter-spacing: 0.14em;
+  }
 }
 
 input[type="text"] {
