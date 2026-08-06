@@ -512,10 +512,14 @@ button.ghost:hover {
   flex: 0 0 auto;
 }
 
+/* 42ch, not 34: the caption reads "nucleus marker drawn 76,000x true size",
+   which is 38 characters and wrapped to two lines against one-line badges
+   beside it, leaving the row visibly ragged. The cap still exists so a narrow
+   stage wraps the caption rather than pushing the row off the canvas. */
 .nucleus-caption {
   color: var(--muted, #8fa3ad);
   font-size: 0.72rem;
-  max-width: 34ch;
+  max-width: 42ch;
   line-height: 1.25;
 }
 
