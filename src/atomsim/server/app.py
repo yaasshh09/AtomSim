@@ -2,7 +2,10 @@
 
 import asyncio
 import dataclasses
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Literal
@@ -128,6 +131,32 @@ from atomsim.transfer import absorb, curve_of_growth, default_columns
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
+def _job_worker_count() -> int:
+    """How many jobs may hold a CPU at once.
+
+    Jobs are numpy-bound and release the GIL, so the pool size is a statement
+    about cores, not about concurrency. asyncio's default executor would give
+    up to 32 of them, which is harmless on a 14-core laptop and ruinous on a
+    one-vCPU host: an isosurface (1.7 s here) and a Hartree-Fock solve (1.4 s
+    here) are seconds of pinned CPU each, and thirty of them timesharing one
+    core turns every request slow instead of making any of them fast.
+
+    The floor of 2 is deliberate. One worker would strictly serialize, which
+    parks an 18 ms sample behind whatever long solve arrived first. Two lets a
+    cheap request overtake, and on a single core they simply timeshare.
+    """
+    override = os.environ.get("ATOMSIM_JOB_WORKERS")
+    if override:
+        return max(1, int(override))
+    return max(2, min(4, os.cpu_count() or 2))
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    yield
+    app.state.executor.shutdown(wait=False, cancel_futures=True)
 
 
 class LevelModel(BaseModel):
@@ -752,17 +781,38 @@ def _finished_result(jobs: JobStore, job_id: str):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="atomsim", version=atomsim.__version__)
-    jobs = JobStore()
-    app.state.jobs = jobs
+    app = FastAPI(title="atomsim", version=atomsim.__version__, lifespan=_lifespan)
     app.state.job_systems = {}
     # Parallel to job_systems, and for the same reason: the meta endpoint sees
     # only the finished result object, and a SampleCloud does not know which
     # model produced it.
     app.state.job_models = {}
+
+    def _forget_job(job_id: str) -> None:
+        """Keep the side tables in step with the store they are keyed against."""
+        app.state.job_systems.pop(job_id, None)
+        app.state.job_models.pop(job_id, None)
+
+    jobs = JobStore(on_evict=_forget_job)
+    app.state.jobs = jobs
+    app.state.executor = ThreadPoolExecutor(
+        max_workers=_job_worker_count(), thread_name_prefix="atomsim-job"
+    )
     app.add_middleware(
         CORSMiddleware, allow_origins=_DEV_ORIGINS, allow_methods=["*"], allow_headers=["*"]
     )
+
+    def _dispatch(job, work) -> JobModel:
+        """Hand a job to the bounded pool and answer with its id immediately.
+
+        Every job endpoint ends this way. Routing them all through one function
+        is what keeps the pool bounded: a new endpoint that reached for
+        `run_in_executor(None, ...)` would silently opt back into the 32-thread
+        default, and nothing would look wrong until the host fell over.
+        """
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(app.state.executor, jobs.run, job.id, work)
+        return _job_model(job)
 
     _Z_KEY = re.compile(r"^z(\d+)$")
 
@@ -1722,9 +1772,7 @@ def create_app() -> FastAPI:
                 progress(1.0)
                 return SampleJobResult(cloud=cloud, psi=psi)
 
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, jobs.run, job.id, work)
-            return _job_model(job)
+            return _dispatch(job, work)
 
         if _is_screened(req.system):
             element = _gsz_element(req.system)
@@ -1741,9 +1789,7 @@ def create_app() -> FastAPI:
                 progress(1.0)
                 return SampleJobResult(cloud=cloud, psi=psi)
 
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, jobs.run, job.id, work)
-            return _job_model(job)
+            return _dispatch(job, work)
 
         sys_ = _resolve_system(req.system)
 
@@ -1760,9 +1806,7 @@ def create_app() -> FastAPI:
             progress(1.0)
             return SampleJobResult(cloud=cloud, psi=psi)
 
-        loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, jobs.run, job.id, work)
-        return _job_model(job)
+        return _dispatch(job, work)
 
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
@@ -1783,9 +1827,7 @@ def create_app() -> FastAPI:
                     config=hf_config, exchange=req.exchange, pauli=req.pauli,
                 )
 
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, jobs.run, job.id, work)
-            return _job_model(job)
+            return _dispatch(job, work)
 
         if _is_screened(req.system):
             element = _gsz_element(req.system)
@@ -1797,9 +1839,7 @@ def create_app() -> FastAPI:
                     resolution=req.resolution, progress=progress,
                 )
 
-            loop = asyncio.get_running_loop()
-            loop.run_in_executor(None, jobs.run, job.id, work)
-            return _job_model(job)
+            return _dispatch(job, work)
 
         sys_ = _resolve_system(req.system)
 
@@ -1810,9 +1850,7 @@ def create_app() -> FastAPI:
                 resolution=req.resolution, progress=progress,
             )
 
-        loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, jobs.run, job.id, work)
-        return _job_model(job)
+        return _dispatch(job, work)
 
     @app.post("/api/jobs/isosurface", response_model=JobModel)
     async def create_iso_job(req: IsoRequest) -> JobModel:
@@ -1860,9 +1898,7 @@ def create_app() -> FastAPI:
                     resolution=req.resolution, progress=progress,
                 )
 
-        loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, jobs.run, job.id, work)
-        return _job_model(job)
+        return _dispatch(job, work)
 
     @app.post("/api/jobs/hf", response_model=JobModel)
     async def create_hf_job(req: HFRequest) -> JobModel:
@@ -1912,9 +1948,7 @@ def create_app() -> FastAPI:
             progress(1.0)
             return HFJobResult(result, delta, collapse)
 
-        loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, jobs.run, job.id, work)
-        return _job_model(job)
+        return _dispatch(job, work)
 
     @app.get("/api/jobs/{job_id}", response_model=JobModel)
     def job_status(job_id: str) -> JobModel:
