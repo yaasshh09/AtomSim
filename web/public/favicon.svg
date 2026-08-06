@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- A 1s density, not a Bohr atom. Rings and a planetary electron are the
+       picture this project exists to correct, so putting them in the mark
+       would be the first quiet lie a visitor sees. What is drawn here is what
+       the app draws: probability, dense at the nucleus and fading outward. -->
+  <defs>
+    <radialGradient id="d">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="22%" stop-color="#34e0a1"/>
+      <stop offset="55%" stop-color="#1c8f66" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#34e0a1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="#050708"/>
+  <circle cx="16" cy="16" r="13" fill="url(#d)"/>
+</svg>
