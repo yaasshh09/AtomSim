@@ -4,6 +4,11 @@ import { ForceLawView } from "./components/ForceLawView";
 import { GalleryStrip } from "./components/GalleryStrip";
 import { InfoPanel } from "./components/InfoPanel";
 import { LevelsView } from "./components/LevelsView";
+import {
+  NarrowNotice,
+  needsWiderScreen,
+  useViewportWidth,
+} from "./components/NarrowNotice";
 import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
 import { SpectrumView } from "./components/SpectrumView";
@@ -16,6 +21,12 @@ import { useAppStore } from "./state/store";
 
 export default function App() {
   const view = useAppStore((s) => s.view);
+  const width = useViewportWidth();
+
+  // Gated in JS rather than by a media query so there is one threshold, and so
+  // a phone never pays to build a WebGL context it will not be shown.
+  if (needsWiderScreen(width)) return <NarrowNotice width={width} />;
+
   return (
     <div className="app-shell">
       <TopBar />

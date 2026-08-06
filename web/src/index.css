@@ -1806,3 +1806,78 @@ input[type="range"] {
   color: var(--muted);
   opacity: 0.75;
 }
+
+/* ---------------------------------------------------------------------------
+   Narrow screens
+
+   Not a responsive layout. The app is replaced by a notice below MIN_WIDTH
+   (see NarrowNotice.tsx), so nothing here has to fight the three-column grid.
+   The one rule that matters: this is the only screen some visitors will ever
+   see, so it carries the brand, the reason, and what the thing is.
+   --------------------------------------------------------------------------- */
+.narrow-notice {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(52 224 161 / 0.07), transparent 60%),
+    var(--bg);
+}
+
+.narrow-notice-inner {
+  max-width: 34rem;
+}
+
+.narrow-notice .brand {
+  margin: 0 0 2rem;
+}
+
+.narrow-notice h1 {
+  margin: 0 0 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.narrow-notice p {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.9375rem;
+}
+
+/* The measurement is the actionable part, so it reads as a readout rather than
+   as more prose: mono, boxed, and the two numbers are the only bright text. */
+.narrow-notice-measure {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.narrow-notice-measure strong {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.narrow-notice-what {
+  font-size: 0.875rem;
+  border-top: 1px solid var(--edge-faint);
+  padding-top: 1.25rem;
+  margin-bottom: 0;
+}
+
+/* Named tiers, not badges. A real Badge carries a provenance it was computed
+   with; these are the vocabulary being introduced, and dressing them as the
+   real thing would be the first quiet lie on the page. */
+.narrow-notice-what .tier {
+  font-family: var(--mono);
+  font-size: 0.8125em;
+  color: var(--accent-dim);
+  white-space: nowrap;
+}
