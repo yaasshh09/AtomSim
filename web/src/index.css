@@ -1106,11 +1106,18 @@ button.ghost:hover {
   font-size: 0.95rem;
   font-weight: 600;
 }
+/* The size is declared, not inherited. Inside .ghost-hud this class picked up
+   the HUD's 0.72rem and read correctly; the axis-triad scale uses it straight
+   on .canvas-overlay, where the nearest size is the body's 1rem, so one line
+   of the disclosure row was set half again as large as the caption beside it.
+   0.72rem is .nucleus-caption's size and the HUD's own, so this changes the
+   loose one and nothing else. */
 .ghost-readout {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   color: var(--muted, #8fa3ad);
+  font-size: 0.72rem;
 }
 /* The orbital-is-not-an-observable claim, over the 3-D canvas.
    Capped and wrapping rather than a .ghost-readout flex row: that class is
