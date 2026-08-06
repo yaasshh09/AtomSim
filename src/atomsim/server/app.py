@@ -2,6 +2,7 @@
 
 import asyncio
 import dataclasses
+import math
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +14,7 @@ from typing import Literal
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, model_validator
 from pydantic import Field as PydanticField
@@ -86,6 +87,7 @@ from atomsim.screened_atom import (
     solve_screened_atom,
 )
 from atomsim.server.jobs import Job, JobStatus, JobStore
+from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD, TokenBucket
 from atomsim.server.schemas import (
     AbsorptionSpectrumModel,
     ChannelModel,
@@ -157,6 +159,37 @@ def _job_worker_count() -> int:
 async def _lifespan(app: FastAPI):
     yield
     app.state.executor.shutdown(wait=False, cancel_futures=True)
+
+
+def _build_rate_limiter() -> TokenBucket | None:
+    """The job-endpoint limiter, or None when it has been switched off.
+
+    On by default, because the failure mode of forgetting to enable it on a
+    public host is worse than the failure mode of tripping it on a laptop, and
+    the default burst is wider than any honest click-storm the UI can produce.
+    """
+    if os.environ.get("ATOMSIM_RATE_LIMIT", "").lower() in ("off", "0", "false"):
+        return None
+    return TokenBucket(
+        capacity=int(os.environ.get("ATOMSIM_RATE_LIMIT_BURST", DEFAULT_CAPACITY)),
+        period=float(os.environ.get("ATOMSIM_RATE_LIMIT_PERIOD", DEFAULT_PERIOD)),
+    )
+
+
+def _client_key(request, header: str | None) -> str:
+    """Who to charge for this request.
+
+    Behind a proxy every request carries the proxy's address, so without the
+    header the whole internet shares one bucket and the first busy visitor
+    locks out the rest. The header is opt-in by name rather than assumed,
+    because trusting a forwarded address that a client can set is the same as
+    having no limiter at all.
+    """
+    if header:
+        forwarded = request.headers.get(header)
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 class LevelModel(BaseModel):
@@ -801,6 +834,40 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware, allow_origins=_DEV_ORIGINS, allow_methods=["*"], allow_headers=["*"]
     )
+
+    app.state.rate_limit = _build_rate_limiter()
+    client_ip_header = os.environ.get("ATOMSIM_CLIENT_IP_HEADER")
+
+    @app.middleware("http")
+    async def _limit_job_creation(request, call_next):
+        """Meter only the endpoints that buy CPU.
+
+        Reads and static files are cheap and cacheable, and limiting them would
+        throttle the page itself. Only a job POST commits the host to seconds
+        of work, so only a job POST is charged.
+        """
+        limiter = app.state.rate_limit
+        if (
+            limiter is not None
+            and request.method == "POST"
+            and request.url.path.startswith("/api/jobs/")
+        ):
+            wait = limiter.check(_client_key(request, client_ip_header))
+            if wait is not None:
+                retry = max(1, math.ceil(wait))
+                return JSONResponse(
+                    status_code=429,
+                    headers={"Retry-After": str(retry)},
+                    content={
+                        "detail": (
+                            f"too many compute jobs from this client; retry in "
+                            f"{retry}s. Each job is seconds of solver time, so "
+                            f"the rate is capped to keep the server responsive "
+                            f"for everyone."
+                        )
+                    },
+                )
+        return await call_next(request)
 
     def _dispatch(job, work) -> JobModel:
         """Hand a job to the bounded pool and answer with its id immediately.
