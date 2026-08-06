@@ -6,7 +6,7 @@ also fails to pin the arithmetic it exists to guarantee.
 
 import pytest
 
-from atomsim.server.ratelimit import TokenBucket
+from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD, TokenBucket
 
 
 class FakeClock:
@@ -95,3 +95,50 @@ def test_a_still_limited_client_survives_pruning():
 def test_nonsense_configuration_is_refused_at_construction(capacity, period):
     with pytest.raises(ValueError):
         TokenBucket(capacity=capacity, period=period)
+
+
+#: The widest shell row the n control offers: n = 6, so n**2 tiles.
+WIDEST_ROW = 36
+#: Jobs one tile can honestly cost: the view refetches itself after
+#: invalidation, and the cloud is a button the reader may also press.
+JOBS_PER_TILE = 2
+#: The Hartree-Fock solve that a changed atom or configuration adds once.
+HF_SOLVE = 1
+
+
+def test_default_burst_covers_widest_click_through():
+    """The default must outlast the click-storm `_build_rate_limiter` promises.
+
+    This is the test the first sizing needed and did not have. That one was
+    reasoned from the n = 4 row at one job a tile, and both halves were wrong:
+    the control goes to n = 6, and a tile can cost two. Asserting the claim
+    rather than the number is what stops the next edit re-deriving it badly -
+    a bucket that cannot survive a reader clicking along one row would refuse
+    real use, and would do it silently, mid-row.
+    """
+    clock = FakeClock()
+    bucket = TokenBucket(clock=clock)  # the shipped defaults, not a fixture's
+
+    storm = WIDEST_ROW * JOBS_PER_TILE + HF_SOLVE
+    # One key throughout: this is a single reader on a single row, which is
+    # the whole point - the burst has to fit inside one client's bucket.
+    refused = [i for i in range(storm) if bucket.check("reader") is not None]
+    assert refused == [], f"refused {len(refused)} of {storm} honest jobs, first at {refused[:1]}"
+
+
+def test_widening_the_burst_did_not_raise_the_sustained_rate():
+    """Depth is the thing that changed; the average a client can hold is not.
+
+    The burst exists so a reader is not cut off mid-row. The period exists so
+    a crawler cannot hold the CPU forever. Raising the first must not quietly
+    raise the second, so this pins the ratio rather than either constant.
+    """
+    assert DEFAULT_CAPACITY / DEFAULT_PERIOD == pytest.approx(1 / 3)
+
+    # And the wait a refusal quotes is a property of that rate, so it is the
+    # same 3 s it was when the bucket was a quarter as deep.
+    clock = FakeClock()
+    bucket = TokenBucket(clock=clock)
+    for _ in range(DEFAULT_CAPACITY):
+        bucket.check("drained")
+    assert bucket.check("drained") == pytest.approx(3.0)

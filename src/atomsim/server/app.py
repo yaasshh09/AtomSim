@@ -166,7 +166,9 @@ def _build_rate_limiter() -> TokenBucket | None:
 
     On by default, because the failure mode of forgetting to enable it on a
     public host is worse than the failure mode of tripping it on a laptop, and
-    the default burst is wider than any honest click-storm the UI can produce.
+    the default burst is wider than any honest click-storm the UI can produce -
+    a claim that costs something to keep, so the row it is measured against is
+    derived on `DEFAULT_CAPACITY` and asserted in `test_ratelimit.py`.
     """
     if os.environ.get("ATOMSIM_RATE_LIMIT", "").lower() in ("off", "0", "false"):
         return None

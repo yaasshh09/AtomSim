@@ -7,10 +7,12 @@ problem. On a public URL it is the whole attack surface, and it needs no malice
 to hurt: a crawler following gallery links would do it by accident.
 
 The shape is a token bucket rather than a fixed window because the traffic is
-bursty by design. A reader opening the gallery fires nine jobs in two seconds
-and then reads for a minute. A fixed window either rejects that opening burst
-or permits a sustained rate high enough to melt the host; a bucket allows the
-burst and still caps the average.
+bursty by design. Opening the gallery costs nothing metered - the strip is
+thumbnail GETs, and those are `lru_cache`d renders rather than job POSTs - but
+clicking *through* it fires one job per tile for as long as the reader keeps
+clicking, and then they read for a minute. A fixed window either rejects that
+click-through or permits a sustained rate high enough to melt the host; a
+bucket allows the burst and still caps the average.
 
 Deliberately not a general-purpose limiter. There is no distributed state, so
 it counts per process, which is exactly right for the single-instance
@@ -21,11 +23,28 @@ import threading
 import time
 from collections.abc import Callable
 
-#: Burst. Sized off the widest honest click-storm: the gallery row for n = 4 is
-#: sixteen states, and a reader who clicks every one wants sixteen jobs.
-DEFAULT_CAPACITY = 20
+#: Burst. Sized off the widest honest click-storm the UI can actually produce,
+#: which is a click-through of a whole shell row:
+#:
+#:   * the row is n**2 tiles and the n control offers n up to 6, so 36 tiles;
+#:   * each tile costs one auto-fired job - the plane in Plane view, or the
+#:     isosurface in Cloud view with the surface shown - because invalidation
+#:     resets those to `idle` and the view refetches;
+#:   * the cloud is a button rather than an effect, so a reader who also presses
+#:     Sample on every tile doubles it, to 72;
+#:   * plus one Hartree-Fock solve when the model is HF and the atom changed.
+#:
+#: That is 73, rounded up. Sized this way on purpose: `_build_rate_limiter`
+#: claims the default is wider than any honest click-storm, and the claim has
+#: to survive the widest row rather than a comfortable one. See
+#: `test_default_burst_covers_widest_click_through`.
+DEFAULT_CAPACITY = 80
 #: Seconds to refill an empty bucket, so the sustained rate is capacity/period.
-DEFAULT_PERIOD = 60.0
+#: Held at the same 1/3 job per second the narrower bucket allowed - widening
+#: the burst is meant to stop rejecting real readers, not to raise the average
+#: a client can sustain. Time to earn one token back is 3 s either way, so a
+#: `Retry-After` is unchanged by the resizing.
+DEFAULT_PERIOD = 240.0
 #: Tracked clients. Bounds the limiter's own memory; see `_prune_locked`.
 DEFAULT_MAX_CLIENTS = 4096
 
