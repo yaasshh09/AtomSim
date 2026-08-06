@@ -4,7 +4,6 @@ import App from "./App";
 import { shouldAutoSample } from "./lib/startup";
 import { currentUrlState, parseAppUrl, serializeAppUrl } from "./lib/urlState";
 import { useAppStore } from "./state/store";
-import "katex/dist/katex.min.css";
 // Bundled, not fetched from a CDN: `atomsim serve` is a local app and the
 // typography is part of the instrument, so it has to survive being offline.
 import "@fontsource-variable/space-grotesk";

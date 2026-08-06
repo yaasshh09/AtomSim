@@ -1,4 +1,4 @@
-import { CloudView } from "./components/CloudView";
+import { lazy, Suspense } from "react";
 import { Controls } from "./components/Controls";
 import { ForceLawView } from "./components/ForceLawView";
 import { GalleryStrip } from "./components/GalleryStrip";
@@ -19,6 +19,15 @@ import { TourSpotlight } from "./components/TourSpotlight";
 import { WhatIfView } from "./components/WhatIfView";
 import { useAppStore } from "./state/store";
 
+/** three.js and @react-three/fiber are 1.1 MB, over two thirds of the bundle,
+ * and they are reachable from exactly one subtree. Split out, the shell and
+ * the readouts paint while it streams, and a reader who deep-links to the
+ * spectrum or walks a 2-D tour step never pays for a renderer they do not
+ * look at. */
+const CloudView = lazy(() =>
+  import("./components/CloudView").then((m) => ({ default: m.CloudView })),
+);
+
 export default function App() {
   const view = useAppStore((s) => s.view);
   const width = useViewportWidth();
@@ -34,7 +43,11 @@ export default function App() {
       <div className="app-grid">
         <InfoPanel />
         <main className="center-col">
-          {view === "cloud" && <CloudView />}
+          {view === "cloud" && (
+            <Suspense fallback={<div className="canvas-wrap canvas-wrap-loading" />}>
+              <CloudView />
+            </Suspense>
+          )}
           {view === "plane" && <PlaneView />}
           {view === "radial" && <RadialView />}
           {view === "levels" && <LevelsView />}

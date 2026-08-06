@@ -1881,3 +1881,12 @@ input[type="range"] {
   color: var(--accent-dim);
   white-space: nowrap;
 }
+
+/* Placeholder while the 3D renderer streams in. It reserves the stage and
+   paints the same background the Canvas will, so the swap is invisible rather
+   than a flash of panel colour and a layout jump. Deliberately empty of text:
+   a spinner here would be onscreen for a few hundred milliseconds and read as
+   though the physics were slow, when what is loading is a graphics library. */
+.canvas-wrap-loading {
+  background: var(--stage);
+}

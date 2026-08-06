@@ -1,26 +1,29 @@
-import katex from "katex";
-import { PHYSICS_CONTENT } from "../physics/content";
+import { lazy, Suspense, useState } from "react";
 import { useAppStore } from "../state/store";
 
-function MathBlock({ tex }: { tex: string }) {
-  // KaTeX renders our own static strings only — no user input reaches it.
-  const html = katex.renderToString(tex, { displayMode: true, throwOnError: false });
-  return <div className="math" dangerouslySetInnerHTML={{ __html: html }} />;
-}
+const PhysicsBody = lazy(() => import("./PhysicsBody"));
 
 export function ShowPhysics() {
   const view = useAppStore((s) => s.view);
-  const content = PHYSICS_CONTENT[view];
+  // The summary is the affordance and has to be there from the first frame;
+  // the maths under it does not exist until someone asks for it. Latching on
+  // first open rather than tracking `open` keeps the chunk from being torn
+  // down and refetched every time the panel is collapsed.
+  const [opened, setOpened] = useState(false);
+
   return (
-    <details className="physics">
+    <details
+      className="physics"
+      onToggle={(e) => {
+        if (e.currentTarget.open) setOpened(true);
+      }}
+    >
       <summary>Show the physics</summary>
-      <h3>{content.title}</h3>
-      {content.blocks.map((b) => (
-        <div key={b.tex}>
-          <MathBlock tex={b.tex} />
-          <p className="physics-note">{b.note}</p>
-        </div>
-      ))}
+      {opened && (
+        <Suspense fallback={<p className="physics-note">typesetting...</p>}>
+          <PhysicsBody view={view} />
+        </Suspense>
+      )}
     </details>
   );
 }
