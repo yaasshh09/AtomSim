@@ -140,7 +140,8 @@ web/src/
 Engine-internal maths is in Hartree atomic units; SI and display conversions
 happen at the server boundary and append themselves to the provenance.
 
-Design notes and phase plans are under [docs/](docs/).
+Design notes are under [docs/specs/](docs/specs/) and the phase-by-phase
+implementation plans under [docs/plans/](docs/plans/).
 
 ## License
 

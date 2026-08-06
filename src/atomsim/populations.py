@@ -13,7 +13,7 @@ neither is a discharge lamp. The arithmetic given the model is exact, so no
 error_estimate is invented for it, a tight number on a model this schematic
 would be worse than none.
 
-See docs/superpowers/specs/2026-07-26-phase17-population-modelling-design.md.
+See docs/specs/2026-07-26-phase17-population-modelling-design.md.
 """
 
 import math

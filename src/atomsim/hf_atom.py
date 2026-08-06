@@ -12,7 +12,7 @@ correlation energy (~0.04 hartree for helium, ~0.7 for argon). That gap is the
 model error, and it is the reason `total_energy` is APPROXIMATION with the
 grid error carried as a numerical sub-scale rather than as the headline number.
 
-See docs/superpowers/specs/2026-07-27-phase21-hartree-fock-design.md.
+See docs/specs/2026-07-27-phase21-hartree-fock-design.md.
 """
 
 import dataclasses

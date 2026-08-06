@@ -4,7 +4,7 @@ The physics being pinned here is what antisymmetry is worth. Every number in
 this file is a difference between two solves of the same atom on the same mesh,
 so the mesh cancels out of all of it and what is left is the model.
 
-See docs/superpowers/specs/2026-07-31-phase22-distinguishable-electrons-design.md.
+See docs/specs/2026-07-31-phase22-distinguishable-electrons-design.md.
 """
 
 import numpy as np

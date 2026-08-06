@@ -2,7 +2,7 @@
 
 Closed form of the one-body Dirac equation in a point Coulomb field. EXACT for that
 model, which still omits the Lamb shift/QED, hyperfine structure, finite nuclear size,
-and two-body recoil beyond reduced-mass scaling. See docs/superpowers/specs/
+and two-body recoil beyond reduced-mass scaling. See docs/specs/
 2026-07-23-phase9-dirac-hydrogen-design.md.
 """
 

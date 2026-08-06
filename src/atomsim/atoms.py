@@ -3,7 +3,7 @@
 Pure data and combinatorics, no physics engine. A Configuration is an ordered
 tuple of ((n, l), occupancy) in Madelung filling order. The screened potential
 depends only on (Z, N); the configuration decides which computed orbitals are
-occupied and thus the summed energy. See docs/superpowers/specs/
+occupied and thus the summed energy. See docs/specs/
 2026-07-18-phase6-screened-atoms-design.md.
 """
 

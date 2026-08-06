@@ -8,7 +8,7 @@ a closed form nobody in this repo chose, a cross-check against the KS-validated
 sampler from Phase 1, a mesh volume against an independently counted one, and
 convergence under refinement.
 
-See docs/superpowers/specs/2026-08-03-phase25-isosurfaces-design.md.
+See docs/specs/2026-08-03-phase25-isosurfaces-design.md.
 """
 
 import numpy as np

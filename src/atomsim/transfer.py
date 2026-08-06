@@ -17,7 +17,7 @@ this phase exists. Once the core goes black, a hundred times more gas barely
 changes the line, so every phase before this one was overstating what a strong
 line tells you about how much gas there is.
 
-See docs/superpowers/specs/2026-07-26-phase19-optical-depth-design.md.
+See docs/specs/2026-07-26-phase19-optical-depth-design.md.
 """
 
 import math

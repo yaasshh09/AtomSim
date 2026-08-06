@@ -10,7 +10,7 @@ the field (the l-degeneracy signature) with a quadratic correction.
 APPROXIMATION by construction: second order only, and the Stark manifold is not
 truly bound (a static field ionizes; the series is asymptotic and diverges near
 F_ion ~ Z^3 mu^2 / (16 n^4) a.u.). No alpha dependence (non-relativistic), so no
-COUNTERFACTUAL branch. See docs/superpowers/specs/2026-07-24-phase11-stark-effect-design.md.
+COUNTERFACTUAL branch. See docs/specs/2026-07-24-phase11-stark-effect-design.md.
 """
 
 from dataclasses import dataclass

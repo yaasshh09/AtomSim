@@ -2,7 +2,7 @@
 
 Angular-momentum recoupling algebra, needed to split a gross-structure
 transition rate across its fine-structure components. See
-docs/superpowers/specs/2026-07-25-phase15-fine-structure-line-strengths-design.md.
+docs/specs/2026-07-25-phase15-fine-structure-line-strengths-design.md.
 
 **On the provenance rule.** Everything else in this package returns a `Quantity`
 or a `Field` carrying a `Fidelity`. A 6j symbol is deliberately different: it is

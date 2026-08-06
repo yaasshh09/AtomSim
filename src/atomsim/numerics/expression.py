@@ -1,7 +1,7 @@
 """Safe whitelist-AST compiler: a user V(r) string -> NumPy-vectorized closure.
 
 No eval/exec. Only a small math whitelist is allowed; every other AST construct
-is rejected with a message naming it. See docs/superpowers/specs/
+is rejected with a message naming it. See docs/specs/
 2026-07-23-phase8-freeform-potential-design.md.
 """
 

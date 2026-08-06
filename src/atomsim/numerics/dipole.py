@@ -15,7 +15,7 @@ of R:
 per-state box sizes returns two different radial meshes, and multiplying those
 sample-by-sample is meaningless. Everything here solves both l channels at the
 same `r_max` and `n_points`. See
-docs/superpowers/specs/2026-07-25-phase16-screened-line-strengths-design.md.
+docs/specs/2026-07-25-phase16-screened-line-strengths-design.md.
 """
 
 from collections.abc import Callable

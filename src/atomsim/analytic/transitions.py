@@ -17,7 +17,7 @@ Einstein A (spontaneous emission rate), and the radiative lifetime:
 l is the lower level's l, l_max = max(l, l'), dE > 0 in hartree. Electric-dipole
 selection rule l' = l +/- 1 is exact: other pairs return a disclosed zero.
 One-electron hydrogenic; no fine structure or QED in the rates. See
-docs/superpowers/specs/2026-07-24-phase13-transition-strengths-design.md.
+docs/specs/2026-07-24-phase13-transition-strengths-design.md.
 """
 
 import math

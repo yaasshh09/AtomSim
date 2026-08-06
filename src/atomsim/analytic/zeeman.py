@@ -7,7 +7,7 @@ eigenvalues are the closed-form Breit-Rabi roots, so no numerical eigensolver is
 needed and the result is exact-of-the-model with zero numerical error.
 
 APPROXIMATION by construction: the linear-Zeeman model omits the diamagnetic B^2
-term and uses g_s = 2. COUNTERFACTUAL when alpha is altered. See docs/superpowers/
+term and uses g_s = 2. COUNTERFACTUAL when alpha is altered. See docs/
 specs/2026-07-23-phase10-zeeman-field-design.md.
 """
 

@@ -19,7 +19,7 @@ the convolution of the two families is the Voigt profile. Given the widths, the
 profile is exact to machine precision, so it carries the fidelity of its inputs
 rather than claiming a tier of its own.
 
-See docs/superpowers/specs/2026-07-26-phase18-line-profiles-design.md.
+See docs/specs/2026-07-26-phase18-line-profiles-design.md.
 """
 
 import math

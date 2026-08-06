@@ -4,7 +4,7 @@ No physics here on purpose. A broken triangulation hides extremely well behind a
 plausible-looking orbital, so it is tested against a sphere and a plane, where
 the right answer is a formula and a wrong facet shows up as a number.
 
-See docs/superpowers/specs/2026-08-03-phase25-isosurfaces-design.md.
+See docs/specs/2026-08-03-phase25-isosurfaces-design.md.
 """
 
 import numpy as np

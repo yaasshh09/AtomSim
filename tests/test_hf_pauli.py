@@ -7,7 +7,7 @@ appeared because nothing raised: it is checked against a closed-form
 variational energy that comes from outside this codebase, and against the
 inequality that formula must satisfy.
 
-See docs/superpowers/specs/2026-07-31-phase24-pauli-off-design.md.
+See docs/specs/2026-07-31-phase24-pauli-off-design.md.
 """
 
 import pytest

@@ -17,7 +17,7 @@ bug for deuterium, locked out by tests/test_hyperfine.py).
 
 APPROXIMATION tier: non-relativistic Fermi contact, s-states only. Neglected
 scales are quantified in the error estimate. See
-docs/superpowers/specs/2026-07-24-phase12-hyperfine-structure-design.md.
+docs/specs/2026-07-24-phase12-hyperfine-structure-design.md.
 """
 
 from dataclasses import dataclass

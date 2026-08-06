@@ -4,7 +4,7 @@ Each angular momentum l is solved once in V_eff(r); radial state k is principal
 number n = k + l + 1. The configuration decides occupancy and thus the summed
 energy -- the field itself depends only on (Z, N). Orbital energies are
 APPROXIMATION (model error dominates) carrying the numerical solve error as a
-quantified sub-scale. See docs/superpowers/specs/
+quantified sub-scale. See docs/specs/
 2026-07-18-phase6-screened-atoms-design.md.
 """
 

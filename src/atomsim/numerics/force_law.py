@@ -3,7 +3,7 @@
 A preset registry drives the numerical radial solver with different V(r) shapes,
 pairs each with an honest per-preset reference (EXACT hydrogen, EXACT harmonic-
 oscillator levels, or structural markers), and returns a sampled V(r) curve so
-the view can draw the potential itself. See docs/superpowers/specs/
+the view can draw the potential itself. See docs/specs/
 2026-07-17-phase5-force-law-presets-design.md.
 """
 
