@@ -66,7 +66,7 @@ export function PlaneView() {
           x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
           {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
           {plane.meta.quantity === "density"
-            ? "Inferno brightness is γ-compressed, exponent 0.5 (VISUAL LIBERTY — reveals faint lobes)."
+            ? "Inferno brightness is γ-compressed, exponent 0.5 (VISUAL LIBERTY, reveals faint lobes)."
             : "Diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
         </p>
       )}

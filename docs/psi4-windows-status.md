@@ -1,4 +1,4 @@
-# Psi4 on native Windows — status probe
+# Psi4 on native Windows: status probe
 
 **Date:** 2026-07-04 · **Command:** `conda search -c conda-forge psi4 --platform win-64`
 
@@ -8,4 +8,4 @@ Psi4 has native Windows builds available on conda-forge. The probe returned 134 
 
 ## Decision
 
-Psi4 1.11 is available natively on Windows. Validation cross-checks proceed as specced in the Hartree-Fock phase. No action now — Psi4 is deliberately NOT part of the Phase 0/1 environment.
+Psi4 1.11 is available natively on Windows. Validation cross-checks proceed as specced in the Hartree-Fock phase. No action now, Psi4 is deliberately NOT part of the Phase 0/1 environment.

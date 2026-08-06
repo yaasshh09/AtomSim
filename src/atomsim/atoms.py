@@ -1,6 +1,6 @@
 """Elements, subshells, and Aufbau configurations for screened atoms (Phase 6).
 
-Pure data and combinatorics — no physics engine. A Configuration is an ordered
+Pure data and combinatorics, no physics engine. A Configuration is an ordered
 tuple of ((n, l), occupancy) in Madelung filling order. The screened potential
 depends only on (Z, N); the configuration decides which computed orbitals are
 occupied and thus the summed energy. See docs/superpowers/specs/
@@ -22,7 +22,7 @@ def subshell_capacity(l: int) -> int:
 
 
 def _madelung_order() -> list[Subshell]:
-    """(n, l) shells sorted by (n + l, n) — the Madelung/Aufbau rule."""
+    """(n, l) shells sorted by (n + l, n), the Madelung/Aufbau rule."""
     shells = [(n, l) for n in range(1, 8) for l in range(n)]
     shells.sort(key=lambda nl: (nl[0] + nl[1], nl[0]))
     return shells
@@ -210,7 +210,7 @@ _BY_Z = {e.z: e for e in ELEMENTS}
 # Elements with no published neutral GSZ screening parameters. Szydlik & Green,
 # Phys. Rev. A 9, 1885 (1974), Table I tabulates neutral atoms He..P and Ar, but
 # skips neutral S and Cl (their 3s^2 3p^4 / 3p^5 blocks list only Ar^2+ / Ar^+).
-# Rather than invent parameters, we omit these atoms from the preset library — the
+# Rather than invent parameters, we omit these atoms from the preset library, the
 # prime directive forbids quietly shipping physics we cannot source.
 #
 # This set bounds the GSZ model, not the engine. Hartree-Fock builds its own

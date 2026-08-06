@@ -26,7 +26,7 @@ describe("formatErrorScale", () => {
   });
 
   // An error estimate should never be negative or non-finite. If one is, that
-  // is a bug upstream, and showing it is how it gets found — swallowing it
+  // is a bug upstream, and showing it is how it gets found, swallowing it
   // into "0" or a blank would hide exactly the thing worth seeing.
   it("passes through the values that should never happen rather than hiding them", () => {
     expect(formatErrorScale(0)).toBe("0");

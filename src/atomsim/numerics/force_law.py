@@ -402,7 +402,7 @@ def free_form_levels(
         )
         reason = (
             "" if trusted
-            else "; UNTRUSTED (not box/grid-converged — not a real bound state)"
+            else "; UNTRUSTED (not box/grid-converged, not a real bound state)"
         )
         levels.append(
             ForceLawLevel(

@@ -44,7 +44,7 @@ const CHEMISTRY_LABELS: Record<string, string> = {
   "3,-3": "f_y(3x2-y2)",
 };
 
-/** Mirror of atomsim.analytic.angular.real_orbital_label — keep in lockstep. */
+/** Mirror of atomsim.analytic.angular.real_orbital_label, keep in lockstep. */
 export function realOrbitalLabel(l: number, m: number): string {
   const hit = CHEMISTRY_LABELS[`${l},${m}`];
   if (hit) return hit;

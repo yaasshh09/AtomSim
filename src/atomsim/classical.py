@@ -4,7 +4,7 @@ A classical orbiting electron is an accelerating charge; by the Larmor formula i
 radiates, loses energy, and spirals into the nucleus in picoseconds. That is the
 COUNTERFACTUAL truth of classical rules, computed exactly. The circular Bohr orbits
 are a semi-classical APPROXIMATION (right energy scale, wrong picture). Quantum
-mechanics forbids the collapse — which is the whole lesson.
+mechanics forbids the collapse, which is the whole lesson.
 """
 
 import math

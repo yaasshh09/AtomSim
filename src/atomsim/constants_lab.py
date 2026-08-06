@@ -3,8 +3,8 @@
 The five fundamental constants (hbar, e, m_e, eps0, c) are supplied as multipliers
 on their real CODATA values. From an altered FundamentalConstants this module
 derives the three quantities that are actually observable for a one-electron atom
-against fixed SI rulers — the fine-structure constant alpha, the Bohr radius
-(size), and the Hartree energy (binding) — each as a Quantity whose fidelity is
+against fixed SI rulers, the fine-structure constant alpha, the Bohr radius
+(size), and the Hartree energy (binding), each as a Quantity whose fidelity is
 COUNTERFACTUAL when any multiplier departs from 1, EXACT otherwise. The
 per-observable `changed` flag IS the degeneracy lesson: many distinct multiplier
 tuples leave all three observables identical.
@@ -78,7 +78,7 @@ def analyze_constants(
         hbar=real.hbar * hbar, e=real.e * e, m_e=real.m_e * m_e,
         eps0=real.eps0 * eps0, c=real.c * c,
     )
-    # 1 eV = (real elementary charge) joules — a fixed SI ruler, never altered.
+    # 1 eV = (real elementary charge) joules, a fixed SI ruler, never altered.
     joule_per_ev = real.e
 
     return ConstantsReport(

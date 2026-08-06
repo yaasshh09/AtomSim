@@ -186,7 +186,7 @@ export function ForceLawView() {
       {forcePreset === "custom" && (
         <>
           <p className="hint-block">
-            Custom V(r) is a made-up force law — every level below is COUNTERFACTUAL. {EXPR_HELP}
+            Custom V(r) is a made-up force law, every level below is COUNTERFACTUAL. {EXPR_HELP}
           </p>
           {draftError !== null && <p className="error">{draftError}</p>}
         </>
@@ -196,14 +196,14 @@ export function ForceLawView() {
       {untrusted > 0 && (
         <p className="hint-block">
           {untrusted} level{untrusted === 1 ? "" : "s"} could not be trusted (not box/grid
-          converged) and {untrusted === 1 ? "is" : "are"} drawn dashed — not real bound states.
+          converged) and {untrusted === 1 ? "is" : "are"} drawn dashed, not real bound states.
         </p>
       )}
       {shortfall && (
         <p className="hint-block">
           Only {forceLaw!.bound_count} bound state
           {forceLaw!.bound_count === 1 ? "" : "s"} at these parameters
-          {forceLaw!.bound_count === 0 ? " — the potential is too shallow to bind." : "."}
+          {forceLaw!.bound_count === 0 ? ", the potential is too shallow to bind." : "."}
         </p>
       )}
 
@@ -267,7 +267,7 @@ export function ForceLawView() {
                 );
               })}
               <text x={PAD.left} y={PAD.top - 12} className="forcelaw-col">
-                V(r) and bound levels — {potLabel}
+                V(r) and bound levels: {potLabel}
               </text>
             </svg>
           ) : (

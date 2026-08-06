@@ -229,7 +229,7 @@ function ZoomPanel({
     <>
       <div className="view-header">
         <span className="plot-title">
-          {w ? `${w.label} line profile` : "line profile"} — linear λ, linear
+          {w ? `${w.label} line profile` : "line profile"}, linear λ, linear
           intensity{" "}
           <Badge provenance={prof.provenance} />
         </span>
@@ -284,7 +284,7 @@ function ZoomPanel({
           {w.sigma_nm.toExponential(2)} nm ({w.terms.filter((t) => t !== "natural").join(" + ") || "none"}
           ), Lorentzian γ = {w.gamma_nm.toExponential(2)} nm (natural). They do not
           add: the shape is their convolution, a Voigt, with a Gaussian core and
-          Lorentzian wings — which is why the far wings sit above where a
+          Lorentzian wings, which is why the far wings sit above where a
           Gaussian would put them.
         </p>
       )}
@@ -483,9 +483,9 @@ export function SpectrumView() {
           <p className="caption">
             Ionized fraction here: <strong>{(100 * ionized).toFixed(1)}%</strong>
             {ionized > 0.99
-              ? " — almost no neutral atoms are left, so every line is faint no matter how hot it gets."
+              ? ", almost no neutral atoms are left, so every line is faint no matter how hot it gets."
               : ionized < 0.01
-                ? " — essentially all neutral, so brightness is set by excitation alone."
+                ? ", essentially all neutral, so brightness is set by excitation alone."
                 : "."}
           </p>
         </>
@@ -656,7 +656,7 @@ export function SpectrumView() {
           <Badge provenance={SPECTRUM_PROFILE_LIBERTY} />. It integrates to{" "}
           {prof.flux_closure.toFixed(4)}× the summed line strengths, which is the
           grid's own quadrature error, measured rather than assumed. On this log
-          wavelength axis every line is a spike regardless of its real shape —{" "}
+          wavelength axis every line is a spike regardless of its real shape,{" "}
           <strong>click a line</strong> to plot it linearly and see the profile
           itself.
         </p>
@@ -685,14 +685,14 @@ export function SpectrumView() {
             />
           ))}
           <text x={M.left} y={12} className="tick">
-            (λ_computed − λ_NIST)/λ_NIST — shaded band = stated tolerance ±{tol.toExponential(0)}
+            (λ_computed − λ_NIST)/λ_NIST, shaded band = stated tolerance ±{tol.toExponential(0)}
           </text>
         </svg>
       )}
       {strength && !isThermal && (
         <p className="caption">
           Bar height and opacity ∝ log₁₀ A over{" "}
-          {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`} — that is
+          {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`}, that is
           the spontaneous emission <em>rate</em>, not a predicted observed brightness. No
           level populations are modelled: turn on LTE weighting for those.
         </p>
@@ -711,13 +711,13 @@ export function SpectrumView() {
       )}
       {window_.hidden > 0 && (
         <p className="caption">
-          Axis covers the across-n lines ({window_.lo.toFixed(1)}–
+          Axis covers the across-n lines ({window_.lo.toFixed(1)}-
           {window_.hi < 1e6
             ? `${window_.hi.toFixed(0)} nm`
             : `${(window_.hi / 1e6).toFixed(1)} mm`}
           ). {window_.hidden} within-n fine-structure component
           {window_.hidden === 1 ? " is" : "s are"} outside it, out at millimetre to metre
-          wavelengths. They are still in the data and still in the engine's line list —
+          wavelengths. They are still in the data and still in the engine's line list,
           tick the box above to include them, which stretches the axis far enough that
           the optical lines collapse into a sliver.
         </p>
@@ -728,7 +728,7 @@ export function SpectrumView() {
       <p className="caption">
         {spectrum.reference_citation
           ? `Reference: ${spectrum.reference_citation}`
-          : "No vendored NIST reference for this system — computed lines only, honestly unchecked."}
+          : "No vendored NIST reference for this system, computed lines only, honestly unchecked."}
       </p>
     </div>
   );

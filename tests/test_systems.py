@@ -94,6 +94,6 @@ def test_nuclear_radius_triton_is_cited_literature():
 
 
 def test_point_lepton_and_generic_have_no_nuclear_radius():
-    # positronium's "nucleus" is a positron — a point lepton; honesty is the absence
+    # positronium's "nucleus" is a positron, a point lepton; honesty is the absence
     assert get_system("ps").nuclear_radius is None
     assert hydrogen_like(3).nuclear_radius is None

@@ -5,7 +5,7 @@ import { MARKER_DIVISOR } from "./nucleus";
  * Render a provenance `error_estimate` at a precision it can actually support.
  *
  * These arrive as raw doubles, and printing one verbatim gives things like
- * "0.00034049718827628214" — an error bar quoted to twenty significant figures,
+ * "0.00034049718827628214", an error bar quoted to twenty significant figures,
  * which claims a precision the error bar is the admission of not having. Two
  * figures is what an error scale carries; anything past that is noise wearing a
  * digit's clothes, and in this codebase overstating precision is the bug.
@@ -27,7 +27,7 @@ export function formatErrorScale(x: number): string {
   return Math.abs(x) < 1e-3 ? x.toExponential(1) : x.toPrecision(2);
 }
 
-/** The frontend is the authority on its own rendering choices — disclosed, never hidden. */
+/** The frontend is the authority on its own rendering choices, disclosed, never hidden. */
 export const RENDER_LIBERTIES: Provenance = {
   fidelity: "visual_liberty",
   method: "three.js point-sprite rendering of engine-sampled positions",
@@ -44,7 +44,7 @@ export const NUCLEUS_MARKER_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "nucleus drawn as a fixed-size marker sphere at the origin",
   assumptions: [
-    `marker radius = camera distance / ${MARKER_DIVISOR} — presentation, not physics`,
+    `marker radius = camera distance / ${MARKER_DIVISOR}, presentation, not physics`,
     "true position (the origin) and the r_rms readout are exact",
     "switch to 'true scale' to see the honest, subpixel size",
   ],
@@ -54,8 +54,8 @@ export const NUCLEUS_MARKER_LIBERTY: Provenance = {
 
 /**
  * Max spiral windings drawn by the classical ghost overlay. The real revolution
- * count (~1e5) cannot be resolved by a sampled line or a 60 fps point — drawing
- * it would alias into noise — so the azimuthal winding count is capped for
+ * count (~1e5) cannot be resolved by a sampled line or a 60 fps point, drawing
+ * it would alias into noise, so the azimuthal winding count is capped for
  * display and disclosed here. Radius law, clock, and readouts stay exact.
  */
 export const GHOST_DISPLAY_WINDINGS = 16;
@@ -65,7 +65,7 @@ export const CLASSICAL_SLOWMO: Provenance = {
   method: "classical collapse shown in slow motion; the live clock shows real simulated time",
   assumptions: [
     "playback speed is a viewing choice, not physics",
-    `spiral drawn with at most ${GHOST_DISPLAY_WINDINGS} windings — the honest revolution count is the orbits readout`,
+    `spiral drawn with at most ${GHOST_DISPLAY_WINDINGS} windings, the honest revolution count is the orbits readout`,
   ],
   error_estimate: null,
   refinement: "the slow-motion factor is stated live in the ghost HUD",
@@ -154,7 +154,7 @@ export const HF_LADDER_AXIS_LIBERTY: Provenance = {
   fidelity: "visual_liberty",
   method: "orbital ladder drawn on log10 of binding energy |ε| [eV], deepest at the bottom",
   assumptions: [
-    "the energies themselves are engine values, unmodified — only the axis is compressed",
+    "the energies themselves are engine values, unmodified, only the axis is compressed",
     "spacing on this axis is a ratio, not a difference: two rungs one decade apart differ 10x",
     "0 eV (the ionization limit) is off the top of a logarithmic axis, not at the top rung",
     "every occupied orbital is bound, so |ε| never crosses zero and the log is always defined",
@@ -182,7 +182,7 @@ export const ISOSURFACE_LIBERTY: Provenance = {
   assumptions: [
     "vertex normals are averaged across facets: the faceting a finite grid really has is smoothed away",
     "lighting and translucency are presentation; the geometry is the engine's, unmodified",
-    "a solid-looking shell is not an edge — the enclosed fraction beside it is the whole claim",
+    "a solid-looking shell is not an edge, the enclosed fraction beside it is the whole claim",
     "vertex colour is arg(psi) through the same map the point cloud uses",
   ],
   error_estimate: null,

@@ -105,7 +105,7 @@ export function CloudView() {
     if (kind === "hydrogenic" && ghost && classicalStatus === "idle") void loadClassical();
   }, [kind, ghost, classicalStatus, loadClassical]);
   // Live loop phase shared between the in-Canvas animation (writes each frame)
-  // and the HUD clock (polls at 10 Hz) — no per-frame React renders.
+  // and the HUD clock (polls at 10 Hz), no per-frame React renders.
   const ghostTauRef = useRef(0);
   const colors = useMemo(
     () => buildCloudColors(colorMode, density, phase),
@@ -306,7 +306,7 @@ export function CloudView() {
         {ghost && classicalGhost && (
           <div className="ghost-hud">
             <div className="ghost-banner">
-              Counterfactual — a classical electron would spiral in; real atoms do not
+              Counterfactual: a classical electron would spiral in; real atoms do not
             </div>
             <GhostClock
               tauRef={ghostTauRef}

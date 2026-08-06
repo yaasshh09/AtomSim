@@ -1,4 +1,4 @@
-"""Monte-Carlo sampling of |psi_nlm|^2 — sampling IS physics and carries provenance.
+"""Monte-Carlo sampling of |psi_nlm|^2: sampling IS physics and carries provenance.
 
 Factorized inverse-CDF sampling: r from P(r) = r^2 R_nl^2 and cos(theta) from
 the normalized |Theta_lm|^2 in both bases. phi is uniform in the complex basis

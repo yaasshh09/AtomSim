@@ -21,7 +21,7 @@ export function PointCloud({ positions, pointSize, colors }: Props) {
   return (
     // VISUAL LIBERTY: physics z (the quantization axis) is rendered screen-vertical
     // (three.js +y) so |m|-dependent structure reads at a glance; data stays xyz in bohr.
-    // The rotation is shared with the isosurface and the axis triad — see lib/frame.
+    // The rotation is shared with the isosurface and the axis triad, see lib/frame.
     <points geometry={geometry} rotation={PHYSICS_TO_SCREEN}>
       {/* VISUAL LIBERTY: point size, colour mapping, glow are presentational choices,
           disclosed via the RENDER_LIBERTIES badge in the canvas overlay. */}

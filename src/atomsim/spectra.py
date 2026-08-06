@@ -523,7 +523,7 @@ def compare_lines(
     `tolerance_relative` decides whether the matched pair passes (the disclosed
     accuracy bar, used only for the within_tolerance flag). They differ for
     approximate models: a GSZ valence line may sit several percent off the real
-    wavelength yet be the correct transition — kept and reported as a residual —
+    wavelength yet be the correct transition, kept and reported as a residual,
     whereas a reference line with no nearby computed transition is dropped. The
     0.01 default preserves the exact hydrogenic behavior.
     """

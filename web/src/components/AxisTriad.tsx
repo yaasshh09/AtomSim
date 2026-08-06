@@ -5,7 +5,7 @@ import { PHYSICS_TO_SCREEN } from "../lib/frame";
  * The coordinate frame the cloud is drawn in: x, y and z through the origin.
  *
  * Not decoration. An orbital's shape only means something against its
- * quantization axis — a 2p_z and a 2p_x are the same picture rotated, and
+ * quantization axis, a 2p_z and a 2p_x are the same picture rotated, and
  * without an axis to read it against a point cloud cannot say which one it is.
  * `RENDER_LIBERTIES` has always declared that z is drawn screen-vertical; this
  * draws the axis that claim is about.

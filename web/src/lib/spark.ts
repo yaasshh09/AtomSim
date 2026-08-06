@@ -6,14 +6,14 @@
  * is where the same curve is drawn to be measured.
  *
  * Each bar is the **maximum** over its bin, not the mean. On a radial
- * probability the peak is the feature the card exists to show — where the
- * electron most likely is — and averaging a sharp 1s peak against the tail
+ * probability the peak is the feature the card exists to show, where the
+ * electron most likely is, and averaging a sharp 1s peak against the tail
  * beside it moves the maximum of the drawn shape away from the maximum of the
  * function. Taking the max keeps the peak where the physics put it, at the
  * cost of drawing the curve slightly fatter than it is. That is the trade a
  * summary can make; a plot could not.
  *
- * Returns an empty array when there is nothing honest to draw — no samples, or
+ * Returns an empty array when there is nothing honest to draw, no samples, or
  * a curve whose peak is not a positive finite number. Callers render the card
  * only for a non-empty result, so an absent curve shows no card rather than a
  * flat one, which would read as "P(r) = 0 everywhere".

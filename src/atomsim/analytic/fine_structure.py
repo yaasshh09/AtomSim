@@ -35,7 +35,7 @@ def fine_structure_shift(
 
     APPROXIMATION at the real alpha; COUNTERFACTUAL when alpha is altered
     (the What-If constants lab). The `alpha` argument is the seam a future
-    FundamentalConstants.alpha will supply — no signature change needed then.
+    FundamentalConstants.alpha will supply, no signature change needed then.
     """
     validate_quantum_numbers(n, l)
     validate_j(l, j)

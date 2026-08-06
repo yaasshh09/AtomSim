@@ -1,6 +1,6 @@
 import type { SpectralLineInfo } from "../api/types";
 
-/** Downward transitions out of the selected (n, l) — already selection-rule
+/** Downward transitions out of the selected (n, l), already selection-rule
  *  filtered by the engine; the frontend only picks the relevant subset. */
 export function arrowsFor(
   lines: readonly SpectralLineInfo[],

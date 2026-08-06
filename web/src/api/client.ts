@@ -32,8 +32,8 @@ export type PlaneQuantity = "density" | "psi";
  * JavaScript stringifies anything from 1e21 up in exponential form, so
  * `String(1e21)` is "1e+21" and the raw `+` decodes server-side as a space:
  * the API sees "1e 21" and rejects it. Both of this app's big physical knobs
- * cross that threshold — electron density goes to 1e22 cm^-3 and column
- * density to 1e26 m^-2 — so the failure is at the top of a slider's travel,
+ * cross that threshold, electron density goes to 1e22 cm^-3 and column
+ * density to 1e26 m^-2, so the failure is at the top of a slider's travel,
  * not in some unreachable corner.
  */
 export function num(v: number): string {
@@ -382,7 +382,7 @@ export interface HFParams {
   config?: string | null;
   /**
    * False solves the Hartree model instead: distinguishable electrons, no
-   * exchange. Omit for real physics — the server defaults to true, so a caller
+   * exchange. Omit for real physics, the server defaults to true, so a caller
    * cannot ask for the counterfactual by forgetting a field.
    */
   exchange?: boolean;

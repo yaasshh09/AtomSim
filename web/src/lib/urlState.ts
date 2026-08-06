@@ -1,6 +1,6 @@
 /* Deep links = the demo-script hook surface (spec M4): every app state the
  * Phase 2 guided tour needs is addressable by URL alone. Parsing validates
- * hard — a junk parameter is dropped, never propagated into the store. */
+ * hard, a junk parameter is dropped, never propagated into the store. */
 import type { Basis, ConstMultipliers, PlaneQuantity } from "../api/client";
 import type { AtomModel, ColorMode, SurfaceMode, ViewMode } from "../state/store";
 import type { NucleusMode } from "./nucleus";
@@ -99,7 +99,7 @@ export interface UrlState {
    *
    * False is the Hartree model: electrons that repel but are distinguishable,
    * returned COUNTERFACTUAL. Serialized as `nox=1` rather than `exchange=0`,
-   * with the default polarity chosen so that ABSENCE means real physics — a
+   * with the default polarity chosen so that ABSENCE means real physics, a
    * link that predates this toggle, or one a user hand-trims, cannot land
    * anyone in altered physics by omission.
    *
@@ -116,7 +116,7 @@ export interface UrlState {
    *
    * `nopauli=1` implies exchange off, and the parser enforces that rather than
    * trusting the query string. A hand-edited `?nopauli=1` with no `nox` is not
-   * a state to honour literally — it names a model the API rejects — so it is
+   * a state to honour literally, it names a model the API rejects, so it is
    * read as the collapse it obviously means.
    */
   pauli: boolean;
@@ -524,7 +524,7 @@ export function serializeAppUrl(state: UrlState): string {
     q.set("tour", state.tour);
     if (state.step !== URL_DEFAULTS.step) q.set("step", String(state.step));
   }
-  // note: '+' stays percent-encoded (%2B) — a literal '+' in a query string
+  // note: '+' stays percent-encoded (%2B), a literal '+' in a query string
   // reads back as a space, which would break the he+ round-trip
   const s = q.toString();
   return s ? `?${s}` : "";

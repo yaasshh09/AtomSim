@@ -1,4 +1,4 @@
-// Mirrors src/atomsim/server/schemas.py exactly — the single canonical JSON contract.
+// Mirrors src/atomsim/server/schemas.py exactly, the single canonical JSON contract.
 
 export type Fidelity =
   | "exact"
@@ -41,7 +41,7 @@ export interface SystemInfo {
   /** null = honestly absent (point lepton / unidentified nucleus), never zero */
   nuclear_radius: Quantity | null;
   nuclear_radius_fm: Quantity | null;
-  /** Hydrogenic presets stay "hydrogenic"; He–Ar screened atoms are "screened". */
+  /** Hydrogenic presets stay "hydrogenic"; He-Ar screened atoms are "screened". */
   kind: "hydrogenic" | "screened";
   /** Electron count for screened atoms; null for hydrogenic systems. */
   n_electrons: number | null;
@@ -236,7 +236,7 @@ export interface SpectralLineInfo {
   energy_ev: Quantity;
   wavelength_nm: Quantity;
   /** Spontaneous emission rate [s^-1]; null when strengths were not asked for
-   *  or cannot be given honestly — see SpectrumResponse.intensity_note. */
+   *  or cannot be given honestly, see SpectrumResponse.intensity_note. */
   einstein_a_s: Quantity | null;
   /** Absorption oscillator strength (dimensionless); null on the same terms. */
   oscillator_strength: Quantity | null;
@@ -290,7 +290,7 @@ export interface ProfileInfo {
   weight_kind: "emissivity" | "rate" | "uniform";
   resolving_power: number | null;
   /** Curve integral over summed line strengths. The engine's own measured
-   *  quadrature error, not an assumption — 1.0 means nothing was lost. */
+   *  quadrature error, not an assumption, 1.0 means nothing was lost. */
   flux_closure: number;
   widths: LineWidthInfo[];
   /** The collisional broadening that is NOT in this curve, sized. */
@@ -569,8 +569,8 @@ export interface HFOrbital {
  * physics, and the gap between two calculations would get drawn as the gap
  * between two models.
  *
- * The `variational_*` fields are the closed-form check on the collapsed number
- * — N electrons in one 1s of exponent zeta — carried so the page can show what
+ * The `variational_*` fields are the closed-form check on the collapsed number,
+ * N electrons in one 1s of exponent zeta, carried so the page can show what
  * the result was tested against instead of asking to be believed.
  */
 export interface PauliCollapse {
@@ -610,7 +610,7 @@ export interface HFLevels {
   /**
    * False means exchange was removed: the Hartree model, in which electrons
    * repel but are distinguishable. Read this rather than sniffing the
-   * provenance tier — a view that has to parse prose to learn which physics it
+   * provenance tier, a view that has to parse prose to learn which physics it
    * is drawing will eventually draw the wrong one.
    */
   exchange: boolean;
@@ -641,7 +641,7 @@ export interface HFLevels {
   total_energy_ev: Quantity;
   kinetic: Quantity;
   potential: Quantity;
-  /** A diagnostic of the solve, NUMERICAL — never draw this as physics. */
+  /** A diagnostic of the solve, NUMERICAL, never draw this as physics. */
   virial_ratio: Quantity;
   iterations: number;
   coarse_iterations: number;

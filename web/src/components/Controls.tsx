@@ -209,7 +209,7 @@ export function Controls() {
       <h2>View mode</h2>
       {/* A list, not a dropdown: seven views are the whole instrument, and a
           closed <select> hides six of them behind a click. Still one radio
-          group's worth of behaviour — `aria-pressed` says which is live. */}
+          group's worth of behaviour, `aria-pressed` says which is live. */}
       <div className="view-list" data-tour="view-list">
         {VIEW_OPTIONS.map((v) => (
           <button

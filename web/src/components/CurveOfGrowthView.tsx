@@ -107,7 +107,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
     <>
       <div className="view-header">
         <span className="plot-title">
-          Curve of growth — {cog.label} at {cog.wavelength_nm.toFixed(2)} nm{" "}
+          Curve of growth: {cog.label} at {cog.wavelength_nm.toFixed(2)} nm{" "}
           <Badge provenance={cog.provenance} />
         </span>
         <span className="legend-inline">
@@ -167,7 +167,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
         absorbs as much as the last and the width tracks the column exactly
         (slope 1). Once the core goes black it cannot absorb more, so the line
         grows only through its Doppler shoulders and{" "}
-        <strong>a hundred times more gas barely widens it</strong> — which is
+        <strong>a hundred times more gas barely widens it</strong>, which is
         why a strong line is a poor measure of how much gas there is. Far
         enough along, the Lorentzian wings from the upper level's finite
         lifetime take over and growth resumes at slope ½.
@@ -179,7 +179,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
         {cog.gamma_nm.toExponential(2)} nm, damping parameter a ={" "}
         {cog.damping_parameter.toExponential(2)}. The knees sit where τ at line
         centre reaches 1 and where a·τ reaches 1, so heating the gas widens the
-        line and pushes the first knee to higher column — which is exactly how a
+        line and pushes the first knee to higher column, which is exactly how a
         real curve-of-growth fit measures a temperature.
       </p>
     </>
@@ -192,7 +192,7 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
  *
  * These labels used to be built from ⁰¹²³⁴⁵⁶⁷⁸⁹. Every number in a plot is set
  * in the mono, and the mono gives a superscript glyph the same advance as a
- * full-size digit — so "10²³" came out spaced like "10 ² ³" and the exponent
+ * full-size digit, so "10²³" came out spaced like "10 ² ³" and the exponent
  * read as detached from its mantissa. A tspan carries its own size and
  * tracking, so the exponent sits tight against the ten and stays tabular.
  *

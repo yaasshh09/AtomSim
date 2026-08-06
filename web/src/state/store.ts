@@ -50,7 +50,7 @@ export type ColorMode = "solid" | "density" | "phase";
  * What the 3-D view draws: the sampled cloud, the enclosing surface, or both.
  *
  * Purely a choice of representation over the same state, so it invalidates
- * nothing — the same rule the view and colour-mode toggles follow. The surface
+ * nothing, the same rule the view and colour-mode toggles follow. The surface
  * data it selects is invalidated, but by (n, l, m, system, basis) like every
  * other derived payload, not by this.
  */
@@ -70,7 +70,7 @@ export const ISO_FRACTIONS = [0.5, 0.75, 0.9, 0.95, 0.99] as const;
  *
  * "gsz" is the fitted Green-Sellin-Zachor screened central field, "hf" the
  * self-consistent Hartree-Fock solve. Both are APPROXIMATION, but of different
- * things, and they disagree — so this is a physics input and it invalidates,
+ * things, and they disagree, so this is a physics input and it invalidates,
  * unlike the presentational toggles which deliberately invalidate nothing.
  */
 export type AtomModel = "gsz" | "hf";
@@ -170,7 +170,7 @@ interface AppState {
   /**
    * The finished Hartree-Fock solve, or null.
    *
-   * Derived from (system, config) and from nothing else — an HF solve knows
+   * Derived from (system, config) and from nothing else, an HF solve knows
    * about occupied subshells, not about the (n, l, m) state being drawn. So it
    * is reset explicitly by setSystem and setConfig rather than living in
    * INVALIDATED, exactly like classicalGhost, and a change of n does not throw
@@ -183,7 +183,7 @@ interface AppState {
    *
    * False asks for the Hartree model: electrons that repel but are
    * distinguishable, returned COUNTERFACTUAL. A physics input, so it clears
-   * `hf` exactly the way setConfig does — the two models are different atoms
+   * `hf` exactly the way setConfig does, the two models are different atoms
    * and a stale one must never sit under a flipped switch.
    *
    * True by default, and deliberately not remembered across a system change:
@@ -196,7 +196,7 @@ interface AppState {
    *
    * False is the stronger counterfactual: no cap, so every electron falls into
    * the 1s and the atom has no shells left to have. It contains the exchange
-   * one — antisymmetry is what the exclusion principle IS — so the two flags
+   * one, antisymmetry is what the exclusion principle IS, so the two flags
    * are coupled here rather than left free, and `pauli: false, exchange: true`
    * never leaves this store. The server would answer 422 for it, and building
    * a request the API defines as meaningless is not a state to pass through.
@@ -321,7 +321,7 @@ interface AppState {
   loadSpectrum: () => Promise<void>;
 }
 
-/** Everything derived from (n, l, m, system, basis) — cleared when any of them changes. */
+/** Everything derived from (n, l, m, system, basis), cleared when any of them changes. */
 export const INVALIDATED = {
   stateInfo: null,
   positions: null,
@@ -468,7 +468,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setModel: (model) => set({ model, ...INVALIDATED }),
   // Same shape as setConfig: the solve under the old setting is a different
   // atom, so it goes rather than sitting stale beneath a flipped switch. The
-  // status goes back to idle rather than to sampling — nothing is running yet,
+  // status goes back to idle rather than to sampling, nothing is running yet,
   // and a view that reported "solving" before a request existed would be
   // describing work nobody started.
   // Turning exchange back ON also restores the cap, and that is physics rather
@@ -496,7 +496,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // of whichever rule is now in force: 1s^N with the cap off, Aufbau with it
   // on. A configuration carried across the switch would be a different atom on
   // one side of it, and the server withholds the comparison for exactly that
-  // reason — leaving it set would silently cost the user the comparison.
+  // reason, leaving it set would silently cost the user the comparison.
   setPauli: (pauli) =>
     set({
       pauli,
@@ -598,7 +598,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPlaneQuantity: (planeQuantity) =>
     set({ planeQuantity, plane: null, planeStatus: "idle", planeProgress: 0 }),
   setFps: (fps) => set({ fps }),
-  // lab slice: independent of the main (n,l,m,system) physics — never in INVALIDATED
+  // lab slice: independent of the main (n,l,m,system) physics, never in INVALIDATED
   setLabConst: (partial) =>
     set((s) => ({
       labConst: { ...s.labConst, ...partial },
@@ -611,7 +611,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ ghost: on });
     if (on && get().classicalStatus === "idle") void get().loadClassical();
   },
-  // force-law slice: its own axis (preset, params, l) — independent of the main
+  // force-law slice: its own axis (preset, params, l), independent of the main
   // (n,l,m,system) physics, so never in INVALIDATED. Changing the preset, a
   // param, or l clears only the force-law data. forceViz is presentational and
   // clears nothing (store invariant). System changes clear it too (Z/mu change).

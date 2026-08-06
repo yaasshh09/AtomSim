@@ -299,7 +299,7 @@ def curve_of_growth(
     # The window has to grow with the largest column, not sit at a fixed
     # multiple of the width. On the damping branch the line eats its way out
     # into wings that fall only as 1/x^2, so a window that comfortably held the
-    # line at 1e20 absorbers per m^2 clips it at 1e24 — and a clipped line does
+    # line at 1e20 absorbers per m^2 clips it at 1e24, and a clipped line does
     # not announce itself, it just quietly bends the slope down from 0.5. The
     # test is direct: if the equivalent width is a noticeable fraction of the
     # window, the window is part of the answer, so widen it and redo.

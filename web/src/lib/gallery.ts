@@ -4,7 +4,7 @@ export interface StateRef {
   m: number;
 }
 
-/** All (l, m) states of shell n — the gallery row. n² entries. */
+/** All (l, m) states of shell n, the gallery row. n² entries. */
 export function galleryStates(n: number): StateRef[] {
   const out: StateRef[] = [];
   for (let l = 0; l < n; l++) {

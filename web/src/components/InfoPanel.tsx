@@ -141,7 +141,7 @@ export function InfoPanel() {
             sys && (
               <>
                 <dt>Nucleus</dt>
-                <dd>point lepton — no measured size</dd>
+                <dd>point lepton, no measured size</dd>
               </>
             )
           )}

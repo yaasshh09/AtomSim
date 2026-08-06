@@ -3,7 +3,7 @@
 For V(r) = 1/2 mu omega^2 r^2 the radial spectrum is closed form,
 E = omega (2 k + l + 3/2) in Hartree atomic units (hbar = 1), where k is the
 radial node count. Independent of the Coulomb formulas, this is a second exact
-ground truth for the numerical radial solver — see tests/test_force_law.py.
+ground truth for the numerical radial solver, see tests/test_force_law.py.
 """
 
 from atomsim.provenance import Fidelity, Provenance, Quantity

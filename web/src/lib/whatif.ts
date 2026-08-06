@@ -5,7 +5,7 @@ import type { FineLevel } from "../api/types";
  *  banner compares the server-echoed α values, never this constant. */
 export const REAL_ALPHA = 0.0072973525643;
 
-/** α slider/URL upper bound — matches the server's (0, 0.5] validation. */
+/** α slider/URL upper bound, matches the server's (0, 0.5] validation. */
 export const ALPHA_MAX = 0.5;
 
 /** Fine-structure fractional error past which the perturbative model is untrustworthy. */
@@ -47,7 +47,7 @@ export function shellSplitting(fine: FineLevel[] | null, n: number): number {
   return Math.max(...s) - Math.min(...s);
 }
 
-/** Raw-constant multiplier bounds — matches the server's [0.25, 4] validation. */
+/** Raw-constant multiplier bounds, matches the server's [0.25, 4] validation. */
 export const CONST_MIN = 0.25;
 export const CONST_MAX = 4;
 

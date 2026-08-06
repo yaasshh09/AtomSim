@@ -8,7 +8,7 @@ import { PHYSICS_CONTENT } from "../physics/content";
 import type { ViewMode } from "../state/store";
 
 function MathBlock({ tex }: { tex: string }) {
-  // KaTeX renders our own static strings only — no user input reaches it.
+  // KaTeX renders our own static strings only, no user input reaches it.
   const html = katex.renderToString(tex, { displayMode: true, throwOnError: false });
   return <div className="math" dangerouslySetInnerHTML={{ __html: html }} />;
 }

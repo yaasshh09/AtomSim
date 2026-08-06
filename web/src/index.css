@@ -51,7 +51,7 @@ body {
 }
 
 /* The shell is the top bar plus the three columns under it. The bar is a fixed
-   row so the columns below it own the remaining height and scroll themselves —
+   row so the columns below it own the remaining height and scroll themselves, 
    the panels were already `overflow-y: auto` and stay that way. */
 .app-shell {
   display: grid;
@@ -93,7 +93,7 @@ body {
 
    This is the one place uppercasing is safe, and it stays safe only while
    section headings are plain words ("System", "Sampling"). A heading that
-   names a symbol must not be added here — see `.readouts dt`. */
+   names a symbol must not be added here, see `.readouts dt`. */
 .panel h2 {
   font-family: var(--mono);
   font-size: 0.63rem;
@@ -114,7 +114,7 @@ body {
   margin: 0.25rem 0 1rem;
 }
 
-/* Label left, value right, on a dashed rule — the readout rhythm shared by the
+/* Label left, value right, on a dashed rule, the readout rhythm shared by the
    left rail and the What-If constants table. */
 .readouts {
   margin: 0;
@@ -169,7 +169,7 @@ body {
 
 /* The bracketed card at the top of the left rail.
 
-   Eight background bars — a horizontal and a vertical stub at each corner —
+   Eight background bars, a horizontal and a vertical stub at each corner, 
    rather than positioned pseudo-elements. Two pseudo-elements can only carry
    two corners between them, and the bracket only reads as an instrument frame
    when all four are there. Doing it in `background` keeps it to one rule and
@@ -220,7 +220,7 @@ body {
 }
 
 /* Real P(r), or nothing. The bars are the engine's radial probability sampled
-   across the grid, so the card only appears once that curve is in the store —
+   across the grid, so the card only appears once that curve is in the store, 
    a plausible-looking bell drawn from no data would be exactly the quiet lie
    the provenance system exists to prevent. */
 .spark-card {
@@ -1123,12 +1123,12 @@ button.ghost:hover {
 .forcelaw-legend { display: flex; gap: 1.5rem; margin: 0.5rem 0; align-items: center; }
 
 /* ============================================================
-   Instrument shell — top bar, stage chrome, rail controls
+   Instrument shell, top bar, stage chrome, rail controls
    ============================================================ */
 
 /* Top bar. Carries the things that are true of the whole session: what is
    loaded, how hard the browser is working, and what tier the number in the
-   left rail came out of. Deliberately not a place for decoration — every
+   left rail came out of. Deliberately not a place for decoration, every
    field here is measured or it is not shown. */
 .topbar {
   display: flex;
@@ -1346,7 +1346,7 @@ button.ghost:hover {
 }
 
 /* The lit tile is the one being edited. The design highlighted a fixed tile
-   (m), which would be an accent that means nothing — n, l and m are equally
+   (m), which would be an accent that means nothing, n, l and m are equally
    live at all times. Tying it to focus makes the same mint mark carry real
    information about where the keyboard is. */
 .qn-tile:focus-within {
@@ -1377,8 +1377,8 @@ input[type="radio"] {
   color: var(--muted);
 }
 
-/* The engine log. Reports what the session has actually done — the last job,
-   its outcome — and nothing it has not. */
+/* The engine log. Reports what the session has actually done, the last job,
+   its outcome, and nothing it has not. */
 .term {
   font-family: var(--mono);
   font-size: 0.63rem;
@@ -1426,7 +1426,7 @@ input[type="radio"] {
 }
 
 /* ============================================================
-   Plots — the instrument's typography inside the SVGs
+   Plots, the instrument's typography inside the SVGs
    ============================================================ */
 
 /* Every number in a plot is mono and tabular, the same as every number in the
@@ -1551,7 +1551,7 @@ input[type="range"] {
 
 /* The What-If and force-law control clusters. These lay their own labels out
    (stacked, not the panel's dashed row), so they need the shell's type
-   explicitly — left alone they rendered a size larger and in the sans, and
+   explicitly, left alone they rendered a size larger and in the sans, and
    read as headings rather than as controls. */
 .whatif-controls label,
 .const-sliders label,

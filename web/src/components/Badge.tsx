@@ -4,7 +4,7 @@ import { formatErrorScale } from "../lib/liberties";
 
 /* Tuned to the instrument palette: EXACT is the shell's own mint, so the tier
    the engine is proudest of is the colour the whole UI is built around.
-   Counterfactual pink is unchanged on purpose — index.css uses that exact hue
+   Counterfactual pink is unchanged on purpose, index.css uses that exact hue
    for the ghost HUD, the counterfactual banner and the counterfactual rungs,
    and a badge that drifted off it would stop matching the thing it labels. */
 const COLORS: Record<string, string> = {

@@ -5,7 +5,7 @@ import type { ClassicalGhost } from "../api/types";
 import { formatSeconds, ghostAngle, ghostRadius, simSeconds, tauFromWall } from "../lib/classical";
 import { GHOST_DISPLAY_WINDINGS } from "../lib/liberties";
 
-/** Wall-clock seconds one collapse loop is stretched over — the disclosed slow-mo window. */
+/** Wall-clock seconds one collapse loop is stretched over, the disclosed slow-mo window. */
 export const GHOST_LOOP_SECONDS = 5;
 
 const GHOST_COLOR = "#8be9fd"; // classical cyan, distinct from the |psi|^2 LUTs
@@ -29,7 +29,7 @@ function xzCircleGeometry(radius: number): THREE.BufferGeometry {
 }
 
 /**
- * The collapse spiral, sampled uniformly in swept angle (not in tau — the
+ * The collapse spiral, sampled uniformly in swept angle (not in tau, the
  * winding rate diverges as tau -> 1, so uniform-tau sampling starves the inner
  * turns). With u = 1 - sqrt(1 - tau), theta is linear in u.
  */
@@ -56,7 +56,7 @@ function spiralGeometry(r0: number, windings: number): THREE.BufferGeometry {
  * the units the point cloud is drawn in; `distance` (the camera distance) only
  * sizes the ghost point, mirroring the nucleus-marker pattern.
  *
- * The animated point is driven through a three.js ref in useFrame — React
+ * The animated point is driven through a three.js ref in useFrame, React
  * never re-renders per frame. `tauRef` shares the live loop phase with the
  * HUD clock outside the Canvas, which polls it at ~10 Hz.
  */
@@ -71,7 +71,7 @@ export function GhostOverlay({
 }) {
   const r0 = ghost.r0_bohr.value;
   // VISUAL LIBERTY (disclosed via CLASSICAL_SLOWMO): the drawn winding count is
-  // capped — the honest count (~1e5) would alias into noise at any frame rate.
+  // capped, the honest count (~1e5) would alias into noise at any frame rate.
   const windings = Math.min(ghost.orbit_count.value, GHOST_DISPLAY_WINDINGS);
   const pointRef = useRef<THREE.Mesh>(null);
 
@@ -136,7 +136,7 @@ export function GhostOverlay({
 
 /**
  * Live simulated-time clock for the HUD (outside the Canvas). Polls the shared
- * tau ref at 10 Hz with its own interval — a tiny local re-render, never tied
+ * tau ref at 10 Hz with its own interval, a tiny local re-render, never tied
  * to the animation frame rate.
  */
 export function GhostClock({

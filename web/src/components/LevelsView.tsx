@@ -27,14 +27,14 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         </span>
         <span className="plot-title">
           · {levels.config}
-          {levels.is_ground ? " (ground)" : " — excited (non-ground)"}
+          {levels.is_ground ? " (ground)" : ", excited (non-ground)"}
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         {/* ionization threshold */}
         <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
         <text x={rungX2 + 8} y={y(0)} dy="0.32em" className="tick">
-          0 — ionization limit
+          0: ionization limit
         </text>
         {orbitals.map((o) => {
           const filled = o.occupancy > 0;
@@ -69,7 +69,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         (s below p below d for a given n). Filled subshells are solid with their
         occupancy; virtual orbitals are dashed. Total energy{" "}
         {levels.total_energy_ev.value.toFixed(2)} eV is a sum of occupancy-weighted
-        orbital energies, not a variational total — see the badge.
+        orbital energies, not a variational total, see the badge.
       </p>
     </div>
   );
@@ -106,14 +106,14 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         </strong>{" "}
         {noop ? (
           <>
-            — its ground configuration is already 1s
+, its ground configuration is already 1s
             <sup>{2}</sup>, so lifting the cap has nothing to lift. Helium is
             the calibration case rather than the demonstration: the two solves
             agree to the last bit because they are the same solve.
           </>
         ) : (
           <>
-            — the real atom ({collapse.real_config}) sits at{" "}
+, the real atom ({collapse.real_config}) sits at{" "}
             {collapse.real_total_energy_ev.value.toPrecision(6)} eV and the
             collapsed one at{" "}
             {(collapse.real_total_energy_ev.value + collapse.binding_change_ev.value)
@@ -129,7 +129,7 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         {collapse.collapsed_radius.value.toFixed(3)} bohr, a factor of{" "}
         {shrink.toFixed(3)}. With the cap on, atomic size rises and falls across
         a period, and that oscillation is the periodic table. With it off, ⟨r⟩
-        decreases forever as Z grows — every element is a smaller version of the
+        decreases forever as Z grows, every element is a smaller version of the
         last one, and there is no chemistry to have.
       </p>
       <p className="caption">
@@ -138,7 +138,7 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         {collapse.variational_zeta.value.toFixed(4)}, giving{" "}
         {collapse.variational_energy_ev.value.toPrecision(6)} eV. The solve above
         optimizes the radial function rather than an exponent, so it searches a
-        larger space and has to land at or below that number — and does. The
+        larger space and has to land at or below that number, and does. The
         formula is textbook: at Z = N = 2 it is the variational helium result.
       </p>
     </>
@@ -180,14 +180,14 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           {levels.is_ground
             ? levels.pauli
               ? " (ground)"
-              : " (ground — with no cap left to obey)"
-            : " — excited (non-ground)"}
+              : " (ground, with no cap left to obey)"
+            : ", excited (non-ground)"}
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
-        {/* The ionization limit cannot be a rung here — see HF_LADDER_AXIS_LIBERTY. */}
+        {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
         <text x={rungX1} y={16} className="tick" opacity={0.7}>
-          ↑ 0 eV (ionization limit) — off the top of a log axis
+          ↑ 0 eV (ionization limit), off the top of a log axis
         </text>
         {orbitals.map((o) => {
           const e = o.energy_ev.value;
@@ -213,8 +213,8 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       <p className="caption">
         Self-consistent-field orbital energies (
         {levels.exchange
-          ? "APPROXIMATION — see the badge for what Hartree-Fock leaves out, correlation above all"
-          : "COUNTERFACTUAL — see the badge; this is not an approximation to the real atom"}
+          ? "APPROXIMATION, see the badge for what Hartree-Fock leaves out, correlation above all"
+          : "COUNTERFACTUAL, see the badge; this is not an approximation to the real atom"}
         ). Energy axis is logarithmic in binding energy{" "}
         <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
         valence shell differ by more than two decades. Total energy{" "}
@@ -229,18 +229,18 @@ function HFLadder({ levels }: { levels: HFLevels }) {
             Exchange is worth{" "}
             {Math.abs(levels.exchange_energy_ev.value).toFixed(2)} eV of binding
           </strong>{" "}
-          to this atom — the gap between the energy above and the Hartree-Fock
+          to this atom, the gap between the energy above and the Hartree-Fock
           one, both solved on the same mesh. Exchange binds because same-spin
           electrons keep out of each other's way, so they repel each other less
           than distinguishable ones would.{" "}
           {levels.exchange_energy_ev.value === 0
             ? "Zero here, and that is the answer rather than a missing one: no two electrons in this configuration share a spin, so there is no pair to exchange."
-            : "The Pauli occupancies are untouched — nothing has piled into the 1s."}
+            : "The Pauli occupancies are untouched, nothing has piled into the 1s."}
         </p>
       )}
       {levels.collapse !== null && <PauliComparison collapse={levels.collapse} />}
       <p className="caption">
-        <strong>Solve diagnostics</strong> (NUMERICAL — these describe the
+        <strong>Solve diagnostics</strong> (NUMERICAL, these describe the
         computation, not the atom): {levels.converged ? "converged" : "DID NOT CONVERGE"}{" "}
         in {levels.coarse_iterations} coarse + {levels.iterations} fine SCF
         iterations on {levels.grid_points} radial points. Virial ratio
@@ -253,7 +253,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
 }
 
 // h in eV per MHz (h = 4.135667696e-15 eV·s, times 1e6 Hz/MHz), for turning a
-// hyperfine energy split into its transition frequency — the payoff number.
+// hyperfine energy split into its transition frequency, the payoff number.
 const EV_PER_MHZ = 4.135667696e-9;
 
 export function LevelsView() {
@@ -416,8 +416,8 @@ export function LevelsView() {
               <g>
                 <text x={(zx1 + zx2) / 2} y={26} textAnchor="middle" className="tick">
                   {bField > 0
-                    ? `n=${n} Zeeman split [µeV] — APPROXIMATION`
-                    : `n=${n} shifts [µeV] — zoomed, ${dirac ? "EXACT" : "APPROXIMATION"}`}
+                    ? `n=${n} Zeeman split [µeV]: APPROXIMATION`
+                    : `n=${n} shifts [µeV], zoomed, ${dirac ? "EXACT" : "APPROXIMATION"}`}
                 </text>
                 {fineForN.map((f, idx) => {
                   const subs = bField > 0 ? f.sublevels ?? [] : [];
@@ -542,7 +542,7 @@ export function LevelsView() {
             return (
               <g>
                 <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
-                  n={n}s hyperfine ({hfShell.nucleus}) — APPROXIMATION
+                  n={n}s hyperfine ({hfShell.nucleus}): APPROXIMATION
                 </text>
                 <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
                 <text x={zx1 - 6} y={yz(0)} dy="0.32em" textAnchor="end" className="tick">
@@ -571,16 +571,16 @@ export function LevelsView() {
       </svg>
       <p className="caption">
         Gross levels are reduced-mass exact. The right column magnifies the{" "}
-        {dirac ? "relativistic" : "α²"} shifts of the selected n — the two scales differ by ~10⁵
+        {dirac ? "relativistic" : "α²"} shifts of the selected n, the two scales differ by ~10⁵
         and are labeled, never blended.{" "}
         {dirac
-          ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits — see the badge assumptions."
-          : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂ — the Lamb shift is beyond α² and honestly absent here)."}
+          ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits, see the badge assumptions."
+          : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂, the Lamb shift is beyond α² and honestly absent here)."}
         {bField > 0 && (
           <>
             {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels (anomalous
             Zeeman, spacing g_J·µ_B·B); as B rises they reorganize toward the Paschen-Back
-            pattern where (m_l, m_s) become the good labels. Linear model — the diamagnetic
+            pattern where (m_l, m_s) become the good labels. Linear model, the diamagnetic
             B² term is omitted.
           </>
         )}
@@ -606,10 +606,10 @@ export function LevelsView() {
                     The right column magnifies the split and gives the transition
                     frequency Δν.{" "}
                     {hfShell.nucleus === "proton" && n === 1
-                      ? "This 1s F=1→0 line is 1420 MHz, the 21 cm line — radio astronomy's fingerprint of neutral hydrogen. "
+                      ? "This 1s F=1→0 line is 1420 MHz, the 21 cm line, radio astronomy's fingerprint of neutral hydrogen. "
                       : ""}
                     s-states only (contact term); the l&gt;0 orbital+dipolar channel is
-                    deferred. Non-relativistic — bound-state QED and nuclear structure
+                    deferred. Non-relativistic, bound-state QED and nuclear structure
                     (~0.01%) are omitted, see the badge.
                   </>
                 )

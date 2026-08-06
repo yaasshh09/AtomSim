@@ -67,8 +67,8 @@ describe("intensityScale", () => {
   it("puts a missing or zero value at the floor, never NaN and never full", () => {
     // This used to draw at full strength, which was harmless when the only
     // quantity was A and a missing A meant "not computed". With emissivity a
-    // zero is a real physical value — the gas is fully ionized and the line
-    // genuinely does not emit — and drawing that at full height would be the
+    // zero is a real physical value, the gas is fully ionized and the line
+    // genuinely does not emit, and drawing that at full height would be the
     // most misleading thing the view could do. The bar floor keeps it visible.
     const s = intensityScale([line(121, 1e9), line(656, 1e5)])!;
     expect(s.t(undefined)).toBe(0);

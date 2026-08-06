@@ -3,7 +3,7 @@
 Each preset supplies nuclear charge Z and the exact reduced-mass ratio
 mu/m_e as a Quantity whose provenance cites the CODATA mass ratios it was
 built from. m_over_M (orbiting mass / nuclear mass) feeds the fine-structure
-recoil error scale — honesty for positronium comes from a quantified error,
+recoil error scale, honesty for positronium comes from a quantified error,
 never a silent wrong number.
 """
 
@@ -24,7 +24,7 @@ class System:
     description: str
     # rms charge radius of the nucleus, in bohr (engine canonical unit).
     # None means honestly absent: a point lepton (positronium's positron) or
-    # a generic Z with no identified nucleus — never a silent zero.
+    # a generic Z with no identified nucleus, never a silent zero.
     nuclear_radius: Quantity | None = None
 
 

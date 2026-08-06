@@ -33,7 +33,7 @@ export function buildSurfaceColors(phase: Float32Array): Float32Array {
 export function enclosedCaption(meta: IsoMeta): string {
   const inside = (meta.enclosed_fraction.value * 100).toFixed(1);
   const outside = (meta.outside_fraction * 100).toFixed(1);
-  return `encloses ${inside}% of the electron — it is outside this surface ${outside}% of the time`;
+  return `encloses ${inside}% of the electron, it is outside this surface ${outside}% of the time`;
 }
 
 /**
@@ -58,7 +58,7 @@ export function surfaceExtent(vertices: Float32Array): number {
  * The engine reports the pieces it actually cut, and near a node that number is
  * a property of the grid as much as of the orbital: lobes separated by less
  * than a cell come out fused. So the count is shown with the caveat attached
- * whenever the state has a node that could be doing this — any l > 0 — and
+ * whenever the state has a node that could be doing this, any l > 0, and
  * shown plainly for an s state, which has no angular node to fuse across.
  */
 export function componentsCaption(meta: IsoMeta): string {

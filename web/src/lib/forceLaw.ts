@@ -1,4 +1,4 @@
-// Single source of truth for force-law preset parameters — mirrors the Python
+// Single source of truth for force-law preset parameters, mirrors the Python
 // ParamSpec ranges in src/atomsim/numerics/force_law.py.
 export type ForcePreset =
   | "powerlaw"

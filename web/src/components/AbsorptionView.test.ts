@@ -138,7 +138,7 @@ describe("bandColumns", () => {
   });
 
   it("carries the last value across a column the grid does not reach", () => {
-    // A hole would render black, which reads as total absorption — the
+    // A hole would render black, which reads as total absorption, the
     // opposite of "no information here".
     const cols = bandColumns([0, 0.1], [0.5, 0.5], id, 0, 4);
     expect(cols).toHaveLength(4);

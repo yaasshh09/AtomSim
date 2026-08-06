@@ -2,7 +2,7 @@
 
 This is where the classic "hydrogen poster" pictures live. On y=0 the azimuth
 is phi = 0 (x >= 0) or pi (x < 0), so e^{i m phi} = +/-1 and psi is real-valued
-in BOTH angular bases: a signed-psi plot is honest here — and the plot label
+in BOTH angular bases: a signed-psi plot is honest here, and the plot label
 must state exactly which quantity is shown (spec 7.2 honesty fix over the
 poster's contradictory -/+ "probability density" colorbar).
 """

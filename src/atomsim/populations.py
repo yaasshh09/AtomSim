@@ -10,7 +10,7 @@ there is any neutral atom left to do the emitting.
 Everything here is APPROXIMATION and the assumptions are the error bar. Local
 thermodynamic equilibrium is a strong claim: real nebulae are not in LTE, and
 neither is a discharge lamp. The arithmetic given the model is exact, so no
-error_estimate is invented for it — a tight number on a model this schematic
+error_estimate is invented for it, a tight number on a model this schematic
 would be worse than none.
 
 See docs/superpowers/specs/2026-07-26-phase17-population-modelling-design.md.

@@ -31,7 +31,7 @@ export interface OffsetAxis {
  *
  * A line profile is plotted over a handful of half-widths, and hydrogen's
  * Lyman-alpha natural width is about 5e-6 nm. Printing absolute wavelengths
- * across that window gives "121.568" at every tick — six identical labels and
+ * across that window gives "121.568" at every tick, six identical labels and
  * no way to read the scale. Spectroscopy's own answer is to name the centre
  * once and label the ticks as offsets, which is what this sets up.
  *
@@ -67,7 +67,7 @@ export function formatOffset(axis: OffsetAxis, wavelengthNm: number): string {
  * Tick wavelengths that fall on round *offsets* from the axis centre.
  *
  * d3 picks nice values on the domain it is given, and that domain is absolute
- * wavelengths — so a window around 121.568446 nm gets ticks at nice absolute
+ * wavelengths, so a window around 121.568446 nm gets ticks at nice absolute
  * values whose offsets come out as -35.6, -25.6, ... +34.4, with no tick at
  * the line centre. Choosing the ticks in offset space instead puts them on
  * -40, -20, 0, +20, +40, and the centre of a line profile is exactly the place

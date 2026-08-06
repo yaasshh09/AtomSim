@@ -40,32 +40,32 @@ export function WhatIfView() {
   const readouts: { key: string; label: string; obs: DerivedObservable; text: string }[] = [
     {
       key: "alpha",
-      label: "α — fine-structure constant",
+      label: "α: fine-structure constant",
       obs: report.alpha,
       text: `${formatAlpha(alphaValue)} (${alphaValue.toExponential(3)})`,
     },
     {
       key: "a0",
-      label: "a₀ — Bohr radius (atom size)",
+      label: "a₀: Bohr radius (atom size)",
       obs: report.bohr_radius_pm,
       text: `${report.bohr_radius_pm.quantity.value.toFixed(2)} pm`,
     },
     {
       key: "eh",
-      label: "E_h — Hartree energy (binding)",
+      label: "E_h: Hartree energy (binding)",
       obs: report.hartree_ev,
       text: `${report.hartree_ev.quantity.value.toFixed(3)} eV`,
     },
   ];
 
   // Gross ladder: STRUCTURE only, in units of E_h (hartree). Absolute scale lives
-  // in the readouts above — the honest structure/scale split.
+  // in the readouts above, the honest structure/scale split.
   const eMin = real.gross[0].energy.value;
   const y = scaleLinear([eMin, 0], [H - 40, 60]);
   const rx1 = 70;
   const rx2 = 300;
 
-  // n=2 fine split, in µE_h (hartree * 1e6) — normalized, not real eV.
+  // n=2 fine split, in µE_h (hartree * 1e6), normalized, not real eV.
   const realFine = (real.fine ?? []).filter((f) => f.n === ZOOM_N);
   const altFine = (altered?.fine ?? []).filter((f) => f.n === ZOOM_N);
   const shifts = [...realFine, ...altFine].map((f) => f.shift.value * 1e6);
@@ -87,15 +87,15 @@ export function WhatIfView() {
   const changed = readouts.filter((r) => r.obs.changed).map((r) => r.label.split(" ")[0]);
   const caption = (() => {
     if (beyondValidity) {
-      return `Derived α = ${formatAlpha(alphaValue)} exceeds 0.5 — the perturbative fine structure is meaningless here, so the altered split isn't drawn. The readouts still show the true α; this is the honest model boundary, not a glitch.`;
+      return `Derived α = ${formatAlpha(alphaValue)} exceeds 0.5, the perturbative fine structure is meaningless here, so the altered split isn't drawn. The readouts still show the true α; this is the honest model boundary, not a glitch.`;
     }
     if (altOn && changed.length === 0) {
-      return "You altered the constants, but α, a₀, and E_h are all unchanged — a different universe that is observationally identical to ours. That degeneracy is the whole lesson: only dimensionless combinations and fixed-ruler scales are observable.";
+      return "You altered the constants, but α, a₀, and E_h are all unchanged, a different universe that is observationally identical to ours. That degeneracy is the whole lesson: only dimensionless combinations and fixed-ruler scales are observable.";
     }
     if (altOn) {
       return `Altered. Observably changed: ${changed.join(", ")}. Fine-structure fractional error ≈ ${(errFrac * 100).toFixed(1)}% (grows as (Zα)²); n=${ZOOM_N} split ≈ ${splitUeH.toFixed(1)} µE_h. The gross ladder is α-independent structure; absolute size and binding are in the readouts.`;
     }
-    return "Drag any raw constant. α, a₀, and E_h are derived from all five — only these dimensionless and fixed-ruler quantities are observable. Watch which actually move: try e ×2 and ε₀ ×4 together.";
+    return "Drag any raw constant. α, a₀, and E_h are derived from all five, only these dimensionless and fixed-ruler quantities are observable. Watch which actually move: try e ×2 and ε₀ ×4 together.";
   })();
 
   return (
@@ -131,7 +131,7 @@ export function WhatIfView() {
 
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
-          gross levels (Z={real.system.z}) — structure in units of E_h, α-independent
+          gross levels (Z={real.system.z}), structure in units of E_h, α-independent
         </text>
         {real.gross.map((g) => (
           <g key={g.n}>
@@ -146,11 +146,11 @@ export function WhatIfView() {
         ))}
 
         <text x={530} y={54} textAnchor="middle" className="tick">
-          n={ZOOM_N} fine split [µE_h] — real vs altered
+          n={ZOOM_N} fine split [µE_h], real vs altered
         </text>
         {beyondValidity ? (
           <text x={530} y={H / 2} textAnchor="middle" className="tick">
-            α &gt; 0.5 — beyond perturbative validity
+            α &gt; 0.5, beyond perturbative validity
           </text>
         ) : (
           columns.map((col) => (

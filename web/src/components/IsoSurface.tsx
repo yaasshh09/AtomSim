@@ -14,7 +14,7 @@ interface Props {
  * Nothing is computed here beyond the vertex normals three.js needs to light
  * it: the positions are the engine's interpolated crossings and the indices are
  * the engine's triangles, both untouched. What the renderer adds is disclosed
- * in ISOSURFACE_LIBERTY, and the important part of it is the smoothing — a
+ * in ISOSURFACE_LIBERTY, and the important part of it is the smoothing, a
  * finite grid really does produce facets, and averaging them away makes the
  * surface look more resolved than it is.
  *

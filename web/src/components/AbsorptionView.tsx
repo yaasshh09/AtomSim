@@ -7,7 +7,7 @@ import { REGIME_COLOR, REGIME_LABEL } from "./CurveOfGrowthView";
 const W = 680;
 const H = 250;
 /* Room under the plot for the band and its label. The band used to start six
-   units above this line, which put it directly under the axis title — muted
+   units above this line, which put it directly under the axis title, muted
    text on a white continuum. It now clears the title completely. */
 const BAND_H = 50;
 const M = { left: 62, right: 16, top: 18, bottom: 34 };
@@ -59,8 +59,8 @@ export function transmissionGrey(t: number): string {
  *
  * This panel is drawn over two very different windows. Unzoomed it spans the
  * whole line list (97 nm to 1876 nm), where "100" and "1000" are the natural
- * labels. Zoomed to one line it spans a few half-widths — 0.14 nm for
- * Lyman-alpha, and femtometres for a natural width — where every absolute label
+ * labels. Zoomed to one line it spans a few half-widths, 0.14 nm for
+ * Lyman-alpha, and femtometres for a natural width, where every absolute label
  * rounds to the same string. Decade ticks failed at both ends: two labels
  * across the full range, and *none at all* on a zoom, because a window narrower
  * than a decade contains no whole power of ten.
@@ -92,7 +92,7 @@ export interface BandColumn {
  *
  * The band used to draw one rectangle per grid point. The engine's grid is
  * adaptive, so on the full range that is ~6000 rectangles across 602 units of
- * axis — most of them a third of a unit wide. Adjacent sub-pixel rectangles do
+ * axis, most of them a third of a unit wide. Adjacent sub-pixel rectangles do
  * not tile: each is composited with its own edge coverage, so a shared boundary
  * lands at about 75% of full white instead of 100%. The result was a grey
  * barcode across the whole band, including past 400 nm where the transmission
@@ -103,7 +103,7 @@ export interface BandColumn {
  * band has to say which one it draws. `mean` is the honest photograph: a
  * detector pixel spanning these wavelengths integrates the flux across them, so
  * a line far narrower than a column dilutes into it. Over the whole line list
- * that is the truth and it is also useless — every column comes back above
+ * that is the truth and it is also useless, every column comes back above
  * 0.98, and the strip renders blank white. `deepest` is the deepest sample in
  * the column, which keeps the lines locatable at the cost of overstating how
  * dark a pixel would look. The view draws `deepest`, labels it as such, and
@@ -183,7 +183,7 @@ export function bandResolutionNote(drawn: number, mean: number): string {
     `A detector pixel that wide integrates the flux across it and would reach`
     + ` only ${(100 * mean).toFixed(1)}% of the continuum, against the`
     + ` ${(100 * drawn).toFixed(1)}% the curve reaches at full resolution. That`
-    + ` gap is not a drawing error — it is why a low-resolution spectrum of this`
+    + ` gap is not a drawing error, it is why a low-resolution spectrum of this`
     + ` same gas looks almost blank, and it is exactly the dilution the`
     + ` equivalent width above is immune to.`
   );
@@ -252,7 +252,7 @@ export function AbsorptionView({
     <>
       <div className="view-header">
         <span className="plot-title">
-          Absorption — {abs.lines.length}{" "}
+          Absorption: {abs.lines.length}{" "}
           {abs.lines.length === 1 ? "line" : "lines"} against a flat continuum{" "}
           <Badge provenance={abs.provenance} />
         </span>
@@ -294,7 +294,7 @@ export function AbsorptionView({
         />
         <path d={path} className="transmission-curve" />
 
-        {/* Where the gas absorbs, as brightness. crispEdges because these tile —
+        {/* Where the gas absorbs, as brightness. crispEdges because these tile,
             anti-aliased edges on abutting rectangles leave a seam at every
             boundary, and a seam here reads as a line. */}
         {band.map((c, i) => (
@@ -344,7 +344,7 @@ export function AbsorptionView({
 
       <p className="caption">
         The strip is {band.length} columns wide, and each is drawn at the{" "}
-        <em>deepest</em> transmission anywhere inside it — which is what makes a
+        <em>deepest</em> transmission anywhere inside it, which is what makes a
         line narrower than a column findable at all.{" "}
         {bandResolutionNote(deepestDrawn, deepestMean)}
       </p>
@@ -417,7 +417,7 @@ export function AbsorptionView({
       <p className="caption">
         Grid closure {abs.flux_closure.toFixed(4)}: the summed optical depth
         integrates to this times the analytic total on the grid actually used,
-        measured rather than assumed. Absorption only — the lines darken the
+        measured rather than assumed. Absorption only, the lines darken the
         continuum but never re-emit into it, so no core ever reverses.
       </p>
     </>

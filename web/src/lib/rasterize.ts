@@ -4,7 +4,7 @@ import { INFERNO, RDBU_R } from "./luts";
 /**
  * PlaneGrid float32 values (row i = z ascending) -> RGBA pixels (row 0 = top).
  * density: inferno with the disclosed gamma compression (VISUAL LIBERTY).
- * psi: diverging RdBu_r, LINEAR in psi, zero at the midpoint — signed structure
+ * psi: diverging RdBu_r, LINEAR in psi, zero at the midpoint, signed structure
  * is the honest point of that mode, so no gamma is applied.
  */
 export function rasterize(

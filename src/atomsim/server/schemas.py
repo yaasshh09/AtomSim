@@ -516,7 +516,7 @@ class ProfileModel(BaseModel):
     wavelength_nm: list[float]
     intensity: list[float]
     unit: str
-    #: "emissivity" | "rate" | "uniform" — what the area under a line means.
+    #: "emissivity" | "rate" | "uniform", what the area under a line means.
     weight_kind: str
     resolving_power: float | None
     #: Curve integral over summed line strengths. The grid's own quadrature

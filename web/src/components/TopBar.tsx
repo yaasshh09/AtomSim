@@ -20,7 +20,7 @@ export function TopBar() {
   const isScreened =
     systems.find((s) => s.key === system)?.kind === "screened";
   // For a many-electron atom the basis is not the interesting half of the
-  // sentence — which of the two models is solving it is.
+  // sentence, which of the two models is solving it is.
   const method = isScreened
     ? model === "hf"
       ? "Hartree-Fock"

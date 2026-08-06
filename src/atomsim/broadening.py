@@ -2,7 +2,7 @@
 
 Every spectrum drawn before this module was a picket fence: a line was a bar of
 zero width at one wavelength. That is right about where lines are and silent
-about what a line *is*. Real lines have width, and the width is not noise — it
+about what a line *is*. Real lines have width, and the width is not noise, it
 is the densest piece of information in observational spectroscopy. One profile
 carries the temperature (Doppler), the density (collisions), the lifetime of
 the upper level (natural), and the instrument.
@@ -116,7 +116,7 @@ class SyntheticSpectrum:
     #: at 656.47 nm), so anything that needs a line's other properties back has
     #: to be handed the pairing rather than reconstruct it from what it can see.
     lines: tuple[SpectralLine, ...]
-    #: "emissivity" | "rate" | "uniform" — what the area under a line means.
+    #: "emissivity" | "rate" | "uniform", what the area under a line means.
     weight_kind: str
     resolving_power: float | None
     #: The curve's integral divided by the summed line strengths. An

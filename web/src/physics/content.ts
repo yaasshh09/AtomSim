@@ -27,7 +27,7 @@ export const PHYSICS_CONTENT: Record<
     blocks: [
       {
         tex: String.raw`\rho(x, 0, z) = |\psi_{n\ell m}(x, 0, z)|^2`,
-        note: "Probability density on the plane containing the quantization axis. The classic poster labels a signed quantity 'probability density' — density is non-negative, so ψ and |ψ|² are labeled separately here.",
+        note: "Probability density on the plane containing the quantization axis. The classic poster labels a signed quantity 'probability density', density is non-negative, so ψ and |ψ|² are labeled separately here.",
       },
       {
         tex: String.raw`e^{im\varphi}\big|_{y=0} = \pm 1 \;\Rightarrow\; \psi\big|_{y=0} \in \mathbb{R}`,
@@ -44,7 +44,7 @@ export const PHYSICS_CONTENT: Record<
       },
       {
         tex: String.raw`\langle r\rangle = \frac{a_0\,m_e}{Z\,\mu}\;\frac{3n^2 - \ell(\ell+1)}{2}`,
-        note: "The dashed marker is the quantum expectation value — not the Bohr-model radius n²a₀ that many visualizers quietly show instead.",
+        note: "The dashed marker is the quantum expectation value, not the Bohr-model radius n²a₀ that many visualizers quietly show instead.",
       },
     ],
   },
@@ -57,7 +57,7 @@ export const PHYSICS_CONTENT: Record<
       },
       {
         tex: String.raw`\Delta E_{nj} = -\frac{(Z\alpha)^2\,|E_n|}{n}\left(\frac{1}{j+\tfrac12} - \frac{3}{4n}\right)`,
-        note: "The α² fine structure (spin–orbit + relativistic kinetic energy + Darwin term, combined). APPROXIMATION badge: α⁴ terms and the Lamb shift are absent — that is why equal-j levels coincide.",
+        note: "The α² fine structure (spin-orbit + relativistic kinetic energy + Darwin term, combined). APPROXIMATION badge: α⁴ terms and the Lamb shift are absent, that is why equal-j levels coincide.",
       },
     ],
   },
@@ -70,7 +70,7 @@ export const PHYSICS_CONTENT: Record<
       },
       {
         tex: String.raw`\Delta E_{nj} = -\frac{(Z\alpha)^2\,|E_n|}{n}\left(\frac{1}{j+\tfrac12} - \frac{3}{4n}\right)`,
-        note: "The fine split scales as (Zα)² — this is the term the lab drives. APPROXIMATION badge: the perturbative error itself grows as (Zα)², and past the disclosed validity limit the exact Dirac result would differ.",
+        note: "The fine split scales as (Zα)², this is the term the lab drives. APPROXIMATION badge: the perturbative error itself grows as (Zα)², and past the disclosed validity limit the exact Dirac result would differ.",
       },
     ],
   },

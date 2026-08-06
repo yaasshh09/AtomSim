@@ -31,7 +31,7 @@ export function nucleusSphere(
   return { kind: "marker", radius, magnification: radius / radiusBohr };
 }
 
-/** "6,300×" — two significant figures, thousands separators. */
+/** "6,300×", two significant figures, thousands separators. */
 export function formatMagnification(x: number): string {
   const rounded = Number(x.toPrecision(2));
   return `${rounded.toLocaleString("en-US")}×`;
@@ -45,13 +45,13 @@ export function nucleusCaption(
 ): string | null {
   if (mode === "hidden" || !system) return null;
   if (system.nuclear_radius === null || system.nuclear_radius_fm === null) {
-    return "the “nucleus” here is a point lepton — no measured size to draw";
+    return "the “nucleus” here is a point lepton, no measured size to draw";
   }
   const fm = system.nuclear_radius_fm.value.toFixed(3);
   const bohr = system.nuclear_radius.value.toExponential(1).replace("e-", "e-");
   if (mode === "true-scale") {
     return (
-      `nucleus at true scale: r_rms = ${fm} fm (${bohr} a₀) — ` +
+      `nucleus at true scale: r_rms = ${fm} fm (${bohr} a₀), ` +
       "smaller than a pixel at this zoom; that IS the physics"
     );
   }

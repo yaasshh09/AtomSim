@@ -25,11 +25,11 @@ BOHR_RADIUS_PM: float = _sc.physical_constants["Bohr radius"][0] * 1e12
 BOHR_RADIUS_FM: float = _sc.physical_constants["Bohr radius"][0] * 1e15
 
 # Real-universe display anchor ONLY (same caveat): atomic unit of magnetic field
-# (hbar / (e a0^2)), in tesla — for Tesla<->a.u. conversion at the server boundary.
+# (hbar / (e a0^2)), in tesla, for Tesla<->a.u. conversion at the server boundary.
 B0_TESLA: float = _sc.physical_constants["atomic unit of mag. flux density"][0]
 
 # Real-universe display anchor ONLY (same caveat): atomic unit of electric field
-# (E_h / (e a0)), in volts per metre — for MV/m<->a.u. conversion at the boundary.
+# (E_h / (e a0)), in volts per metre, for MV/m<->a.u. conversion at the boundary.
 E0_V_PER_M: float = _sc.physical_constants["atomic unit of electric field"][0]
 
 
@@ -53,7 +53,7 @@ class FundamentalConstants:
 
     @property
     def alpha(self) -> float:
-        """Fine-structure constant e^2 / (4 pi eps0 hbar c) — dimensionless."""
+        """Fine-structure constant e^2 / (4 pi eps0 hbar c), dimensionless."""
         return self.e**2 / (4 * math.pi * self.eps0 * self.hbar * self.c)
 
     @property
