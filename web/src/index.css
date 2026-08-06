@@ -1789,6 +1789,15 @@ input[type="range"] {
   cursor: pointer;
 }
 
+/* .link-button takes `font: inherit`, and what it inherits in this bar is the
+   page default, which sets the skip in larger type than the offer beside it.
+   The way out should be easy to find and quiet, not the loudest thing here. */
+.tour-invite-actions .link-button {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
 .tour-invite-note {
   margin: 0;
   flex-basis: 100%;
