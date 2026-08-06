@@ -21,6 +21,12 @@
   --accent-deep: #04140e;
   --sans: "Space Grotesk Variable", system-ui, sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", monospace;
+  /* The one surface the page does not paint itself. An open <select> popup is
+     drawn by the platform, and on a dark page it still came up white with dark
+     text: the closed control is ours, the list is the OS's. Declaring the
+     scheme is what lets the browser pick its dark widget palette, for the
+     option list, the focus ring and the scrollbars alike. */
+  color-scheme: dark;
 }
 
 * {
@@ -326,6 +332,19 @@ select:focus-visible {
   outline-offset: 1px;
 }
 
+/* `color-scheme` alone leaves the list at the platform's grey. These two carry
+   the panel colour into it so an open dropdown belongs to the same instrument
+   as the control it came out of. A disabled subshell keeps reading as greyed
+   because --label is dimmer than --text, not because the browser dimmed it. */
+option {
+  background-color: var(--panel);
+  color: var(--text);
+}
+
+option:disabled {
+  color: var(--label);
+}
+
 /* On a dashed control row the select is the value being read, so it drops its
    box and sits flush right like the numbers above it. The border comes back on
    hover and focus, which is where the affordance is actually needed. */
@@ -399,8 +418,10 @@ button.ghost:hover {
   font-size: 0.85rem;
 }
 
+/* No `position: relative` here any more. The inspector is a portal on the body
+   now, so a containing block on the wrapper would do nothing except invite the
+   next person to write `position: absolute` and reintroduce the clipping. */
 .badge-wrap {
-  position: relative;
   display: inline-block;
 }
 
@@ -421,24 +442,46 @@ button.ghost:hover {
   white-space: nowrap;
 }
 
+/* Fixed, and placed from Badge.tsx in viewport coordinates. The panel is
+   portalled to the body so no rail, stage or view wrapper can clip it; above 60
+   so it also clears the tour menu, since a tour is exactly when someone reads a
+   provenance. The two maxes are the promise that the whole disclosure stays in
+   one rectangle: the width shrinks with a narrow window instead of hanging off
+   it, and a long assumption list scrolls inside the panel rather than growing
+   past the bottom of the screen. */
 .badge-inspector {
-  position: absolute;
-  z-index: 10;
-  top: 1.6rem;
-  left: 0;
-  width: 260px;
+  position: fixed;
+  z-index: 70;
+  width: 280px;
+  max-width: calc(100vw - 1rem);
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: 8px;
   padding: 0.75rem;
+  font-family: var(--sans);
   font-size: 0.8rem;
+  line-height: 1.45;
   color: var(--text);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  /* Methods carry unbroken formulas ("psi_nlm=R_nl(r)Y_lm"), which have no
+     space to wrap at and pushed the text under the right border. */
+  overflow-wrap: anywhere;
   /* neutralize inherited styling when the badge sits inside .readouts dt */
   text-transform: none;
   letter-spacing: normal;
   text-align: left;
   font-weight: normal;
+}
+
+.badge-inspector p {
+  margin: 0 0 0.4rem;
+}
+
+.badge-inspector p:last-child {
+  margin-bottom: 0;
 }
 
 .badge-inspector ul {
