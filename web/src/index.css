@@ -502,6 +502,23 @@ option:checked {
     width: auto;
   }
 
+  /* A quantum-number tile is centred, and so is the value it shows closed, so
+     its list is centred too. The caret leaves the flow to allow it: carried
+     inline it pushes the number right of centre by half the caret box, and by a
+     different half on the selected row, where the box is sized to the glyph
+     instead of reserved empty. Centring the row as written would have left no
+     two numbers in the same column. */
+  .qn-tile option {
+    position: relative;
+    justify-content: center;
+  }
+
+  .qn-tile option::before {
+    position: absolute;
+    left: 0.4rem;
+    width: auto;
+  }
+
   optgroup {
     background: transparent;
     padding: 0.55rem 0.5rem 0.2rem;
