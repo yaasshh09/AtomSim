@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { analyticsEndpoint } from "./analytics";
+import { analyticsEndpoint, beaconUrl, type VisitFacts } from "./analytics";
+
+const ENDPOINT = "https://atomsim.goatcounter.com/count";
+
+const visit = (over: Partial<VisitFacts> = {}): VisitFacts => ({
+  pathname: "/",
+  title: "atomsim · the quantum atom, honestly",
+  referrer: "",
+  screenWidth: 1920,
+  automated: false,
+  nonce: "abc123",
+  ...over,
+});
 
 describe("analyticsEndpoint", () => {
   it("is off unless configured", () => {
@@ -74,5 +86,67 @@ describe("analyticsEndpoint", () => {
     expect(analyticsEndpoint("https://metrics.example.org/gc/count")).toBe(
       "https://metrics.example.org/gc/count",
     );
+  });
+});
+
+describe("beaconUrl", () => {
+  it("reports a visit with the fields the dashboard needs", () => {
+    const url = new URL(beaconUrl(ENDPOINT, visit()));
+    expect(url.origin + url.pathname).toBe(ENDPOINT);
+    expect(url.searchParams.get("p")).toBe("/");
+    expect(url.searchParams.get("t")).toBe("atomsim · the quantum atom, honestly");
+    expect(url.searchParams.get("s")).toBe("1920");
+    expect(url.searchParams.get("b")).toBe("0");
+    expect(url.searchParams.get("rnd")).toBe("abc123");
+  });
+
+  it("never carries the app state, whatever the address bar holds", () => {
+    // The regression this file exists for. GoatCounter's count.js hardcodes
+    // `q: location.search` in get_data, with no setting that reaches it, so
+    // overriding its `path` cleaned the recorded page and shipped the state
+    // anyway: production sent q=%3Fn%3D3%26l%3D1%26m%3D-1%26view%3Dplane.
+    // Building the URL here is what makes that structurally impossible, and
+    // this is the assertion that keeps it so.
+    const url = beaconUrl(ENDPOINT, visit({ pathname: "/" }));
+    expect(url).not.toContain("q=");
+    expect(url).not.toContain("n%3D3");
+    expect(url).not.toContain("view");
+    expect(new URL(url).searchParams.get("q")).toBeNull();
+  });
+
+  it("sends the path and nothing but the path", () => {
+    // A pathname is all installAnalytics ever passes, but if some future
+    // caller hands over a full URL the beacon should carry it verbatim rather
+    // than silently splitting it: visible in the dashboard beats invisible.
+    const url = beaconUrl(ENDPOINT, visit({ pathname: "/tour" }));
+    expect(new URL(url).searchParams.get("p")).toBe("/tour");
+  });
+
+  it("omits an empty referrer instead of sending a blank one", () => {
+    expect(new URL(beaconUrl(ENDPOINT, visit())).searchParams.has("r")).toBe(false);
+    expect(
+      new URL(beaconUrl(ENDPOINT, visit({ referrer: "https://news.ycombinator.com/" })))
+        .searchParams.get("r"),
+    ).toBe("https://news.ycombinator.com/");
+  });
+
+  it("omits a screen width it does not have", () => {
+    expect(new URL(beaconUrl(ENDPOINT, visit({ screenWidth: 0 }))).searchParams.has("s")).toBe(
+      false,
+    );
+  });
+
+  it("flags an automated browser as a bot", () => {
+    // Playwright checks against production would otherwise land in the count
+    // as people, and this project's own verification is not an audience.
+    expect(new URL(beaconUrl(ENDPOINT, visit({ automated: true }))).searchParams.get("b")).toBe(
+      "1",
+    );
+  });
+
+  it("varies the cache-buster so a repeat visit is not a cached image", () => {
+    const a = beaconUrl(ENDPOINT, visit({ nonce: "aaa" }));
+    const b = beaconUrl(ENDPOINT, visit({ nonce: "bbb" }));
+    expect(a).not.toBe(b);
   });
 });

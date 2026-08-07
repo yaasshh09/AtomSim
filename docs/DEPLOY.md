@@ -175,16 +175,32 @@ Empty is the default everywhere else, so a dev server, a local `npm run build`
 and the CI container image all report nothing. Only a build that passes the
 value counts.
 
-**What is reported.** The path, which is always `/`, plus what GoatCounter
-derives itself: referrer, screen size, and a daily-rotating hash of address and
-user agent, which is what makes "unique visitors" a number instead of a guess.
-No cookie is set and no address is stored.
+**What is reported**, and this is the complete list, built by `beaconUrl` in
+`web/src/lib/analytics.ts`: the path (always `/`), the document title, the
+referrer when there is one, the screen width, and a bot flag. GoatCounter adds
+a daily-rotating hash of address and user agent at its end, which is what makes
+"unique visitors" a number instead of a guess. No cookie is set and no address
+is stored.
 
 **What is deliberately not reported.** The query string. Every store change
 rewrites the URL, so the address carries n, l, m, the system, the view and any
-open tour step. `installAnalytics` in `web/src/lib/analytics.ts` overrides the
-reported path to `location.pathname` so none of that leaves the page. It would
-be finer than a headcount needs, and finer than a visitor agreed to.
+open tour step. A headcount does not need it and a visitor did not agree to it.
+
+That is also why the beacon is built here instead of by GoatCounter's
+`count.js`. count.js was tried first, with its `path` setting overridden to
+report `/`, and against production it sent
+`?p=%2F&…&q=%3Fn%3D3%26l%3D1%26m%3D-1%26view%3Dplane`. The override governs the
+recorded page; `q: location.search` is hardcoded in its `get_data` with no
+setting that reaches it. Calling `/count` directly is a supported integration
+(GoatCounter documents the endpoint as a 1×1 GIF on GET, and says outright that
+you can build your own). The cost is their client-side bot heuristic, so expect
+slightly more bot noise in the total. What it buys is that the fields leaving
+the page are only the ones named in `beaconUrl`, and a change to a third-party
+script cannot quietly widen them.
+
+Because the beacon is sent by JavaScript, **the deployed HTML contains no trace
+of it**. Grepping the page source for "goatcounter" returns nothing however
+well it is working; verifying it needs a browser.
 
 **How to read the number.** The dashboard's unique-visitor count over a date
 range is the figure to quote. Two limits belong on it in both directions: a
