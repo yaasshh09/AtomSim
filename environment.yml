@@ -7,6 +7,10 @@ dependencies:
   - scipy>=1.15
   - fastapi>=0.115
   - uvicorn>=0.30
+  # uvicorn ships no websocket implementation; see the note in pyproject.toml.
+  # conda-forge happened to supply this transitively, which is exactly why its
+  # absence went unnoticed until the app ran somewhere else.
+  - websockets>=13
   - httpx>=0.27
   - nodejs=22
   - pytest>=8

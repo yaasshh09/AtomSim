@@ -54,4 +54,23 @@ test "$STATUS" = "done"
 
 curl -fsS "${BASE}/api/jobs/${JOB}/meta" | grep -q '"kind":"sample"'
 
+# uvicorn ships no websocket implementation of its own, and without one it
+# declines the upgrade, leaves the request as plain HTTP, matches no route and
+# answers 404. Every websocket test in the pytest suite still passes, because
+# Starlette's TestClient speaks websockets in process and never involves
+# uvicorn at all. This is the only check that touches the real server.
+echo "--- the websocket upgrades"
+UPGRADE=$(curl -sS -i -N --max-time 5 \
+  -H "Connection: Upgrade" \
+  -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  "${BASE}/ws/jobs/${JOB}" 2>/dev/null | head -1 || true)
+case "$UPGRADE" in
+  *101*) ;;
+  *) echo "expected 101 Switching Protocols, got: ${UPGRADE:-<nothing>}"
+     docker logs "$NAME" 2>&1 | tail -20
+     exit 1 ;;
+esac
+
 echo "--- ok"

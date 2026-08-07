@@ -36,6 +36,16 @@ dependencies = [
     "scipy>=1.15",
     "fastapi>=0.115",
     "uvicorn>=0.30",
+    # Never imported by this package, and required anyway. uvicorn ships no
+    # websocket implementation of its own, and `/ws/jobs/{id}` is how every
+    # job reports progress; without one uvicorn declines the upgrade, the
+    # request stays plain HTTP, no route matches and the client gets a 404.
+    # The pytest suite cannot catch its absence, because Starlette's TestClient
+    # speaks websockets in process and never reaches uvicorn. Only
+    # `scripts/smoke_container.sh` does. Undeclared until 2026-08-07, when the
+    # first environment that did not supply it transitively was the deployed
+    # one.
+    "websockets>=13",
     "matplotlib>=3.9",
 ]
 

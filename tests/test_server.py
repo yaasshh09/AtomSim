@@ -99,6 +99,29 @@ def test_meta_before_done_is_409(client):
     assert client.get(f"/api/jobs/{job.id}/data").status_code == 409
 
 
+def test_a_websocket_implementation_is_installed():
+    """The test below passes without one, and the deployed server does not.
+
+    `TestClient.websocket_connect` speaks websockets in process, so it never
+    reaches uvicorn and never needs uvicorn's optional websocket dependency.
+    A real server without one declines the upgrade, leaves the request as
+    plain HTTP, matches no route and answers 404, which is what shipped on
+    2026-08-07. Asserting the dependency is declared is the only thing this
+    suite can do about that; `scripts/smoke_container.sh` covers the rest.
+    """
+    import importlib.util
+
+    installed = [
+        name
+        for name in ("websockets", "wsproto")
+        if importlib.util.find_spec(name) is not None
+    ]
+    assert installed, (
+        "uvicorn needs 'websockets' or 'wsproto' to serve /ws/jobs/{id}; "
+        "neither is importable, so a real server would 404 the upgrade"
+    )
+
+
 def test_websocket_streams_progress_to_done(client):
     r = client.post(
         "/api/jobs/sample", json={"n": 2, "l": 1, "m": 0, "count": 20000, "seed": 1}
