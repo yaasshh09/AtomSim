@@ -51,3 +51,30 @@ jobs:
       # application. This asks it for the interface and a finished job.
       - name: Smoke test
         run: bash scripts/smoke_container.sh atomsim:ci
+
+  deploy:
+    runs-on: ubuntu-latest
+    # The gate: a red suite must not reach a public URL.
+    needs: [python, web, container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: deploy-atomsim
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master
+      # --ha=false: a second machine would split JobStore and TokenBucket, and
+      # a client would get job ids that do not exist on whichever instance it
+      # reaches next. See docs/DEPLOY.md.
+      - name: Deploy
+        run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # A fresh deploy leaves the machine cold, and cold measured 22.5 s
+      # against 1.6 s for a resume from snapshot. Paying that here means no
+      # visitor pays it, which matters most right after a deploy: that is
+      # exactly when a link is likely to be shared.
+      - name: Warm the new machine
+        run: >
+          curl -fsS --retry 5 --retry-all-errors --max-time 90
+          https://atomsim.fly.dev/api/health
