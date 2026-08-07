@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { installAnalytics } from "./lib/analytics";
 import { shouldAutoSample } from "./lib/startup";
 import { currentUrlState, parseAppUrl, serializeAppUrl } from "./lib/urlState";
 import { useAppStore } from "./state/store";
@@ -9,6 +10,12 @@ import { useAppStore } from "./state/store";
 import "@fontsource-variable/space-grotesk";
 import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
+
+// First, so that an arrival is counted even if the render that follows throws:
+// "someone opened it" is true either way, and a crash is exactly when knowing
+// that someone did is worth something. Off unless VITE_GOATCOUNTER is set at
+// build time, which the dev server and a plain `npm run build` never do.
+installAnalytics(import.meta.env.VITE_GOATCOUNTER, document);
 
 // Deep links (demo-script hooks): apply the URL before first render, then keep
 // the URL describing the live state so any moment of a session is shareable.

@@ -24,6 +24,16 @@ primary_region = "ams"
     # baked into the bundle, not read at runtime.
     VITE_SITE_URL = "https://atomsim.fly.dev"
 
+    # Visitor counting, off until this is filled in with the GoatCounter
+    # endpoint for this site: "https://<code>.goatcounter.com/count". It is a
+    # public value, not a secret, which is why it lives here rather than in
+    # `fly secrets`: it is baked into the bundle every visitor downloads, and a
+    # secret would be neither secret nor available at build time. Only builds
+    # that pass it report anything, so local and CI images stay silent.
+    # Fly's own metrics cannot replace this: they count requests, not people,
+    # and retain about 15 days. See docs/DEPLOY.md.
+    VITE_GOATCOUNTER = ""
+
 [http_service]
   internal_port = 8080
   force_https = true

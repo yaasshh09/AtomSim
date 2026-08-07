@@ -149,6 +149,50 @@ Open Graph tags and baked into the bundle, not read at runtime. Changing the
 public URL means changing it there and rebuilding, or link previews will point
 at the old origin.
 
+## Counting visitors
+
+Fly cannot answer "how many people used this". It counts requests, and one
+visit is 20 to 40 of them once the bundle, the fonts, the websocket and a job
+POST are counted. Its Prometheus also retains **about 15 days**, so a question
+asked two months from now has nothing behind it. That is the whole reason
+something else does the counting, and the reason it had to start before the
+data was wanted rather than when it was.
+
+GoatCounter does it. Set up once:
+
+1. Create the site at <https://www.goatcounter.com/signup>, which gives a code
+   and the URL `https://<code>.goatcounter.com`.
+2. Put `https://<code>.goatcounter.com/count` in `VITE_GOATCOUNTER` under
+   `[build.args]` in `fly.toml`.
+3. Deploy. The value is baked into the bundle at build time, so it takes a
+   rebuild, not a restart.
+
+It is public, not a secret: every visitor downloads it inside the bundle. That
+is why it sits in `fly.toml` and not in `fly secrets`, which would be neither
+secret nor readable at build time.
+
+Empty is the default everywhere else, so a dev server, a local `npm run build`
+and the CI container image all report nothing. Only a build that passes the
+value counts.
+
+**What is reported.** The path, which is always `/`, plus what GoatCounter
+derives itself: referrer, screen size, and a daily-rotating hash of address and
+user agent, which is what makes "unique visitors" a number instead of a guess.
+No cookie is set and no address is stored.
+
+**What is deliberately not reported.** The query string. Every store change
+rewrites the URL, so the address carries n, l, m, the system, the view and any
+open tour step. `installAnalytics` in `web/src/lib/analytics.ts` overrides the
+reported path to `location.pathname` so none of that leaves the page. It would
+be finer than a headcount needs, and finer than a visitor agreed to.
+
+**How to read the number.** The dashboard's unique-visitor count over a date
+range is the figure to quote. Two limits belong on it in both directions: a
+shared network makes many people look like one, and a phone moving between wifi
+and cellular makes one person look like several. So it is an estimate, and
+"roughly N people" is the honest form. Traffic in the first days is mostly this
+project's own deploy verification and smoke tests rather than visitors.
+
 ## Costs
 
 `shared-cpu-1x` with 1GB is $5.92/month if it never sleeps; suspended when idle

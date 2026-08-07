@@ -9,6 +9,13 @@ FROM node:22-slim AS web
 ARG VITE_SITE_URL=""
 ENV VITE_SITE_URL=$VITE_SITE_URL
 
+# The GoatCounter endpoint, e.g. https://<code>.goatcounter.com/count. Empty is
+# the right default and the only value a local or CI build should ever get:
+# counting is a property of the public deployment, not of the image. fly.toml
+# supplies it, so `flyctl deploy` is the one build that reports visits.
+ARG VITE_GOATCOUNTER=""
+ENV VITE_GOATCOUNTER=$VITE_GOATCOUNTER
+
 WORKDIR /build
 
 # Copied before the sources so editing a component does not reinstall the tree.
