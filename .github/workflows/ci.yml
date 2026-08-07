@@ -37,3 +37,17 @@ jobs:
         run: npm test
       - name: Build (includes tsc --noEmit)
         run: npm run build
+
+  # ubuntu, not windows: the other two jobs run on Windows because that is
+  # where this project is developed, but Linux containers do not build on a
+  # Windows runner.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Build
+        run: docker build --build-arg VITE_SITE_URL=https://atomsim.fly.dev -t atomsim:ci .
+      # A build that succeeds proves the image compiles, not that it serves an
+      # application. This asks it for the interface and a finished job.
+      - name: Smoke test
+        run: bash scripts/smoke_container.sh atomsim:ci
