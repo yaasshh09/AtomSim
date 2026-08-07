@@ -2,6 +2,7 @@
 
 import asyncio
 import dataclasses
+import logging
 import math
 import os
 import re
@@ -131,8 +132,25 @@ from atomsim.systems import (
 )
 from atomsim.transfer import absorb, curve_of_growth, default_columns
 
-WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+logger = logging.getLogger(__name__)
+
+
+def _web_dist() -> Path:
+    """Where the built frontend lives.
+
+    The default assumes a source checkout: `parents[3]` is the repo root, the
+    directory holding both `src/` and `web/`. Installed into site-packages the
+    same expression resolves into the Python library directory, where there is
+    no `web/dist` and never will be, and the mount below is skipped. That
+    failure is silent by construction, so the override exists to let a
+    container state where it put the build rather than hope.
+    """
+    override = os.environ.get("ATOMSIM_WEB_DIST")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parents[3] / "web" / "dist"
 
 
 def _job_worker_count() -> int:
@@ -2200,7 +2218,11 @@ def create_app() -> FastAPI:
             await asyncio.sleep(0.1)
         await ws.close()
 
-    if WEB_DIST.exists():
-        app.mount("/", StaticFiles(directory=str(WEB_DIST), html=True), name="web")
+    web_dist = _web_dist()
+    if web_dist.is_dir():
+        app.mount("/", StaticFiles(directory=str(web_dist), html=True), name="web")
+        logger.info("UI mounted from %s", web_dist)
+    else:
+        logger.warning("no UI at %s; serving the API only", web_dist)
 
     return app
