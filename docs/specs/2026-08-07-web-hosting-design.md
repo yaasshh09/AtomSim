@@ -28,7 +28,7 @@ server safe to expose.
 | Host | Fly.io | Custom domain with free TLS, fixed-price ceiling, and a container that ports elsewhere unchanged |
 | URL | `atomsim.fly.dev` first | Verifies the deploy before DNS is a variable; custom domain is two commands later with no redeploy |
 | Machine | `shared-cpu-1x`, 1GB | 1GB is what `JobStore` actually needs; see "Sizing" |
-| Idle | Scale to zero | Pay only for running seconds. Idle cost is near zero and wake is seconds, not the 30-90s a sleeping free tier costs |
+| Idle | Scale to zero, `suspend` | Pay only for running seconds. Suspend snapshots RAM, so resume skips the engine import that dominates a cold start |
 | Deploy | GitHub Action on push to `main` | Matches the existing main-only workflow |
 
 ### Rejected alternatives
@@ -167,7 +167,7 @@ code already documents as correct ("on a single core they simply timeshare").
 |---|---|---|
 | `internal_port` | 8080 | Matches the uvicorn `CMD` |
 | `force_https` | true | |
-| `auto_stop_machines` | `stop` | Scale to zero; `suspend` is an optimisation to measure later |
+| `auto_stop_machines` | `suspend` | Resume from a RAM snapshot in a few hundred ms rather than re-importing the engine |
 | `auto_start_machines` | true | Wake on request |
 | `min_machines_running` | 0 | The scale-to-zero decision |
 | `[[vm]] size` | `shared-cpu-1x` | |
@@ -191,6 +191,35 @@ passing, using `flyctl deploy --remote-only` with `FLY_API_TOKEN` as a repo
 secret. Deploying a broken build to a public URL because a test was red is the
 one outcome worth blocking.
 
+## Cold start and the waiting page
+
+A sleeping site makes a visitor wait, and the visitor cannot be told why by the
+server that is asleep. Anything that explains the wait has to be hosted
+somewhere that never sleeps.
+
+`suspend` is expected to make this moot: resume restores a snapshot in which the
+engine is already imported, so the wait should be a few hundred milliseconds
+rather than the 10 to 20 seconds a cold start costs on a shared vCPU. The 5.4s
+figure `cli.py` records for importing the server stack was measured on a
+14-core laptop and is the thing suspend skips.
+
+**Decision: measure before building anything.** Deploy, then time three cases:
+
+1. Resume from suspend (the common case).
+2. True cold start after a deploy (the guaranteed-slow case).
+3. A warm request (the baseline).
+
+If resume lands under a second, there is no wait to explain and no page to
+build. If it does not, the waiting page becomes a work item, scoped as: a static
+page on an always-warm free host that polls `/api/health` and forwards once the
+engine answers, needing CORS on that one endpoint and nothing else.
+
+If it is ever built, it must not show a progress bar. Boot progress is not
+measurable from outside the machine, so an animated 0-to-100% would be inventing
+a number. An indeterminate spinner or an elapsed-seconds counter states only what
+is actually known, which is the same standard every other number in this project
+is held to.
+
 ## Testing
 
 - **Container smoke test:** build the image, run it, then assert `/api/health`
@@ -203,6 +232,9 @@ one outcome worth blocking.
   the smoke test.
 - **Machine count assertion:** verify exactly one machine is running after
   deploy.
+- **Wake-time measurement:** the three timings in "Cold start and the waiting
+  page", recorded in the deploy doc as numbers rather than adjectives. They are
+  what decides whether the waiting page gets built.
 
 ## Risks and open verifications
 
@@ -212,7 +244,8 @@ one outcome worth blocking.
 | Health checks defeat scale-to-zero | A Fly http check may keep the machine running forever. Default to no health check; if one is added, verify the machine still stops when idle. |
 | Unmetered result re-download | `/api/jobs/{id}/data` is not rate limited (only `POST /api/jobs/` is), so one token buys unlimited 20MB re-fetches until eviction. Low severity. Covered by a hard spend cap rather than new code. |
 | Egress from a determined client | Sustained abuse at the limiter's ceiling is bounded but nonzero at $0.02/GB. Set a Fly spending limit and a budget alert. |
-| `suspend` versus `stop` for auto-stop | `suspend` snapshots RAM and resumes far faster, skipping the scipy import, but has caveats. Default to `stop` and treat `suspend` as an optimisation to measure, not to assume. |
+| Suspend snapshots are not durable | Host migration or capacity pressure discards the snapshot and the next visit pays a full cold start. This is the case the waiting page would exist for; see "Cold start and the waiting page". |
+| Clock is briefly wrong after resume | `TokenBucket` reads `time.monotonic()`, so buckets do not refill across a suspension. That is stricter than intended rather than looser, and no requests arrive while suspended, so it is harmless. Noted so it is not rediscovered as a bug. |
 | Region choice | `bom` is nearest to the author; verify against `fly platform regions` rather than trusting a remembered list. |
 
 ## Cost
