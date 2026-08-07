@@ -76,6 +76,30 @@ def test_a_named_proxy_header_separates_clients_behind_one_address(monkeypatch):
     assert other.status_code == 200  # different visitor, own bucket
 
 
+def test_a_spoofed_prefix_does_not_buy_a_fresh_bucket(monkeypatch):
+    """The caller writes the left of the list; the trusted proxy appends the right.
+
+    A forwarding proxy appends rather than replaces, so a client sending its own
+    address arrives as `<whatever they typed>, <their real address>`. Charging
+    the leftmost entry charges a string the caller chose, and rotating it per
+    request would mint an unlimited supply of full buckets: a limiter that
+    refuses nobody.
+    """
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT", "on")
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT_BURST", "1")
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT_PERIOD", "600")
+    monkeypatch.setenv("ATOMSIM_CLIENT_IP_HEADER", "X-Forwarded-For")
+    with TestClient(create_app()) as client:
+        first = client.post(
+            "/api/jobs/sample", json=SAMPLE, headers={"X-Forwarded-For": "spoof-a, 3.3.3.3"}
+        )
+        rotated = client.post(
+            "/api/jobs/sample", json=SAMPLE, headers={"X-Forwarded-For": "spoof-b, 3.3.3.3"}
+        )
+    assert first.status_code == 200
+    assert rotated.status_code == 429  # same real address, bucket already spent
+
+
 def test_an_unnamed_proxy_header_is_ignored(monkeypatch):
     """A spoofable header must not become a way around the limiter."""
     monkeypatch.setenv("ATOMSIM_RATE_LIMIT", "on")

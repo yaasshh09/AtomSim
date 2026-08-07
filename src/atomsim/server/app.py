@@ -204,11 +204,25 @@ def _client_key(request, header: str | None) -> str:
     locks out the rest. The header is opt-in by name rather than assumed,
     because trusting a forwarded address that a client can set is the same as
     having no limiter at all.
+
+    The rightmost entry is the one to charge, and the distinction is not
+    cosmetic. A forwarding proxy appends, so a caller that sends its own
+    `X-Forwarded-For: someone-else` arrives as `someone-else, <real address>`.
+    Charging the leftmost entry charges a string the caller typed, and varying
+    it per request buys an unlimited supply of full buckets. Only the last hop
+    was written by the proxy we chose to trust.
+
+    This assumes exactly one trusted proxy in front, which is what the
+    deployment has. Behind two, the rightmost entry is the inner proxy and
+    every client would share its bucket: wrong in the safe direction, and worth
+    re-deriving rather than inheriting if another hop is ever added.
     """
     if header:
         forwarded = request.headers.get(header)
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            candidate = forwarded.split(",")[-1].strip()
+            if candidate:
+                return candidate
     return request.client.host if request.client else "unknown"
 
 
