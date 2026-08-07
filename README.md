@@ -117,29 +117,6 @@ shareable: `?n=3&l=1&m=-1&system=mu-h&view=plane&plane=psi`.
 
 Run the suites with `pytest` from the repo root and `npm test` from `web/`.
 
-## Layout
-
-Two halves over an HTTP and raw-binary boundary.
-
-```
-src/atomsim/
-  provenance.py     Fidelity, Provenance, Quantity, Field: the spine
-  analytic/         closed-form hydrogen-like, Dirac, fine/hyperfine, Zeeman, Stark
-  numerics/         radial solver, exponential mesh, Slater integrals, Hartree-Fock
-  hf_atom.py        self-consistent HF atoms end to end
-  screened_atom.py  GSZ screened-potential model
-  spectra.py        emission lines vs vendored NIST data
-  transfer.py       optical depth, curve of growth, absorption
-  server/           FastAPI app, background jobs, provenance-preserving schemas
-web/src/
-  state/store.ts    one store; the INVALIDATED block is why stale physics cannot render
-  components/       the views, each labelled with exactly what it plots
-  tours/            guided narratives whose physics claims are checked in CI
-```
-
-Engine-internal maths is in Hartree atomic units; SI and display conversions
-happen at the server boundary and append themselves to the provenance.
-
 Design notes are under [docs/specs/](docs/specs/) and the phase-by-phase
 implementation plans under [docs/plans/](docs/plans/).
 
