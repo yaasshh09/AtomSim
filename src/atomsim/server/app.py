@@ -905,9 +905,15 @@ def create_app() -> FastAPI:
             and request.method == "POST"
             and request.url.path.startswith("/api/jobs/")
         ):
-            wait = limiter.check(_client_key(request, client_ip_header))
+            charged = _client_key(request, client_ip_header)
+            wait = limiter.check(charged)
             if wait is not None:
                 retry = max(1, math.ceil(wait))
+                # Named, because a refusal is the one moment the key matters
+                # operationally: it says whether one visitor is hammering the
+                # host, or whether the whole internet is sharing one bucket
+                # because the forwarded-address header was never configured.
+                logger.warning("rate limit refused %s; retry in %ds", charged, retry)
                 return JSONResponse(
                     status_code=429,
                     headers={"Retry-After": str(retry)},

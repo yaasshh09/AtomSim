@@ -1,0 +1,42 @@
+# atomsim: one process, suspended when nobody is looking.
+#
+# One machine is a requirement, not a preference. JobStore and TokenBucket are
+# per-process in-memory state, so a second machine would hand clients job ids
+# that do not exist on the instance they reach next, and would give every
+# client a second full rate-limit bucket. `ratelimit.py` says it outright:
+# counting per process is "wrong the moment there are two". Deploys pass
+# --ha=false for that reason, and `fly status` showing two machines is a
+# correctness bug rather than a cost inefficiency.
+
+app = "atomsim"
+primary_region = "bom"
+
+[build]
+  [build.args]
+    # Substituted into index.html's Open Graph tags at build time. Update this
+    # when a custom domain replaces the fly.dev name, and rebuild: the value is
+    # baked into the bundle, not read at runtime.
+    VITE_SITE_URL = "https://atomsim.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_start_machines = true
+  min_machines_running = 0
+  # "suspend" snapshots the whole VM, so a resume skips re-importing numpy,
+  # scipy and matplotlib. cli.py measures that import at 5.4 s on a 14-core
+  # laptop, which is the cost a plain "stop" would pay on every first visit.
+  auto_stop_machines = "suspend"
+
+# Deliberately no [[http_service.http_checks]]. A periodic health check is a
+# request, and a machine receiving requests never goes idle, which would defeat
+# the suspension this file is built around.
+
+[[vm]]
+  size = "shared-cpu-1x"
+  # 1GB is what JobStore needs, not a round number. It retains 16 finished jobs
+  # and SampleRequest.count is capped at 1,000,000 points at roughly 20MB each,
+  # so the worst case is about 320MB of held results on top of roughly 250MB
+  # for Python with the scientific stack loaded. 512MB can be OOM-killed by an
+  # ordinary click-storm.
+  memory = "1gb"

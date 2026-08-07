@@ -6,6 +6,8 @@ tells the client when to come back, and that the proxy header is trusted only
 when it has been named.
 """
 
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -98,6 +100,27 @@ def test_a_spoofed_prefix_does_not_buy_a_fresh_bucket(monkeypatch):
         )
     assert first.status_code == 200
     assert rotated.status_code == 429  # same real address, bucket already spent
+
+
+def test_a_refusal_names_who_was_charged(monkeypatch, caplog):
+    """The key is invisible everywhere else, and it is the thing that can be wrong.
+
+    Behind a proxy with no header configured, every visitor collapses onto one
+    bucket and the symptom is indistinguishable from ordinary popularity. The
+    refusal line is what tells the two apart on a real host.
+    """
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT", "on")
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT_BURST", "1")
+    monkeypatch.setenv("ATOMSIM_RATE_LIMIT_PERIOD", "600")
+    monkeypatch.setenv("ATOMSIM_CLIENT_IP_HEADER", "Fly-Client-IP")
+    with caplog.at_level(logging.WARNING, logger="atomsim.server.app"):
+        with TestClient(create_app()) as client:
+            client.post("/api/jobs/sample", json=SAMPLE, headers={"Fly-Client-IP": "5.5.5.5"})
+            refused = client.post(
+                "/api/jobs/sample", json=SAMPLE, headers={"Fly-Client-IP": "5.5.5.5"}
+            )
+    assert refused.status_code == 429
+    assert "5.5.5.5" in caplog.text
 
 
 def test_an_unnamed_proxy_header_is_ignored(monkeypatch):
