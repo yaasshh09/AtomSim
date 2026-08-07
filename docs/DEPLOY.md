@@ -1,8 +1,8 @@
 # Deploying atomsim
 
 Public URL: <https://atomsim.fly.dev>
-Fly app `atomsim`, region `bom` (Mumbai), one `shared-cpu-1x` machine with 1GB,
-suspended when idle.
+Fly app `atomsim`, region `fra` (Frankfurt), one `shared-cpu-1x` machine with
+1GB, suspended when idle.
 
 Design: `docs/specs/2026-08-07-web-hosting-design.md`.
 
@@ -29,10 +29,26 @@ living in host configuration that a rebuild elsewhere would lose.
 | `MPLCONFIGDIR` | `/tmp/matplotlib` | matplotlib has no writable cache directory |
 | `PYTHONUNBUFFERED` | `1` | Log lines appear at shutdown rather than when they happen |
 
+## Region: why not Mumbai
+
+`bom` was the first choice, being nearest the author. It ran out of capacity
+mid-deploy on 2026-08-07: the deploy destroyed the running machine, could not
+create its replacement, and **the app was down until the region changed**.
+Retrying did not help.
+
+The lesson is that a deploy is exactly the moment capacity is needed, so a
+constrained region is an availability risk and not only a latency choice. `fra`
+is the next closest with room. If it is ever worth moving back, change
+`primary_region` in `fly.toml` and deploy, but treat capacity as the deciding
+factor rather than distance.
+
 ## Measured, 2026-08-07
 
-Against `shared-cpu-1x` / 1GB in `bom`, measured from outside the region, so
-every figure includes roughly 0.4 s of network round trip.
+Taken against `shared-cpu-1x` / 1GB while the app was in `bom`, from outside
+the region, so every figure includes roughly 0.4 s of network round trip. The
+move to `fra` changes that network component but not the wake mechanism, which
+is what the cold-versus-resume comparison is about. Warm latency measured the
+same 0.43 s from the same client after the move.
 
 | Case | Time to `/api/health` |
 |---|---|
@@ -75,6 +91,29 @@ machine and an animated percentage would be inventing a number.
 Not a hazard at these numbers. The longest job is about 3 s and the idle timer
 is about 240 s, an 80x margin, and the client holds a websocket open for the
 whole job anyway.
+
+## The websocket needs a library nothing imports
+
+`uvicorn` ships no websocket implementation. Without `websockets` or `wsproto`
+installed it declines the upgrade, the request stays plain HTTP, no route
+matches `/ws/jobs/{id}`, and the client gets a 404. Job progress then never
+arrives and the app appears to do nothing.
+
+This shipped on 2026-08-07 and was fixed the same day. It had been latent since
+the project began: `pyproject.toml` declared `uvicorn>=0.30` rather than
+`uvicorn[standard]`, and the conda env supplied `websockets` transitively, so
+the first environment that did not supply it was production.
+
+**The pytest suite cannot catch this.** `TestClient.websocket_connect` speaks
+websockets in process and never reaches uvicorn, so
+`test_websocket_streams_progress_to_done` passes against a server that has no
+websocket support at all. `scripts/smoke_container.sh` now asks the real server
+for a 101, and `test_a_websocket_implementation_is_installed` asserts the
+dependency is declared.
+
+If job progress ever stalls again, look for this in the logs first:
+
+    WARNING:  No supported WebSocket library detected.
 
 ## Forwarded-address verification
 

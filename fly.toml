@@ -9,7 +9,13 @@
 # correctness bug rather than a cost inefficiency.
 
 app = "atomsim"
-primary_region = "bom"
+# fra, not bom. Mumbai is nearer to the author but ran out of capacity on
+# 2026-08-07 mid-deploy, which destroyed the running machine and could not
+# create its replacement: the app was down until the region changed. Frankfurt
+# is the next closest with room. Worth remembering that a deploy is the moment
+# capacity is needed, so a constrained region is an availability risk and not
+# only a latency one.
+primary_region = "fra"
 
 [build]
   [build.args]
