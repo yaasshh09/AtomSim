@@ -137,6 +137,24 @@ _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 logger = logging.getLogger(__name__)
 
 
+def _configure_logging() -> None:
+    """Make this application's own log lines audible under uvicorn.
+
+    uvicorn installs handlers for its `uvicorn*` loggers and leaves the root
+    logger alone. A module logger propagating to an unconfigured root is not
+    merely unformatted, it is dropped: Python's last-resort handler emits
+    WARNING and above and discards the rest. The mount disclosure below is an
+    INFO line, so without this it exists in the code, passes its test against
+    `caplog`, and prints nothing on the host where it matters.
+
+    Guarded rather than unconditional. If anything has already configured
+    logging, the host or a test harness, it knows more about where the output
+    should go than this does.
+    """
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
+
+
 def _web_dist() -> Path:
     """Where the built frontend lives.
 
@@ -848,6 +866,7 @@ def _finished_result(jobs: JobStore, job_id: str):
 
 
 def create_app() -> FastAPI:
+    _configure_logging()
     app = FastAPI(title="atomsim", version=atomsim.__version__, lifespan=_lifespan)
     app.state.job_systems = {}
     # Parallel to job_systems, and for the same reason: the meta endpoint sees

@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from atomsim.server.app import _web_dist, create_app
+from atomsim.server.app import _configure_logging, _web_dist, create_app
 
 
 @pytest.fixture()
@@ -63,6 +63,40 @@ def test_a_mounted_build_is_said_out_loud(monkeypatch, built, caplog):
         create_app()
 
     assert str(built) in caplog.text
+
+
+def test_an_unconfigured_root_is_given_a_handler():
+    """Otherwise the mount disclosure passes its test and prints nothing.
+
+    uvicorn configures its own loggers and leaves the root alone, and an
+    unconfigured root drops INFO entirely rather than merely formatting it
+    plainly. `caplog` installs its own handler, so only a test that clears the
+    root can see the difference.
+    """
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    try:
+        root.handlers.clear()
+        _configure_logging()
+        assert root.handlers
+        assert root.level <= logging.INFO
+    finally:
+        root.handlers[:] = saved_handlers
+        root.setLevel(saved_level)
+
+
+def test_existing_logging_configuration_is_left_alone():
+    """A host that configured logging knows better than we do where it goes."""
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    try:
+        sentinel = logging.NullHandler()
+        root.handlers[:] = [sentinel]
+        _configure_logging()
+        assert root.handlers == [sentinel]
+    finally:
+        root.handlers[:] = saved_handlers
+        root.setLevel(saved_level)
 
 
 def test_the_api_still_answers_without_a_build(monkeypatch, tmp_path):

@@ -1,0 +1,36 @@
+# Keep the build context to what the image actually needs.
+#
+# web/node_modules is the one that matters: it is hundreds of megabytes, and
+# copying it in would also overwrite the `npm ci` the build stage just did for
+# the correct platform.
+
+.git
+.github
+.gitignore
+
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+
+web/dist
+dist
+build
+out
+
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+tests
+
+docs
+scripts
+environment.yml
+
+.claude
+.superpowers
+.gstack
+
+# README.md is deliberately NOT excluded: pyproject.toml declares
+# `readme = "README.md"` and the install fails without it.
