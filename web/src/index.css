@@ -2493,3 +2493,76 @@ input[type="range"] {
   fill: var(--text);
   font-size: 9.5px;
 }
+
+/* ---- Plot headers: the plain sentence above the axis ---- */
+
+/* A figcaption is now three stacked claims, not one line: what this plot is in
+   English, what it means, and which engine field with which tier it came out
+   of. They are separated because they are different kinds of statement, and
+   the provenance line is last because it is the one a reader consults rather
+   than reads. */
+.plot figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.plot-lead {
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plot-blurb {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 74ch;
+}
+
+.plot-provenance {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--label);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.1rem;
+}
+
+/* A note that belongs to one plot and not to the view, so it sits inside the
+   figure and is sized under the blurb rather than beside it. */
+.plot-foot {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--label);
+  margin: 0.3rem 0 0;
+}
+
+/* ---- Node marks ---- */
+
+.node-mark line {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  opacity: 0.75;
+}
+
+.node-mark circle {
+  fill: var(--accent-deep);
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+
+/* The mean-radius marker now carries its value, so it needs to stay legible
+   over whatever the curve is doing behind it. */
+.marker-text {
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: #06100c;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
