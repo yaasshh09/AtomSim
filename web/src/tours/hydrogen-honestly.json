@@ -98,7 +98,10 @@
         "m": 0,
         "view": "levels",
         "fineStructure": true,
-        "dirac": true
+        "dirac": true,
+        "bField": 0,
+        "eField": 0,
+        "hyperfine": false
       },
       "spotlight": "dirac-toggle"
     },

@@ -20,10 +20,21 @@ const SOURCES = import.meta.glob("../components/*.tsx", {
   eager: true,
 }) as Record<string, string>;
 
+/**
+ * Two spellings, because there are now two ways to declare an anchor.
+ *
+ * `data-tour="..."` is a component writing the attribute itself. `tourId="..."`
+ * is a component handing the same string to one of the shared controls in
+ * Field.tsx, which writes the attribute for it. Both are string literals in a
+ * component source, so both are equally visible to this scan and equally
+ * unable to survive an anchor being deleted in a refactor, which is the
+ * failure being guarded. A prop spelled any other way (a variable, a template
+ * string) would be invisible here and must not be introduced.
+ */
 function declaredAnchors(): Set<string> {
   const out = new Set<string>();
   for (const src of Object.values(SOURCES)) {
-    for (const m of src.matchAll(/data-tour="([^"]+)"/g)) out.add(m[1]);
+    for (const m of src.matchAll(/(?:data-tour|tourId)="([^"]+)"/g)) out.add(m[1]);
   }
   return out;
 }
