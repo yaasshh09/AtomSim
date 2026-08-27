@@ -2108,3 +2108,388 @@ input[type="range"] {
 .canvas-wrap-loading {
   background: var(--stage);
 }
+
+/* ============================================================
+   Legibility layer: leads, disclosures, and a shared control
+   vocabulary for the instrument views
+   ============================================================
+
+   Everything below exists because the physics was readable and the page was
+   not. Four views opened directly onto an axis and closed with six paragraphs
+   of disclosure, which is the right information in an order nobody reads. The
+   rule these styles enforce: a plain sentence comes first, the plot comes
+   second, and the full account is one click away and never deleted. */
+
+/* ---- The opening card ---- */
+
+.view-intro {
+  border: 1px solid var(--edge);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  background: linear-gradient(
+    100deg,
+    rgb(52 224 161 / 0.05),
+    rgb(9 15 13 / 0.4) 45%
+  );
+  padding: 0.85rem 1rem 0.9rem;
+  margin: 0 0 0.9rem;
+}
+
+/* Sans, and sentence case. This is the one string in a view meant to be read
+   at a glance rather than decoded, so it does not take the rails' uppercase
+   mono treatment, and it must not: `text-transform` here would turn "3d" into
+   "3D" and α² into A², which is the trap recorded against the section
+   headings. */
+.view-intro-title {
+  font-family: var(--sans);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin: 0 0 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.view-intro-badge {
+  display: inline-flex;
+}
+
+/* The lead is sans on purpose while every caption stays mono. The mono is the
+   instrument's voice for numbers and disclosure; this one sentence is the
+   app talking to a person, and the change of voice is the signal. */
+.view-intro-lead {
+  font-family: var(--sans);
+  font-size: 0.83rem;
+  line-height: 1.55;
+  color: var(--text);
+  opacity: 0.88;
+  margin: 0;
+  max-width: 68ch;
+}
+
+.view-intro-notice {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.55;
+  color: var(--accent-dim);
+  margin: 0.55rem 0 0;
+  max-width: 72ch;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.view-intro-notice-mark {
+  color: var(--accent);
+  flex: none;
+}
+
+/* ---- Disclosures ---- */
+
+.disclosure {
+  border: 1px solid var(--edge-faint);
+  border-radius: 3px;
+  background: rgb(8 12 14 / 0.5);
+  margin: 0.45rem 0 0;
+}
+
+.disclosure + .disclosure {
+  margin-top: 0.3rem;
+}
+
+.disclosure > summary {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--label);
+  padding: 0.42rem 0.6rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+/* The marker is drawn rather than inherited: the platform triangle is a
+   different colour and size in every engine, and this one rotates. */
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: 0.8em;
+  transition: transform 0.12s ease;
+  display: inline-block;
+}
+
+.disclosure[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.disclosure > summary:hover {
+  color: var(--text);
+  background: rgb(52 224 161 / 0.05);
+}
+
+.disclosure > summary:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.disclosure-caveat {
+  border-color: rgb(251 191 36 / 0.28);
+}
+
+.disclosure-caveat > summary {
+  color: #d9ab4a;
+}
+
+.disclosure-caveat > summary::before {
+  color: #fbbf24;
+}
+
+.disclosure-body {
+  padding: 0.1rem 0.75rem 0.6rem;
+  border-top: 1px solid var(--edge-faint);
+}
+
+/* Prose handed to a disclosure keeps the caption's measure, and loses the top
+   margin that would otherwise open a gap under the summary rule. */
+.disclosure-body > .caption:first-child,
+.disclosure-body > .hint-block:first-child,
+.disclosure-body > p:first-child {
+  margin-top: 0.55rem;
+}
+
+.disclosure-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Control groups ---- */
+
+.ctl-group {
+  border: 1px solid var(--edge-faint);
+  border-left: 2px solid var(--edge-strong);
+  border-radius: 3px;
+  padding: 0.6rem 0.75rem 0.7rem;
+  margin: 0 0 0.55rem;
+  background: rgb(8 12 14 / 0.4);
+}
+
+/* A group that is currently changing the physics gets the accent rail, so the
+   reader can see at a glance which layers are switched on without reading
+   every checkbox in the stack. */
+.ctl-group-active {
+  border-left-color: var(--accent);
+  background: rgb(52 224 161 / 0.035);
+}
+
+.ctl-group-title {
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--label);
+  margin: 0 0 0.3rem;
+}
+
+.ctl-group-active .ctl-group-title {
+  color: var(--accent-dim);
+}
+
+.ctl-group-hint {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  max-width: 74ch;
+}
+
+.ctl-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ---- Sliders ---- */
+
+.ctl-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  font-family: var(--mono);
+}
+
+.ctl-slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.ctl-slider-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.ctl-slider-readout {
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* At rest the readout is not news, so it steps back to the label colour. The
+   difference is what tells you which of six sliders you have actually moved. */
+.ctl-slider[data-rest] .ctl-slider-readout {
+  color: var(--label);
+}
+
+.ctl-slider input[type="range"] {
+  width: 100%;
+  margin: 0;
+}
+
+.ctl-slider-anchor {
+  font-size: 0.65rem;
+  color: var(--label);
+  font-style: normal;
+}
+
+.ctl-slider[data-rest] .ctl-slider-anchor {
+  opacity: 0.6;
+}
+
+/* ---- Toggles ---- */
+
+.ctl-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text);
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ctl-toggle-off .ctl-toggle-label {
+  color: var(--label);
+  cursor: not-allowed;
+}
+
+.ctl-toggle-why {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0.15rem 0 0 1.35rem;
+  max-width: 72ch;
+}
+
+/* ---- Segmented choice ---- */
+
+.ctl-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.ctl-choice-legend {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--label);
+}
+
+.ctl-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.ctl-choice-btn {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.ctl-choice-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--edge-strong);
+}
+
+.ctl-choice-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ctl-choice-on {
+  color: var(--accent-deep);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ctl-choice-on:hover:not(:disabled) {
+  color: var(--accent-deep);
+}
+
+.ctl-choice-hint {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+  max-width: 74ch;
+}
+
+.ctl-choice-blocked {
+  color: #d9ab4a;
+}
+
+/* ---- Hover readout on a plot ---- */
+
+/* An SVG that reads back its own values needs to say so before the pointer is
+   over it, hence the crosshair cursor: it is the only affordance a static
+   picture has. */
+.plot-hoverable {
+  cursor: crosshair;
+}
+
+.hover-line {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
+
+.hover-dot {
+  fill: var(--accent);
+  stroke: var(--accent-deep);
+  stroke-width: 1;
+}
+
+/* Opaque, not translucent. The box sits over the curve it is describing, and
+   a curve showing through its own readout is how a digit becomes unreadable. */
+.hover-box {
+  fill: #06100c;
+  stroke: var(--edge-strong);
+  stroke-width: 1;
+}
+
+.hover-text {
+  fill: var(--text);
+  font-size: 9.5px;
+}
