@@ -2566,3 +2566,68 @@ input[type="range"] {
   stroke-width: 3px;
   stroke-linejoin: round;
 }
+
+/* ---- Levels view ---- */
+
+/* The configuration line under a many-electron ladder's lead. It is data
+   about the run rather than prose, so it stays mono while the lead above it
+   is sans. */
+.view-intro-config {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent-dim);
+  margin: 0.5rem 0 0;
+}
+
+.ladder-hint {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+  max-width: 76ch;
+}
+
+/* A rung is a 1 px line, which is a target nobody can hit. The band behind it
+   is the actual control; the line is what the control looks like. */
+.rung-hit {
+  cursor: pointer;
+}
+
+.rung-hit-area {
+  fill: transparent;
+}
+
+.rung-hit:hover .rung-hit-area {
+  fill: rgb(52 224 161 / 0.06);
+}
+
+.rung-hit:focus-visible {
+  outline: none;
+}
+
+.rung-hit:focus-visible .rung-hit-area {
+  fill: rgb(52 224 161 / 0.1);
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.rung-hit:hover .rung {
+  stroke: var(--accent);
+}
+
+/* Leader lines joining a nudged label back to the rung it describes. Thin and
+   dim on purpose: they are a pointer, not another quantity being plotted. */
+.leader {
+  stroke: var(--edge-strong);
+  stroke-width: 1;
+}
+
+/* Transition labels sit over the ladder rules, so they get the same knockout
+   the mean-radius marker uses. */
+.arrow-label {
+  paint-order: stroke;
+  stroke: #06100c;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}

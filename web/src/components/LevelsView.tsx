@@ -2,10 +2,20 @@ import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import { isScreenedLevels } from "../api/client";
 import type { HFLevels, PauliCollapse, ScreenedLevels } from "../api/types";
-import { arrowsFor } from "../lib/levels";
+import { describeEField, describeField, VIEW_LEADS } from "../lib/explain";
+import {
+  arrowsFor,
+  detailMode,
+  detailState,
+  spreadLabels,
+  type DetailMode,
+} from "../lib/levels";
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { Disclosure } from "./Disclosure";
+import { Choice, ControlGroup, Slider, Toggle } from "./Field";
+import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
 const H = 460;
@@ -20,16 +30,24 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   const rungX2 = 340;
   return (
     <div className="view-wrap">
-      <div className="view-header">
-        <span className="plot-title">
-          Screened orbital energies ε_nl [eV]{" "}
-          <Badge provenance={orbitals[0].energy.provenance} />
-        </span>
-        <span className="plot-title">
-          · {levels.config}
-          {levels.is_ground ? " (ground)" : ", excited (non-ground)"}
-        </span>
-      </div>
+      <ViewIntro
+        lead={{
+          title: "Energy levels of a screened atom",
+          lead:
+            "Each rung is one subshell's energy in the fitted central field " +
+            "that stands in for all the other electrons. Solid rungs hold " +
+            "electrons; dashed ones are empty and waiting.",
+          notice:
+            "Watch s sit below p below d at the same n. Hydrogen has them on " +
+            "top of each other; screening is what pulls them apart.",
+        }}
+        badge={<Badge provenance={orbitals[0].energy.provenance} />}
+      >
+        <p className="view-intro-config">
+          {levels.config}
+          {levels.is_ground ? " · ground configuration" : " · excited, not the ground state"}
+        </p>
+      </ViewIntro>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         {/* ionization threshold */}
         <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
@@ -64,13 +82,18 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         })}
       </svg>
       <p className="caption">
-        Independent-particle orbital energies in the Green-Sellin-Zachor screened
-        central field (APPROXIMATION). Screening lifts the hydrogenic l-degeneracy
-        (s below p below d for a given n). Filled subshells are solid with their
-        occupancy; virtual orbitals are dashed. Total energy{" "}
-        {levels.total_energy_ev.value.toFixed(2)} eV is a sum of occupancy-weighted
-        orbital energies, not a variational total, see the badge.
+        Total energy {levels.total_energy_ev.value.toFixed(2)} eV.
       </p>
+      <Disclosure summary="What this model is doing, and what it is not">
+        <p className="caption">
+          Independent-particle orbital energies in the Green-Sellin-Zachor screened
+          central field (APPROXIMATION). Screening lifts the hydrogenic l-degeneracy
+          (s below p below d for a given n). Filled subshells are solid with their
+          occupancy; virtual orbitals are dashed. Total energy{" "}
+          {levels.total_energy_ev.value.toFixed(2)} eV is a sum of occupancy-weighted
+          orbital energies, not a variational total, see the badge.
+        </p>
+      </Disclosure>
     </div>
   );
 }
@@ -132,15 +155,16 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         decreases forever as Z grows, every element is a smaller version of the
         last one, and there is no chemistry to have.
       </p>
-      <p className="caption">
-        <strong>Checked against a closed form</strong>, not only against itself:
-        N electrons in a single 1s of exponent ζ minimize at ζ* ={" "}
-        {collapse.variational_zeta.value.toFixed(4)}, giving{" "}
-        {collapse.variational_energy_ev.value.toPrecision(6)} eV. The solve above
-        optimizes the radial function rather than an exponent, so it searches a
-        larger space and has to land at or below that number, and does. The
-        formula is textbook: at Z = N = 2 it is the variational helium result.
-      </p>
+      <Disclosure summary="Checked against a closed form, not only against itself">
+        <p className="caption">
+          N electrons in a single 1s of exponent ζ minimize at ζ* ={" "}
+          {collapse.variational_zeta.value.toFixed(4)}, giving{" "}
+          {collapse.variational_energy_ev.value.toPrecision(6)} eV. The solve above
+          optimizes the radial function rather than an exponent, so it searches a
+          larger space and has to land at or below that number, and does. The
+          formula is textbook: at Z = N = 2 it is the variational helium result.
+        </p>
+      </Disclosure>
     </>
   );
 }
@@ -164,26 +188,35 @@ function HFLadder({ levels }: { levels: HFLevels }) {
   const rungX1 = 100;
   const rungX2 = 360;
   const virial = levels.virial_ratio.value;
+  const modelName = !levels.pauli
+    ? "No Pauli exclusion (1s^N)"
+    : levels.exchange
+      ? "Hartree-Fock"
+      : "Hartree (no exchange)";
   return (
     <div className="view-wrap">
-      <div className="view-header">
-        <span className="plot-title">
-          {!levels.pauli
-            ? "No Pauli exclusion (1s^N)"
-            : levels.exchange
-              ? "Hartree-Fock"
-              : "Hartree (no exchange)"}{" "}
-          orbital energies ε_nl [eV] <Badge provenance={levels.provenance} />
-        </span>
-        <span className="plot-title">
-          · {levels.symbol ?? `Z=${levels.z}`} {levels.config}
+      <ViewIntro
+        lead={{
+          title: `Energy levels: ${modelName}`,
+          lead:
+            "Each rung is one subshell, solved self-consistently: every " +
+            "electron moves in the field of all the others, and the answer " +
+            "has to reproduce itself.",
+          notice:
+            "The 1s sits more than two decades below the valence shell, so " +
+            "the axis is logarithmic in binding energy. Deeper is further down.",
+        }}
+        badge={<Badge provenance={levels.provenance} />}
+      >
+        <p className="view-intro-config">
+          {levels.symbol ?? `Z=${levels.z}`} {levels.config}
           {levels.is_ground
             ? levels.pauli
-              ? " (ground)"
-              : " (ground, with no cap left to obey)"
-            : ", excited (non-ground)"}
-        </span>
-      </div>
+              ? " · ground configuration"
+              : " · ground, with no cap left to obey"
+            : " · excited, not the ground state"}
+        </p>
+      </ViewIntro>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
         <text x={rungX1} y={16} className="tick" opacity={0.7}>
@@ -211,17 +244,11 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         })}
       </svg>
       <p className="caption">
-        Self-consistent-field orbital energies (
+        Total energy {levels.total_energy_ev.value.toFixed(2)} eV
         {levels.exchange
-          ? "APPROXIMATION, see the badge for what Hartree-Fock leaves out, correlation above all"
-          : "COUNTERFACTUAL, see the badge; this is not an approximation to the real atom"}
-        ). Energy axis is logarithmic in binding energy{" "}
-        <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
-        valence shell differ by more than two decades. Total energy{" "}
-        {levels.total_energy_ev.value.toFixed(2)} eV
-        {levels.exchange
-          ? " is variational, unlike the screened model's sum of orbital energies."
-          : " is stationary for this model, but it is not a variational bound on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons and the theorem does not apply to it."}
+          ? ", and it is variational: the real atom is at or below it."
+          : ", stationary for this model but not a bound on the real atom."}{" "}
+        <Badge provenance={HF_LADDER_AXIS_LIBERTY} />
       </p>
       {!levels.exchange && levels.exchange_energy_ev !== null && (
         <p className="caption">
@@ -239,15 +266,32 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         </p>
       )}
       {levels.collapse !== null && <PauliComparison collapse={levels.collapse} />}
-      <p className="caption">
-        <strong>Solve diagnostics</strong> (NUMERICAL, these describe the
-        computation, not the atom): {levels.converged ? "converged" : "DID NOT CONVERGE"}{" "}
-        in {levels.coarse_iterations} coarse + {levels.iterations} fine SCF
-        iterations on {levels.grid_points} radial points. Virial ratio
-        −〈V〉/〈T〉 = {virial.toFixed(6)}, which is exactly 2 for a converged
-        solution of this Hamiltonian; the departure is a measure of the grid, not
-        a property of the element.
-      </p>
+      <Disclosure summary="What this model leaves out, and why the axis is logarithmic">
+        <p className="caption">
+          Self-consistent-field orbital energies (
+          {levels.exchange
+            ? "APPROXIMATION, see the badge for what Hartree-Fock leaves out, correlation above all"
+            : "COUNTERFACTUAL, see the badge; this is not an approximation to the real atom"}
+          ). Energy axis is logarithmic in binding energy{" "}
+          <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
+          valence shell differ by more than two decades. Total energy{" "}
+          {levels.total_energy_ev.value.toFixed(2)} eV
+          {levels.exchange
+            ? " is variational, unlike the screened model's sum of orbital energies."
+            : " is stationary for this model, but it is not a variational bound on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons and the theorem does not apply to it."}
+        </p>
+      </Disclosure>
+      <Disclosure summary="Solve diagnostics: how well the computation converged">
+        <p className="caption">
+          <strong>These describe the computation, not the atom</strong> (NUMERICAL):{" "}
+          {levels.converged ? "converged" : "DID NOT CONVERGE"} in{" "}
+          {levels.coarse_iterations} coarse + {levels.iterations} fine SCF
+          iterations on {levels.grid_points} radial points. Virial ratio
+          −〈V〉/〈T〉 = {virial.toFixed(6)}, which is exactly 2 for a converged
+          solution of this Hamiltonian; the departure is a measure of the grid, not
+          a property of the element.
+        </p>
+      </Disclosure>
     </div>
   );
 }
@@ -261,7 +305,7 @@ export function LevelsView() {
     n, l, system, fineStructure, dirac, setDirac, bField, setBField,
     eField, setEField, hyperfine, setHyperfine, levels, spectrum,
     loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
-    exchange, pauli,
+    exchange, pauli, setFineStructure, setQuantumNumbers,
   } = useAppStore();
   const wantHF = model === "hf";
   useEffect(() => {
@@ -292,8 +336,23 @@ export function LevelsView() {
   const y = scaleLinear([eMin, 0], [H - 40, 24]);
   const rungX1 = 70;
   const rungX2 = 320;
-  const arrows = spectrum ? arrowsFor(spectrum.lines, n, l) : [];
+  /* Only transitions that actually cross a shell can be drawn on this ladder.
+     A within-n fine-structure component (3p→3s, out at 9 cm) has both ends on
+     the same rung, so it rendered as a zero-length arrow with a nine-digit
+     wavelength printed across the middle of the plot. It is real physics and
+     it is in the spectrum view where the axis can hold it; here it is a label
+     with nothing under it, so it is counted and named rather than drawn. */
+  const allArrows = spectrum ? arrowsFor(spectrum.lines, n, l) : [];
+  const arrows = allArrows.filter((a) => a.n_upper !== a.n_lower);
+  const withinN = allArrows.length - arrows.length;
   const grossE = new Map(levels.gross.map((g) => [g.n, g.energy_ev.value]));
+
+  /* Rungs crowd toward the ionization limit because the energies go as -1/n²,
+     so at n >= 4 the labels printed through one another. The rungs stay where
+     the physics puts them and the text is nudged apart, with a leader line
+     back to the rung it belongs to. */
+  const rungY = levels.gross.map((g) => y(g.energy_ev.value));
+  const labelY = spreadLabels(rungY, 13, 20, H - 28);
   const fineForN = levels.fine?.filter((f) => f.n === n) ?? [];
   // hyperfine shell for the selected n; the unavailable case is a single
   // sentinel entry (availability does not depend on n), so fall back to it.
@@ -302,83 +361,188 @@ export function LevelsView() {
     hfShells.find((s) => s.n === n) ??
     (hfShells.length === 1 && !hfShells[0].available ? hfShells[0] : undefined);
 
+  /* One picker owns the magnifier, so an option that would do nothing says so
+     on its face instead of being silently outranked. See lib/levels.ts. */
+  const current = { fineStructure, bField, eField, hyperfine };
+  const mode = detailMode(current);
+  const applyMode = (next: DetailMode) => {
+    const s = detailState(next, current);
+    // Order matters only in that each setter clears `levels`; the effect above
+    // refetches once React has batched them.
+    if (s.fineStructure !== fineStructure) setFineStructure(s.fineStructure);
+    if (s.bField !== bField) setBField(s.bField);
+    if (s.eField !== eField) setEField(s.eField);
+    if (s.hyperfine !== hyperfine) setHyperfine(s.hyperfine);
+  };
+  const hyperfineBlocked = hfShell !== undefined && !hfShell.available;
+
   return (
     <div className="view-wrap">
-      <div className="view-header">
-        <span className="plot-title">
-          Energy levels E_n [eV]{" "}
-          <Badge provenance={levels.gross[0].energy.provenance} />
-        </span>
-        {fineStructure && fineForN.length > 0 && (
-          <span className="plot-title">
-            · fine structure of n={n}{" "}
-            <Badge provenance={fineForN[0].shift.provenance} />
-          </span>
-        )}
-        {fineStructure && (
-          <label className="levels-model" data-tour="dirac-toggle">
-            <input type="checkbox" checked={dirac} onChange={(e) => setDirac(e.target.checked)} />
-            Dirac (exact)
-          </label>
-        )}
-        {fineStructure && (
-          <label className="levels-field">
-            B{" "}
-            <input
-              type="range" min={0} max={20} step={0.1} value={bField}
-              onChange={(e) => setBField(Number(e.target.value))}
-            />
-            {bField > 0
-              ? ` ${bField.toFixed(1)} T (µ_B·B = ${(bField * 0.5 / 2.35051757e5 * 27.211386245e6).toFixed(1)} µeV)`
-              : " 0 T"}
-          </label>
-        )}
-        {!fineStructure && (
-          <span className="levels-field-hint">
-            turn on fine structure to add a magnetic field
-          </span>
-        )}
-        <label className="levels-field">
-          F{" "}
-          <input
-            type="range" min={0} max={100} step={0.5} value={eField}
-            onChange={(e) => setEField(Number(e.target.value))}
+      <ViewIntro
+        lead={VIEW_LEADS.levels}
+        badge={<Badge provenance={levels.gross[0].energy.provenance} />}
+      >
+        <Disclosure summary="Why the rungs crowd together going up">
+          <p className="caption">
+            The energies go as −1/n², so the gap from n=1 to n=2 is far larger
+            than the gap from n=5 to n=6. Every rung above the first is bunched
+            toward the ionization limit at 0, where the electron is free. That
+            crowding is why hydrogen's spectral series each pile up toward a
+            short-wavelength edge instead of spreading out evenly.
+          </p>
+        </Disclosure>
+      </ViewIntro>
+
+      <ControlGroup
+        title="Magnify one rung"
+        hint="The right-hand column zooms in on what splits the selected shell. Only one at a time: they are four different magnifications of the same column."
+        tone={mode === "none" ? "plain" : "active"}
+      >
+        <Choice<DetailMode>
+          legend="detail"
+          value={mode}
+          onChange={applyMode}
+          tourId="levels-detail"
+          options={[
+            {
+              value: "none",
+              label: "just the ladder",
+              hint: "Gross levels only, exact under a reduced-mass Bohr model.",
+            },
+            {
+              value: "fine",
+              label: "fine structure",
+              hint:
+                "Relativity and spin-orbit coupling split each shell by about " +
+                "a part in 100,000. The column magnifies it.",
+            },
+            {
+              value: "zeeman",
+              label: "magnetic field",
+              hint: "A magnetic field splits each j-level into its 2j+1 orientations.",
+            },
+            {
+              value: "stark",
+              label: "electric field",
+              hint: "An electric field fans each shell into n² parabolic states.",
+            },
+            {
+              value: "hyperfine",
+              label: "hyperfine",
+              hint: hyperfineBlocked
+                ? undefined
+                : "The nucleus's own spin splits the s-states. This is where the 21 cm line comes from.",
+              disabled: hyperfineBlocked,
+              disabledReason: hfShell?.reason ?? undefined,
+            },
+          ]}
+        />
+        {mode === "fine" && (
+          <Toggle
+            label="Solve it exactly (Dirac) instead of to order α²"
+            checked={dirac}
+            onChange={setDirac}
+            why={
+              dirac
+                ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s½ and 2p½ land on each other exactly. Reality splits them by the Lamb shift, which this model leaves out."
+                : "The α² perturbation. Accurate to about a part in 10⁴ of the shift itself; switch to Dirac for the closed form."
+            }
+            tourId="dirac-toggle"
           />
-          {eField > 0 ? ` ${eField.toFixed(1)} MV/m` : " 0 MV/m"}
-        </label>
-        <label className="levels-model">
-          <input
-            type="checkbox" checked={hyperfine}
-            onChange={(e) => setHyperfine(e.target.checked)}
-          />
-          hyperfine
-        </label>
-        {hyperfine && hfShell?.available && hfShell.A && (
-          <span className="plot-title">
-            · hyperfine of {n}s ({hfShell.nucleus}){" "}
-            <Badge provenance={hfShell.A.provenance} />
-          </span>
         )}
-      </div>
+        {mode === "zeeman" && (
+          <Slider
+            label="magnetic field B"
+            readout={`${bField.toFixed(1)} T`}
+            anchor={`${describeField(bField)} · µ_B·B = ${(
+              (bField * 0.5) / 2.35051757e5 * 27.211386245e6
+            ).toFixed(1)} µeV`}
+            min={0}
+            max={20}
+            step={0.1}
+            value={bField}
+            atRest={bField === 0}
+            onChange={setBField}
+          />
+        )}
+        {mode === "stark" && (
+          <Slider
+            label="electric field F"
+            readout={`${eField.toFixed(1)} MV/m`}
+            anchor={describeEField(eField)}
+            min={0}
+            max={100}
+            step={0.5}
+            value={eField}
+            atRest={eField === 0}
+            onChange={setEField}
+          />
+        )}
+      </ControlGroup>
+
+      <p className="ladder-hint">
+        Rungs are clickable: pick one to move the whole app to that shell.
+        {arrows.length > 0
+          ? ` The arrows are the ${arrows.length} transition${arrows.length === 1 ? "" : "s"} out of the state selected in the rail, labelled with the light they emit.`
+          : ""}
+        {withinN > 0
+          ? ` ${withinN} more transition${withinN === 1 ? " starts" : "s start"} and end${withinN === 1 ? "s" : ""} on this same shell, so ${withinN === 1 ? "it has" : "they have"} no arrow to draw here; ${withinN === 1 ? "it is" : "they are"} out at microwave wavelengths in the spectrum view.`
+          : ""}
+      </p>
+
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
-        {levels.gross.map((g) => (
-          <g key={g.n}>
-            <line
-              x1={rungX1} x2={rungX2}
-              y1={y(g.energy_ev.value)} y2={y(g.energy_ev.value)}
-              className={g.n === n ? "rung rung-active" : "rung"}
-            />
-            <text
-              x={rungX1 - 8} y={y(g.energy_ev.value)} dy="0.32em"
-              textAnchor="end" className="tick"
+        {levels.gross.map((g, i) => {
+          const yr = rungY[i];
+          const yl = labelY[i];
+          const nudged = Math.abs(yl - yr) > 1;
+          const pick = () => setQuantumNumbers(g.n, Math.min(l, g.n - 1), 0);
+          return (
+            <g
+              key={g.n}
+              className="rung-hit"
+              role="button"
+              tabIndex={0}
+              aria-label={`select shell n=${g.n}`}
+              onClick={pick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  pick();
+                }
+              }}
             >
-              n={g.n}
-            </text>
-            <text x={rungX2 + 8} y={y(g.energy_ev.value)} dy="0.32em" className="tick">
-              {g.energy_ev.value.toFixed(2)} eV · 2n²={g.degeneracy}
-            </text>
-          </g>
-        ))}
+              {/* An invisible band on the label row, so the click target is a
+                  row rather than a 1 px line. Without it the rungs are
+                  technically clickable and practically not. */}
+              <rect
+                x={rungX1 - 40} y={Math.min(yr, yl) - 9}
+                width={rungX2 - rungX1 + 100}
+                height={Math.abs(yl - yr) + 18}
+                className="rung-hit-area"
+              />
+              <line
+                x1={rungX1} x2={rungX2} y1={yr} y2={yr}
+                className={g.n === n ? "rung rung-active" : "rung"}
+              />
+              {nudged && (
+                <>
+                  <line x1={rungX1 - 30} x2={rungX1 - 6} y1={yl} y2={yr} className="leader" />
+                  <line x1={rungX2 + 4} x2={rungX2 + 26} y1={yr} y2={yl} className="leader" />
+                </>
+              )}
+              <text
+                x={rungX1 - 32} y={yl} dy="0.32em"
+                textAnchor="end" className="tick"
+              >
+                n={g.n}
+              </text>
+              <text x={rungX2 + 30} y={yl} dy="0.32em" className="tick">
+                {g.energy_ev.value.toFixed(2)} eV · 2n²={g.degeneracy}
+                {g.n === 1 ? " · ground state" : ""}
+              </text>
+            </g>
+          );
+        })}
         {arrows.map((a, i) => {
           if (!grossE.has(a.n_upper) || !grossE.has(a.n_lower)) return null;
           const ax = rungX1 + 30 + i * 26;
@@ -388,14 +552,23 @@ export function LevelsView() {
             <g key={`${a.n_lower}-${a.l_lower}-${i}`} className="arrow">
               <line x1={ax} x2={ax} y1={yTop} y2={yBot - 6} />
               <path d={`M${ax - 4},${yBot - 8} L${ax + 4},${yBot - 8} L${ax},${yBot} Z`} />
-              <text x={ax + 4} y={(yTop + yBot) / 2} className="tick">
+              {/* Staggered over three rows. The arrows are 26 px apart and a
+                  wavelength label is about twice that wide, so with fine
+                  structure on (which gives two arrows per shell pair at nearly
+                  the same wavelength) every label printed over its neighbour. */}
+              <text
+                x={ax + 4}
+                y={(yTop + yBot) / 2 + ((i % 3) - 1) * 13}
+                className="tick arrow-label"
+              >
                 {a.wavelength_nm.value.toFixed(0)} nm
               </text>
             </g>
           );
         })}
-        {eField === 0 && !hyperfine && fineStructure && fineForN.length > 0 &&
-          (() => {
+        {mode === "fine" || mode === "zeeman"
+          ? fineForN.length > 0 &&
+            (() => {
             const bohrN = grossE.get(n) ?? 0;
             const shifts = fineForN.map((f) => f.shift_ev.value);
             const subShifts = bField > 0
@@ -470,8 +643,9 @@ export function LevelsView() {
                 })}
               </g>
             );
-          })()}
-        {eField > 0 &&
+          })()
+          : null}
+        {mode === "stark" &&
           (() => {
             const gsel = levels.gross.find((g) => g.n === n);
             const subs = gsel?.sublevels ?? [];
@@ -512,7 +686,7 @@ export function LevelsView() {
               </g>
             );
           })()}
-        {eField === 0 && hyperfine && hfShell &&
+        {mode === "hyperfine" && hfShell &&
           (() => {
             const zx1 = 470;
             const zx2 = 610;
@@ -569,55 +743,68 @@ export function LevelsView() {
             );
           })()}
       </svg>
-      <p className="caption">
-        Gross levels are reduced-mass exact. The right column magnifies the{" "}
-        {dirac ? "relativistic" : "α²"} shifts of the selected n, the two scales differ by ~10⁵
-        and are labeled, never blended.{" "}
-        {dirac
-          ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits, see the badge assumptions."
-          : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂, the Lamb shift is beyond α² and honestly absent here)."}
-        {bField > 0 && (
-          <>
-            {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels (anomalous
-            Zeeman, spacing g_J·µ_B·B); as B rises they reorganize toward the Paschen-Back
-            pattern where (m_l, m_s) become the good labels. Linear model, the diamagnetic
-            B² term is omitted.
-          </>
-        )}
-        {eField > 0 && (
-          <>
-            {" "}An electric field splits each n-shell into n² parabolic (n₁,n₂,m)
-            sublevels fanned by the electric quantum number k = n₁−n₂. The splitting is
-            linear in F, which is hydrogen's accidental l-degeneracy showing itself: a
-            first-order shift appears here that non-degenerate atoms (quadratic only) never
-            get. Second-order model on the gross shells; the perturbation series is
-            asymptotic and breaks down near field ionization, so read the badge.
-          </>
-        )}
-        {hyperfine && hfShell && (
-          <>
-            {" "}Hyperfine: the nuclear spin I couples to the electron's angular
-            momentum J, splitting the {n}s level (J=½) into F = I+J states through the
-            Fermi contact interaction.{" "}
-            {hfShell.available
-              ? hfShell.levels.length > 1
-                ? (
-                  <>
-                    The right column magnifies the split and gives the transition
-                    frequency Δν.{" "}
-                    {hfShell.nucleus === "proton" && n === 1
-                      ? "This 1s F=1→0 line is 1420 MHz, the 21 cm line, radio astronomy's fingerprint of neutral hydrogen. "
-                      : ""}
-                    s-states only (contact term); the l&gt;0 orbital+dipolar channel is
-                    deferred. Non-relativistic, bound-state QED and nuclear structure
-                    (~0.01%) are omitted, see the badge.
-                  </>
-                )
-                : hfShell.note
-              : hfShell.reason}
-          </>
-        )}
-      </p>
+
+      {/* The headline for whatever the magnifier is showing, in one sentence.
+          The full account is in the disclosure under it, unchanged. */}
+      {mode === "hyperfine" && hfShell?.available && hfShell.levels.length > 1 && (
+        <p className="caption">
+          <strong>
+            Δν ={" "}
+            {(
+              (Math.max(...hfShell.levels.map((x) => x.shift_ev.value)) -
+                Math.min(...hfShell.levels.map((x) => x.shift_ev.value))) /
+              EV_PER_MHZ
+            ).toFixed(1)}{" "}
+            MHz
+          </strong>{" "}
+          between the F states of {n}s.
+          {hfShell.nucleus === "proton" && n === 1
+            ? " That is the 21 cm line: radio astronomy's fingerprint of neutral hydrogen, and the reason we can map the galaxy's gas at all."
+            : ""}{" "}
+          <Badge provenance={hfShell.A!.provenance} />
+        </p>
+      )}
+
+      <Disclosure summary="What the two scales mean, and what is left out" tone="caveat">
+        <p className="caption">
+          Gross levels are reduced-mass exact. The right column magnifies the{" "}
+          {dirac ? "relativistic" : "α²"} shifts of the selected n, the two scales differ by ~10⁵
+          and are labeled, never blended.{" "}
+          {dirac
+            ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits, see the badge assumptions."
+            : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂, the Lamb shift is beyond α² and honestly absent here)."}
+          {mode === "zeeman" && (
+            <>
+              {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels (anomalous
+              Zeeman, spacing g_J·µ_B·B); as B rises they reorganize toward the Paschen-Back
+              pattern where (m_l, m_s) become the good labels. Linear model, the diamagnetic
+              B² term is omitted.
+            </>
+          )}
+          {mode === "stark" && (
+            <>
+              {" "}An electric field splits each n-shell into n² parabolic (n₁,n₂,m)
+              sublevels fanned by the electric quantum number k = n₁−n₂. The splitting is
+              linear in F, which is hydrogen's accidental l-degeneracy showing itself: a
+              first-order shift appears here that non-degenerate atoms (quadratic only) never
+              get. Second-order model on the gross shells; the perturbation series is
+              asymptotic and breaks down near field ionization, so read the badge.
+            </>
+          )}
+          {mode === "hyperfine" && hfShell && (
+            <>
+              {" "}Hyperfine: the nuclear spin I couples to the electron's angular
+              momentum J, splitting the {n}s level (J=½) into F = I+J states through the
+              Fermi contact interaction.{" "}
+              {hfShell.available
+                ? hfShell.levels.length > 1
+                  ? "s-states only (contact term); the l>0 orbital+dipolar channel is deferred. Non-relativistic, bound-state QED and nuclear structure (~0.01%) are omitted, see the badge."
+                  : hfShell.note
+                : hfShell.reason}
+            </>
+          )}
+        </p>
+      </Disclosure>
     </div>
   );
 }
