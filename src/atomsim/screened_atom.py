@@ -22,6 +22,7 @@ from atomsim.numerics.dipole import (
     dipole_from_solutions,
     grid_points_for,
 )
+from atomsim.numerics.mesh import display_window
 from atomsim.numerics.radial_solver import RadialSolution, solve_radial, solve_radial_with_error
 from atomsim.numerics.screening import screened_potential, screening_provenance
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
@@ -139,7 +140,14 @@ def screened_radial(
     )
     r_solver = sol.r
     R = sol.u[k] / r_solver  # R = u / r
-    grid = np.linspace(r_solver[0], r_solver[-1], points)
+    # The output grid is windowed to the orbital; the SOLVE box above is not.
+    # `_r_max` sizes the box off n and the asymptotic Z_net, which is right for
+    # the eigenvalue and enormous for an inner orbital: argon's 1s is solved to
+    # 160 bohr and is finished by 0.4, so a uniform 400-point grid across the
+    # box landed one sample on it and the app drew a straight line where a 1s
+    # should be. See numerics.mesh.display_window; no energy moves.
+    r_out = display_window(r_solver, r_solver**2 * R**2)
+    grid = np.linspace(r_solver[0], r_out, points)
     R_i = np.interp(grid, r_solver, R)
     # These two fields are shapes, not energies, so they carry NO error
     # estimate. They used to borrow the eigenvalue's, which is in hartree,
@@ -153,7 +161,11 @@ def screened_radial(
     # form of not knowing. Same fix, same reasoning, as hf_atom.shape_prov.
     prov = Provenance(
         fidelity=Fidelity.APPROXIMATION,
-        method=f"{screening_provenance(z, n_electrons).method}; numerical R_nl = u/r",
+        method=(
+            f"{screening_provenance(z, n_electrons).method}; numerical R_nl = u/r"
+            f"; drawn to r={grid[-1]:.3g} bohr, windowed from a solve box "
+            f"of {r_solver[-1]:.3g}"
+        ),
         assumptions=screening_provenance(z, n_electrons).assumptions,
         error_estimate=None,
     )

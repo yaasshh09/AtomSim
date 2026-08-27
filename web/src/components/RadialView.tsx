@@ -294,9 +294,14 @@ function FieldPlot({
           )}
           {didTrim && (
             <>
-              Axis stops at {rMax.toFixed(1)} {field.grid_unit}, past which the curve
-              is under a thousandth of its peak; the solve itself runs to{" "}
-              {field.grid[field.grid.length - 1].toFixed(0)}.
+              {/* "The data supplied", not "the solve": the server now windows
+                  its own output to the orbital, so the last grid point here is
+                  the end of the payload and not the wall of the solve box.
+                  Claiming otherwise would be this component asserting a number
+                  it has never been told. The badge carries both radii. */}
+              Axis stops at {formatHover(rMax)} {field.grid_unit}, past which the
+              curve is under a thousandth of its peak; the data supplied runs to{" "}
+              {formatHover(field.grid[field.grid.length - 1])}.
             </>
           )}
         </p>

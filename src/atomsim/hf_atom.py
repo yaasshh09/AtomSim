@@ -46,7 +46,7 @@ from atomsim.numerics.hartree_fock import (
     total_energy_from_orbitals,
 )
 from atomsim.numerics.hf_terms import Subshell
-from atomsim.numerics.mesh import RadialMesh, mesh_for_atom_at_step
+from atomsim.numerics.mesh import RadialMesh, display_window, mesh_for_atom_at_step
 from atomsim.numerics.screening import gsz_parameters, screened_potential
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
@@ -1137,13 +1137,26 @@ def hf_radial(
         z, n_electrons, n, l, config=config, exchange=exchange, pauli=pauli
     )
     solver_r = orbital.P.grid
-    grid = np.linspace(solver_r[0], solver_r[-1], points)
+    # Windowed to the orbital, not to the mesh's outer edge. The SCF mesh must
+    # hold the valence tail while resolving a 1s two decades smaller, and
+    # resampling uniformly across the whole of it put a handful of samples on
+    # an inner orbital. The mesh and the solve are untouched; this chooses only
+    # which samples get plotted. See numerics.mesh.display_window.
+    #
+    # P = r R is the amplitude, so P^2 is already the radial probability r^2R^2
+    # and is the right thing to measure the window against.
+    r_out = display_window(solver_r, orbital.P.values**2)
+    grid = np.linspace(solver_r[0], r_out, points)
     # R = P / r. The mesh never reaches r = 0, so this needs no special case,
     # which is exactly why the exponential mesh starts where it does.
     values = np.interp(grid, solver_r, orbital.P.values / solver_r)
     prov = dataclasses.replace(
         orbital.P.provenance,
-        method=f"{orbital.P.provenance.method}; R_nl = P/r resampled uniformly",
+        method=(
+            f"{orbital.P.provenance.method}; R_nl = P/r resampled uniformly"
+            f" to r={grid[-1]:.3g} bohr, windowed from a mesh reaching"
+            f" {solver_r[-1]:.3g}"
+        ),
         assumptions=orbital.P.provenance.assumptions + (_ORBITAL_NOT_OBSERVABLE,),
     )
     r_field = Field(

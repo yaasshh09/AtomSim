@@ -79,9 +79,11 @@ exemption slater.py documents.
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
 __all__ = [
     "RadialMesh",
+    "display_window",
     "exponential_mesh",
     "mesh_for_atom",
     "mesh_for_atom_at_step",
@@ -289,3 +291,49 @@ def mesh_for_atom_at_step(z: int, r_max: float, step: float) -> RadialMesh:
         raise ValueError(f"box radius {r_max!r} must exceed inner radius {r_min!r}")
     points = int(np.log(r_max / r_min) / step) + 1
     return exponential_mesh(r_min, r_max, points)
+
+
+def display_window(
+    r: NDArray[np.float64],
+    density: NDArray[np.float64],
+    floor: float = 1e-4,
+    margin: float = 1.25,
+) -> float:
+    """Outer radius worth drawing, for a curve solved on a much larger box.
+
+    A solve box is sized so the eigenvalue is not squeezed by its own wall,
+    and for an inner orbital that box is enormous compared with the orbital.
+    Argon's 1s is solved to 160 bohr and is finished by 0.4: resampled
+    uniformly across the box for display, the 400-point output grid put
+    exactly ONE sample on the orbital, and the app drew a two-point straight
+    line where a 1s should be. Neon's 1s got two points, argon's 3p four. The
+    solver had 48000 points and was right; only the picture was wrong.
+
+    So the output grid is windowed and the solve box is not. Nothing here
+    touches an energy: `r_max` in the solvers stays exactly where it was,
+    which matters because argon's 1s energy is worth about 2 hartree to that
+    box while the valence energies do not notice it at all. This decides which
+    samples get drawn, and drawing samples from a region where the function is
+    a ten-thousandth of its peak is not information.
+
+    The window is honest because the caller ships this radius as the field's
+    own `grid`, so the axis is labelled with the range it actually covers. A
+    window under a full-box label would be the dishonest version.
+
+    `floor` is deliberately well below the 1e-3 the frontend uses to trim a
+    drawn curve: this one decides what data exists at all, so it keeps a
+    decade more tail than any display is going to want.
+    """
+    if r.size == 0:
+        return 0.0
+    peak = float(np.max(density)) if density.size else 0.0
+    if not np.isfinite(peak) or peak <= 0.0:
+        # Nothing to window against; the caller's box is as good a guess as any.
+        return float(r[-1])
+    above = np.nonzero(density > peak * floor)[0]
+    if above.size == 0:
+        return float(r[-1])
+    outer = float(r[above[-1]]) * margin
+    # Never past the box, and never so tight that the peak sits on the frame.
+    peak_r = float(r[int(np.argmax(density))])
+    return float(min(max(outer, peak_r * 2.0), r[-1]))
