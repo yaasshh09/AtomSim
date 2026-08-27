@@ -28,6 +28,14 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   const y = scaleLinear([eMin, eMax], [H - 40, 24]);
   const rungX1 = 90;
   const rungX2 = 340;
+  /* Neon's virtual orbitals sit within a couple of eV of the ionization limit
+     and printed straight through one another and through the limit's own
+     label. The ionization line is included in the spread rather than left out
+     of it, because it is the row everything else crowds against: leaving it
+     fixed would have solved the rungs and kept the collision that matters. */
+  const rowY = [y(0), ...orbitals.map((o) => y(o.energy_ev.value))];
+  const labelY = spreadLabels(rowY, 13, 18, H - 26);
+  const limitLabelY = labelY[0];
   return (
     <div className="view-wrap">
       <ViewIntro
@@ -51,29 +59,43 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         {/* ionization threshold */}
         <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
-        <text x={rungX2 + 8} y={y(0)} dy="0.32em" className="tick">
+        {Math.abs(limitLabelY - y(0)) > 1 && (
+          <line
+            x1={rungX2 + 4} x2={rungX2 + 26} y1={y(0)} y2={limitLabelY}
+            className="leader"
+          />
+        )}
+        <text x={rungX2 + 30} y={limitLabelY} dy="0.32em" className="tick">
           0: ionization limit
         </text>
-        {orbitals.map((o) => {
+        {orbitals.map((o, i) => {
           const filled = o.occupancy > 0;
+          const yr = y(o.energy_ev.value);
+          const yl = labelY[i + 1];
+          const nudged = Math.abs(yl - yr) > 1;
           return (
             <g key={`${o.n}-${o.l}`}>
               <line
-                x1={rungX1} x2={rungX2}
-                y1={y(o.energy_ev.value)} y2={y(o.energy_ev.value)}
+                x1={rungX1} x2={rungX2} y1={yr} y2={yr}
                 className="rung"
                 strokeWidth={filled ? 3 : 1.5}
                 strokeDasharray={filled ? undefined : "4 4"}
                 opacity={filled ? 1 : 0.5}
               />
+              {nudged && (
+                <>
+                  <line x1={rungX1 - 30} x2={rungX1 - 6} y1={yl} y2={yr} className="leader" />
+                  <line x1={rungX2 + 4} x2={rungX2 + 26} y1={yr} y2={yl} className="leader" />
+                </>
+              )}
               <text
-                x={rungX1 - 8} y={y(o.energy_ev.value)} dy="0.32em"
+                x={rungX1 - 32} y={yl} dy="0.32em"
                 textAnchor="end" className="tick"
               >
                 {o.label}
                 {filled ? <tspan dy="-0.5em">{o.occupancy}</tspan> : ""}
               </text>
-              <text x={rungX2 + 8} y={y(o.energy_ev.value)} dy="0.32em" className="tick">
+              <text x={rungX2 + 30} y={yl} dy="0.32em" className="tick">
                 {o.energy_ev.value.toFixed(2)} eV
                 {filled ? "" : " · virtual"}
               </text>
