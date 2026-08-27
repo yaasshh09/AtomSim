@@ -2631,3 +2631,103 @@ input[type="range"] {
   stroke-width: 3px;
   stroke-linejoin: round;
 }
+
+/* ---- NIST agreement panel ---- */
+
+/* The view is called "Spectrum vs NIST" and the answer to that comparison used
+   to be a scatter plot at the very bottom with a tick label on it. It is a
+   sentence now, at the top, and the plot stays underneath to say by how much
+   and in which direction. */
+.nist-panel {
+  border: 1px solid var(--edge);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  background: rgb(8 12 14 / 0.5);
+  padding: 0.7rem 0.85rem 0.8rem;
+  margin: 0 0 0.7rem;
+}
+
+.nist-off {
+  border-left-color: #fbbf24;
+}
+
+.nist-headline {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.nist-mark {
+  font-size: 0.9rem;
+  flex: none;
+}
+
+.nist-ok .nist-mark {
+  color: var(--accent);
+}
+
+.nist-off .nist-mark {
+  color: #fbbf24;
+}
+
+.nist-panel .caption {
+  color: var(--muted);
+  margin: 0.4rem 0 0;
+}
+
+/* ---- Zoom panel ---- */
+
+/* The one line drawn linearly. It is a different claim from the full-range
+   plot above it, so it is framed as its own block rather than continuing the
+   scroll. */
+.zoom-panel {
+  border: 1px solid var(--edge-faint);
+  border-radius: 3px;
+  padding: 0.7rem 0.85rem 0.8rem;
+  margin: 0 0 0.7rem;
+  background: rgb(8 12 14 / 0.4);
+}
+
+.zoom-panel .view-header {
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.2rem;
+}
+
+.zoom-panel .plot-blurb {
+  display: block;
+  margin: 0 0 0.5rem;
+}
+
+/* A control group's own link button should not inherit the rail's block
+   layout; it reads as a sentence the reader can click. */
+.ctl-group-body > .link-button {
+  align-self: flex-start;
+  text-align: left;
+}
+
+/* The global `label` rule lays panel rows out as "name ....... value" with
+   `justify-content: space-between` and `align-items: center`. Both of the
+   shared controls below are labels and neither wants it: a toggle is a
+   checkbox with its text beside it, not at the far end of the row, and a
+   slider stacks its parts and needs them full width rather than shrunk to
+   their content. Overridden here rather than by not using <label>, because
+   the label is what makes the text click the control. */
+.ctl-toggle-label {
+  justify-content: flex-start;
+}
+
+.ctl-slider {
+  justify-content: flex-start;
+  align-items: stretch;
+  margin: 0;
+}
+
+.ctl-slider-head {
+  width: 100%;
+}

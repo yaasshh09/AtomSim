@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 import type { LineWidthInfo, ProfileInfo, SpectralLineInfo } from "../api/types";
 import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
 import {
+  describeDensity,
+  describeResolvingPower,
+  describeTemperature,
+  nistSummary,
+  VIEW_LEADS,
+} from "../lib/explain";
+import { withinPlot } from "../lib/hover";
+import {
   PROFILE_DECADES,
   SPECTRUM_EMISSIVITY_LIBERTY,
   SPECTRUM_INTENSITY_LIBERTY,
@@ -13,6 +21,10 @@ import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { AbsorptionView } from "./AbsorptionView";
 import { CurveOfGrowthView } from "./CurveOfGrowthView";
+import { Disclosure } from "./Disclosure";
+import { ControlGroup, Slider, Toggle } from "./Field";
+import { HoverReadout, usePlotHover } from "./PlotHover";
+import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
 const LINES_H = 190;
@@ -226,17 +238,21 @@ function ZoomPanel({
   // decimal a label has room for, so the old axis printed "121.568" six times.
   const axis = offsetAxis(window_[0], window_[1]);
   return (
-    <>
+    <div className="zoom-panel">
       <div className="view-header">
-        <span className="plot-title">
-          {w ? `${w.label} line profile` : "line profile"}, linear λ, linear
-          intensity{" "}
-          <Badge provenance={prof.provenance} />
+        <span className="plot-lead">
+          {w ? `One line, up close: ${w.label}` : "One line, up close"}
         </span>
         <button className="link-button" onClick={onClear} type="button">
-          back to full range
+          ← back to the full range
         </button>
       </div>
+      <p className="plot-blurb">
+        Both axes linear, so this is the line's real shape. Everywhere else it
+        is a spike, because a line is far narrower than a pixel on an axis
+        covering hundreds of nanometres.{" "}
+        <Badge provenance={prof.provenance} />
+      </p>
       <svg viewBox={`0 0 ${W} ${ZOOM_H}`} role="img" className="levels-svg">
         <line
           x1={M.left} x2={W - M.right} y1={ZOOM_BASE} y2={ZOOM_BASE}
@@ -279,16 +295,23 @@ function ZoomPanel({
         <path d={path} className="profile-curve" />
       </svg>
       {w && (
-        <p className="caption">
-          Width set mostly by <strong>{dominantTerm(w)}</strong>. Gaussian σ ={" "}
-          {w.sigma_nm.toExponential(2)} nm ({w.terms.filter((t) => t !== "natural").join(" + ") || "none"}
-          ), Lorentzian γ = {w.gamma_nm.toExponential(2)} nm (natural). They do not
-          add: the shape is their convolution, a Voigt, with a Gaussian core and
-          Lorentzian wings, which is why the far wings sit above where a
-          Gaussian would put them.
-        </p>
+        <>
+          <p className="caption">
+            The width is set mostly by <strong>{dominantTerm(w)}</strong>.
+          </p>
+          <Disclosure summary="The two widths, and why they do not add">
+            <p className="caption">
+              Gaussian σ = {w.sigma_nm.toExponential(2)} nm (
+              {w.terms.filter((t) => t !== "natural").join(" + ") || "none"}
+              ), Lorentzian γ = {w.gamma_nm.toExponential(2)} nm (natural). They do not
+              add: the shape is their convolution, a Voigt, with a Gaussian core and
+              Lorentzian wings, which is why the far wings sit above where a
+              Gaussian would put them.
+            </p>
+          </Disclosure>
+        </>
       )}
-    </>
+    </div>
   );
 }
 
@@ -360,7 +383,17 @@ export function SpectrumView() {
     void loadAbsorption();
   }, [absorption, thermal, logColumn, system, fineStructure, temperatureK,
       logNe, logResolvingPower, profileZoom, loadAbsorption]);
-  if (!spectrum) return <p className="hint-block">loading spectrum…</p>;
+
+  const hover = usePlotHover(W);
+
+  if (!spectrum) {
+    return (
+      <div className="view-wrap">
+        <ViewIntro lead={VIEW_LEADS.spectrum} />
+        <p className="hint-block">loading spectrum…</p>
+      </div>
+    );
+  }
 
   const window_ = wavelengthWindow(spectrum.lines, fullRange);
   const shown = spectrum.lines.filter(
@@ -373,6 +406,7 @@ export function SpectrumView() {
   const comp = spectrum.comparison;
   const yRes = tol ? scaleLinear([-3 * tol, 3 * tol], [RES_H - 30, 14]) : null;
   const clampY = (v: number) => Math.min(Math.max(v, 14), RES_H - 30);
+  const nist = nistSummary(comp, tol);
 
   // Scale over the lines actually drawn. Letting a hidden microwave component
   // set the floor would squash every visible bar to describe something the
@@ -409,187 +443,334 @@ export function SpectrumView() {
     setProfileZoom(zoomWindow(ln.wavelength_nm.value, w.fwhm_nm));
   };
 
+  /* Which line the pointer is nearest, in pixels rather than in wavelength.
+     The axis is logarithmic, so a fixed tolerance in nm is a different visual
+     distance at each end of it, and the reader is aiming with their eyes. */
+  let hoverLine: SpectralLineInfo | null = null;
+  if (hover.x !== null && withinPlot(hover.x, M.left, W - M.right)) {
+    let bestGap = 7;
+    for (const ln of shown) {
+      const gap = Math.abs(x(ln.wavelength_nm.value) - hover.x);
+      if (gap < bestGap) {
+        bestGap = gap;
+        hoverLine = ln;
+      }
+    }
+  }
+  const hoverLines = hoverLine
+    ? [
+        `${seriesName(hoverLine.n_lower)}  ${hoverLine.n_upper}→${hoverLine.n_lower}`,
+        `λ = ${hoverLine.wavelength_nm.value.toFixed(2)} nm`,
+        ...(hoverLine.einstein_a_s
+          ? [`A = ${hoverLine.einstein_a_s.value.toExponential(2)} s⁻¹`]
+          : []),
+        ...(hoverLine.oscillator_strength
+          ? [`f = ${hoverLine.oscillator_strength.value.toExponential(2)}`]
+          : []),
+        ...(hoverLine.emissivity
+          ? [`ε = ${hoverLine.emissivity.value.toExponential(2)} eV/s per atom`]
+          : []),
+        ...(prof ? ["click to see its shape"] : []),
+      ]
+    : [];
+
   return (
     <div className="view-wrap">
-      <div className="view-header">
-        <span className="plot-title">
-          Emission lines λ [nm]{" "}
-          <Badge provenance={spectrum.lines[0].wavelength_nm.provenance} />
-          {strength && (
-            <>
-              {" "}
+      <ViewIntro
+        lead={VIEW_LEADS.spectrum}
+        badge={<Badge provenance={spectrum.lines[0].wavelength_nm.provenance} />}
+      >
+        <Disclosure summary="Where a spectral line comes from">
+          <p className="caption">
+            An electron dropping from one rung of the energy ladder to a lower
+            one has to put the difference somewhere, and it emits a single
+            photon carrying exactly that much energy. Energy fixes colour, so
+            each pair of rungs gives one precise wavelength, and the ladder's
+            shape is what you are looking at here, sideways.
+          </p>
+          <p className="caption">
+            Lines are coloured by where they land. Everything ending on n=1 is
+            the Lyman series, in the ultraviolet; everything ending on n=2 is
+            Balmer, which is the visible one, and Balmer-α at 656 nm is the red
+            you see in every photograph of a nebula.
+          </p>
+        </Disclosure>
+      </ViewIntro>
+
+      <figure className="plot">
+        <figcaption>
+          <span className="plot-lead">Every line this atom can emit</span>
+          <span className="plot-blurb">
+            Each bar is one transition, placed at its wavelength.
+            {strength
+              ? " Bar height is line strength, compressed logarithmically."
+              : " All bars the same height: no strength is being modelled yet."}
+            {prof ? " Click any bar to plot its shape." : ""}
+          </span>
+          <span className="plot-provenance">
+            {strength && (
               <Badge
                 provenance={
                   isThermal ? SPECTRUM_EMISSIVITY_LIBERTY : SPECTRUM_INTENSITY_LIBERTY
                 }
               />
-            </>
-          )}
-          {spectrum.thermal && (
-            <>
-              {" "}
+            )}
+            {spectrum.thermal && (
               <Badge provenance={spectrum.thermal.ionized_fraction.provenance} />
-            </>
-          )}
-        </span>
-        <span className="legend-inline">
-          {nLowers.map((nl) => (
-            <span key={nl} style={{ color: seriesColor(nl) }}>
-              ▎{seriesName(nl)}
+            )}
+            <span className="legend-inline">
+              {nLowers.map((nl) => (
+                <span key={nl} style={{ color: seriesColor(nl) }}>
+                  ▎{seriesName(nl)}
+                </span>
+              ))}
             </span>
-          ))}
-        </span>
-      </div>
-      <label className="check" data-tour="spectrum-options">
-        <input
-          type="checkbox"
-          checked={intensities}
-          onChange={(e) => setIntensities(e.target.checked)}
-        />
-        scale bars by line strength{intensities && !isThermal ? " (Einstein A)" : ""}
-      </label>
-      {intensities && (
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={thermal}
-            onChange={(e) => setThermal(e.target.checked)}
+          </span>
+        </figcaption>
+        <svg
+          viewBox={`0 0 ${W} ${LINES_H}`}
+          role="img"
+          className={`levels-svg${prof ? " plot-hoverable" : ""}`}
+          ref={hover.ref}
+          onPointerMove={hover.onPointerMove}
+          onPointerLeave={hover.onPointerLeave}
+        >
+          <line
+            x1={M.left} x2={W - M.right} y1={LINES_H - 24} y2={LINES_H - 24}
+            className="axis"
           />
-          weight by LTE populations (Boltzmann + Saha)
-        </label>
-      )}
-      {intensities && thermal && (
-        <>
-          <label className="levels-field">
-            T{" "}
-            <input
-              type="range" min={2} max={6} step={0.02}
-              value={Math.log10(temperatureK)}
-              onChange={(e) => setTemperatureK(10 ** Number(e.target.value))}
+          {/* Thinned: this axis is logarithmic, so d3's tick set puts 5000 and
+              6000 about four pixels apart and the top two decades printed as one
+              run of digits ("5006007008009001000"). Ticks are dropped by drawn
+              position rather than by value, so the rule holds whatever range the
+              line list spans. */}
+          {thinTicks(x.ticks(8), x, 34).map((t) => (
+            <g key={t} transform={`translate(${x(t)},${LINES_H - 24})`}>
+              <line y2="5" className="axis" />
+              <text y="17" textAnchor="middle" className="tick">
+                {t}
+              </text>
+            </g>
+          ))}
+          {shown.map((ln, i) => (
+            <line
+              key={i}
+              x1={x(ln.wavelength_nm.value)} x2={x(ln.wavelength_nm.value)}
+              y1={barTop(ln)} y2={BOTTOM}
+              stroke={seriesColor(ln.n_lower)}
+              strokeWidth={hoverLine === ln ? 3 : 1.5}
+              opacity={barOpacity(ln)}
+              className={prof ? "line-clickable" : undefined}
+              onClick={prof ? () => zoomLine(ln) : undefined}
             />
-            {temperatureK >= 1e4
-              ? ` ${(temperatureK / 1e3).toFixed(1)}k K`
-              : ` ${temperatureK.toFixed(0)} K`}
-          </label>
-          <label className="levels-field">
-            n_e{" "}
-            <input
-              type="range" min={4} max={22} step={0.1} value={logNe}
-              onChange={(e) => setLogNe(Number(e.target.value))}
+          ))}
+          {/* Over the bars, not under them: at this scale a line is far narrower
+              than a pixel, so the curve lands on exactly the same columns as the
+              bars and would otherwise be completely hidden by them. */}
+          {tracePath && <path d={tracePath} className="profile-curve" />}
+          {comp?.map((c, i) => (
+            <circle
+              key={i} cx={x(c.reference_nm)} cy={LINES_H - 27} r={2.5}
+              className={c.within_tolerance ? "ref-ok" : "ref-bad"}
             />
-            {` 10^${logNe.toFixed(1)} cm⁻³`}
-            {logNe <= 7 ? " (nebula)" : logNe >= 12 && logNe <= 14 ? " (photosphere)" : ""}
-          </label>
-          <p className="caption">
-            Ionized fraction here: <strong>{(100 * ionized).toFixed(1)}%</strong>
-            {ionized > 0.99
-              ? ", almost no neutral atoms are left, so every line is faint no matter how hot it gets."
-              : ionized < 0.01
-                ? ", essentially all neutral, so brightness is set by excitation alone."
-                : "."}
+          ))}
+          <text x={W - M.right} y={16} textAnchor="end" className="tick">
+            bars: computed · dots on the axis: measured by NIST
+          </text>
+          {hoverLine && (
+            <HoverReadout
+              px={x(hoverLine.wavelength_nm.value)}
+              py={barTop(hoverLine)}
+              top={TOP}
+              bottom={BOTTOM}
+              lines={hoverLines}
+              width={W}
+              rightMargin={M.right}
+            />
+          )}
+        </svg>
+      </figure>
+
+      {/* The view is called "vs NIST", so the answer to that comparison is a
+          sentence near the top rather than a scatter the reader has to decode
+          at the bottom. The residual plot stays: the count says whether the
+          engine passed, the plot says by how much and in which direction. */}
+      {nist ? (
+        <section className={`nist-panel${nist.allWithin ? " nist-ok" : " nist-off"}`}>
+          <p className="nist-headline">
+            <span className="nist-mark" aria-hidden="true">
+              {nist.allWithin ? "✓" : "!"}
+            </span>
+            {nist.headline}
           </p>
-        </>
+          {yRes && tol && (
+            <svg viewBox={`0 0 ${W} ${RES_H}`} role="img" className="levels-svg">
+              <rect
+                x={M.left} width={W - M.left - M.right}
+                y={yRes(tol)} height={yRes(-tol) - yRes(tol)} className="tol-band"
+              />
+              <line x1={M.left} x2={W - M.right} y1={yRes(0)} y2={yRes(0)} className="zero" />
+              {comp!.map((c, i) => (
+                <circle
+                  key={i} cx={x(c.reference_nm)} cy={clampY(yRes(c.relative_error))} r={3}
+                  className={c.within_tolerance ? "ref-ok" : "ref-bad"}
+                />
+              ))}
+              <text x={M.left} y={12} className="tick">
+                (λ_computed − λ_NIST)/λ_NIST, shaded band = stated tolerance ±{tol.toExponential(0)}
+              </text>
+            </svg>
+          )}
+          <p className="caption">
+            Each dot is one measured line. On the shaded band means the
+            computed wavelength matches the measurement to within the
+            tolerance this engine claims; above or below means it does not.
+          </p>
+          <p className="caption">
+            {spectrum.reference_citation
+              ? `Reference: ${spectrum.reference_citation}`
+              : "No vendored NIST reference for this system."}
+          </p>
+        </section>
+      ) : (
+        <p className="hint-block">
+          {spectrum.reference_citation
+            ? `Reference: ${spectrum.reference_citation}`
+            : "No vendored NIST reference for this system, computed lines only, honestly unchecked."}
+        </p>
       )}
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={profile}
-          onChange={(e) => {
-            setProfile(e.target.checked);
-            setKeepFull(false);
-            if (!e.target.checked) setProfileZoom(null);
-          }}
+
+      <ControlGroup
+        title="How bright is each line"
+        hint="By default every bar is the same height, because nothing about brightness has been modelled. These add it, one layer at a time."
+        tone={intensities ? "active" : "plain"}
+      >
+        <Toggle
+          label="Scale the bars by line strength"
+          checked={intensities}
+          onChange={setIntensities}
+          why={
+            intensities && !isThermal
+              ? "Bars now show the Einstein A coefficient: how fast an atom in the upper level falls, not how many atoms are up there."
+              : "Uses the spontaneous emission rate. It says which transitions an atom prefers, before any gas is involved."
+          }
+          tourId="spectrum-options"
         />
-        synthesize line profiles (Voigt: natural + Doppler)
-      </label>
-      {profile && (
-        <label className="levels-field">
-          R{" "}
-          <input
-            type="range" min={2} max={7} step={0.05}
+        {intensities && (
+          <Toggle
+            label="Put it in a real gas (LTE populations)"
+            checked={thermal}
+            onChange={setThermal}
+            why={
+              thermal
+                ? "Boltzmann for which level atoms sit in, Saha for how many are ionized. Bars are now an emissivity."
+                : "A rate is not a brightness until you know how many atoms are in the upper level. This works that out from a temperature and a density."
+            }
+          />
+        )}
+        {intensities && thermal && (
+          <>
+            <Slider
+              label="temperature T"
+              readout={
+                temperatureK >= 1e4
+                  ? `${(temperatureK / 1e3).toFixed(1)}k K`
+                  : `${temperatureK.toFixed(0)} K`
+              }
+              anchor={describeTemperature(temperatureK)}
+              min={2}
+              max={6}
+              step={0.02}
+              value={Math.log10(temperatureK)}
+              onChange={(v) => setTemperatureK(10 ** v)}
+            />
+            <Slider
+              label="electron density n_e"
+              readout={`10^${logNe.toFixed(1)} cm⁻³`}
+              anchor={describeDensity(logNe)}
+              min={4}
+              max={22}
+              step={0.1}
+              value={logNe}
+              onChange={setLogNe}
+            />
+            <p className="caption">
+              Ionized fraction here: <strong>{(100 * ionized).toFixed(1)}%</strong>
+              {ionized > 0.99
+                ? ", almost no neutral atoms are left, so every line is faint no matter how hot it gets."
+                : ionized < 0.01
+                  ? ", essentially all neutral, so brightness is set by excitation alone."
+                  : "."}
+            </p>
+          </>
+        )}
+      </ControlGroup>
+
+      <ControlGroup
+        title="What shape is a line"
+        hint="A spectral line is not infinitely thin. This synthesizes the shape it really has, and lets you look at one up close."
+        tone={profile ? "active" : "plain"}
+      >
+        <Toggle
+          label="Synthesize line profiles"
+          checked={profile}
+          onChange={(v) => {
+            setProfile(v);
+            setKeepFull(false);
+            if (!v) setProfileZoom(null);
+          }}
+          why={
+            profile
+              ? "Voigt profiles: the upper level's finite lifetime gives Lorentzian wings, thermal motion gives a Gaussian core. Click a bar above to open one."
+              : "Two things widen every line: the upper level cannot live forever, and the atoms are moving. Turning this on lets you click a line and see its shape."
+          }
+        />
+        {profile && (
+          <Slider
+            label="spectrograph resolving power R"
+            readout={
+              logResolvingPower === null
+                ? "none"
+                : `${(10 ** logResolvingPower).toExponential(1)} (λ/Δλ)`
+            }
+            anchor={describeResolvingPower(logResolvingPower)}
+            min={2}
+            max={7}
+            step={0.05}
             value={logResolvingPower ?? 2}
             disabled={logResolvingPower === null}
-            onChange={(e) => setLogResolvingPower(Number(e.target.value))}
+            atRest={logResolvingPower === null}
+            onChange={setLogResolvingPower}
           />
-          {logResolvingPower === null
-            ? " no instrument"
-            : ` ${(10 ** logResolvingPower).toExponential(1)} (λ/Δλ)`}
+        )}
+        {profile && (
           <button
             className="link-button"
             type="button"
-            onClick={() =>
-              setLogResolvingPower(logResolvingPower === null ? 4 : null)
-            }
+            onClick={() => setLogResolvingPower(logResolvingPower === null ? 4 : null)}
           >
-            {logResolvingPower === null ? "add a spectrograph" : "remove it"}
+            {logResolvingPower === null
+              ? "add a spectrograph, and see the line as an instrument would"
+              : "remove the spectrograph, and see the line as it is"}
           </button>
-        </label>
-      )}
+        )}
+      </ControlGroup>
+
       {window_.splittable && (
-        <label className="check">
-          <input
-            type="checkbox"
+        <ControlGroup title="What the axis covers" tone={fullRange ? "active" : "plain"}>
+          <Toggle
+            label="Include the within-n fine-structure components"
             checked={fullRange}
-            onChange={(e) => setFullRange(e.target.checked)}
+            onChange={setFullRange}
+            why={
+              fullRange
+                ? "The axis now stretches to millimetre and metre wavelengths, which squeezes every optical line into a sliver at the left."
+                : `${window_.hidden} component${window_.hidden === 1 ? "" : "s"} start and end on the same shell, so ${window_.hidden === 1 ? "it lies" : "they lie"} out at millimetre to metre wavelengths. They are in the data either way.`
+            }
           />
-          show the full wavelength range, including within-n components
-        </label>
+        </ControlGroup>
       )}
-      <svg viewBox={`0 0 ${W} ${LINES_H}`} role="img" className="levels-svg">
-        <line
-          x1={M.left} x2={W - M.right} y1={LINES_H - 24} y2={LINES_H - 24}
-          className="axis"
-        />
-        {/* Thinned: this axis is logarithmic, so d3's tick set puts 5000 and
-            6000 about four pixels apart and the top two decades printed as one
-            run of digits ("5006007008009001000"). Ticks are dropped by drawn
-            position rather than by value, so the rule holds whatever range the
-            line list spans. */}
-        {thinTicks(x.ticks(8), x, 34).map((t) => (
-          <g key={t} transform={`translate(${x(t)},${LINES_H - 24})`}>
-            <line y2="5" className="axis" />
-            <text y="17" textAnchor="middle" className="tick">
-              {t}
-            </text>
-          </g>
-        ))}
-        {shown.map((ln, i) => (
-          <line
-            key={i}
-            x1={x(ln.wavelength_nm.value)} x2={x(ln.wavelength_nm.value)}
-            y1={barTop(ln)} y2={BOTTOM}
-            stroke={seriesColor(ln.n_lower)} strokeWidth={1.5} opacity={barOpacity(ln)}
-            className={prof ? "line-clickable" : undefined}
-            onClick={prof ? () => zoomLine(ln) : undefined}
-          >
-            <title>
-              {`${ln.n_upper}→${ln.n_lower}  λ=${ln.wavelength_nm.value.toFixed(2)} nm` +
-                (ln.einstein_a_s
-                  ? `  A=${ln.einstein_a_s.value.toExponential(2)} s⁻¹` +
-                    (ln.oscillator_strength
-                      ? `  f=${ln.oscillator_strength.value.toExponential(2)}`
-                      : "")
-                  : "") +
-                (ln.emissivity
-                  ? `  ε=${ln.emissivity.value.toExponential(2)} eV/s per atom`
-                  : "")}
-            </title>
-          </line>
-        ))}
-        {/* Over the bars, not under them: at this scale a line is far narrower
-            than a pixel, so the curve lands on exactly the same columns as the
-            bars and would otherwise be completely hidden by them. */}
-        {tracePath && <path d={tracePath} className="profile-curve" />}
-        {comp?.map((c, i) => (
-          <circle
-            key={i} cx={x(c.reference_nm)} cy={LINES_H - 27} r={2.5}
-            className={c.within_tolerance ? "ref-ok" : "ref-bad"}
-          />
-        ))}
-        <text x={W - M.right} y={16} textAnchor="end" className="tick">
-          computed lines (bars) · NIST reference (dots on axis; log-λ)
-        </text>
-      </svg>
+
       {prof && profileZoom && (
         <ZoomPanel
           prof={prof}
@@ -600,136 +781,124 @@ export function SpectrumView() {
           }}
         />
       )}
+
       {prof && profileZoom && (
-        <>
-          <label className="check" data-tour="curve-of-growth-toggle">
-            <input
-              type="checkbox"
-              checked={showCurveOfGrowth}
-              onChange={(e) => setShowCurveOfGrowth(e.target.checked)}
-            />
-            curve of growth: what happens as more gas is put in the way
-          </label>
-          {showCurveOfGrowth && curveOfGrowth && (
-            <CurveOfGrowthView cog={curveOfGrowth} />
-          )}
+        <ControlGroup
+          title="What happens with more gas in the way"
+          tone={showCurveOfGrowth ? "active" : "plain"}
+        >
+          <Toggle
+            label="Curve of growth"
+            checked={showCurveOfGrowth}
+            onChange={setShowCurveOfGrowth}
+            why="A line cannot keep getting stronger forever. Pile up enough atoms and the core saturates, and only the wings keep growing."
+            tourId="curve-of-growth-toggle"
+          />
           {showCurveOfGrowth && !curveOfGrowth && (
             <p className="hint-block">computing the curve of growth…</p>
           )}
-        </>
+        </ControlGroup>
       )}
-      <label className="check">
-        <input
-          type="checkbox"
+      {prof && profileZoom && showCurveOfGrowth && curveOfGrowth && (
+        <CurveOfGrowthView cog={curveOfGrowth} />
+      )}
+
+      <ControlGroup
+        title="Look through the gas instead of at it"
+        tone={absorption && thermal ? "active" : "plain"}
+      >
+        <Toggle
+          label="Absorption: put this gas in front of a continuum"
           checked={absorption}
           disabled={!thermal}
-          onChange={(e) => setAbsorption(e.target.checked)}
+          disabledReason="Needs the LTE populations above: which level an atom is in is what its line absorbs with."
+          onChange={setAbsorption}
+          why="The same lines that glow when the gas is hot appear as dark gaps when you look through it at something brighter. That is how stellar spectra are read."
         />
-        absorption: put this gas in front of a continuum
-        {!thermal && " (needs LTE populations above)"}
-      </label>
-      {absorption && thermal && (
-        <>
-          <label className="levels-field">
-            column{" "}
-            <input
-              type="range" min={14} max={26} step={0.1}
-              value={logColumn}
-              onChange={(e) => setLogColumn(Number(e.target.value))}
-            />
-            {` 10^${logColumn.toFixed(1)} m⁻² of the element`}
-          </label>
-          {absorptionData
-            ? <AbsorptionView abs={absorptionData} zoomed={profileZoom !== null} />
-            : <p className="hint-block">computing the absorption spectrum…</p>}
-        </>
-      )}
-      {spectrum.profile_note && (
-        <p className="caption">
-          No profile drawn: {spectrum.profile_note}
-        </p>
-      )}
-      {prof && trace && (
-        <p className="caption">
-          Curve: engine-synthesized Voigt profiles summed onto an adaptive grid,
-          drawn on log₁₀ intensity over {trace.decades} decades below the peak{" "}
-          <Badge provenance={SPECTRUM_PROFILE_LIBERTY} />. It integrates to{" "}
-          {prof.flux_closure.toFixed(4)}× the summed line strengths, which is the
-          grid's own quadrature error, measured rather than assumed. On this log
-          wavelength axis every line is a spike regardless of its real shape,{" "}
-          <strong>click a line</strong> to plot it linearly and see the profile
-          itself.
-        </p>
-      )}
-      {prof?.stark_note && (
-        <p className="caption warn-note">{prof.stark_note}</p>
-      )}
-      {prof && !prof.stark_note && prof.stark_span_nm && (
-        <p className="caption">
-          Collisional broadening is not in this curve. At this density its linear
-          Stark span would be {prof.stark_span_nm.value.toExponential(2)} nm,
-          comfortably under the widths modelled here, so the shape stands.
-        </p>
-      )}
-      {comp && yRes && tol && (
-        <svg viewBox={`0 0 ${W} ${RES_H}`} role="img" className="levels-svg">
-          <rect
-            x={M.left} width={W - M.left - M.right}
-            y={yRes(tol)} height={yRes(-tol) - yRes(tol)} className="tol-band"
+        {absorption && thermal && (
+          <Slider
+            label="column density"
+            readout={`10^${logColumn.toFixed(1)} m⁻²`}
+            anchor="how much of the element is in the line of sight"
+            min={14}
+            max={26}
+            step={0.1}
+            value={logColumn}
+            onChange={setLogColumn}
           />
-          <line x1={M.left} x2={W - M.right} y1={yRes(0)} y2={yRes(0)} className="zero" />
-          {comp.map((c, i) => (
-            <circle
-              key={i} cx={x(c.reference_nm)} cy={clampY(yRes(c.relative_error))} r={3}
-              className={c.within_tolerance ? "ref-ok" : "ref-bad"}
-            />
-          ))}
-          <text x={M.left} y={12} className="tick">
-            (λ_computed − λ_NIST)/λ_NIST, shaded band = stated tolerance ±{tol.toExponential(0)}
-          </text>
-        </svg>
+        )}
+      </ControlGroup>
+      {absorption && thermal &&
+        (absorptionData ? (
+          <AbsorptionView abs={absorptionData} zoomed={profileZoom !== null} />
+        ) : (
+          <p className="hint-block">computing the absorption spectrum…</p>
+        ))}
+
+      {spectrum.profile_note && (
+        <p className="caption">No profile drawn: {spectrum.profile_note}</p>
       )}
-      {strength && !isThermal && (
-        <p className="caption">
-          Bar height and opacity ∝ log₁₀ A over{" "}
-          {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`}, that is
-          the spontaneous emission <em>rate</em>, not a predicted observed brightness. No
-          level populations are modelled: turn on LTE weighting for those.
-        </p>
-      )}
-      {strength && isThermal && spectrum.thermal && (
-        <p className="caption">
-          Bar height and opacity ∝ log₁₀ ε over{" "}
-          {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)}`} eV/s per atom,
-          at T = {spectrum.thermal.temperature_k.toFixed(0)} K and n_e ={" "}
-          {spectrum.thermal.electron_density_cm3.toExponential(0)} cm⁻³. That is an LTE
-          emissivity: level populations from Boltzmann, ionization from Saha, and the gas
-          taken to be <em>optically thin</em>. A real medium reabsorbs its own strong
-          lines, which is why Lyman-α does not dominate an observed nebula the way it
-          dominates this one.
-        </p>
-      )}
-      {window_.hidden > 0 && (
-        <p className="caption">
-          Axis covers the across-n lines ({window_.lo.toFixed(1)}-
-          {window_.hi < 1e6
-            ? `${window_.hi.toFixed(0)} nm`
-            : `${(window_.hi / 1e6).toFixed(1)} mm`}
-          ). {window_.hidden} within-n fine-structure component
-          {window_.hidden === 1 ? " is" : "s are"} outside it, out at millimetre to metre
-          wavelengths. They are still in the data and still in the engine's line list,
-          tick the box above to include them, which stretches the axis far enough that
-          the optical lines collapse into a sliver.
-        </p>
-      )}
-      {spectrum.intensity_note && (
-        <p className="caption">{spectrum.intensity_note}</p>
-      )}
-      <p className="caption">
-        {spectrum.reference_citation
-          ? `Reference: ${spectrum.reference_citation}`
-          : "No vendored NIST reference for this system, computed lines only, honestly unchecked."}
-      </p>
+      {prof?.stark_note && <p className="caption warn-note">{prof.stark_note}</p>}
+
+      {(prof && trace) || strength || window_.hidden > 0 || spectrum.intensity_note ? (
+        <Disclosure summary="Exactly what the heights and the curve are claiming" tone="caveat">
+          {prof && trace && (
+            <p className="caption">
+              Curve: engine-synthesized Voigt profiles summed onto an adaptive grid,
+              drawn on log₁₀ intensity over {trace.decades} decades below the peak{" "}
+              <Badge provenance={SPECTRUM_PROFILE_LIBERTY} />. It integrates to{" "}
+              {prof.flux_closure.toFixed(4)}× the summed line strengths, which is the
+              grid's own quadrature error, measured rather than assumed. On this log
+              wavelength axis every line is a spike regardless of its real shape,{" "}
+              <strong>click a line</strong> to plot it linearly and see the profile
+              itself.
+            </p>
+          )}
+          {prof && !prof.stark_note && prof.stark_span_nm && (
+            <p className="caption">
+              Collisional broadening is not in this curve. At this density its linear
+              Stark span would be {prof.stark_span_nm.value.toExponential(2)} nm,
+              comfortably under the widths modelled here, so the shape stands.
+            </p>
+          )}
+          {strength && !isThermal && (
+            <p className="caption">
+              Bar height and opacity ∝ log₁₀ A over{" "}
+              {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`}, that is
+              the spontaneous emission <em>rate</em>, not a predicted observed brightness. No
+              level populations are modelled: turn on LTE weighting for those.
+            </p>
+          )}
+          {strength && isThermal && spectrum.thermal && (
+            <p className="caption">
+              Bar height and opacity ∝ log₁₀ ε over{" "}
+              {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)}`} eV/s per atom,
+              at T = {spectrum.thermal.temperature_k.toFixed(0)} K and n_e ={" "}
+              {spectrum.thermal.electron_density_cm3.toExponential(0)} cm⁻³. That is an LTE
+              emissivity: level populations from Boltzmann, ionization from Saha, and the gas
+              taken to be <em>optically thin</em>. A real medium reabsorbs its own strong
+              lines, which is why Lyman-α does not dominate an observed nebula the way it
+              dominates this one.
+            </p>
+          )}
+          {window_.hidden > 0 && (
+            <p className="caption">
+              Axis covers the across-n lines ({window_.lo.toFixed(1)}-
+              {window_.hi < 1e6
+                ? `${window_.hi.toFixed(0)} nm`
+                : `${(window_.hi / 1e6).toFixed(1)} mm`}
+              ). {window_.hidden} within-n fine-structure component
+              {window_.hidden === 1 ? " is" : "s are"} outside it, out at millimetre to metre
+              wavelengths. They are still in the data and still in the engine's line list,
+              tick the box above to include them, which stretches the axis far enough that
+              the optical lines collapse into a sliver.
+            </p>
+          )}
+          {spectrum.intensity_note && (
+            <p className="caption">{spectrum.intensity_note}</p>
+          )}
+        </Disclosure>
+      ) : null}
     </div>
   );
 }
