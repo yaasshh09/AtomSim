@@ -1150,10 +1150,15 @@ button.ghost:hover {
   font-size: 0.85rem;
 }
 
+/* Not uppercased, for the third time in this file and the same reason. These
+   headings come from src/physics/content.ts, which is prose written about
+   physics, so they name symbols: "What alpha does (and does not) touch" was
+   rendering as "WHAT A DOES (AND DOES NOT) TOUCH", and "What if Coulomb
+   weren't 1/r?" was turning the radial coordinate into a capital R. The
+   letter-spacing carries the heading on its own. */
 .physics h3 {
   font-size: 0.8rem;
   color: var(--muted);
-  text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0.75rem 0 0.25rem;
 }
@@ -1169,6 +1174,12 @@ button.ghost:hover {
 }
 
 /* What-If constants lab */
+/* The banner carries a derived alpha, so it must not be uppercased: CSS
+   text-transform maps the Greek alpha to a Latin A and the banner read
+   "DERIVED A = 1/137", naming a quantity that does not exist. The word
+   COUNTERFACTUAL is typed in capitals by the component instead, which is the
+   only part of this string that was ever meant to be shouted. Same trap as
+   the section headings, arriving through a different rule. */
 .counterfactual-banner {
   margin: 4px 0 8px;
   padding: 6px 10px;
@@ -1177,7 +1188,6 @@ button.ghost:hover {
   color: #f472b6;
   font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
   font-size: 0.85rem;
 }
 .rung-counterfactual {
@@ -2730,4 +2740,77 @@ input[type="range"] {
 
 .ctl-slider-head {
   width: 100%;
+}
+
+/* ---- What-If: constants ---- */
+
+.scenario-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.readouts-head {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0.3rem 0 0.1rem;
+}
+
+/* The constant sliders stack rather than sitting in the old two-column grid:
+   each label now carries a sentence saying what the constant is, and a
+   sentence in a half-width column wraps to four lines. */
+.const-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.const-sliders label {
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ---- What-If: force law ---- */
+
+/* A named select inside a control group, laid out like the group's other rows
+   rather than like the rail's dashed readout lines. */
+.forcelaw-select {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.forcelaw-select > span {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.forcelaw-select select {
+  width: 100%;
+}
+
+.forcelaw-expr {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.forcelaw-expr input[type="text"] {
+  flex: 1;
+}
+
+/* The force-law view now uses the shared view-wrap scroller, so it must not
+   also set its own padding on top of it. */
+.forcelaw.view-wrap {
+  padding: 1.25rem 1.5rem;
 }

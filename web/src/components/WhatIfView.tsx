@@ -3,6 +3,14 @@ import { useEffect } from "react";
 import type { ConstMultipliers } from "../api/client";
 import type { DerivedObservable } from "../api/types";
 import {
+  activeScenario,
+  CONSTANT_BLURBS,
+  SCENARIOS,
+  VIEW_LEADS,
+  type ScenarioMultipliers,
+} from "../lib/explain";
+import { spreadLabels } from "../lib/levels";
+import {
   CONST_MAX,
   CONST_MIN,
   CONSTANT_KEYS,
@@ -14,6 +22,9 @@ import {
 } from "../lib/whatif";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { Disclosure } from "./Disclosure";
+import { ControlGroup, Slider } from "./Field";
+import { ViewIntro } from "./ViewIntro";
 
 const W = 720;
 const H = 480;
@@ -30,7 +41,14 @@ export function WhatIfView() {
   }, [whatif, whatifStatus, loadWhatIf]);
 
   if (whatifStatus === "error") return <p className="error">{error}</p>;
-  if (!whatif) return <p className="hint-block">loading What-If lab…</p>;
+  if (!whatif) {
+    return (
+      <div className="view-wrap">
+        <ViewIntro lead={VIEW_LEADS.whatif} />
+        <p className="hint-block">loading What-If lab…</p>
+      </div>
+    );
+  }
 
   const { report, real, altered } = whatif;
   const altOn = report.altered;
@@ -64,6 +82,10 @@ export function WhatIfView() {
   const y = scaleLinear([eMin, 0], [H - 40, 60]);
   const rx1 = 70;
   const rx2 = 300;
+  // Same crowding as the levels ladder, same fix: the rungs go as -1/n^2, so
+  // the top three printed their labels through one another.
+  const grossY = real.gross.map((g) => y(g.energy.value));
+  const grossLabelY = spreadLabels(grossY, 13, 46, H - 28);
 
   // n=2 fine split, in µE_h (hartree * 1e6), normalized, not real eV.
   const realFine = (real.fine ?? []).filter((f) => f.n === ZOOM_N);
@@ -98,14 +120,35 @@ export function WhatIfView() {
     return "Drag any raw constant. α, a₀, and E_h are derived from all five, only these dimensionless and fixed-ruler quantities are observable. Watch which actually move: try e ×2 and ε₀ ×4 together.";
   })();
 
+  /* Which prepared universe is loaded, if any. The panel is five sliders over
+     a five-dimensional space, and almost every point in it is uninteresting;
+     a reader who does not already know which combinations cancel has no way
+     to find one by dragging. The scenarios are the found ones. */
+  const scenario = activeScenario(labConst as ScenarioMultipliers);
+
   return (
     <div className="view-wrap">
-      <div className="view-header">
-        <span className="plot-title">
-          What-If: fundamental constants{" "}
-          <Badge provenance={report.alpha.quantity.provenance} />
-        </span>
-      </div>
+      <ViewIntro
+        lead={VIEW_LEADS.whatif}
+        badge={<Badge provenance={report.alpha.quantity.provenance} />}
+      >
+        <Disclosure summary="Why most changes here change nothing">
+          <p className="caption">
+            A constant with units is a statement about the ruler as much as
+            about the world. Double the electron's charge and you have changed
+            a number, but you have also changed every measuring device made of
+            charges, and the two changes can cancel exactly.
+          </p>
+          <p className="caption">
+            What survives is the dimensionless combination. α = e²/(4πε₀ℏc) has
+            no units at all, so nothing about your choice of metre or second
+            can move it, and that is precisely why it is the one number in this
+            panel that a different universe could genuinely disagree with us
+            about. Try "the same universe in disguise" below and watch all three
+            readouts stay put while two constants move by a factor of four.
+          </p>
+        </Disclosure>
+      </ViewIntro>
 
       {altOn && (
         <div className="counterfactual-banner">
@@ -113,6 +156,32 @@ export function WhatIfView() {
         </div>
       )}
 
+      <ControlGroup
+        title="Prepared universes"
+        hint="Each of these makes one point and no other. Pick one, then read the three observables under it."
+        tone={scenario && scenario.key !== "real" ? "active" : "plain"}
+      >
+        <div className="scenario-row">
+          {SCENARIOS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className={`ctl-choice-btn${scenario?.key === s.key ? " ctl-choice-on" : ""}`}
+              aria-pressed={scenario?.key === s.key}
+              onClick={() => setLabConst(s.multipliers as Partial<ConstMultipliers>)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <p className="ctl-choice-hint">
+          {scenario
+            ? scenario.blurb
+            : "Your own combination. None of the prepared ones matches it."}
+        </p>
+      </ControlGroup>
+
+      <h3 className="readouts-head">The three things you could actually measure</h3>
       <dl className="readouts">
         {readouts.map((r) => (
           <div key={r.key} className="readout-row">
@@ -133,17 +202,28 @@ export function WhatIfView() {
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
           gross levels (Z={real.system.z}), structure in units of E_h, α-independent
         </text>
-        {real.gross.map((g) => (
-          <g key={g.n}>
-            <line x1={rx1} x2={rx2} y1={y(g.energy.value)} y2={y(g.energy.value)} className="rung" />
-            <text x={rx1 - 8} y={y(g.energy.value)} dy="0.32em" textAnchor="end" className="tick">
-              n={g.n}
-            </text>
-            <text x={rx2 + 8} y={y(g.energy.value)} dy="0.32em" className="tick">
-              2n²={g.degeneracy}
-            </text>
-          </g>
-        ))}
+        {real.gross.map((g, i) => {
+          const yr = grossY[i];
+          const yl = grossLabelY[i];
+          const nudged = Math.abs(yl - yr) > 1;
+          return (
+            <g key={g.n}>
+              <line x1={rx1} x2={rx2} y1={yr} y2={yr} className="rung" />
+              {nudged && (
+                <>
+                  <line x1={rx1 - 30} x2={rx1 - 6} y1={yl} y2={yr} className="leader" />
+                  <line x1={rx2 + 4} x2={rx2 + 26} y1={yr} y2={yl} className="leader" />
+                </>
+              )}
+              <text x={rx1 - 32} y={yl} dy="0.32em" textAnchor="end" className="tick">
+                n={g.n}
+              </text>
+              <text x={rx2 + 30} y={yl} dy="0.32em" className="tick">
+                2n²={g.degeneracy}
+              </text>
+            </g>
+          );
+        })}
 
         <text x={530} y={54} textAnchor="middle" className="tick">
           n={ZOOM_N} fine split [µE_h], real vs altered
@@ -177,25 +257,31 @@ export function WhatIfView() {
         )}
       </svg>
 
-      <div className="const-sliders" data-tour="const-sliders">
-        {CONSTANT_KEYS.map((k) => (
-          <label key={k}>
-            <span>
-              {CONSTANT_LABELS[k]} ×{labConst[k].toFixed(2)}
-            </span>
-            <input
-              type="range"
+      <p className={beyondValidity ? "error" : "caption"}>{caption}</p>
+
+      <ControlGroup
+        title="Or move one constant at a time"
+        hint="Each slider runs from a quarter to four times its measured value. A slider away from ×1.00 is lit."
+        tone={altOn ? "active" : "plain"}
+      >
+        <div className="const-sliders" data-tour="const-sliders">
+          {CONSTANT_KEYS.map((k) => (
+            <Slider
+              key={k}
+              label={`${CONSTANT_LABELS[k]} · ${CONSTANT_BLURBS[k]}`}
+              readout={`×${labConst[k].toFixed(2)}`}
+              atRest={labConst[k] === 1}
               min={Math.log2(CONST_MIN)}
               max={Math.log2(CONST_MAX)}
               step={0.25}
               value={Math.log2(labConst[k])}
-              onChange={(e) =>
-                setLabConst({ [k]: 2 ** Number(e.target.value) } as Partial<ConstMultipliers>)
+              onChange={(v) =>
+                setLabConst({ [k]: 2 ** v } as Partial<ConstMultipliers>)
               }
             />
-          </label>
-        ))}
-      </div>
+          ))}
+        </div>
+      </ControlGroup>
 
       <div className="whatif-controls">
         <div className="stepper">
@@ -208,12 +294,15 @@ export function WhatIfView() {
             +
           </button>
         </div>
-        <button type="button" className="primary" onClick={() => setLabConst(REAL_ALL)}>
+        <button
+          type="button"
+          className="primary"
+          disabled={!altOn}
+          onClick={() => setLabConst(REAL_ALL)}
+        >
           reset to real constants
         </button>
       </div>
-
-      <p className={beyondValidity ? "error" : "caption"}>{caption}</p>
     </div>
   );
 }

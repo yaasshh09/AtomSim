@@ -298,3 +298,20 @@ export const PRESET_BLURBS: Record<string, string> = {
     "Your own V(r). It is solved by the same finite-difference eigensolver as " +
     "every preset, and every level it produces is labelled counterfactual.",
 };
+
+/**
+ * What each raw constant is, for a panel of five sliders labelled ℏ, e, mₑ,
+ * ε₀ and c.
+ *
+ * Those glyphs are the right names and they are not an explanation. A reader
+ * who does not already know what ε₀ is cannot decide whether to drag it, and
+ * the whole point of the lab is that they should drag it and watch what fails
+ * to happen.
+ */
+export const CONSTANT_BLURBS: Record<string, string> = {
+  hbar: "the quantum of action: how coarse the graininess of the world is",
+  e: "the electron's charge: how hard the nucleus pulls",
+  m_e: "the electron's mass: how reluctant it is to be moved",
+  eps0: "the vacuum's permittivity: how much the empty space between charges weakens the pull",
+  c: "the speed of light: the scale relativity starts to matter at",
+};

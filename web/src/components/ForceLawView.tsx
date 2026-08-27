@@ -1,5 +1,6 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect, useState } from "react";
+import { PRESET_BLURBS, VIEW_LEADS } from "../lib/explain";
 import {
   allowedSpan,
   PRESET_LABELS,
@@ -10,6 +11,9 @@ import {
 import { systemKind } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { Disclosure } from "./Disclosure";
+import { ControlGroup, Slider } from "./Field";
+import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
 const H = 460;
@@ -113,10 +117,35 @@ export function ForceLawView() {
   const shortfall = forceLaw !== null && forceLaw.bound_count < forceLaw.requested_count;
 
   return (
-    <div className="forcelaw">
-      <div className="whatif-controls">
-        <label data-tour="force-preset">
-          Potential
+    <div className="forcelaw view-wrap">
+      <ViewIntro
+        lead={VIEW_LEADS.forcelaw}
+        badge={cfProv ? <Badge provenance={cfProv} /> : undefined}
+      >
+        <Disclosure summary="Why 1/r is special, and what breaks without it">
+          <p className="caption">
+            Two things about hydrogen come from the shape of the potential
+            rather than from quantum mechanics in general. Its energies depend
+            only on n, so 2s and 2p have exactly the same energy even though
+            they are different shapes; and it has infinitely many bound states,
+            crowding forever toward zero.
+          </p>
+          <p className="caption">
+            Both are properties of 1/r alone. Move the exponent a little and
+            the s and p levels separate immediately. Cut the tail off with a
+            screening length and the ladder simply stops after a few rungs,
+            because a short-ranged well can only hold so much. Every real atom
+            past hydrogen lives in the first of those two worlds.
+          </p>
+        </Disclosure>
+      </ViewIntro>
+
+      <ControlGroup
+        title="The potential"
+        hint="Pick a shape, then dial its parameters. Everything below is re-solved from scratch each time."
+      >
+        <label className="forcelaw-select" data-tour="force-preset">
+          <span>shape of V(r)</span>
           <select
             value={forcePreset}
             onChange={(e) => setForcePreset(e.target.value as ForcePreset)}
@@ -128,20 +157,7 @@ export function ForceLawView() {
             ))}
           </select>
         </label>
-        {PRESET_PARAMS[forcePreset].map((spec) => (
-          <label key={spec.name}>
-            {spec.name} = {(forceParams[spec.name] ?? spec.default).toFixed(2)}
-            {spec.unit ? ` ${spec.unit}` : ""}
-            <input
-              type="range"
-              min={spec.min}
-              max={spec.max}
-              step={spec.step}
-              value={forceParams[spec.name] ?? spec.default}
-              onChange={(e) => setForceParam(spec.name, Number(e.target.value))}
-            />
-          </label>
-        ))}
+        <p className="ctl-choice-hint">{PRESET_BLURBS[forcePreset]}</p>
         {forcePreset === "custom" && (
           <label className="forcelaw-expr">
             V(r) =
@@ -161,8 +177,34 @@ export function ForceLawView() {
             />
           </label>
         )}
-        <label>
-          Orbital l
+        {forcePreset === "custom" && (
+          <>
+            <p className="ctl-choice-hint">Press Enter to solve it. {EXPR_HELP}</p>
+            {draftError !== null && <p className="error">{draftError}</p>}
+          </>
+        )}
+        {PRESET_PARAMS[forcePreset].map((spec) => (
+          <Slider
+            key={spec.name}
+            label={spec.name}
+            readout={`${(forceParams[spec.name] ?? spec.default).toFixed(2)}${
+              spec.unit ? ` ${spec.unit}` : ""
+            }`}
+            min={spec.min}
+            max={spec.max}
+            step={spec.step}
+            value={forceParams[spec.name] ?? spec.default}
+            onChange={(v) => setForceParam(spec.name, v)}
+          />
+        ))}
+      </ControlGroup>
+
+      <ControlGroup
+        title="What to solve, and how to draw it"
+        hint="The angular momentum picks which radial equation is solved; the view picks whether you see the well or just the rungs."
+      >
+        <label className="forcelaw-select">
+          <span>angular momentum</span>
           <select value={forceL} onChange={(e) => setForceL(Number(e.target.value))}>
             {L_CHOICES.map((l) => (
               <option key={l} value={l}>
@@ -171,25 +213,23 @@ export function ForceLawView() {
             ))}
           </select>
         </label>
-        <label>
-          View
+        <label className="forcelaw-select">
+          <span>view</span>
           <select
             value={forceViz}
             onChange={(e) => setForceViz(e.target.value as "well" | "ladder")}
           >
-            <option value="well">Potential well</option>
-            <option value="ladder">Energy ladder</option>
+            <option value="well">the well, with levels sitting in it</option>
+            <option value="ladder">the ladder, beside its reference</option>
           </select>
         </label>
-      </div>
+      </ControlGroup>
 
       {forcePreset === "custom" && (
-        <>
-          <p className="hint-block">
-            Custom V(r) is a made-up force law, every level below is COUNTERFACTUAL. {EXPR_HELP}
-          </p>
-          {draftError !== null && <p className="error">{draftError}</p>}
-        </>
+        <p className="hint-block">
+          A custom V(r) is a made-up force law: every level below is
+          COUNTERFACTUAL, not an approximation to anything that exists.
+        </p>
       )}
       {forceStatus === "error" && <p className="error">{error}</p>}
       {forceStatus === "sampling" && <p className="hint-block">solving force law…</p>}
@@ -320,11 +360,13 @@ export function ForceLawView() {
             </svg>
           )}
 
-          <p className="hint-block">
-            The numerical levels (NUMERICAL) are drawn against this preset's honest
-            reference (EXACT). Screened and finite potentials bind only finitely many
-            states; the missing upper reference rungs are the states they cannot hold.
-          </p>
+          <Disclosure summary="What the two sets of rungs are">
+            <p className="hint-block">
+              The numerical levels (NUMERICAL) are drawn against this preset's honest
+              reference (EXACT). Screened and finite potentials bind only finitely many
+              states; the missing upper reference rungs are the states they cannot hold.
+            </p>
+          </Disclosure>
         </>
       )}
     </div>

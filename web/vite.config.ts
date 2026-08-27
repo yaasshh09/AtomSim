@@ -15,6 +15,15 @@ export default defineConfig({
     // CloudView and PhysicsBody are dynamic imports now, so Rollup derives the
     // same chunks from real reachability and they load only when entered.
   },
+  test: {
+    // Vitest stubs CSS imports to an empty string by default, which is right
+    // for components and wrong for src/uppercaseSafety.test.ts: that test
+    // reads index.css as raw text to check that no `text-transform: uppercase`
+    // rule can reach a string containing a physical symbol, and against an
+    // empty stub it would pass vacuously. The test carries its own guard
+    // against that, and this is what makes the guard unnecessary.
+    css: true,
+  },
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8000",

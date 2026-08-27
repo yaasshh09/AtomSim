@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeScenario,
+  CONSTANT_BLURBS,
   describeDensity,
   describeEField,
   describeField,
@@ -13,6 +14,7 @@ import {
   type ScenarioMultipliers,
 } from "./explain";
 import { PRESET_LABELS, type ForcePreset } from "./forceLaw";
+import { CONSTANT_LABELS } from "./whatif";
 
 describe("magnitude anchors", () => {
   it("names no field at zero, for every quantity that has a rest position", () => {
@@ -155,6 +157,15 @@ describe("copy tables", () => {
     for (const preset of Object.keys(PRESET_LABELS) as ForcePreset[]) {
       expect(PRESET_BLURBS[preset], preset).toBeDefined();
       expect(PRESET_BLURBS[preset].length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("constant blurbs", () => {
+  it("explains every constant the panel puts a slider on", () => {
+    for (const key of Object.keys(CONSTANT_LABELS)) {
+      expect(CONSTANT_BLURBS[key], key).toBeDefined();
+      expect(CONSTANT_BLURBS[key].length).toBeGreaterThan(0);
     }
   });
 });
