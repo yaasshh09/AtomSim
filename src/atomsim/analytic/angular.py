@@ -1,10 +1,11 @@
-"""Angular structure: complex spherical harmonics Y_lm and real orbitals S_lm.
+"""My angular structure: complex spherical harmonics Y_lm and real orbitals S_lm.
 
-Both bases are first-class engine outputs (spec 5.1). Complex Y_lm carry the
-Condon-Shortley phase (scipy convention). Real orbitals use the standard
-chemistry combinations: m > 0 -> cos(m phi) type, m < 0 -> sin(|m| phi) type.
-The basis choice is physics-visible (chemistry vs physics teaching moment),
-so `basis` is part of the provenance-carrying result, never a hidden default.
+I treat both bases as first-class outputs (spec 5.1). My complex Y_lm carry the
+Condon-Shortley phase (scipy's convention). For real orbitals I use the standard
+chemistry combinations: m > 0 gives the cos(m phi) type, m < 0 the sin(|m| phi)
+type. The basis I chose is physics-visible, since it is the chemistry versus
+physics teaching moment, so I put `basis` in the provenance-carrying result and
+never leave it a hidden default.
 """
 
 from dataclasses import dataclass
@@ -29,7 +30,7 @@ _CHEMISTRY_LABELS = {
 
 @dataclass(frozen=True)
 class AngularValues:
-    """Y_lm or S_lm evaluated on (theta, phi) points. Container carries provenance."""
+    """Y_lm or S_lm as I evaluated them on (theta, phi) points. The container carries my provenance."""
 
     values: np.ndarray  # complex128 for basis="complex", float64 for "real"
     theta: np.ndarray
@@ -61,7 +62,7 @@ def real_orbital_label(l: int, m: int) -> str:
 def spherical_harmonic(
     l: int, m: int, theta: np.ndarray, phi: np.ndarray, basis: str = "complex"
 ) -> AngularValues:
-    """Evaluate Y_lm (complex, Condon-Shortley) or S_lm (real) on given angles."""
+    """I evaluate Y_lm (complex, Condon-Shortley) or S_lm (real) on the angles you give me."""
     validate_angular(l, m)
     if basis not in ("complex", "real"):
         raise ValueError(f"basis must be 'complex' or 'real', got {basis!r}")

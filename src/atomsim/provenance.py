@@ -1,7 +1,8 @@
-"""Provenance: every scalar (`Quantity`) or array (`Field`) says how it was computed and trusted.
+"""Provenance: every scalar (`Quantity`) or array (`Field`) I hand out says how I
+computed it and how far I trust it.
 
-This is the mechanical enforcement of the project's prime directive:
-the model never quietly lies about physics.
+This is how I mechanically enforce my prime directive: I never quietly lie
+about physics.
 """
 
 from dataclasses import dataclass, field
@@ -11,11 +12,11 @@ import numpy as np
 
 
 class Fidelity(Enum):
-    EXACT = "exact"                    # closed-form solution of the stated model
-    NUMERICAL = "numerical"            # converged numerical solution, quantified error
-    APPROXIMATION = "approximation"    # honest simplified model, assumptions stated
-    COUNTERFACTUAL = "counterfactual"  # deliberately altered physics, computed rigorously
-    VISUAL_LIBERTY = "visual_liberty"  # purely presentational choice, disclosed
+    EXACT = "exact"                    # I solved the stated model in closed form
+    NUMERICAL = "numerical"            # I converged numerically, and I quantify the error
+    APPROXIMATION = "approximation"    # an honest simplified model, and I state my assumptions
+    COUNTERFACTUAL = "counterfactual"  # I altered the physics deliberately, then solved it rigorously
+    VISUAL_LIBERTY = "visual_liberty"  # a purely presentational choice of mine, disclosed
 
 
 @dataclass(frozen=True)
@@ -23,8 +24,8 @@ class Provenance:
     fidelity: Fidelity
     method: str
     assumptions: tuple[str, ...] = field(default=())
-    error_estimate: float | None = None  # same unit as the quantity it describes
-    refinement: str | None = None        # what would make this more accurate
+    error_estimate: float | None = None  # in the same unit as the quantity it describes
+    refinement: str | None = None        # what would make me more accurate
 
 
 @dataclass(frozen=True)
@@ -37,11 +38,11 @@ class Quantity:
 
 @dataclass(frozen=True)
 class Field:
-    """Array-valued physical quantity: samples of a function on a 1-D grid.
+    """An array-valued physical quantity: samples of a function on a 1-D grid.
 
-    Completes the boundary rule: every physical value crossing a module
-    boundary is a Quantity (scalar), a Field (array), or a container that
-    carries its own Provenance.
+    This completes my boundary rule: every physical value I let cross a module
+    boundary is a Quantity (scalar), a Field (array), or a container carrying
+    its own Provenance.
     """
 
     values: np.ndarray
