@@ -70,13 +70,13 @@ describe("buildSurfaceColors", () => {
 describe("enclosedCaption", () => {
   it("states the complement, which is the part textbooks leave out", () => {
     expect(enclosedCaption(meta())).toBe(
-      "encloses 90.0% of the electron, it is outside this surface 10.0% of the time",
+      "I enclose 90.0% of the electron here, and it is outside this surface 10.0% of the time",
     );
   });
 
   it("reports what the grid delivered, not what was asked for", () => {
-    // A 90% request that landed on 87% must say 87%, or the caption is the lie
-    // the whole phase exists to prevent.
+    // A 90% request that landed on 87% must say 87%, or my caption is the lie
+    // this whole phase exists to prevent.
     const text = enclosedCaption(
       meta({
         target_fraction: 0.9,
