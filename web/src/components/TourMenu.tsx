@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../state/store";
 import { TOURS } from "../tours/registry";
 
-/** The tour picker. Opens from the top bar, closes on pick or on Escape. */
+/** My tour picker. I open it from the top bar and close it on a pick or on Escape. */
 export function TourMenu() {
   const [open, setOpen] = useState(false);
   const { tourId, startTour, exitTour, completedTours } = useAppStore();
@@ -33,8 +33,9 @@ export function TourMenu() {
                 <span className="tour-menu-blurb">{t.blurb}</span>
                 <span className="tour-menu-count">
                   {t.steps.length} steps
-                  {/* Read to the last step, not merely started: a tour left
-                      halfway is not one the reader has had. */}
+                  {/* I mark this only for a tour you read to the last step,
+                      not one you merely started: a tour left halfway is not
+                      one you have had. */}
                   {completedTours.includes(t.id) && <span className="tour-menu-done">done</span>}
                 </span>
               </button>

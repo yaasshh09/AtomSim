@@ -19,14 +19,17 @@ export function PointCloud({ positions, pointSize, colors }: Props) {
     return g;
   }, [positions, colors]);
   return (
-    // VISUAL LIBERTY: physics z (the quantization axis) is rendered screen-vertical
-    // (three.js +y) so |m|-dependent structure reads at a glance; data stays xyz in bohr.
-    // The rotation is shared with the isosurface and the axis triad, see lib/frame.
+    // VISUAL LIBERTY: I render physics z (the quantization axis) screen-vertical
+    // (three.js +y) so |m|-dependent structure reads at a glance; my data stays
+    // xyz in bohr. I share this rotation with the isosurface and the axis triad,
+    // see lib/frame.
     <points geometry={geometry} rotation={PHYSICS_TO_SCREEN}>
-      {/* VISUAL LIBERTY: point size, colour mapping, glow are presentational choices,
-          disclosed via the RENDER_LIBERTIES badge in the canvas overlay. */}
-      {/* key remounts the material when vertexColors flips: three.js only reads
-          the flag at shader compile time, so an in-place prop update is ignored. */}
+      {/* VISUAL LIBERTY: point size, colour mapping and glow are presentational
+          choices of mine, disclosed through the RENDER_LIBERTIES badge in the
+          canvas overlay. */}
+      {/* I use key to remount the material when vertexColors flips: three.js
+          only reads the flag at shader compile time, so it ignores an in-place
+          prop update. */}
       <pointsMaterial
         key={useVertexColors ? "vertex-colors" : "solid"}
         size={pointSize}

@@ -10,13 +10,14 @@ import { Badge } from "./Badge";
 
 export function GalleryStrip() {
   const { n, l, m, system, systems, basis, setQuantumNumbers, hf, model } = useAppStore();
-  // /api/thumbnail renders a hydrogenic plane inline and 422s on a screened
-  // atom, so asking without knowing means a broken image icon on every tile.
-  // Positive knowledge only, per lib/systemKind.
+  // My /api/thumbnail renders a hydrogenic plane inline and 422s on a screened
+  // atom, so if I ask without knowing I get a broken image icon on every tile.
+  // I go on positive knowledge only here, per lib/systemKind.
   //
-  // Not fixed by rendering screened thumbnails instead: measured, a screened
-  // plane grid costs 2.5 to 3.5 s even at 96 px, and this strip asks for up to
-  // 36 at once. Serving them means a job and a cache, not an inline render.
+  // I cannot fix this by rendering screened thumbnails instead: I measured it,
+  // and a screened plane grid costs 2.5 to 3.5 s even at 96 px, while this
+  // strip asks for up to 36 at once. Serving them means a job and a cache, not
+  // an inline render.
   const hasThumbnails = isHydrogenic(systems, system);
   return (
     <div className="gallery">
@@ -27,11 +28,11 @@ export function GalleryStrip() {
       <div className="gallery-scroll">
         {galleryStates(n).map((s) => {
           const active = s.l === l && s.m === m;
-          // The same question the n and l pickers ask, asked here too. Under
+          // I ask the same question here that my n and l pickers ask. Under
           // Hartree-Fock a subshell nobody occupies has no Fock operator to be
-          // an eigenfunction of, and the server refuses it. This strip sits
-          // directly under a picker that greys 3d for chlorine; offering the
-          // 3d tiles anyway is the same request by another route.
+          // an eigenfunction of, and my server refuses it. This strip sits
+          // directly under a picker that greys 3d for chlorine; if I offered
+          // the 3d tiles anyway it would be the same request by another route.
           const reachable = subshellAvailable(hf, model, s.n, s.l);
           return (
             <button
@@ -43,7 +44,7 @@ export function GalleryStrip() {
                 reachable
                   ? stateLabel(s.n, s.l, s.m)
                   : `${stateLabel(s.n, s.l, s.m)}: empty in this configuration, ` +
-                    `so Hartree-Fock has no orbital for it`
+                    `so my Hartree-Fock solve has no orbital for it`
               }
               onClick={() => setQuantumNumbers(s.n, s.l, s.m)}
             >
@@ -56,7 +57,7 @@ export function GalleryStrip() {
                   loading="lazy"
                 />
               ) : (
-                // The buttons still pick the state, which is what this strip is
+                // My buttons still pick the state, which is what this strip is
                 // for. Only the picture is missing, so only the picture goes.
                 <span className="thumb-blank" aria-hidden="true" />
               )}

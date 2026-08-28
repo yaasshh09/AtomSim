@@ -2,10 +2,10 @@ import { useAppStore } from "../state/store";
 import { tourById } from "../tours/registry";
 
 /**
- * The tour's narration, docked under the stage.
+ * The tour's narration, which I dock under the stage.
  *
- * Docked rather than floating over the views: the picture is the thing the
- * prose is about, and a card on top of it would cover the evidence.
+ * I dock it rather than floating it over the views: the picture is the thing
+ * the prose is about, and a card on top of it would cover the evidence.
  */
 export function TourPanel() {
   const { tourId, stepIndex, goToStep, exitTour, finishTour } = useAppStore();
@@ -40,8 +40,9 @@ export function TourPanel() {
           ‹ back
         </button>
         {stepIndex === last ? (
-          // finishTour, not exitTour: reaching the end is the one fact worth
-          // remembering about a tour, and it is what marks it done in the menu.
+          // I call finishTour, not exitTour: reaching the end is the one fact
+          // worth remembering about a tour, and it is what I mark done in the
+          // menu.
           <button type="button" className="link-button" onClick={finishTour}>
             finish ›
           </button>
