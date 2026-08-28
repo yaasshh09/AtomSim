@@ -28,7 +28,7 @@ import { ViewIntro } from "./ViewIntro";
 
 const W = 720;
 const H = 480;
-const ZOOM_N = 2; // textbook shell: 2p3/2 - 2p1/2 split grows with alpha
+const ZOOM_N = 2; // the textbook shell: I watch the 2p3/2 - 2p1/2 split grow with alpha
 
 const REAL_ALL: ConstMultipliers = { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 };
 
@@ -45,7 +45,7 @@ export function WhatIfView() {
     return (
       <div className="view-wrap">
         <ViewIntro lead={VIEW_LEADS.whatif} />
-        <p className="hint-block">loading What-If lab…</p>
+        <p className="hint-block">I am loading the What-If lab…</p>
       </div>
     );
   }
@@ -76,18 +76,19 @@ export function WhatIfView() {
     },
   ];
 
-  // Gross ladder: STRUCTURE only, in units of E_h (hartree). Absolute scale lives
-  // in the readouts above, the honest structure/scale split.
+  // My gross ladder shows STRUCTURE only, in units of E_h (hartree). I keep
+  // the absolute scale in the readouts above, which is the honest way to split
+  // structure from scale.
   const eMin = real.gross[0].energy.value;
   const y = scaleLinear([eMin, 0], [H - 40, 60]);
   const rx1 = 70;
   const rx2 = 300;
-  // Same crowding as the levels ladder, same fix: the rungs go as -1/n^2, so
-  // the top three printed their labels through one another.
+  // Same crowding as my levels ladder, and the same fix: the rungs go as
+  // -1/n^2, so I printed the top three labels through one another.
   const grossY = real.gross.map((g) => y(g.energy.value));
   const grossLabelY = spreadLabels(grossY, 13, 46, H - 28);
 
-  // n=2 fine split, in µE_h (hartree * 1e6), normalized, not real eV.
+  // The n=2 fine split, in µE_h (hartree * 1e6). Normalized, so not real eV.
   const realFine = (real.fine ?? []).filter((f) => f.n === ZOOM_N);
   const altFine = (altered?.fine ?? []).filter((f) => f.n === ZOOM_N);
   const shifts = [...realFine, ...altFine].map((f) => f.shift.value * 1e6);
@@ -109,21 +110,21 @@ export function WhatIfView() {
   const changed = readouts.filter((r) => r.obs.changed).map((r) => r.label.split(" ")[0]);
   const caption = (() => {
     if (beyondValidity) {
-      return `Derived α = ${formatAlpha(alphaValue)} exceeds 0.5, the perturbative fine structure is meaningless here, so the altered split isn't drawn. The readouts still show the true α; this is the honest model boundary, not a glitch.`;
+      return `The derived α = ${formatAlpha(alphaValue)} exceeds 0.5, so my perturbative fine structure is meaningless here and I do not draw the altered split. My readouts still show the true α; this is my model's honest boundary, not a glitch.`;
     }
     if (altOn && changed.length === 0) {
-      return "You altered the constants, but α, a₀, and E_h are all unchanged, a different universe that is observationally identical to ours. That degeneracy is the whole lesson: only dimensionless combinations and fixed-ruler scales are observable.";
+      return "You altered the constants, but I find α, a₀ and E_h all unchanged: a different universe that is observationally identical to ours. That degeneracy is the whole lesson, because only dimensionless combinations and fixed-ruler scales are observable.";
     }
     if (altOn) {
-      return `Altered. Observably changed: ${changed.join(", ")}. Fine-structure fractional error ≈ ${(errFrac * 100).toFixed(1)}% (grows as (Zα)²); n=${ZOOM_N} split ≈ ${splitUeH.toFixed(1)} µE_h. The gross ladder is α-independent structure; absolute size and binding are in the readouts.`;
+      return `Altered. What I find observably changed: ${changed.join(", ")}. My fine-structure fractional error ≈ ${(errFrac * 100).toFixed(1)}% (it grows as (Zα)²), and the n=${ZOOM_N} split ≈ ${splitUeH.toFixed(1)} µE_h. My gross ladder is α-independent structure; I keep absolute size and binding in the readouts.`;
     }
-    return "Drag any raw constant. α, a₀, and E_h are derived from all five, only these dimensionless and fixed-ruler quantities are observable. Watch which actually move: try e ×2 and ε₀ ×4 together.";
+    return "Drag any raw constant. I derive α, a₀ and E_h from all five, and only those dimensionless and fixed-ruler quantities are observable. Watch which ones actually move: try e ×2 and ε₀ ×4 together.";
   })();
 
-  /* Which prepared universe is loaded, if any. The panel is five sliders over
-     a five-dimensional space, and almost every point in it is uninteresting;
-     a reader who does not already know which combinations cancel has no way
-     to find one by dragging. The scenarios are the found ones. */
+  /* Which prepared universe I have loaded, if any. My panel is five sliders
+     over a five-dimensional space, and almost every point in it is
+     uninteresting; if you do not already know which combinations cancel you
+     have no way to find one by dragging. My scenarios are the found ones. */
   const scenario = activeScenario(labConst as ScenarioMultipliers);
 
   return (
@@ -144,8 +145,9 @@ export function WhatIfView() {
             no units at all, so nothing about your choice of metre or second
             can move it, and that is precisely why it is the one number in this
             panel that a different universe could genuinely disagree with us
-            about. Try "the same universe in disguise" below and watch all three
-            readouts stay put while two constants move by a factor of four.
+            about. Try "the same universe in disguise" below and watch me hold
+            all three readouts still while two constants move by a factor of
+            four.
           </p>
         </Disclosure>
       </ViewIntro>
@@ -158,7 +160,7 @@ export function WhatIfView() {
 
       <ControlGroup
         title="Prepared universes"
-        hint="Each of these makes one point and no other. Pick one, then read the three observables under it."
+        hint="Each of these makes one point and no other. Pick one and read the three observables I print under it."
         tone={scenario && scenario.key !== "real" ? "active" : "plain"}
       >
         <div className="scenario-row">
@@ -177,7 +179,7 @@ export function WhatIfView() {
         <p className="ctl-choice-hint">
           {scenario
             ? scenario.blurb
-            : "Your own combination. None of the prepared ones matches it."}
+            : "Your own combination. None of the ones I prepared matches it."}
         </p>
       </ControlGroup>
 
@@ -200,7 +202,7 @@ export function WhatIfView() {
 
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
-          gross levels (Z={real.system.z}), structure in units of E_h, α-independent
+          gross levels (Z={real.system.z}): structure in units of E_h, and I keep it α-independent
         </text>
         {real.gross.map((g, i) => {
           const yr = grossY[i];
@@ -230,7 +232,7 @@ export function WhatIfView() {
         </text>
         {beyondValidity ? (
           <text x={530} y={H / 2} textAnchor="middle" className="tick">
-            α &gt; 0.5, beyond perturbative validity
+            α &gt; 0.5, past where I can trust the perturbation
           </text>
         ) : (
           columns.map((col) => (
@@ -261,7 +263,7 @@ export function WhatIfView() {
 
       <ControlGroup
         title="Or move one constant at a time"
-        hint="Each slider runs from a quarter to four times its measured value. A slider away from ×1.00 is lit."
+        hint="Each slider runs from a quarter to four times its measured value. I light any slider you move away from ×1.00."
         tone={altOn ? "active" : "plain"}
       >
         <div className="const-sliders" data-tour="const-sliders">

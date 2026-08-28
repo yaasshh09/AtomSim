@@ -24,14 +24,14 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   const orbitals = levels.orbitals;
   const es = orbitals.map((o) => o.energy_ev.value);
   const eMin = Math.min(...es);
-  const eMax = Math.max(...es, 0); // include the ionization threshold at 0
+  const eMax = Math.max(...es, 0); // I include the ionization threshold at 0
   const y = scaleLinear([eMin, eMax], [H - 40, 24]);
   const rungX1 = 90;
   const rungX2 = 340;
-  /* Neon's virtual orbitals sit within a couple of eV of the ionization limit
-     and printed straight through one another and through the limit's own
-     label. The ionization line is included in the spread rather than left out
-     of it, because it is the row everything else crowds against: leaving it
+  /* Neon's virtual orbitals sit within a couple of eV of the ionization limit,
+     and I printed them straight through one another and through the limit's
+     own label. I include the ionization line in the spread rather than leaving
+     it out, because it is the row everything else crowds against: holding it
      fixed would have solved the rungs and kept the collision that matters. */
   const rowY = [y(0), ...orbitals.map((o) => y(o.energy_ev.value))];
   const labelY = spreadLabels(rowY, 13, 18, H - 26);
@@ -42,12 +42,12 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         lead={{
           title: "Energy levels of a screened atom",
           lead:
-            "Each rung is one subshell's energy in the fitted central field " +
-            "that stands in for all the other electrons. Solid rungs hold " +
-            "electrons; dashed ones are empty and waiting.",
+            "Each rung I draw is one subshell's energy in the fitted central " +
+            "field I use to stand in for all the other electrons. Solid rungs " +
+            "hold electrons; dashed ones are empty and waiting.",
           notice:
-            "Watch s sit below p below d at the same n. Hydrogen has them on " +
-            "top of each other; screening is what pulls them apart.",
+            "Watch s sit below p below d at the same n. In hydrogen I put them " +
+            "on top of each other; screening is what pulls them apart.",
         }}
         badge={<Badge provenance={orbitals[0].energy.provenance} />}
       >
@@ -57,7 +57,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         </p>
       </ViewIntro>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
-        {/* ionization threshold */}
+        {/* the ionization threshold */}
         <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
         {Math.abs(limitLabelY - y(0)) > 1 && (
           <line
@@ -108,12 +108,13 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
       </p>
       <Disclosure summary="What this model is doing, and what it is not">
         <p className="caption">
-          Independent-particle orbital energies in the Green-Sellin-Zachor screened
-          central field (APPROXIMATION). Screening lifts the hydrogenic l-degeneracy
-          (s below p below d for a given n). Filled subshells are solid with their
-          occupancy; virtual orbitals are dashed. Total energy{" "}
-          {levels.total_energy_ev.value.toFixed(2)} eV is a sum of occupancy-weighted
-          orbital energies, not a variational total, see the badge.
+          These are independent-particle orbital energies in the
+          Green-Sellin-Zachor screened central field (APPROXIMATION). Screening
+          lifts the hydrogenic l-degeneracy (s below p below d for a given n). I
+          draw filled subshells solid with their occupancy and virtual orbitals
+          dashed. The total energy I print, {levels.total_energy_ev.value.toFixed(2)}{" "}
+          eV, is a sum of occupancy-weighted orbital energies rather than a
+          variational total; see the badge.
         </p>
       </Disclosure>
     </div>
@@ -121,24 +122,24 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
 }
 
 /**
- * The self-consistent ladder.
+ * My self-consistent ladder.
  *
- * Deliberately not a variant of ScreenedLadder: it plots a different axis, and
- * it has a convergence readout that the fitted model has no analogue for. The
- * two are the same shape on screen and different claims underneath, which is
- * the point of letting you switch between them.
+ * I deliberately do not make it a variant of ScreenedLadder: it plots a
+ * different axis, and it has a convergence readout the fitted model has no
+ * analogue for. The two are the same shape on screen and different claims
+ * underneath, which is the point of letting you switch between them.
  */
 /**
  * The real atom beside the collapsed one, as two numbers and their meaning.
  *
- * Both halves come off one server-side comparison, so this component never
- * subtracts anything: differencing two payloads here would be free to mix a
- * fine solve with a coarse one and call the remainder physics.
+ * I take both halves off one server-side comparison, so I never subtract
+ * anything here: if I differenced two payloads I would be free to mix a fine
+ * solve with a coarse one and call the remainder physics.
  */
 function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
   const gained = Math.abs(collapse.binding_change_ev.value);
   // Exactly zero for an atom whose ground configuration is already 1s^N, which
-  // is helium and nothing else here. Not a missing number - the answer.
+  // here is helium and nothing else. Not a number I am missing: the answer.
   const noop = collapse.binding_change_ev.value === 0;
   const shrink = collapse.radius_ratio.value;
   return (
@@ -152,9 +153,9 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         {noop ? (
           <>
 , its ground configuration is already 1s
-            <sup>{2}</sup>, so lifting the cap has nothing to lift. Helium is
-            the calibration case rather than the demonstration: the two solves
-            agree to the last bit because they are the same solve.
+            <sup>{2}</sup>, so when I lift the cap there is nothing to lift. I
+            treat helium as the calibration case rather than the demonstration:
+            my two solves agree to the last bit because they are the same solve.
           </>
         ) : (
           <>
@@ -163,8 +164,8 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
             collapsed one at{" "}
             {(collapse.real_total_energy_ev.value + collapse.binding_change_ev.value)
               .toPrecision(6)}{" "}
-            eV, both on the same mesh. Nothing holds the electrons out of the
-            deep well once the cap is gone.
+            eV, both on the same mesh. Once I drop the cap, nothing holds the
+            electrons out of the deep well.
           </>
         )}
       </p>
@@ -173,18 +174,19 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
         {collapse.real_radius.value.toFixed(3)} to{" "}
         {collapse.collapsed_radius.value.toFixed(3)} bohr, a factor of{" "}
         {shrink.toFixed(3)}. With the cap on, atomic size rises and falls across
-        a period, and that oscillation is the periodic table. With it off, ⟨r⟩
-        decreases forever as Z grows, every element is a smaller version of the
-        last one, and there is no chemistry to have.
+        a period, and that oscillation is the periodic table. With it off, I
+        give you an ⟨r⟩ that decreases forever as Z grows, every element a
+        smaller version of the last one, and no chemistry to have.
       </p>
       <Disclosure summary="Checked against a closed form, not only against itself">
         <p className="caption">
           N electrons in a single 1s of exponent ζ minimize at ζ* ={" "}
           {collapse.variational_zeta.value.toFixed(4)}, giving{" "}
-          {collapse.variational_energy_ev.value.toPrecision(6)} eV. The solve above
-          optimizes the radial function rather than an exponent, so it searches a
-          larger space and has to land at or below that number, and does. The
-          formula is textbook: at Z = N = 2 it is the variational helium result.
+          {collapse.variational_energy_ev.value.toPrecision(6)} eV. My solve
+          above optimizes the radial function rather than an exponent, so it
+          searches a larger space and has to land at or below that number, and
+          it does. The formula is textbook: at Z = N = 2 it is the variational
+          helium result.
         </p>
       </Disclosure>
     </>
@@ -193,16 +195,16 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
 
 function HFLadder({ levels }: { levels: HFLevels }) {
   const orbitals = levels.orbitals;
-  // Binding energy, so the log is of a positive number. Every occupied HF
-  // orbital is bound; the guard is here because a rung at exactly 0 would
-  // silently become -Infinity and take the whole scale with it.
+  // I use binding energy, so my log is of a positive number. Every occupied HF
+  // orbital is bound; I keep the guard because a rung at exactly 0 would
+  // silently become -Infinity and take my whole scale with it.
   const bind = orbitals.map((o) => Math.abs(o.energy_ev.value));
   const deepest = Math.max(...bind);
   const shallowest = Math.min(...bind.filter((b) => b > 0), deepest);
-  // A quarter-decade of headroom: enough that the shallowest rung is not welded
-  // to the frame edge, and deliberately not more. A generous gap above the
-  // topmost level reads as "this one is far from ionization" when on a log axis
-  // it is the one CLOSEST to it, and the empty band means nothing at all.
+  // I leave a quarter-decade of headroom: enough that my shallowest rung is
+  // not welded to the frame edge, and deliberately not more. A generous gap
+  // above the topmost level reads as "this one is far from ionization" when on
+  // a log axis it is the one CLOSEST to it, and the empty band means nothing.
   const y = scaleLinear(
     [Math.log10(shallowest) - 0.25, Math.log10(deepest)],
     [40, H - 40],
@@ -221,12 +223,12 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         lead={{
           title: `Energy levels: ${modelName}`,
           lead:
-            "Each rung is one subshell, solved self-consistently: every " +
-            "electron moves in the field of all the others, and the answer " +
-            "has to reproduce itself.",
+            "Each rung is one subshell, which I solve self-consistently: every " +
+            "electron moves in the field of all the others, and my answer has " +
+            "to reproduce itself.",
           notice:
-            "The 1s sits more than two decades below the valence shell, so " +
-            "the axis is logarithmic in binding energy. Deeper is further down.",
+            "The 1s sits more than two decades below the valence shell, so I " +
+            "make the axis logarithmic in binding energy. Deeper is further down.",
         }}
         badge={<Badge provenance={levels.provenance} />}
       >
@@ -240,7 +242,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         </p>
       </ViewIntro>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
-        {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
+        {/* I cannot make the ionization limit a rung here, see HF_LADDER_AXIS_LIBERTY. */}
         <text x={rungX1} y={16} className="tick" opacity={0.7}>
           ↑ 0 eV (ionization limit), off the top of a log axis
         </text>
@@ -258,7 +260,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
                 <tspan dy="-0.5em">{o.occupancy}</tspan>
               </text>
               <text x={rungX2 + 8} y={yr} dy="0.32em" className="tick">
-                {/* Three significant figures across three decades of magnitude. */}
+                {/* I print three significant figures across three decades of magnitude. */}
                 {e.toPrecision(4)} eV
               </text>
             </g>
@@ -268,8 +270,8 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       <p className="caption">
         Total energy {levels.total_energy_ev.value.toFixed(2)} eV
         {levels.exchange
-          ? ", and it is variational: the real atom is at or below it."
-          : ", stationary for this model but not a bound on the real atom."}{" "}
+          ? ", and it is variational: the real atom sits at or below it."
+          : ", stationary for this model but not a bound I can put on the real atom."}{" "}
         <Badge provenance={HF_LADDER_AXIS_LIBERTY} />
       </p>
       {!levels.exchange && levels.exchange_energy_ev !== null && (
@@ -279,47 +281,48 @@ function HFLadder({ levels }: { levels: HFLevels }) {
             {Math.abs(levels.exchange_energy_ev.value).toFixed(2)} eV of binding
           </strong>{" "}
           to this atom, the gap between the energy above and the Hartree-Fock
-          one, both solved on the same mesh. Exchange binds because same-spin
-          electrons keep out of each other's way, so they repel each other less
-          than distinguishable ones would.{" "}
+          one, both of which I solved on the same mesh. Exchange binds because
+          same-spin electrons keep out of each other's way, so they repel each
+          other less than distinguishable ones would.{" "}
           {levels.exchange_energy_ev.value === 0
-            ? "Zero here, and that is the answer rather than a missing one: no two electrons in this configuration share a spin, so there is no pair to exchange."
-            : "The Pauli occupancies are untouched, nothing has piled into the 1s."}
+            ? "Zero here, and that is my answer rather than a missing one: no two electrons in this configuration share a spin, so there is no pair to exchange."
+            : "I left the Pauli occupancies untouched, so nothing has piled into the 1s."}
         </p>
       )}
       {levels.collapse !== null && <PauliComparison collapse={levels.collapse} />}
       <Disclosure summary="What this model leaves out, and why the axis is logarithmic">
         <p className="caption">
-          Self-consistent-field orbital energies (
+          These are self-consistent-field orbital energies (
           {levels.exchange
-            ? "APPROXIMATION, see the badge for what Hartree-Fock leaves out, correlation above all"
-            : "COUNTERFACTUAL, see the badge; this is not an approximation to the real atom"}
-          ). Energy axis is logarithmic in binding energy{" "}
+            ? "APPROXIMATION, and my badge says what Hartree-Fock leaves out, correlation above all"
+            : "COUNTERFACTUAL, see my badge; this is not an approximation to the real atom"}
+          ). I make the energy axis logarithmic in binding energy{" "}
           <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
-          valence shell differ by more than two decades. Total energy{" "}
-          {levels.total_energy_ev.value.toFixed(2)} eV
+          valence shell differ by more than two decades. The total energy I
+          print, {levels.total_energy_ev.value.toFixed(2)} eV,
           {levels.exchange
             ? " is variational, unlike the screened model's sum of orbital energies."
-            : " is stationary for this model, but it is not a variational bound on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons and the theorem does not apply to it."}
+            : " is stationary for this model, but it is not a variational bound I can put on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons and the theorem does not apply to it."}
         </p>
       </Disclosure>
-      <Disclosure summary="Solve diagnostics: how well the computation converged">
+      <Disclosure summary="Solve diagnostics: how well my computation converged">
         <p className="caption">
-          <strong>These describe the computation, not the atom</strong> (NUMERICAL):{" "}
-          {levels.converged ? "converged" : "DID NOT CONVERGE"} in{" "}
+          <strong>These describe my computation, not the atom</strong>{" "}
+          (NUMERICAL): I {levels.converged ? "converged" : "DID NOT CONVERGE"} in{" "}
           {levels.coarse_iterations} coarse + {levels.iterations} fine SCF
-          iterations on {levels.grid_points} radial points. Virial ratio
+          iterations on {levels.grid_points} radial points. My virial ratio
           −〈V〉/〈T〉 = {virial.toFixed(6)}, which is exactly 2 for a converged
-          solution of this Hamiltonian; the departure is a measure of the grid, not
-          a property of the element.
+          solution of this Hamiltonian; the departure measures my grid rather
+          than any property of the element.
         </p>
       </Disclosure>
     </div>
   );
 }
 
-// h in eV per MHz (h = 4.135667696e-15 eV·s, times 1e6 Hz/MHz), for turning a
-// hyperfine energy split into its transition frequency, the payoff number.
+// h in eV per MHz (h = 4.135667696e-15 eV·s, times 1e6 Hz/MHz), which is how I
+// turn a hyperfine energy split into its transition frequency, the payoff
+// number.
 const EV_PER_MHZ = 4.135667696e-9;
 
 export function LevelsView() {
@@ -336,7 +339,7 @@ export function LevelsView() {
   }, [system, fineStructure, dirac, bField, eField, hyperfine, loadLevels, loadSpectrum]);
   useEffect(() => {
     // Only under the HF model, and only once per (system, config): the solve
-    // costs seconds, so it is not something to fire on the chance it is wanted.
+    // costs me seconds, so I do not fire it on the chance it is wanted.
     if (wantHF && hf === null && hfStatus === "idle") void loadHF();
   }, [wantHF, hf, hfStatus, system, config, exchange, pauli, loadHF]);
 
@@ -344,52 +347,53 @@ export function LevelsView() {
     if (hfStatus === "error") {
       return (
         <p className="hint-block">
-          Hartree-Fock declined this atom: {error ?? "unknown reason"}
+          My Hartree-Fock solve declined this atom: {error ?? "unknown reason"}
         </p>
       );
     }
-    if (hf === null) return <p className="hint-block">solving Hartree-Fock (seconds)…</p>;
+    if (hf === null) return <p className="hint-block">I am solving Hartree-Fock (seconds)…</p>;
     return <HFLadder levels={hf} />;
   }
-  if (!levels) return <p className="hint-block">loading levels…</p>;
+  if (!levels) return <p className="hint-block">I am loading the levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
   const eMin = levels.gross[0].energy_ev.value;
   const y = scaleLinear([eMin, 0], [H - 40, 24]);
   const rungX1 = 70;
   const rungX2 = 320;
-  /* Only transitions that actually cross a shell can be drawn on this ladder.
-     A within-n fine-structure component (3p→3s, out at 9 cm) has both ends on
-     the same rung, so it rendered as a zero-length arrow with a nine-digit
-     wavelength printed across the middle of the plot. It is real physics and
-     it is in the spectrum view where the axis can hold it; here it is a label
-     with nothing under it, so it is counted and named rather than drawn. */
+  /* I can only draw transitions that actually cross a shell on this ladder. A
+     within-n fine-structure component (3p→3s, out at 9 cm) has both ends on
+     the same rung, so I rendered it as a zero-length arrow with a nine-digit
+     wavelength printed across the middle of the plot. It is real physics and I
+     keep it in my spectrum view where the axis can hold it; here it would be a
+     label with nothing under it, so I count and name it rather than drawing it. */
   const allArrows = spectrum ? arrowsFor(spectrum.lines, n, l) : [];
   const arrows = allArrows.filter((a) => a.n_upper !== a.n_lower);
   const withinN = allArrows.length - arrows.length;
   const grossE = new Map(levels.gross.map((g) => [g.n, g.energy_ev.value]));
 
-  /* Rungs crowd toward the ionization limit because the energies go as -1/n²,
-     so at n >= 4 the labels printed through one another. The rungs stay where
-     the physics puts them and the text is nudged apart, with a leader line
-     back to the rung it belongs to. */
+  /* My rungs crowd toward the ionization limit because the energies go as
+     -1/n², so at n >= 4 I printed the labels through one another. I leave the
+     rungs where the physics puts them and nudge the text apart, with a leader
+     line back to the rung each label belongs to. */
   const rungY = levels.gross.map((g) => y(g.energy_ev.value));
   const labelY = spreadLabels(rungY, 13, 20, H - 28);
   const fineForN = levels.fine?.filter((f) => f.n === n) ?? [];
-  // hyperfine shell for the selected n; the unavailable case is a single
-  // sentinel entry (availability does not depend on n), so fall back to it.
+  // The hyperfine shell for the selected n. When it is unavailable I get a
+  // single sentinel entry, since availability does not depend on n, so I fall
+  // back to that.
   const hfShells = levels.hyperfine_shells ?? [];
   const hfShell =
     hfShells.find((s) => s.n === n) ??
     (hfShells.length === 1 && !hfShells[0].available ? hfShells[0] : undefined);
 
-  /* One picker owns the magnifier, so an option that would do nothing says so
+  /* One picker owns my magnifier, so an option I would do nothing with says so
      on its face instead of being silently outranked. See lib/levels.ts. */
   const current = { fineStructure, bField, eField, hyperfine };
   const mode = detailMode(current);
   const applyMode = (next: DetailMode) => {
     const s = detailState(next, current);
-    // Order matters only in that each setter clears `levels`; the effect above
+    // Order matters only in that each setter clears `levels`; my effect above
     // refetches once React has batched them.
     if (s.fineStructure !== fineStructure) setFineStructure(s.fineStructure);
     if (s.bField !== bField) setBField(s.bField);
@@ -407,17 +411,17 @@ export function LevelsView() {
         <Disclosure summary="Why the rungs crowd together going up">
           <p className="caption">
             The energies go as −1/n², so the gap from n=1 to n=2 is far larger
-            than the gap from n=5 to n=6. Every rung above the first is bunched
-            toward the ionization limit at 0, where the electron is free. That
-            crowding is why hydrogen's spectral series each pile up toward a
-            short-wavelength edge instead of spreading out evenly.
+            than the gap from n=5 to n=6. I end up with every rung above the
+            first bunched toward the ionization limit at 0, where the electron
+            is free. That crowding is why hydrogen's spectral series each pile
+            up toward a short-wavelength edge instead of spreading out evenly.
           </p>
         </Disclosure>
       </ViewIntro>
 
       <ControlGroup
         title="Magnify one rung"
-        hint="The right-hand column zooms in on what splits the selected shell. Only one at a time: they are four different magnifications of the same column."
+        hint="In the right-hand column I zoom in on what splits the selected shell. Only one at a time: they are four different magnifications of the same column."
         tone={mode === "none" ? "plain" : "active"}
       >
         <Choice<DetailMode>
@@ -429,31 +433,31 @@ export function LevelsView() {
             {
               value: "none",
               label: "just the ladder",
-              hint: "Gross levels only, exact under a reduced-mass Bohr model.",
+              hint: "Gross levels only. I am exact here, under a reduced-mass Bohr model.",
             },
             {
               value: "fine",
               label: "fine structure",
               hint:
                 "Relativity and spin-orbit coupling split each shell by about " +
-                "a part in 100,000. The column magnifies it.",
+                "a part in 100,000, and I magnify that in the column.",
             },
             {
               value: "zeeman",
               label: "magnetic field",
-              hint: "A magnetic field splits each j-level into its 2j+1 orientations.",
+              hint: "I split each j-level into its 2j+1 orientations in a magnetic field.",
             },
             {
               value: "stark",
               label: "electric field",
-              hint: "An electric field fans each shell into n² parabolic states.",
+              hint: "I fan each shell into n² parabolic states in an electric field.",
             },
             {
               value: "hyperfine",
               label: "hyperfine",
               hint: hyperfineBlocked
                 ? undefined
-                : "The nucleus's own spin splits the s-states. This is where the 21 cm line comes from.",
+                : "The nucleus's own spin splits the s-states, and this is where I get the 21 cm line from.",
               disabled: hyperfineBlocked,
               disabledReason: hfShell?.reason ?? undefined,
             },
@@ -466,8 +470,8 @@ export function LevelsView() {
             onChange={setDirac}
             why={
               dirac
-                ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s½ and 2p½ land on each other exactly. Reality splits them by the Lamb shift, which this model leaves out."
-                : "The α² perturbation. Accurate to about a part in 10⁴ of the shift itself; switch to Dirac for the closed form."
+                ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so I land 2s½ and 2p½ on each other exactly. Reality splits them by the Lamb shift, which I leave out."
+                : "The α² perturbation. I am accurate here to about a part in 10⁴ of the shift itself; switch to Dirac and I give you the closed form."
             }
             tourId="dirac-toggle"
           />
@@ -503,12 +507,12 @@ export function LevelsView() {
       </ControlGroup>
 
       <p className="ladder-hint">
-        Rungs are clickable: pick one to move the whole app to that shell.
+        My rungs are clickable: pick one and I move everything to that shell.
         {arrows.length > 0
-          ? ` The arrows are the ${arrows.length} transition${arrows.length === 1 ? "" : "s"} out of the state selected in the rail, labelled with the light they emit.`
+          ? ` The arrows are the ${arrows.length} transition${arrows.length === 1 ? "" : "s"} out of the state you selected in the rail, labelled with the light they emit.`
           : ""}
         {withinN > 0
-          ? ` ${withinN} more transition${withinN === 1 ? " starts" : "s start"} and end${withinN === 1 ? "s" : ""} on this same shell, so ${withinN === 1 ? "it has" : "they have"} no arrow to draw here; ${withinN === 1 ? "it is" : "they are"} out at microwave wavelengths in the spectrum view.`
+          ? ` ${withinN} more transition${withinN === 1 ? " starts" : "s start"} and end${withinN === 1 ? "s" : ""} on this same shell, so I have no arrow to draw for ${withinN === 1 ? "it" : "them"} here; ${withinN === 1 ? "it is" : "they are"} out at microwave wavelengths in my spectrum view.`
           : ""}
       </p>
 
@@ -533,8 +537,8 @@ export function LevelsView() {
                 }
               }}
             >
-              {/* An invisible band on the label row, so the click target is a
-                  row rather than a 1 px line. Without it the rungs are
+              {/* I put an invisible band on the label row, so the click target
+                  is a row rather than a 1 px line. Without it my rungs are
                   technically clickable and practically not. */}
               <rect
                 x={rungX1 - 40} y={Math.min(yr, yl) - 9}
@@ -574,10 +578,11 @@ export function LevelsView() {
             <g key={`${a.n_lower}-${a.l_lower}-${i}`} className="arrow">
               <line x1={ax} x2={ax} y1={yTop} y2={yBot - 6} />
               <path d={`M${ax - 4},${yBot - 8} L${ax + 4},${yBot - 8} L${ax},${yBot} Z`} />
-              {/* Staggered over three rows. The arrows are 26 px apart and a
-                  wavelength label is about twice that wide, so with fine
-                  structure on (which gives two arrows per shell pair at nearly
-                  the same wavelength) every label printed over its neighbour. */}
+              {/* I stagger these over three rows. My arrows are 26 px apart and
+                  a wavelength label is about twice that wide, so with fine
+                  structure on (which gives me two arrows per shell pair at
+                  nearly the same wavelength) I printed every label over its
+                  neighbour. */}
               <text
                 x={ax + 4}
                 y={(yTop + yBot) / 2 + ((i % 3) - 1) * 13}
@@ -766,8 +771,8 @@ export function LevelsView() {
           })()}
       </svg>
 
-      {/* The headline for whatever the magnifier is showing, in one sentence.
-          The full account is in the disclosure under it, unchanged. */}
+      {/* My headline for whatever the magnifier is showing, in one sentence. I
+          keep the full account in the disclosure under it, unchanged. */}
       {mode === "hyperfine" && hfShell?.available && hfShell.levels.length > 1 && (
         <p className="caption">
           <strong>
@@ -787,40 +792,43 @@ export function LevelsView() {
         </p>
       )}
 
-      <Disclosure summary="What the two scales mean, and what is left out" tone="caveat">
+      <Disclosure summary="What my two scales mean, and what I leave out" tone="caveat">
         <p className="caption">
-          Gross levels are reduced-mass exact. The right column magnifies the{" "}
-          {dirac ? "relativistic" : "α²"} shifts of the selected n, the two scales differ by ~10⁵
-          and are labeled, never blended.{" "}
+          My gross levels are reduced-mass exact. In the right column I magnify
+          the {dirac ? "relativistic" : "α²"} shifts of the selected n; the two
+          scales differ by ~10⁵, so I label them and never blend them.{" "}
           {dirac
-            ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which this model deliberately omits, see the badge assumptions."
-            : "States with equal j coincide at this order (e.g. 2s₁/₂ and 2p₁/₂, the Lamb shift is beyond α² and honestly absent here)."}
+            ? "Dirac is exact for a point nucleus: the energy depends on n and j only, so I make 2s₁/₂ and 2p₁/₂ coincide exactly. Reality splits them by the Lamb shift (QED), which I deliberately omit; see my badge assumptions."
+            : "States with equal j coincide at this order (2s₁/₂ and 2p₁/₂, for instance: the Lamb shift is beyond α² and I leave it honestly absent)."}
           {mode === "zeeman" && (
             <>
-              {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels (anomalous
-              Zeeman, spacing g_J·µ_B·B); as B rises they reorganize toward the Paschen-Back
-              pattern where (m_l, m_s) become the good labels. Linear model, the diamagnetic
-              B² term is omitted.
+              {" "}In a magnetic field I split each j-level into 2j+1 m_j
+              sublevels (the anomalous Zeeman effect, spacing g_J·µ_B·B); as B
+              rises they reorganize toward the Paschen-Back pattern where
+              (m_l, m_s) become the good labels. My model is linear, and I omit
+              the diamagnetic B² term.
             </>
           )}
           {mode === "stark" && (
             <>
-              {" "}An electric field splits each n-shell into n² parabolic (n₁,n₂,m)
-              sublevels fanned by the electric quantum number k = n₁−n₂. The splitting is
-              linear in F, which is hydrogen's accidental l-degeneracy showing itself: a
-              first-order shift appears here that non-degenerate atoms (quadratic only) never
-              get. Second-order model on the gross shells; the perturbation series is
-              asymptotic and breaks down near field ionization, so read the badge.
+              {" "}In an electric field I split each n-shell into n² parabolic
+              (n₁,n₂,m) sublevels, fanned by the electric quantum number
+              k = n₁−n₂. The splitting is linear in F, which is hydrogen's
+              accidental l-degeneracy showing itself: a first-order shift
+              appears here that non-degenerate atoms (quadratic only) never get.
+              I work to second order on the gross shells, and the perturbation
+              series is asymptotic and breaks down near field ionization, so
+              read my badge.
             </>
           )}
           {mode === "hyperfine" && hfShell && (
             <>
-              {" "}Hyperfine: the nuclear spin I couples to the electron's angular
-              momentum J, splitting the {n}s level (J=½) into F = I+J states through the
-              Fermi contact interaction.{" "}
+              {" "}Hyperfine: the nuclear spin I couples to the electron's
+              angular momentum J, splitting the {n}s level (J=½) into F = I+J
+              states through the Fermi contact interaction.{" "}
               {hfShell.available
                 ? hfShell.levels.length > 1
-                  ? "s-states only (contact term); the l>0 orbital+dipolar channel is deferred. Non-relativistic, bound-state QED and nuclear structure (~0.01%) are omitted, see the badge."
+                  ? "I do s-states only (the contact term); I have deferred the l>0 orbital and dipolar channel. I work non-relativistically and omit bound-state QED and nuclear structure (~0.01%), see my badge."
                   : hfShell.note
                 : hfShell.reason}
             </>

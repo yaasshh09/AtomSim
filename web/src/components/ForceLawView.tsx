@@ -27,7 +27,7 @@ const PRESETS: ForcePreset[] = [
   "coulombcore",
   "custom",
 ];
-const EXPR_HELP = "allowed: r, pi, e; + - * / **; exp log sqrt sin cos tan sinh cosh tanh abs sign where(cond, a, b)";
+const EXPR_HELP = "what I accept: r, pi, e; + - * / **; exp log sqrt sin cos tan sinh cosh tanh abs sign where(cond, a, b)";
 
 export function ForceLawView() {
   const {
@@ -50,20 +50,21 @@ export function ForceLawView() {
     setSystem,
   } = useAppStore();
 
-  // This lab swaps the potential under ONE electron, and reads the selected
-  // system only for its Z and reduced mass. A screened atom is not that: it is
-  // eleven electrons and a fitted field, with no one-electron reduction to
-  // hand over, which is why /api/forcelaw rejects it outright. So the guard is
-  // on the request, not just on the menu entry, and it waits to know rather
-  // than assuming: before `systems` arrives the kind is null and nothing fires.
+  // In this lab I swap the potential under ONE electron, and I read the
+  // selected system only for its Z and reduced mass. A screened atom is not
+  // that: it is eleven electrons and a fitted field, with no one-electron
+  // reduction to hand me, which is why my /api/forcelaw rejects it outright.
+  // So I put the guard on the request and not just on the menu entry, and I
+  // wait to know rather than assuming: before `systems` arrives the kind is
+  // null and I fire nothing.
   const kind = systemKind(systems, system);
   useEffect(() => {
     if (kind !== "hydrogenic") return;
     if (forceLaw === null && forceStatus === "idle") void loadForceLaw();
   }, [kind, forceLaw, forceStatus, loadForceLaw]);
 
-  // The expression input is edited locally and committed (which re-solves) only
-  // on Enter or blur, so a half-typed formula never fires a doomed solve.
+  // I keep the expression input local and commit it (which makes me re-solve)
+  // only on Enter or blur, so a half-typed formula never fires a doomed solve.
   const [draft, setDraft] = useState(forceExpr);
   useEffect(() => setDraft(forceExpr), [forceExpr]);
   const draftError = validateExprClient(draft);
@@ -72,19 +73,19 @@ export function ForceLawView() {
     if (draftError === null && trimmed !== forceExpr) setForceExpr(trimmed);
   };
 
-  // The view stays on the menu on purpose. Which view you are looking at is a
-  // separate axis from which system you picked, so making the entry disappear
-  // when a screened atom is selected would leave the user hunting for a lab
-  // that was there a moment ago. Say what is missing and offer the one click
-  // that fixes it instead.
+  // I leave this view on the menu on purpose. Which view you are looking at is
+  // a separate axis from which system you picked, so if I made the entry
+  // disappear when a screened atom is selected I would leave you hunting for a
+  // lab that was there a moment ago. I say what is missing and offer the one
+  // click that fixes it instead.
   if (kind === "screened") {
     return (
       <div className="hint-block">
         <p>
-          The force-law lab replaces the potential under a single electron, so
-          it needs a system that is a single electron. A screened atom is a
+          In the force-law lab I replace the potential under a single electron,
+          so I need a system that is a single electron. A screened atom is a
           fitted field standing in for the other electrons, and that field is
-          the thing this lab would be overwriting.
+          the very thing I would be overwriting here.
         </p>
         <button type="button" className="ghost" onClick={() => setSystem("h")}>
           Switch to hydrogen
@@ -131,9 +132,9 @@ export function ForceLawView() {
             crowding forever toward zero.
           </p>
           <p className="caption">
-            Both are properties of 1/r alone. Move the exponent a little and
-            the s and p levels separate immediately. Cut the tail off with a
-            screening length and the ladder simply stops after a few rungs,
+            Both are properties of 1/r alone. Move the exponent a little and I
+            separate the s and p levels immediately. Cut the tail off with a
+            screening length and my ladder simply stops after a few rungs,
             because a short-ranged well can only hold so much. Every real atom
             past hydrogen lives in the first of those two worlds.
           </p>
@@ -142,7 +143,7 @@ export function ForceLawView() {
 
       <ControlGroup
         title="The potential"
-        hint="Pick a shape, then dial its parameters. Everything below is re-solved from scratch each time."
+        hint="Pick a shape, then dial its parameters. I re-solve everything below from scratch each time."
       >
         <label className="forcelaw-select" data-tour="force-preset">
           <span>shape of V(r)</span>
@@ -179,7 +180,7 @@ export function ForceLawView() {
         )}
         {forcePreset === "custom" && (
           <>
-            <p className="ctl-choice-hint">Press Enter to solve it. {EXPR_HELP}</p>
+            <p className="ctl-choice-hint">Press Enter and I will solve it. {EXPR_HELP}</p>
             {draftError !== null && <p className="error">{draftError}</p>}
           </>
         )}
@@ -201,7 +202,7 @@ export function ForceLawView() {
 
       <ControlGroup
         title="What to solve, and how to draw it"
-        hint="The angular momentum picks which radial equation is solved; the view picks whether you see the well or just the rungs."
+        hint="The angular momentum picks which radial equation I solve; the view picks whether I show you the well or just the rungs."
       >
         <label className="forcelaw-select">
           <span>angular momentum</span>
@@ -227,23 +228,24 @@ export function ForceLawView() {
 
       {forcePreset === "custom" && (
         <p className="hint-block">
-          A custom V(r) is a made-up force law: every level below is
-          COUNTERFACTUAL, not an approximation to anything that exists.
+          A custom V(r) is a made-up force law, so I label every level below
+          COUNTERFACTUAL: it is not an approximation to anything that exists.
         </p>
       )}
       {forceStatus === "error" && <p className="error">{error}</p>}
-      {forceStatus === "sampling" && <p className="hint-block">solving force law…</p>}
+      {forceStatus === "sampling" && <p className="hint-block">I am solving the force law…</p>}
       {untrusted > 0 && (
         <p className="hint-block">
-          {untrusted} level{untrusted === 1 ? "" : "s"} could not be trusted (not box/grid
-          converged) and {untrusted === 1 ? "is" : "are"} drawn dashed, not real bound states.
+          I could not trust {untrusted} level{untrusted === 1 ? "" : "s"} (not box or grid
+          converged), so I draw {untrusted === 1 ? "it" : "them"} dashed rather than as real
+          bound states.
         </p>
       )}
       {shortfall && (
         <p className="hint-block">
-          Only {forceLaw!.bound_count} bound state
+          I find only {forceLaw!.bound_count} bound state
           {forceLaw!.bound_count === 1 ? "" : "s"} at these parameters
-          {forceLaw!.bound_count === 0 ? ", the potential is too shallow to bind." : "."}
+          {forceLaw!.bound_count === 0 ? ", because the potential is too shallow to bind." : "."}
         </p>
       )}
 
@@ -360,11 +362,12 @@ export function ForceLawView() {
             </svg>
           )}
 
-          <Disclosure summary="What the two sets of rungs are">
+          <Disclosure summary="What my two sets of rungs are">
             <p className="hint-block">
-              The numerical levels (NUMERICAL) are drawn against this preset's honest
+              I draw my numerical levels (NUMERICAL) against this preset's honest
               reference (EXACT). Screened and finite potentials bind only finitely many
-              states; the missing upper reference rungs are the states they cannot hold.
+              states, so the upper reference rungs I am missing are the states they
+              cannot hold.
             </p>
           </Disclosure>
         </>
