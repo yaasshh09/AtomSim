@@ -1,14 +1,14 @@
 {
   "id": "hydrogen-honestly",
   "title": "The Hydrogen Atom, Honestly",
-  "blurb": "One electron, one proton, and every liberty the picture takes.",
+  "blurb": "One electron, one proton, and every liberty I take with the picture.",
   "steps": [
     {
       "id": "the-only-one-we-can-solve",
-      "title": "Start with the only atom we can solve",
+      "title": "Start with the only atom I can solve",
       "body": [
-        "One electron, one proton, and a potential that goes as 1 over r. This is the last atom in the periodic table with a closed-form answer, and everything you are about to see is that answer rather than a fit to it.",
-        "The cloud is a hundred thousand points drawn from the exact probability density. Nothing here was tuned to look right."
+        "One electron, one proton, and a potential that goes as 1 over r. This is the last atom in the periodic table with a closed-form answer, and everything I am about to show you is that answer rather than a fit to it.",
+        "My cloud is a hundred thousand points I drew from the exact probability density. I tuned nothing here to look right."
       ],
       "state": { "n": 1, "l": 0, "m": 0, "view": "cloud" },
       "spotlight": "view-list"
@@ -17,8 +17,8 @@
       "id": "a-probability-not-a-shell",
       "title": "A probability, not a shell",
       "body": [
-        "There is no orbit and no surface. The electron has a probability of being found anywhere, and the cloud is that probability drawn as density.",
-        "The nucleus is now at true scale, which is why you cannot see it. At this magnification a proton is well under a pixel across, and the marker the app shows by default is a labelled visual liberty rather than a size."
+        "There is no orbit and no surface. The electron has a probability of being found anywhere, and my cloud is that probability drawn as density.",
+        "I am showing the nucleus at true scale now, which is why you cannot see it. At this magnification a proton is well under a pixel across, and the marker I show by default is a labelled visual liberty rather than a size."
       ],
       "state": { "n": 1, "l": 0, "m": 0, "view": "cloud", "nucleusMode": "true-scale" },
       "spotlight": "nucleus-picker"
@@ -27,8 +27,8 @@
       "id": "n-sets-size-l-sets-shape",
       "title": "n sets the size, l sets the shape",
       "body": [
-        "Same n, different l. The 2s is a ball with a gap inside it and the 2p is two lobes, and the gap is a real node: a surface where the electron is never found.",
-        "The mean radius moves too. The 2s sits at 318 pm and the 2p at 265 pm, so the rounder state is also the bigger one."
+        "Same n, different l. I draw the 2s as a ball with a gap inside it and the 2p as two lobes, and that gap is a real node: a surface where the electron is never found.",
+        "The mean radius moves too. I put the 2s at 318 pm and the 2p at 265 pm, so the rounder state is also the bigger one."
       ],
       "state": { "n": 2, "l": 1, "m": 0, "view": "cloud" },
       "spotlight": "l-picker",
@@ -41,8 +41,8 @@
       "id": "accidental-degeneracy",
       "title": "Same energy, different shape",
       "body": [
-        "Those two states look nothing alike, and they sit at exactly the same -3.40 eV. Nothing about their shapes says they should.",
-        "This is the accidental degeneracy, and accidental is the right word: it belongs to the 1 over r potential and to nothing else. Put a second electron in the way to screen the nucleus and it breaks immediately, which is why no other atom does this."
+        "Those two states look nothing alike, and I put them at exactly the same -3.40 eV. Nothing about their shapes says they should be there.",
+        "This is the accidental degeneracy, and accidental is the right word: it belongs to the 1 over r potential and to nothing else. Put a second electron in the way to screen the nucleus and it breaks immediately, which is why I cannot show you this for any other atom."
       ],
       "state": { "n": 2, "l": 1, "m": 0, "view": "levels" },
       "spotlight": "view-list",
@@ -53,7 +53,7 @@
       "title": "m, and a basis is a choice",
       "body": [
         "The chemistry orbitals you were taught, p_x and p_y, are not more real than the complex states with definite m. They are sums of them, and which set you call the answer is a choice of basis rather than a fact about the atom.",
-        "Both are first-class here and the badge says which one you are looking at. Switch and watch the same physics wear a different face."
+        "I treat both as first-class, and my badge says which one you are looking at. Switch it and watch the same physics wear a different face."
       ],
       "state": { "n": 2, "l": 1, "m": 1, "view": "cloud", "basis": "real" },
       "spotlight": "basis-picker"
@@ -62,8 +62,8 @@
       "id": "a-contour-not-a-boundary",
       "title": "A surface is a contour, not a boundary",
       "body": [
-        "Textbook orbital pictures draw a surface and leave you to assume the electron is inside it. This one encloses 90% of the electron, and it says so, because the other 10% is genuinely outside and goes on forever.",
-        "Drag the fraction and the surface breathes. There is no radius at which the atom stops."
+        "Textbook orbital pictures draw a surface and leave you to assume the electron is inside it. Mine encloses 90% of the electron, and I say so, because the other 10% is genuinely outside and goes on forever.",
+        "Drag the fraction and I breathe the surface in and out. There is no radius at which the atom stops."
       ],
       "state": {
         "n": 3,
@@ -77,10 +77,10 @@
     },
     {
       "id": "the-degeneracy-was-the-models-lie",
-      "title": "So the degeneracy was the model's lie",
+      "title": "So the degeneracy was my model's lie",
       "body": [
-        "Turn on fine structure and the level that was one line becomes several. The 2s and the 2p were never exactly equal; the model that said so had left three things out.",
-        "The badge changes from EXACT to APPROXIMATION, and it names what is missing rather than implying nothing is. This is an alpha-squared perturbation, correct to that order and no further."
+        "Turn on fine structure and the level I drew as one line becomes several. The 2s and the 2p were never exactly equal; the model that told you so had left three things out.",
+        "My badge changes from EXACT to APPROXIMATION, and it names what I am missing rather than implying I am missing nothing. This is an alpha-squared perturbation, correct to that order and no further."
       ],
       "state": { "n": 2, "l": 1, "m": 0, "view": "levels", "fineStructure": true },
       "spotlight": "fine-structure"
@@ -89,8 +89,8 @@
       "id": "dirac-and-the-gap-it-leaves",
       "title": "Dirac, exactly, and the gap it still leaves",
       "body": [
-        "The Dirac equation solves hydrogen in closed form, relativity included, so this goes back to EXACT. It gives the fine structure the perturbation was approximating.",
-        "It is still not the measured answer. The 2s and 2p at the same j are exactly degenerate here and are not in the laboratory, and that difference is the Lamb shift. This engine does not model it, and says so rather than quietly closing the gap."
+        "The Dirac equation solves hydrogen in closed form, relativity included, so I go back to EXACT here. It gives me the fine structure my perturbation was approximating.",
+        "It is still not the measured answer. I make the 2s and 2p at the same j exactly degenerate and the laboratory does not, and that difference is the Lamb shift. I do not model it, and I say so rather than quietly closing the gap."
       ],
       "state": {
         "n": 2,
@@ -109,8 +109,8 @@
       "id": "levels-become-lines",
       "title": "Levels become lines",
       "body": [
-        "Every arrow between two levels is a photon, and its wavelength is fixed by the gap. The 2 to 1 transition gives 121.57 nm and the 3 to 2 gives 656.47 nm, the red line in every hydrogen discharge tube you have seen.",
-        "The dots on the axis are vendored NIST measurements, not a fit. The residual panel shows the engine agreeing with them, which is the only reason to believe anything above."
+        "Every arrow I draw between two levels is a photon, and its wavelength is fixed by the gap. I get 121.57 nm for the 2 to 1 transition and 656.47 nm for the 3 to 2, the red line in every hydrogen discharge tube you have seen.",
+        "The dots on the axis are vendored NIST measurements, not a fit of mine. My residual panel shows me agreeing with them, which is the only reason to believe anything above."
       ],
       "state": { "n": 3, "l": 2, "m": 0, "view": "spectrum" },
       "spotlight": "view-list",
@@ -121,10 +121,10 @@
     },
     {
       "id": "what-the-picture-cost",
-      "title": "What the picture cost",
+      "title": "What my picture cost",
       "body": [
-        "Every badge on this screen is a claim about how much to trust what is next to it. EXACT means a closed-form solution of the stated model. APPROXIMATION names its assumptions. VISUAL LIBERTY means the choice was presentational and it is disclosed anyway.",
-        "The nucleus marker is a liberty. The colour map is a liberty. The point size is a liberty. None of them changes a number, and all of them are labelled, because a picture that hides its choices is a picture you cannot check."
+        "Every badge on this screen is a claim about how much to trust what is next to it. EXACT means I solved the stated model in closed form. APPROXIMATION means I name my assumptions. VISUAL LIBERTY means the choice was presentational and I disclose it anyway.",
+        "My nucleus marker is a liberty. My colour map is a liberty. My point size is a liberty. None of them changes a number, and I label all of them, because a picture that hides its choices is a picture you cannot check."
       ],
       "state": { "n": 3, "l": 2, "m": 0, "view": "cloud", "colorMode": "density" },
       "spotlight": "state-card"

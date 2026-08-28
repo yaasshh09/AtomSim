@@ -16,7 +16,7 @@ import type {
   SystemsResponse,
 } from "./types";
 
-/** The /api/levels payload is hydrogenic or screened; discriminate on `orbitals`. */
+/** My /api/levels payload is hydrogenic or screened; I discriminate on `orbitals`. */
 export function isScreenedLevels(
   body: LevelsResponse | ScreenedLevels,
 ): body is ScreenedLevels {
@@ -27,34 +27,34 @@ export type Basis = "complex" | "real";
 export type PlaneQuantity = "density" | "psi";
 
 /**
- * A number, safe to drop into a query string.
+ * A number I can safely drop into a query string.
  *
  * JavaScript stringifies anything from 1e21 up in exponential form, so
  * `String(1e21)` is "1e+21" and the raw `+` decodes server-side as a space:
- * the API sees "1e 21" and rejects it. Both of this app's big physical knobs
- * cross that threshold, electron density goes to 1e22 cm^-3 and column
- * density to 1e26 m^-2, so the failure is at the top of a slider's travel,
- * not in some unreachable corner.
+ * my API sees "1e 21" and rejects it. Both of my big physical knobs cross that
+ * threshold, since electron density goes to 1e22 cm^-3 and column density to
+ * 1e26 m^-2, so I would fail at the top of a slider's travel rather than in
+ * some unreachable corner.
  */
 export function num(v: number): string {
   return encodeURIComponent(String(v));
 }
 
 /**
- * A string, safe to drop into a query string.
+ * A string I can safely drop into a query string.
  *
- * The same failure as `num`, arrived at from the other side. `he+` is a real
- * preset key, a bare `+` in a query string decodes to a space, and so the
- * server was handed the system "he " and refused it. That is not one broken
- * request: selecting He+ 422'd its state, levels, spectrum, radial curve and
- * every thumbnail in the strip at once, because all of them spell the system
- * into a URL. The cloud and cross-section kept working, since jobs POST JSON,
- * which is what made it look like a display problem rather than an encoding
- * one.
+ * The same failure as `num`, reached from the other side. `he+` is a real
+ * preset key, a bare `+` in a query string decodes to a space, and so I handed
+ * my server the system "he " and it refused. That was not one broken request:
+ * selecting He+ 422'd its state, levels, spectrum, radial curve and every
+ * thumbnail in the strip at once, because I spell the system into a URL for
+ * all of them. My cloud and cross-section kept working, since I POST jobs as
+ * JSON, which is what made it look like a display problem rather than an
+ * encoding one.
  *
- * Anything that reaches a query string as text goes through here, not just the
- * keys that happen to need it today: `+` is legal in a preset key and the next
- * one to contain it should not have to rediscover this.
+ * I send everything that reaches a query string as text through here, not just
+ * the keys that happen to need it today: `+` is legal in a preset key and the
+ * next one to contain it should not have to rediscover this.
  */
 export function key(v: string): string {
   return encodeURIComponent(v);
@@ -67,14 +67,14 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 /**
- * The server's own words, when it bothered to write any.
+ * My server's own words, when it bothered to write any.
  *
  * FastAPI puts a refusal's reason in `detail`, and several of them are the
- * whole point of the response: the Hartree-Fock endpoint explains that a
- * neutral potassium atom is declined for its 4s shell rather than for its Z,
- * which is exactly the misreading a bare "HTTP 400" would leave in place.
- * Falls back to the status code when the body is not JSON or carries no
- * detail, so a proxy returning HTML still produces something legible.
+ * whole point of the response: my Hartree-Fock endpoint explains that it
+ * declines a neutral potassium atom for its 4s shell rather than for its Z,
+ * which is exactly the misreading a bare "HTTP 400" would leave in place. I
+ * fall back to the status code when the body is not JSON or carries no detail,
+ * so a proxy returning HTML still gives you something legible.
  */
 async function errorFrom(url: string, res: Response): Promise<Error> {
   let detail: string | null = null;
@@ -122,9 +122,9 @@ export function getRadial(
   compare = false,
 ): Promise<RadialResponse> {
   const p = points === undefined ? "" : `&points=${points}`;
-  // Only the non-default half is written, so a screened request produces the
-  // same URL it produced before Phase 26 and nothing downstream has to know
-  // these parameters exist.
+  // I write only the non-default half, so a screened request produces the same
+  // URL it produced before Phase 26 and nothing downstream has to know these
+  // parameters exist.
   let extra = "";
   if (many !== undefined && many.model === "hf") {
     extra = "&model=hf";
@@ -195,19 +195,19 @@ export function getForceLaw(
   return getJson(`/api/forcelaw?${q.toString()}`);
 }
 
-/** LTE conditions. Both or neither: ionization depends on the pair, and the
+/** My LTE conditions. Both or neither: ionization depends on the pair, so my
  *  API rejects half of them rather than inventing the other. */
 export interface ThermalParams {
   temperatureK: number;
   electronDensityCm3: number;
 }
 
-/** Line-profile synthesis: off unless `on`, and zoomed only if a window is set. */
+/** How I synthesize line profiles: off unless `on`, and zoomed only if you set a window. */
 export interface ProfileParams {
   on: boolean;
-  /** Gaussian slit function R = lambda/dlambda; null means no instrument. */
+  /** The Gaussian slit function R = lambda/dlambda; null means no instrument. */
   resolvingPower?: number | null;
-  /** Wavelength window [nm]; null uses the across-n range the bars use. */
+  /** The wavelength window [nm]; null means I use the across-n range my bars use. */
   window?: [number, number] | null;
 }
 
@@ -266,8 +266,8 @@ export interface AbsorptionParams {
   system: string;
   nMax: number;
   fineStructure: boolean;
-  /** For the element, not per line: each line's own lower-level fraction
-   *  turns this into that line's absorbers. */
+  /** This is for the element, not per line: I turn it into a given line's
+   *  absorbers using that line's own lower-level fraction. */
   columnDensityM2: number;
   thermal: ThermalParams;
   resolvingPower?: number | null;
@@ -278,9 +278,9 @@ export interface AbsorptionParams {
 export function getAbsorption(p: AbsorptionParams): Promise<AbsorptionInfo> {
   const c = p.config ? `&config=${encodeURIComponent(p.config)}` : "";
   const r = p.resolvingPower != null ? `&resolving_power=${num(p.resolvingPower)}` : "";
-  // No window means the engine sizes its own, which is the safe default: a
+  // If I send no window my engine sizes its own, which is the safe default: a
   // saturated line is far wider than its FWHM, and a window guessed from the
-  // line's width silently returns a short equivalent width.
+  // line's width would silently return me a short equivalent width.
   const w = p.window
     ? `&lambda_min=${num(p.window[0])}&lambda_max=${num(p.window[1])}`
     : "";
@@ -294,10 +294,10 @@ export function getAbsorption(p: AbsorptionParams): Promise<AbsorptionInfo> {
 }
 
 /**
- * The many-electron fields are optional on every picture job.
+ * I keep the many-electron fields optional on every picture job.
  *
- * Omitting them is the screened model with real physics, which is what the
- * server defaults to, so a caller cannot ask for Hartree-Fock or for a
+ * Omitting them means the screened model with real physics, which is what my
+ * server defaults to, so nobody can ask for Hartree-Fock or for a
  * counterfactual by forgetting a field.
  */
 export interface SampleParams extends Partial<ManyElectronParams> {
@@ -333,10 +333,11 @@ export interface IsoParams extends Partial<ManyElectronParams> {
   l: number;
   m: number;
   /**
-   * The fraction of the electron the surface must enclose, in (0, 1).
+   * The fraction of the electron I need the surface to enclose, in (0, 1).
    *
-   * Not a contour value: the level is what comes back, solved for on the grid.
-   * The server has no parameter for a level and this client cannot send one.
+   * This is not a contour value: the level is what comes back to me, solved
+   * for on the grid. My server has no parameter for a level and I cannot send
+   * one.
    */
   fraction: number;
   basis: Basis;
@@ -349,11 +350,11 @@ export function createIsoJob(params: IsoParams): Promise<JobInfo> {
 }
 
 /**
- * Triangle indices, which are the one channel in this API that is not float32.
+ * Triangle indices, the one channel in my API that is not float32.
  *
- * Reading them with `getChannel` would reinterpret the same bytes as floats and
- * hand back plausible-looking garbage rather than failing, so index data gets
- * its own decoder instead of a flag on the float one.
+ * If I read them with `getChannel` I would reinterpret the same bytes as
+ * floats and hand back plausible-looking garbage rather than failing, so I
+ * give index data its own decoder instead of a flag on the float one.
  */
 export async function getIndexChannel(
   jobId: string,
@@ -376,38 +377,39 @@ export function decodeIndices(buffer: ArrayBuffer): Uint32Array {
 
 export interface HFParams {
   z: number;
-  /** Defaults to neutral on the server; set it for an ion. */
+  /** My server defaults to neutral; set this for an ion. */
   n_electrons?: number;
-  /** Defaults to the Aufbau ground configuration. */
+  /** I default to the Aufbau ground configuration. */
   config?: string | null;
   /**
-   * False solves the Hartree model instead: distinguishable electrons, no
-   * exchange. Omit for real physics, the server defaults to true, so a caller
-   * cannot ask for the counterfactual by forgetting a field.
+   * False makes me solve the Hartree model instead: distinguishable electrons,
+   * no exchange. Omit it for real physics, since my server defaults to true,
+   * so nobody can ask for the counterfactual by forgetting a field.
    */
   exchange?: boolean;
   /**
    * False lifts the occupancy cap as well, collapsing the configuration to
-   * 1s^N. Requires `exchange: false`; the server answers 422 for the other
+   * 1s^N. It requires `exchange: false`; my server answers 422 for the other
    * combination rather than correcting it, because a determinant with two
-   * electrons in one spin-orbital is zero and there is no such model to run.
+   * electrons in one spin-orbital is zero and there is no such model for me to
+   * run.
    */
   pauli?: boolean;
 }
 
 /**
- * Start a Hartree-Fock solve.
+ * I start a Hartree-Fock solve.
  *
- * A job and not a plain GET because the solve is seconds, not milliseconds.
- * Rejections are synchronous and carry their reason - see errorFrom - so a
- * configuration this solver cannot handle fails here rather than eight
- * seconds later inside the worker.
+ * I make it a job and not a plain GET because the solve takes seconds, not
+ * milliseconds. Rejections come back synchronously and carry their reason (see
+ * errorFrom), so a configuration my solver cannot handle fails here rather
+ * than eight seconds later inside the worker.
  */
 export function createHFJob(params: HFParams): Promise<JobInfo> {
   return postJson("/api/jobs/hf", params);
 }
 
-/** The job `meta` payload is a sample, a plane, or a Hartree-Fock solve. */
+/** My job `meta` payload is a sample, a plane, or a Hartree-Fock solve. */
 export function isHFLevels(meta: JobMeta): meta is HFLevels {
   return meta.kind === "hf";
 }

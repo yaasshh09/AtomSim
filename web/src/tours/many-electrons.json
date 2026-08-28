@@ -1,24 +1,24 @@
 {
   "id": "many-electrons",
   "title": "More than one electron",
-  "blurb": "Two honest models of the same atom, and the size of their disagreement.",
+  "blurb": "Two honest models I keep of the same atom, and the size of their disagreement.",
   "steps": [
     {
       "id": "screening",
-      "title": "The cheap model: pretend the nucleus is weaker",
+      "title": "My cheap model: pretend the nucleus is weaker",
       "body": [
-        "A screened central field replaces the other electrons with a fitted reduction of the nuclear charge. It is fast, it is APPROXIMATION, and its parameters came from a 1974 paper.",
-        "It works well enough to be worth having and badly enough to be worth checking, which is what the next step does."
+        "In a screened central field I replace the other electrons with a fitted reduction of the nuclear charge. It is fast, it is APPROXIMATION, and I took its parameters from a 1974 paper.",
+        "It works well enough to be worth having and badly enough to be worth checking, which is what I do in the next step."
       ],
       "state": { "system": "na", "model": "gsz", "view": "radial" },
       "spotlight": "model-picker"
     },
     {
       "id": "hartree-fock",
-      "title": "The honest one: solve for the field",
+      "title": "My honest one: solve for the field",
       "body": [
-        "Hartree-Fock gives every subshell its own field and iterates until the field and the orbitals agree. Nothing is fitted.",
-        "Sodium's ionization energy comes out near 4.95 eV against a measured 5.14. The gap is correlation, which this model does not have, and that gap is stated rather than tuned away."
+        "In Hartree-Fock I give every subshell its own field and iterate until the field and the orbitals agree. I fit nothing.",
+        "I get sodium's ionization energy near 4.95 eV against a measured 5.14. The gap is correlation, which this model of mine does not have, and I state that gap rather than tuning it away."
       ],
       "state": { "system": "na", "model": "hf", "view": "radial" },
       "spotlight": "model-picker",
@@ -26,10 +26,10 @@
     },
     {
       "id": "atoms-gsz-cannot-do",
-      "title": "Atoms the cheap model cannot do at all",
+      "title": "Atoms my cheap model cannot do at all",
       "body": [
-        "Sulfur and chlorine have no published screening parameters, so the fitted model cannot draw them. Hartree-Fock needs none and solves them from scratch.",
-        "The app moves you to Hartree-Fock rather than offering a model that would refuse every request, which is the difference between a limit and a bug."
+        "Sulfur and chlorine have no published screening parameters, so I cannot draw them with the fitted model. Hartree-Fock needs none and I solve them from scratch.",
+        "I move you to Hartree-Fock rather than offering a model that would refuse every request, which is the difference between a limit and a bug."
       ],
       "state": { "system": "cl", "model": "hf", "view": "radial" },
       "spotlight": "system-picker"
@@ -38,8 +38,8 @@
       "id": "both-densities",
       "title": "Both, on one axis",
       "body": [
-        "The total radial density is the one thing both models claim to describe, so it is the one place they can be compared without arguing about conventions.",
-        "The disagreement is drawn rather than described. Where the curves separate is where the fitted model is spending its error."
+        "The total radial density is the one thing both of my models claim to describe, so it is the one place I can compare them without arguing about conventions.",
+        "I draw the disagreement rather than describing it. Where the curves separate is where the fitted model is spending its error."
       ],
       "state": { "system": "ar", "model": "hf", "view": "radial", "compare": true },
       "spotlight": "compare-toggle"

@@ -1,41 +1,41 @@
 /**
- * What the browser remembers about tours between visits.
+ * What I remember about tours in your browser between visits.
  *
- * Two separate facts, on purpose. `dismissed` answers "has this reader already
- * been offered a tour", and it is the only thing the invitation reads.
+ * I keep two separate facts on purpose. `dismissed` answers "have I already
+ * offered this reader a tour", and it is the only thing my invitation reads.
  * `completed` answers "which tours has this reader finished", and it is what
- * the menu's done markers read. Collapsing them into one flag would mean that
- * skipping the invitation silently claimed the reader had taken the tour,
- * which is the kind of quiet lie this project exists not to tell.
+ * my menu's done markers read. If I collapsed them into one flag, skipping the
+ * invitation would silently claim you had taken the tour, which is the kind of
+ * quiet lie I exist not to tell.
  *
- * Nothing here is physics, so nothing here carries provenance. It is a record
- * of what the reader has been shown, and it never feeds a number.
+ * None of this is physics, so none of it carries provenance. It is a record of
+ * what I have shown you, and it never feeds a number.
  */
 
 const KEY = "atomsim.tours.v1";
 
 export interface TourMemory {
-  /** The reader has answered the invitation, by taking a tour or by skipping. */
+  /** You have answered my invitation, by taking a tour or by skipping it. */
   dismissed: boolean;
-  /** Ids of tours read to the last step. */
+  /** The ids of tours you read to the last step. */
   completed: string[];
 }
 
-/** A reader we have never seen. A fresh object: callers push onto `completed`. */
+/** A reader I have never seen. A fresh object, since my callers push onto `completed`. */
 export function noMemory(): TourMemory {
   return { dismissed: false, completed: [] };
 }
 
-/** Does this reader still get offered the tour? */
+/** Do I still offer this reader the tour? */
 export function shouldInvite(m: TourMemory): boolean {
   return !m.dismissed;
 }
 
 /**
- * The memory after finishing `id`.
+ * What I remember after you finish `id`.
  *
- * Finishing answers the invitation too: a reader who took a tour from the menu
- * should not then be asked whether they would like one.
+ * Finishing answers my invitation too: if you took a tour from the menu I
+ * should not then ask whether you would like one.
  */
 export function withCompleted(m: TourMemory, id: string): TourMemory {
   return {
@@ -45,12 +45,12 @@ export function withCompleted(m: TourMemory, id: string): TourMemory {
 }
 
 /**
- * Read a stored record, treating anything unexpected as a first visit.
+ * I read a stored record, and treat anything unexpected as a first visit.
  *
- * localStorage is a namespace the reader can edit by hand and that older builds
- * may have written, so every field is checked rather than trusted. The failure
- * mode being defended against is a thrown parse on load, which would take the
- * whole app down over a preference.
+ * localStorage is a namespace you can edit by hand and that older builds of me
+ * may have written, so I check every field rather than trusting it. What I am
+ * defending against is a thrown parse on load, which would take all of me down
+ * over a preference.
  */
 export function parseMemory(raw: string | null): TourMemory {
   if (!raw) return noMemory();
@@ -71,12 +71,12 @@ export function parseMemory(raw: string | null): TourMemory {
 }
 
 /**
- * The reader's storage, or null when there is not one to be had.
+ * Your storage, or null when there is not one to be had.
  *
- * Three ways this comes back null: the module is running under vitest, which
- * has no window; a privacy mode where touching the property itself throws; a
- * browser with storage switched off. All three mean the same thing to us, and
- * none of them is worth an error the reader would have to read.
+ * Three ways I come back null: I am running under vitest, which has no window;
+ * a privacy mode where touching the property itself throws; a browser with
+ * storage switched off. All three mean the same thing to me, and none of them
+ * is worth an error you would have to read.
  */
 function storage(): Storage | null {
   try {
@@ -98,11 +98,11 @@ export function readMemory(): TourMemory {
 }
 
 /**
- * Persist a record, or fail silently.
+ * I persist a record, or fail silently.
  *
- * A refused or full storage costs the reader nothing this session: the store
- * holds the same fact in memory, so the invitation still goes away when they
- * dismiss it. It simply will not be remembered next time.
+ * A refused or full storage costs you nothing this session: my store holds the
+ * same fact in memory, so my invitation still goes away when you dismiss it. I
+ * simply will not remember it next time.
  */
 export function writeMemory(m: TourMemory): void {
   const s = storage();
@@ -110,18 +110,18 @@ export function writeMemory(m: TourMemory): void {
   try {
     s.setItem(KEY, JSON.stringify(m));
   } catch {
-    /* full, refused, or gone: this session already behaves correctly without it */
+    /* full, refused, or gone: I already behave correctly this session without it */
   }
 }
 
-/** Record that the invitation has been answered. */
+/** I record that you have answered my invitation. */
 export function rememberDismissed(): TourMemory {
   const m = { ...readMemory(), dismissed: true };
   writeMemory(m);
   return m;
 }
 
-/** Record that a tour was read to the end. */
+/** I record that you read a tour to the end. */
 export function rememberCompleted(id: string): TourMemory {
   const m = withCompleted(readMemory(), id);
   writeMemory(m);
