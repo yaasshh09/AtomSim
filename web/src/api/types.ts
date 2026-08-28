@@ -1,4 +1,5 @@
-// Mirrors src/atomsim/server/schemas.py exactly, the single canonical JSON contract.
+// I mirror src/atomsim/server/schemas.py exactly here; it is my single
+// canonical JSON contract.
 
 export type Fidelity =
   | "exact"
@@ -38,20 +39,21 @@ export interface SystemInfo {
   mu_ratio: Quantity;
   m_over_m_nucleus: number;
   description: string;
-  /** null = honestly absent (point lepton / unidentified nucleus), never zero */
+  /** null means honestly absent (a point lepton or an unidentified nucleus), and never zero */
   nuclear_radius: Quantity | null;
   nuclear_radius_fm: Quantity | null;
-  /** Hydrogenic presets stay "hydrogenic"; He-Ar screened atoms are "screened". */
+  /** I keep hydrogenic presets as "hydrogenic"; He-Ar screened atoms I call "screened". */
   kind: "hydrogenic" | "screened";
-  /** Electron count for screened atoms; null for hydrogenic systems. */
+  /** The electron count for screened atoms; null for hydrogenic systems. */
   n_electrons: number | null;
   /**
    * Whether the GSZ screened model has published parameters for this atom.
    *
    * False for sulfur and chlorine only: Szydlik and Green never fitted Z = 16
-   * or 17, and Hartree-Fock needs no fitted table, so the atom is offered with
-   * one of its two models unavailable rather than withheld entirely. Always
-   * true for hydrogenic presets, where no screened model applies at all.
+   * or 17, and my Hartree-Fock solve needs no fitted table, so I offer the atom
+   * with one of its two models unavailable rather than withholding it
+   * entirely. Always true for hydrogenic presets, where no screened model
+   * applies at all.
    */
   has_gsz: boolean;
 }
@@ -192,28 +194,29 @@ export interface RadialResponse {
   r_wavefunction: FieldData;
   radial_probability: FieldData;
   /**
-   * Total radial electron density, present only under Hartree-Fock.
+   * The total radial electron density, which I send only under Hartree-Fock.
    *
-   * The observable, unlike the two curves above it: its peaks are the shells,
-   * and the area under each is that shell's electron count. Null under the
-   * screened model rather than absent, so this stays one response shape.
+   * This is the observable, unlike the two curves above it: its peaks are the
+   * shells, and the area under each is that shell's electron count. I send
+   * null under the screened model rather than dropping the field, so I keep
+   * one response shape.
    */
   total_density: FieldData | null;
   /**
-   * Both models' total density on one grid, present only when asked for.
+   * Both models' total density on one grid, which I send only when asked.
    *
-   * Null rather than absent when the toggle is off, so this stays one response
-   * shape whichever model the orbital plots are drawn under.
+   * I send null rather than dropping the field when the toggle is off, so I
+   * keep one response shape whichever model I draw the orbital plots under.
    */
   density_comparison: DensityComparison | null;
 }
 
 export interface ShellPeak {
   label: string;
-  /** null: this model's density has no local maximum for this shell. */
+  /** null means this model's density has no local maximum I could find for this shell. */
   gsz_radius: number | null;
   hf_radius: number | null;
-  /** Relative drop into the minimum before the peak; null for the innermost. */
+  /** The relative drop into the minimum before the peak; null for the innermost. */
   gsz_depth: number | null;
   hf_depth: number | null;
 }
@@ -235,25 +238,27 @@ export interface SpectralLineInfo {
   j_lower: number | null;
   energy_ev: Quantity;
   wavelength_nm: Quantity;
-  /** Spontaneous emission rate [s^-1]; null when strengths were not asked for
-   *  or cannot be given honestly, see SpectrumResponse.intensity_note. */
+  /** The spontaneous emission rate [s^-1]; null when nobody asked me for
+   *  strengths or I cannot give them honestly, see
+   *  SpectrumResponse.intensity_note. */
   einstein_a_s: Quantity | null;
-  /** Absorption oscillator strength (dimensionless); null on the same terms. */
+  /** The absorption oscillator strength (dimensionless); null on the same terms. */
   oscillator_strength: Quantity | null;
-  /** LTE emission rate [eV/s per atom of the element]; null unless thermal
-   *  conditions were given. A modelled rate, not a measured brightness. */
+  /** The LTE emission rate [eV/s per atom of the element]; null unless you
+   *  gave me thermal conditions. A rate I modelled, not a brightness anyone
+   *  measured. */
   emissivity: Quantity | null;
 }
 
-/** The LTE conditions a spectrum was computed at, and what they produced. */
+/** The LTE conditions I computed a spectrum at, and what they produced. */
 export interface ThermalInfo {
   temperature_k: number;
   electron_density_cm3: number;
-  /** Fraction of the element that is ionized. Once this nears 1 the whole
+  /** The fraction of the element that is ionized. Once this nears 1 my whole
    *  spectrum is faint because there are no neutrals left to emit, which is
-   *  why it is shown rather than folded silently into the scale. */
+   *  why I show it rather than folding it silently into the scale. */
   ionized_fraction: Quantity;
-  /** Truncated at n_max; the cutoff is in its provenance assumptions. */
+  /** I truncate this at n_max, and I put the cutoff in its provenance assumptions. */
   partition_function: Quantity;
 }
 
@@ -266,36 +271,37 @@ export interface ComparisonInfo {
   within_tolerance: boolean;
 }
 
-/** The width budget of one line, so the view can say what set it. */
+/** The width budget of one line, so I can say what set it. */
 export interface LineWidthInfo {
   label: string;
   wavelength_nm: number;
   n_upper: number;
   n_lower: number;
-  /** Gaussian sigma [nm]: Doppler and instrument added in quadrature. */
+  /** The Gaussian sigma [nm]: I add Doppler and instrument in quadrature. */
   sigma_nm: number;
-  /** Lorentzian half-width at half maximum [nm]: natural (lifetime) width. */
+  /** The Lorentzian half-width at half maximum [nm]: the natural, lifetime width. */
   gamma_nm: number;
   fwhm_nm: number;
-  /** Which mechanisms contributed, e.g. ["natural", "Doppler"]. */
+  /** Which mechanisms contributed, for example ["natural", "Doppler"]. */
   terms: string[];
 }
 
-/** A synthesized spectrum: the curve, its widths, and what it leaves out. */
+/** A spectrum I synthesized: the curve, its widths, and what I left out. */
 export interface ProfileInfo {
   wavelength_nm: number[];
   intensity: number[];
   unit: string;
-  /** What the area under a line means; mirrors the bar quantity exactly. */
+  /** What the area under a line means; I mirror the bar quantity exactly. */
   weight_kind: "emissivity" | "rate" | "uniform";
   resolving_power: number | null;
-  /** Curve integral over summed line strengths. The engine's own measured
-   *  quadrature error, not an assumption, 1.0 means nothing was lost. */
+  /** My curve integral over the summed line strengths: my own measured
+   *  quadrature error rather than an assumption, where 1.0 means I lost
+   *  nothing. */
   flux_closure: number;
   widths: LineWidthInfo[];
-  /** The collisional broadening that is NOT in this curve, sized. */
+  /** The collisional broadening I have NOT put in this curve, sized. */
   stark_span_nm: Quantity | null;
-  /** Set only when that missing width rivals the modelled one. */
+  /** I set this only when that missing width rivals the one I did model. */
   stark_note: string | null;
   provenance: Provenance;
 }
@@ -304,22 +310,22 @@ export interface ProfileInfo {
  *  whether its strength measures how much gas there is at all. */
 export type GrowthRegime = "linear" | "saturated" | "damping";
 
-/** Equivalent width against column density, with the branches labelled. */
+/** Equivalent width against column density, with the branches I labelled. */
 export interface CurveOfGrowthInfo {
   label: string;
   wavelength_nm: number;
   oscillator_strength: number;
-  /** The widths the curve was computed for; the knees sit where they put them. */
+  /** The widths I computed the curve for; the knees sit where they put them. */
   sigma_nm: number;
   gamma_nm: number;
-  /** a = gamma / (sigma sqrt2). The damping branch starts at a*tau = 1. */
+  /** a = gamma / (sigma sqrt2). My damping branch starts at a*tau = 1. */
   damping_parameter: number;
   column_density_m2: number[];
   equivalent_width_nm: number[];
   regime: GrowthRegime[];
-  /** Local log-log slope: 1, then ~0, then 1/2. */
+  /** The local log-log slope: 1, then ~0, then 1/2. */
   slope: number[];
-  /** Optical depth at line centre. This is what decides the regime. */
+  /** The optical depth at line centre. This is what decides the regime. */
   tau_centre: number[];
   window_nm: number;
   provenance: Provenance;
@@ -328,12 +334,12 @@ export interface CurveOfGrowthInfo {
 /** One line's share of a blended absorption spectrum. */
 export interface AbsorbingLineInfo {
   wavelength_nm: number;
-  /** Names the transition, not the series: "3d->2p", not "3->2". Three lines
-   *  share 656.4696 nm and they do not absorb alike. */
+  /** I name the transition here, not the series: "3d->2p", not "3->2". Three
+   *  lines share 656.4696 nm and they do not absorb alike. */
   label: string;
   oscillator_strength: number;
-  /** Column in *this line's* lower level. Why one gas gives every line a
-   *  different optical depth. */
+  /** The column in *this line's* lower level. It is why one gas gives every
+   *  line a different optical depth. */
   lower_column_m2: number;
   tau_centre: number;
   regime: GrowthRegime;
@@ -346,21 +352,21 @@ export interface AbsorbingLineInfo {
 export interface AbsorptionInfo {
   wavelength_nm: number[];
   transmission: number[];
-  /** Kept beside the transmission because 1e-9 and 1e-30 both draw as black
-   *  and are not the same gas. */
+  /** I keep this beside the transmission because 1e-9 and 1e-30 both draw as
+   *  black and are not the same gas. */
   optical_depth: number[];
   lines: AbsorbingLineInfo[];
   thermal: ThermalInfo | null;
   column_density_m2: number;
   equivalent_width_nm: number;
   thin_limit_width_nm: number;
-  /** measured / thin. Below 1 by exactly how much the naive sum overstates
-   *  the absorption, which is how much of the census is being lost. */
+  /** measured / thin. It sits below 1 by exactly how much the naive sum
+   *  overstates the absorption, which is how much of the census I am losing. */
   saturation: number;
   blends: [string, string][];
   flux_closure: number;
   provenance: Provenance;
-  /** The column is a knob the user turned, and says so. */
+  /** The column is a knob you turned, and it says so. */
   column_provenance: Provenance;
 }
 
@@ -372,13 +378,14 @@ export interface SpectrumResponse {
   comparison: ComparisonInfo[] | null;
   reference_citation: string | null;
   tolerance_relative: number | null;
-  /** Set when strengths were requested but withheld; states which case applies. */
+  /** I set this when you asked for strengths and I withheld them, and I say
+   *  which case applies. */
   intensity_note: string | null;
-  /** Present exactly when the lines carry an emissivity. */
+  /** I send this exactly when my lines carry an emissivity. */
   thermal: ThermalInfo | null;
-  /** The synthesized curve, when one was asked for and could be built. */
+  /** The curve I synthesized, when you asked for one and I could build it. */
   profile: ProfileInfo | null;
-  /** Why there is no curve, when one was asked for. Names the missing knob
+  /** Why I have no curve, when you asked for one. I name the knob I am missing
    *  rather than inventing a width to draw. */
   profile_note: string | null;
 }
