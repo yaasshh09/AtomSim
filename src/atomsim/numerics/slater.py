@@ -1,4 +1,4 @@
-"""Slater radial integrals for the electron-electron interaction.
+"""My Slater radial integrals for the electron-electron interaction.
 
 The pair potential
 
@@ -7,18 +7,19 @@ The pair potential
                 + r^k      integral_r^inf s^-(k+1) P_a P_b ds
 
 is everything two-electron in Hartree-Fock. Both halves are cumulative
-trapezoid integrals, so a whole pair potential costs O(N) and no ODE solve.
+trapezoid integrals, so a whole pair potential costs me O(N) and no ODE solve.
 
-Two properties make this self-checking and are asserted in tests: U_0 tends to
-1/r beyond the charge for a normalized density, and U_k is symmetric under
+Two properties make this self-checking, and I assert both in tests: U_0 tends
+to 1/r beyond the charge for a normalized density, and U_k is symmetric under
 exchange of its two orbital arguments.
 
-Hartree atomic units. P = r R(r) throughout, normalized as integral P^2 dr = 1.
+I work in Hartree atomic units. P = r R(r) throughout, normalized so that
+integral P^2 dr = 1.
 
-Returns plain arrays and floats, not Quantity or Field. This is pure
-quadrature, not physics: the caller in hf_atom.py wraps these results with
+I return plain arrays and floats here, not Quantity or Field. This is pure
+quadrature rather than physics: my caller in hf_atom.py wraps these results in
 the provenance they belong to. That is a decision, not an oversight, and it
-matches the exemption analytic/wigner.py already documents for 3j and 6j
+matches the exemption I already document in analytic/wigner.py for 3j and 6j
 symbols.
 """
 
@@ -36,7 +37,7 @@ __all__ = [
 
 
 def _cumulative_trapezoid(y: np.ndarray, x: np.ndarray) -> np.ndarray:
-    """Cumulative integral of y dx from x[0], same length as x, starting at 0."""
+    """The cumulative integral of y dx from x[0]: same length as x, starting at 0."""
     increments = 0.5 * (y[1:] + y[:-1]) * np.diff(x)
     out = np.empty_like(y)
     out[0] = 0.0
@@ -46,14 +47,14 @@ def _cumulative_trapezoid(y: np.ndarray, x: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True)
 class MultipoleGeometry:
-    """Everything in U_k[a,b] that depends on the grid and k but not the pair.
+    """Everything in U_k[a,b] that depends on the grid and k but not on the pair.
 
-    Exists for one reason: inside an SCF, `pair_potential` is called from the
+    I keep this for one reason: inside an SCF I call `pair_potential` from the
     LOBPCG matvec, hundreds of times per channel, against an unchanged grid and
     an unchanged k while only the pair changes. Each of those calls was
     rebuilding r**k, r**-(k+1) and diff(r) from scratch. On argon that was
     25043 calls doing four array powers apiece, and it was the single largest
-    cost in the whole solve.
+    cost in my whole solve.
 
     Splitting it out is a pure hoist: `potential` does the same arithmetic on
     the same values in the same order, so it returns bit-identical results.
@@ -61,21 +62,21 @@ class MultipoleGeometry:
     """
 
     r: np.ndarray
-    half_dr: np.ndarray  # 0.5 * diff(r), the trapezoid weights
+    half_dr: np.ndarray  # 0.5 * diff(r), my trapezoid weights
     r_k: np.ndarray  # r**k
-    r_k1: np.ndarray  # r**(k+1), for the inner term's divisor
-    r_inv_k1: np.ndarray  # r**-(k+1), for the outer term's integrand
+    r_k1: np.ndarray  # r**(k+1), the divisor for my inner term
+    r_inv_k1: np.ndarray  # r**-(k+1), the integrand for my outer term
 
     def potential(self, p_a: np.ndarray, p_b: np.ndarray) -> np.ndarray:
-        """U_k[a,b](r) for this grid and this k."""
+        """U_k[a,b](r) on this grid, at this k."""
         density = p_a * p_b
         inner = self._cumulative(density * self.r_k)
         outer_total = self._cumulative(density * self.r_inv_k1)
-        # Divides by r**(k+1) rather than multiplying by r**-(k+1). Both terms
-        # are needed anyway, and the division is what the unhoisted code did:
+        # I divide by r**(k+1) rather than multiplying by r**-(k+1). I need both
+        # terms anyway, and the division is what my unhoisted code did:
         # a * (1/b) rounds twice where a / b rounds once, so keeping the divide
-        # makes this hoist bit-identical instead of merely close. Measured, the
-        # swap moved argon's total energy in the eleventh decimal.
+        # makes this hoist bit-identical instead of merely close. I measured the
+        # swap, and it moved argon's total energy in the eleventh decimal.
         return inner / self.r_k1 + (outer_total[-1] - outer_total) * self.r_k
 
     def _cumulative(self, y: np.ndarray) -> np.ndarray:
@@ -86,17 +87,17 @@ class MultipoleGeometry:
 
 
 def multipole_geometry(r: np.ndarray, k: int) -> MultipoleGeometry:
-    """Build the reusable grid factors for multipole order k.
+    """I build the reusable grid factors for multipole order k.
 
-    Carries the validation, so anything built through here has already been
+    I carry the validation here, so anything built through me has already been
     checked and `MultipoleGeometry.potential` can stay a hot inner loop.
     """
     if k < 0:
         raise ValueError(f"multipole order k must be >= 0, got {k}")
     if r[0] <= 0.0:
         raise ValueError(
-            f"radial grid must start strictly above zero, got r[0]={r[0]!r}; "
-            "r = 0 makes the outer integrand 0 * inf = nan and np.cumsum then "
+            f"I need the radial grid to start strictly above zero, got r[0]={r[0]!r}; "
+            "at r = 0 my outer integrand is 0 * inf = nan, and np.cumsum then "
             "propagates that nan across the whole grid"
         )
     return MultipoleGeometry(
@@ -113,9 +114,9 @@ def pair_potential(
 ) -> np.ndarray:
     """U_k[a,b](r), the multipole-k potential of the pair density P_a P_b.
 
-    Rebuilds the grid factors every call. Fine for one-off use; inside a loop
-    over pairs or over LOBPCG iterations, build a `multipole_geometry` once and
-    call its `potential` instead.
+    I rebuild the grid factors on every call here. That is fine for one-off
+    use; inside a loop over pairs or over LOBPCG iterations, build a
+    `multipole_geometry` once and call its `potential` instead.
     """
     if not (p_a.shape == p_b.shape == r.shape):
         raise ValueError("orbitals and grid must have the same shape")

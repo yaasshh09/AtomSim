@@ -1,14 +1,16 @@
-"""Zeeman effect: fine structure + linear Zeeman, the Breit-Rabi crossover.
+"""My Zeeman effect: fine structure plus linear Zeeman, across the Breit-Rabi
+crossover.
 
-For a shell n, each (l, m_j) with both j = l +/- 1/2 present forms a 2x2 block
-(fine-structure diagonal + linear-Zeeman coupling via <S_z>); stretched states
-(|m_j| = l+1/2) and all of l=0 are 1x1 blocks, exactly linear in B. The 2x2
-eigenvalues are the closed-form Breit-Rabi roots, so no numerical eigensolver is
-needed and the result is exact-of-the-model with zero numerical error.
+For a shell n, each (l, m_j) with both j = l +/- 1/2 present gives me a 2x2
+block (fine-structure diagonal plus linear-Zeeman coupling through <S_z>);
+stretched states (|m_j| = l+1/2) and all of l=0 are 1x1 blocks, exactly linear
+in B. The 2x2 eigenvalues are the closed-form Breit-Rabi roots, so I need no
+numerical eigensolver and my result is exact-of-the-model with zero numerical
+error.
 
-APPROXIMATION by construction: the linear-Zeeman model omits the diamagnetic B^2
-term and uses g_s = 2. COUNTERFACTUAL when alpha is altered. See docs/
-specs/2026-07-23-phase10-zeeman-field-design.md.
+I am APPROXIMATION here by construction: my linear-Zeeman model omits the
+diamagnetic B^2 term and uses g_s = 2. I turn COUNTERFACTUAL once alpha is
+altered. See docs/specs/2026-07-23-phase10-zeeman-field-design.md.
 """
 
 import math
@@ -20,15 +22,15 @@ from atomsim.analytic.hydrogen import validate_quantum_numbers
 from atomsim.constants import ALPHA, B0_TESLA
 from atomsim.provenance import Fidelity, Provenance, Quantity
 
-_MU_B_AU = 0.5  # Bohr magneton in atomic units (e = hbar = m_e = 1)
-MU_B_PER_TESLA = _MU_B_AU / B0_TESLA  # hartree per tesla, prefactor on (J_z + S_z)
-_G2 = 2.0 * 0.00116  # anomalous-moment scale on the spin Zeeman part
+_MU_B_AU = 0.5  # the Bohr magneton in atomic units (e = hbar = m_e = 1)
+MU_B_PER_TESLA = _MU_B_AU / B0_TESLA  # hartree per tesla, my prefactor on (J_z + S_z)
+_G2 = 2.0 * 0.00116  # the anomalous-moment scale on the spin Zeeman part
 
 _Z_ASSUMPTIONS = (
-    "linear (paramagnetic) Zeeman only; diamagnetic B^2 term neglected",
-    "electron g_s = 2 exactly (anomalous moment ~0.1% of the spin part neglected)",
-    "coupling to other n manifolds neglected",
-    "diagonal from the selected level model (alpha^2 fine structure or exact Dirac)",
+    "I take the linear (paramagnetic) Zeeman term only and neglect the diamagnetic B^2 term",
+    "I take electron g_s = 2 exactly, neglecting an anomalous moment worth ~0.1% of the spin part",
+    "I neglect coupling to other n manifolds",
+    "I take the diagonal from the level model you selected: alpha^2 fine structure or exact Dirac",
 )
 
 
@@ -36,13 +38,13 @@ _Z_ASSUMPTIONS = (
 class ZeemanSublevel:
     m_j: float
     branch: str            # "upper" | "lower" | "single"
-    j_label: float         # low-field good quantum number (the j at B=0)
-    high_field_label: str  # (m_l, m_s) the state approaches at large B
+    j_label: float         # the low-field good quantum number, the j at B=0
+    high_field_label: str  # the (m_l, m_s) this state approaches at large B
     energy: Quantity
 
 
 def lande_g(l: int, j: float) -> float:
-    """Lande g-factor for a one-electron (s = 1/2) state."""
+    """The Lande g-factor I use for a one-electron (s = 1/2) state."""
     s = 0.5
     return 1.0 + (j * (j + 1.0) + s * (s + 1.0) - l * (l + 1.0)) / (2.0 * j * (j + 1.0))
 
@@ -52,7 +54,7 @@ def _high_field_label(m_j: float, m_s: float) -> str:
 
 
 def _mean_sq_radius(n: int, l: int, Z: int) -> float:
-    """<r^2> in bohr^2 for a hydrogenic (n,l) state (diamagnetic scale)."""
+    """<r^2> in bohr^2 for a hydrogenic (n,l) state, which sets my diamagnetic scale."""
     return (n * n / (2.0 * Z * Z)) * (5.0 * n * n + 1.0 - 3.0 * l * (l + 1.0))
 
 
@@ -60,7 +62,7 @@ def zeeman_sublevels(
     n: int, l: int, Z: int = 1, mu_ratio: float = 1.0, m_over_M: float = 0.0,
     alpha: float = ALPHA, b_tesla: float = 0.0, dirac: bool = False,
 ) -> list[ZeemanSublevel]:
-    """Breit-Rabi sublevels of the (n, l) shell in a field B (tesla)."""
+    """The Breit-Rabi sublevels I find for the (n, l) shell in a field B (tesla)."""
     validate_quantum_numbers(n, l)
     if Z < 1:
         raise ValueError(f"Z must be >= 1, got {Z}")
@@ -99,8 +101,8 @@ def zeeman_sublevels(
                     fidelity=fidelity, method=method, assumptions=_Z_ASSUMPTIONS,
                     error_estimate=err,
                     refinement=(
-                        "diamagnetic (B^2) term, then Paschen-Back beyond the "
-                        "two-effect model"
+                        "I could add the diamagnetic (B^2) term, then go to "
+                        "Paschen-Back beyond this two-effect model"
                     ),
                 ),
             ),
@@ -113,7 +115,7 @@ def zeeman_sublevels(
     for m_j in m_values:
         stretched = abs(m_j) > l  # |m_j| == l+1/2
         if l == 0 or stretched:
-            # 1x1 block, only j = l+1/2, exactly linear in B.
+            # A 1x1 block, only j = l+1/2, and exactly linear in B.
             zeeman_diag = muB_b * m_j * (2 * l + 2) / denom
             m_s = math.copysign(0.5, m_j)
             out.append(make(
@@ -121,7 +123,7 @@ def zeeman_sublevels(
                 e_up.provenance.error_estimate,
             ))
             continue
-        # 2x2 block for j = l+1/2 (upper) and j = l-1/2 (lower).
+        # A 2x2 block for j = l+1/2 (upper) and j = l-1/2 (lower).
         e_dn = diag(l - 0.5)
         h00 = e_up.value + muB_b * m_j * (2 * l + 2) / denom
         h11 = e_dn.value + muB_b * m_j * (2 * l) / denom

@@ -1,11 +1,11 @@
-"""Numerical radial Schrodinger solver for ARBITRARY central potentials.
+"""My numerical radial Schrodinger solver, for ARBITRARY central potentials.
 
-Solves  -(1/2mu') u'' + [V(r) + l(l+1)/(2mu' r^2)] u = E u,  u = r R(r),
-with u(0) = u(r_max) = 0, via 3-point finite differences on a uniform grid and
-scipy.linalg.eigh_tridiagonal. Hartree atomic units throughout.
+I solve  -(1/2mu') u'' + [V(r) + l(l+1)/(2mu' r^2)] u = E u,  u = r R(r),
+with u(0) = u(r_max) = 0, using 3-point finite differences on a uniform grid and
+scipy.linalg.eigh_tridiagonal. I work in Hartree atomic units throughout.
 
-This one engine powers real Coulomb physics, screened multi-electron models,
-and counterfactual force laws alike.
+This one engine is what I run real Coulomb physics, screened multi-electron
+models and counterfactual force laws through alike.
 """
 
 import dataclasses
@@ -21,7 +21,7 @@ from atomsim.provenance import Fidelity, Provenance, Quantity
 @dataclass(frozen=True)
 class RadialSolution:
     r: np.ndarray
-    u: np.ndarray  # shape (n_states, len(r)); normalized, sign-fixed
+    u: np.ndarray  # shape (n_states, len(r)); I normalize these and fix their sign
     energies: tuple[Quantity, ...]
     l: int
     mu_ratio: float
@@ -66,12 +66,12 @@ def solve_radial(
         fidelity=Fidelity.NUMERICAL,
         method="3-point finite-difference radial Hamiltonian (u = r R), scipy eigh_tridiagonal",
         assumptions=(
-            f"uniform grid: h={h:.3e} bohr, r_max={r_max:g} bohr, N={n_points}",
-            "Dirichlet boundaries u(0) = u(r_max) = 0",
-            "only low-lying bound states are box-converged",
+            f"I use a uniform grid: h={h:.3e} bohr, r_max={r_max:g} bohr, N={n_points}",
+            "I impose Dirichlet boundaries u(0) = u(r_max) = 0",
+            "only my low-lying bound states are box-converged",
         ),
         refinement=(
-            "increase n_points / r_max, or use solve_radial_with_error for a quantified error"
+            "raise n_points or r_max, or call solve_radial_with_error and I will quantify the error"
         ),
     )
     energies = tuple(
@@ -96,10 +96,11 @@ def solve_radial_with_error(
     n_points: int = 24000,
     n_states: int = 3,
 ) -> RadialSolution:
-    """Solve at n_points and 2*n_points; attach |E_fine - E_coarse| as error estimate.
+    """I solve at n_points and at 2*n_points, then attach |E_fine - E_coarse| as
+    my error estimate.
 
     Grid-halving is a conservative estimate for this O(h^2)-convergent scheme:
-    the reported fine-grid error is smaller than the difference itself.
+    the true fine-grid error is smaller than the difference I report.
     """
     coarse = solve_radial(potential, l, mu_ratio, r_max, n_points, n_states)
     fine = solve_radial(potential, l, mu_ratio, r_max, 2 * n_points, n_states)
@@ -110,7 +111,7 @@ def solve_radial_with_error(
             provenance=dataclasses.replace(
                 q.provenance,
                 error_estimate=abs(q.value - coarse.energies[k].value),
-                refinement="increase n_points further; estimate from grid-halving",
+                refinement="raise n_points further; I estimated this by grid-halving",
             ),
         )
         for k, q in enumerate(fine.energies)
