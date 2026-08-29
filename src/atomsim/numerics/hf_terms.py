@@ -1,7 +1,8 @@
-"""Angular coefficients and Fock-operator terms for average-of-configuration HF.
+"""My angular coefficients and Fock-operator terms for average-of-configuration
+HF.
 
-Derived by varying the average-of-configuration energy functional with respect
-to P_a. The functional is
+I derived them by varying the average-of-configuration energy functional with
+respect to P_a. The functional is
 
     E = sum_a q_a I(a)
       + sum_a  (q_a (q_a - 1) / 2) [ F0(aa)
@@ -9,7 +10,7 @@ to P_a. The functional is
       + sum_{a<b} q_a q_b [ F0(ab) - (1/2) sum_k tj(l_a,k,l_b)^2 Gk(ab) ]
 
 writing tj(l1,k,l2) for wigner_3j(l1, k, l2, 0, 0, 0). Varying and dividing by
-2 q_a gives the Fock equation
+2 q_a gives me the Fock equation
 
     h P_a + (q_a - 1) U0[a,a] P_a + sum_{b != a} q_b U0[b,b] P_a
           - (q_a - 1) sum_{k>0} ((2 l_a + 1)/(4 l_a + 1)) tj(l_a,k,l_a)^2 Uk[a,a] P_a
@@ -17,26 +18,25 @@ writing tj(l1,k,l2) for wigner_3j(l1, k, l2, 0, 0, 0). Varying and dividing by
           = eps_a P_a
 
 Four checks pin this, all of them tests in tests/test_hf_terms.py and
-tests/test_hartree_fock.py: hydrogen has no self-interaction at all (the
-(q_a - 1) factor), helium sees exactly one unit of U_0, the averaged
+tests/test_hartree_fock.py: hydrogen sees no self-interaction at all (the
+(q_a - 1) factor), helium sees exactly one unit of U_0, my averaged
 coefficients reduce to the independently derived closed-shell ones when q is
 full, and beryllium gives the textbook 4J - 2K.
 
-This is the part of the phase that fails silently if it is wrong: bad
-coefficients produce converged, smooth, believable orbitals with the wrong
-energy. Do not adjust a coefficient to make a benchmark match without
-re-deriving it.
+This is the part of me that fails silently when it is wrong: bad coefficients
+give me converged, smooth, believable orbitals with the wrong energy. Do not
+adjust a coefficient to make a benchmark match without re-deriving it.
 
-Sign convention: `direct_potential` and `exchange_apply` both return the
-magnitude of their term as written above, so the caller assembles the Fock
-operator as h + direct - exchange. Exchange is returned positive and
-subtracted by the caller; it is not pre-negated here.
+My sign convention: `direct_potential` and `exchange_apply` both return the
+magnitude of their term as written above, so my caller assembles the Fock
+operator as h + direct - exchange. I return exchange positive and let the
+caller subtract it; I do not pre-negate it here.
 
-Returns plain arrays and floats, not Quantity or Field, for the same reason
-numerics/slater.py does: these are the pieces of an operator, not a physical
+I return plain arrays and floats, not Quantity or Field, for the same reason I
+do in numerics/slater.py: these are the pieces of an operator, not a physical
 result. hf_atom.py attaches the provenance when it reports an energy.
 
-Hartree atomic units. P = r R(r), normalized as integral P^2 dr = 1.
+I work in Hartree atomic units. P = r R(r), normalized so integral P^2 dr = 1.
 """
 
 from dataclasses import dataclass
@@ -59,16 +59,16 @@ __all__ = [
 
 @dataclass(frozen=True)
 class Subshell:
-    """One (n, l) subshell with its occupancy and current radial function."""
+    """One (n, l) subshell with its occupancy and its current radial function."""
 
     n: int
     l: int
     q: int
-    p: np.ndarray  # P_nl on the solver grid
+    p: np.ndarray  # P_nl on my solver grid
 
 
 def same_shell_coefficient(l_a: int, k: int, q_a: int) -> float:
-    """Coefficient of U_k[a,a] P_a in the Fock equation, for k > 0."""
+    """The coefficient I put on U_k[a,a] P_a in the Fock equation, for k > 0."""
     if k <= 0:
         raise ValueError(f"same-shell exchange needs k > 0, got {k}")
     tj = wigner_3j(l_a, k, l_a, 0, 0, 0)
@@ -76,7 +76,7 @@ def same_shell_coefficient(l_a: int, k: int, q_a: int) -> float:
 
 
 def exchange_coefficient(l_a: int, k: int, l_b: int, q_b: int) -> float:
-    """Coefficient of U_k[a,b] P_b in the Fock equation, for b != a."""
+    """The coefficient I put on U_k[a,b] P_b in the Fock equation, for b != a."""
     tj = wigner_3j(l_a, k, l_b, 0, 0, 0)
     return 0.5 * q_b * tj * tj
 
@@ -84,13 +84,13 @@ def exchange_coefficient(l_a: int, k: int, l_b: int, q_b: int) -> float:
 def direct_potential(
     subshells: tuple[Subshell, ...], a_index: int, r: np.ndarray
 ) -> np.ndarray:
-    """The local Hartree potential seen by subshell a.
+    """The local Hartree potential I let subshell a see.
 
     (q_a - 1) U0[a,a] + sum_{b != a} q_b U0[b,b]. The (q_a - 1) is what makes a
     one-electron atom see nothing at all.
     """
     a = subshells[a_index]
-    # Every term here is k = 0, so the grid factors are built once rather than
+    # Every term here is k = 0, so I build the grid factors once rather than
     # once per subshell.
     geometry = multipole_geometry(r, 0)
     v = (a.q - 1) * geometry.potential(a.p, a.p)
@@ -102,21 +102,21 @@ def direct_potential(
 
 @dataclass(frozen=True)
 class ExchangeOperator:
-    """The exchange operator for one subshell, with psi factored out.
+    """My exchange operator for one subshell, with psi factored out.
 
     Everything about exchange except the trial function is fixed once the
     orbitals are: which partners contribute, at which multipole order, with
     which angular coefficient, and the grid factors each order needs. Only the
     pair potential depends on psi.
 
-    That split matters because of the caller. LOBPCG applies this to its search
-    directions hundreds of times per channel, and the previous shape of the
-    code rebuilt the Wigner coefficients and the r**k arrays on every one of
-    those applications. Building once and applying many times is the same
-    arithmetic in the same order, so the result is bit-identical.
+    That split matters because of my caller. LOBPCG applies this to its search
+    directions hundreds of times per channel, and the previous shape of my code
+    rebuilt the Wigner coefficients and the r**k arrays on every one of those
+    applications. Building once and applying many times is the same arithmetic
+    in the same order, so my result is bit-identical.
 
-    Each term is (coefficient, partner P, geometry for its k), and the sum is
-    over terms of coefficient * U_k[partner, psi] * partner.
+    Each term is (coefficient, partner P, geometry for its k), and I sum over
+    terms of coefficient * U_k[partner, psi] * partner.
     """
 
     terms: tuple[tuple[float, np.ndarray, MultipoleGeometry], ...]
@@ -131,11 +131,11 @@ class ExchangeOperator:
 def exchange_operator(
     subshells: tuple[Subshell, ...], a_index: int, r: np.ndarray
 ) -> ExchangeOperator:
-    """Build the exchange operator for subshell a on this grid.
+    """I build the exchange operator for subshell a on this grid.
 
-    Terms with a vanishing angular coefficient are dropped here rather than
-    skipped per application, so a selection rule costs nothing at all once the
-    operator exists.
+    I drop terms with a vanishing angular coefficient here rather than skipping
+    them per application, so once the operator exists a selection rule costs me
+    nothing at all.
     """
     a = subshells[a_index]
     geometries: dict[int, MultipoleGeometry] = {}
@@ -147,9 +147,10 @@ def exchange_operator(
 
     terms: list[tuple[float, np.ndarray, MultipoleGeometry]] = []
 
-    # k = 0 is deliberately absent: the (q_a - 1) factor in direct_potential
+    # I leave k = 0 out deliberately: the (q_a - 1) factor in direct_potential
     # already carries the same-shell k = 0 exchange. Including it here is the
-    # most likely way to break helium. Odd k vanish by parity, hence step 2.
+    # most likely way for me to break helium. Odd k vanish by parity, hence the
+    # step of 2.
     for k in range(2, 2 * a.l + 1, 2):
         c = same_shell_coefficient(a.l, k, a.q)
         if c:
@@ -169,13 +170,15 @@ def exchange_operator(
 def exchange_apply(
     subshells: tuple[Subshell, ...], a_index: int, psi: np.ndarray, r: np.ndarray
 ) -> np.ndarray:
-    """Apply the non-local exchange operator for subshell a to a trial psi.
+    """I apply the non-local exchange operator for subshell a to a trial psi.
 
     psi is any function in the l_a channel, not only an occupied orbital:
-    LOBPCG applies this to its search directions, so the pair potentials are
-    rebuilt from psi on every call rather than cached from the last SCF step.
+    LOBPCG applies this to its search directions, so I rebuild the pair
+    potentials from psi on every call rather than caching them from the last
+    SCF step.
 
-    Builds the operator and throws it away. Applying it more than once against
-    the same orbitals should go through `exchange_operator` instead.
+    I build the operator here and throw it away. If you are applying it more
+    than once against the same orbitals, go through `exchange_operator`
+    instead.
     """
     return exchange_operator(subshells, a_index, r).apply(psi)
