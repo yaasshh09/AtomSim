@@ -1,29 +1,30 @@
-"""Isosurface extraction from a scalar field on a regular grid.
+"""How I extract an isosurface from a scalar field on a regular grid.
 
-Marching *tetrahedra*, not marching cubes, and the choice is deliberate.
+I march *tetrahedra*, not cubes, and I chose that deliberately.
 
-The classical marching-cubes triangulation table has 256 rows and is transcribed
-data: nothing inside this repo can check it, and a single wrong row makes a hole
-or a flipped facet in one corner configuration that the test set may never
-happen to visit. A tetrahedron has 16 cases and every one of them is derivable
-in a sentence. Zero or four corners inside the region emit nothing; one corner
-inside (or one outside, which is the mirror image) cuts the three edges meeting
-it and emits one triangle; two inside cut four edges and emit a quad. That is
-the whole algorithm, and `_TET_CASES` below is built from that statement at
-import time rather than typed in from a paper. Marching cubes' ambiguous-face
-problem, which has to be settled by convention, does not arise here at all.
+The classical marching-cubes triangulation table has 256 rows and is
+transcribed data: nothing in this repo can check it for me, and a single wrong
+row makes a hole or a flipped facet in one corner configuration my tests may
+never happen to visit. A tetrahedron has 16 cases and I can derive every one of
+them in a sentence. Zero or four corners inside the region emit nothing; one
+corner inside (or one outside, which is the mirror image) cuts the three edges
+meeting it and emits one triangle; two inside cut four edges and emit a quad.
+That is my whole algorithm, and I build `_TET_CASES` below from that statement
+at import time rather than typing it in from a paper. Marching cubes'
+ambiguous-face problem, which has to be settled by convention, never arises for
+me.
 
-The cost is roughly twice the triangles for the same grid, and slightly worse
-triangle shapes. Neither touches any number this module reports.
+It costs me roughly twice the triangles for the same grid, and slightly worse
+triangle shapes. Neither touches any number I report.
 
-Each cell is split by the Kuhn decomposition into six tetrahedra that all share
-the cell's main diagonal. The rule is applied identically in every cell, so two
-neighbouring cells split the face between them along the same diagonal and the
+I split each cell by the Kuhn decomposition into six tetrahedra that all share
+the cell's main diagonal. I apply the rule identically in every cell, so two
+neighbouring cells split the face between them along the same diagonal and my
 surface comes out watertight: every edge is shared by exactly two triangles.
 
-Orientation is outward, meaning normals point away from the region where the
-field is at or above the level, so `enclosed_volume` comes out positive. This
-module knows nothing about atoms; it takes an array and returns a mesh.
+I orient outward, meaning my normals point away from the region where the field
+is at or above the level, so `enclosed_volume` comes out positive. I know
+nothing about atoms here; I take an array and return a mesh.
 """
 
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ from itertools import permutations
 
 import numpy as np
 
-# Cell corners as (di, dj, dk) bits, indexed by di*4 + dj*2 + dk.
+# I index cell corners as (di, dj, dk) bits, by di*4 + dj*2 + dk.
 _CORNER_OFFSETS = np.array(
     [(di, dj, dk) for di in (0, 1) for dj in (0, 1) for dk in (0, 1)], dtype=np.int64
 )
@@ -42,9 +43,10 @@ def _kuhn_tetrahedra() -> np.ndarray:
 
     Each is the path from corner (0,0,0) to corner (1,1,1) taking the three unit
     steps in one of the six orders. Every tetrahedron therefore contains the
-    main diagonal, the six of them tile the cell exactly, and the induced split
-    of each cell face runs between that face's lowest and highest corner, which
-    is a property of the face rather than of the cell, so neighbours agree.
+    main diagonal, the six of them tile the cell exactly, and the split they
+    induce on each cell face runs between that face's lowest and highest corner,
+    which is a property of the face rather than of the cell, so my neighbours
+    agree.
     """
     tets = []
     for order in permutations(range(3)):
@@ -59,21 +61,21 @@ def _kuhn_tetrahedra() -> np.ndarray:
 
 _TETS = _kuhn_tetrahedra()
 
-# The six edges of a tetrahedron, as pairs of local corner indices 0..3.
+# The six edges of a tetrahedron, which I hold as pairs of local corner indices 0..3.
 _TET_EDGES = np.array([(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)], dtype=np.int64)
 _EDGE_OF = {(a, b): e for e, (a, b) in enumerate(map(tuple, _TET_EDGES))}
 _EDGE_OF.update({(b, a): e for (a, b), e in list(_EDGE_OF.items())})
 
 
 def _tet_cases() -> np.ndarray:
-    """Triangulation for each of the 16 inside/outside patterns.
+    """My triangulation for each of the 16 inside/outside patterns.
 
-    Returns an int8 array of shape (16, 2, 3): up to two triangles per case,
-    each as three tetrahedron-edge indices, with -1 for "no triangle".
+    I return an int8 array of shape (16, 2, 3): up to two triangles per case,
+    each as three tetrahedron-edge indices, with -1 where I emit no triangle.
 
-    Derived, not tabulated. The winding here is arbitrary; `marching_tets`
-    fixes orientation per triangle against the inside corners, which is cheap
-    and cannot be got wrong by a sign convention in a table.
+    I derive this rather than tabulating it. The winding here is arbitrary;
+    `marching_tets` fixes orientation per triangle against the inside corners,
+    which is cheap and cannot be got wrong by a sign convention in a table.
     """
     cases = np.full((16, 2, 3), -1, dtype=np.int8)
     for code in range(16):
@@ -82,16 +84,17 @@ def _tet_cases() -> np.ndarray:
         if not inside or not outside:
             continue
         if len(inside) == 1 or len(outside) == 1:
-            # One corner alone on its side of the level: the three edges that
-            # meet it are cut, and they carry a single triangle.
+            # One corner alone on its side of the level: I cut the three edges
+            # that meet it, and they carry a single triangle.
             alone = inside[0] if len(inside) == 1 else outside[0]
             others = outside if len(inside) == 1 else inside
             cases[code, 0] = [_EDGE_OF[(alone, other)] for other in others]
         else:
-            # Two and two: the four edges joining an inside corner to an
-            # outside one are cut, and they form a quad. Ordering it as
+            # Two and two: I cut the four edges joining an inside corner to an
+            # outside one, and they form a quad. Ordering it as
             # (a,c) (a,d) (b,d) (b,c) walks the quad's rim rather than its
-            # diagonal, so splitting it 0-1-2 / 0-2-3 gives two real triangles.
+            # diagonal, so splitting it 0-1-2 / 0-2-3 gives me two real
+            # triangles.
             a, b = inside
             c, d = outside
             rim = [_EDGE_OF[(a, c)], _EDGE_OF[(a, d)], _EDGE_OF[(b, d)], _EDGE_OF[(b, c)]]
@@ -105,11 +108,11 @@ _TET_CASES = _tet_cases()
 
 @dataclass(frozen=True)
 class Mesh:
-    """A welded, oriented, indexed triangle mesh.
+    """A welded, oriented, indexed triangle mesh of mine.
 
     `vertices` is (M, 3) in the field's own coordinates; `triangles` is (K, 3)
-    of indices into it. Shared vertices are one vertex, which is what makes
-    watertightness and connected-component counts meaningful.
+    of indices into it. I make shared vertices one vertex, which is what makes
+    watertightness and connected-component counts mean anything.
     """
 
     vertices: np.ndarray
@@ -127,23 +130,23 @@ def marching_tets(
     spacing: float = 1.0,
     chunk: int = 24,
 ) -> Mesh:
-    """Extract the surface where `field` crosses `level`.
+    """I extract the surface where `field` crosses `level`.
 
-    The enclosed region is `field >= level`. Vertices land on cell edges by
-    linear interpolation of the field, which is what makes the surface converge
-    on the true level set as the grid refines rather than sitting on voxel
-    corners.
+    I take the enclosed region to be `field >= level`. I land vertices on cell
+    edges by linear interpolation of the field, which is what makes my surface
+    converge on the true level set as the grid refines rather than sitting on
+    voxel corners.
 
-    `chunk` is the number of cell layers in x processed at once. A 128 cubed
-    grid holds 12 million tetrahedra; materializing their corner values all at
+    `chunk` is how many cell layers in x I process at once. A 128 cubed grid
+    holds 12 million tetrahedra, and materializing their corner values all at
     once is pointless when the work is embarrassingly parallel in slabs.
     """
     field = np.ascontiguousarray(field, dtype=np.float64)
     if field.ndim != 3:
-        raise ValueError(f"field must be 3-D, got shape {field.shape}")
+        raise ValueError(f"I need a 3-D field, got shape {field.shape}")
     nx, ny, nz = field.shape
     if min(nx, ny, nz) < 2:
-        raise ValueError(f"field needs at least 2 points per axis, got {field.shape}")
+        raise ValueError(f"I need at least 2 points per axis, got {field.shape}")
 
     flat = field.reshape(-1)
     strides = np.array([ny * nz, nz, 1], dtype=np.int64)
@@ -163,7 +166,7 @@ def marching_tets(
             ),
             axis=-1,
         ).reshape(-1, 3)
-        # Global flat index of each of the eight corners of each cell.
+        # The global flat index I give each of the eight corners of each cell.
         corner_ids = (cells[:, None, :] + _CORNER_OFFSETS[None, :, :]) @ strides
 
         for tet in _TETS:
@@ -185,7 +188,7 @@ def marching_tets(
             inside = inside[active]
             tris = _TET_CASES[code[active]]  # (n, 2, 3)
 
-            # Both triangle slots at once; the second is empty for most cases.
+            # I do both triangle slots at once; the second is empty for most cases.
             for slot in range(2):
                 edges = tris[:, slot, :]
                 live = edges[:, 0] >= 0
@@ -209,7 +212,7 @@ def marching_tets(
                 b_pos = _unflatten(b_id, strides) * spacing + origin_arr
                 pos = a_pos + t[..., None] * (b_pos - a_pos)
 
-                # Outward: away from the corners that are inside the region.
+                # I point outward: away from the corners inside the region.
                 inside_pos = _inside_centroid(sub_ids, sub_inside, strides, spacing, origin_arr)
                 normal = np.cross(pos[:, 1] - pos[:, 0], pos[:, 2] - pos[:, 0])
                 flip = np.einsum("ij,ij->i", normal, pos.mean(axis=1) - inside_pos) < 0
@@ -233,17 +236,17 @@ def marching_tets(
 
 
 def _unflatten(flat_ids: np.ndarray, strides: np.ndarray) -> np.ndarray:
-    """Flat grid indices back to (i, j, k) as floats, for position arithmetic."""
+    """I turn flat grid indices back into (i, j, k) as floats, for position arithmetic."""
     i, rest = np.divmod(flat_ids, strides[0])
     j, k = np.divmod(rest, strides[1])
     return np.stack([i, j, k], axis=-1).astype(np.float64)
 
 
 def _inside_centroid(ids, inside, strides, spacing, origin):
-    """Mean position of the tetrahedron corners that are inside the region.
+    """The mean position of the tetrahedron corners inside the region.
 
-    Used only to point the normal outward. Any point strictly inside would do;
-    this one is cheap and always on the correct side because the triangle
+    I use it only to point my normal outward. Any point strictly inside would
+    do; this one is cheap and always on the correct side, because the triangle
     separates the inside corners from the outside ones by construction.
     """
     positions = _unflatten(ids, strides) * spacing + origin
@@ -252,12 +255,12 @@ def _inside_centroid(ids, inside, strides, spacing, origin):
 
 
 def enclosed_volume(mesh: Mesh) -> float:
-    """Volume enclosed by the mesh, by the divergence theorem.
+    """The volume the mesh encloses, which I get by the divergence theorem.
 
-    Sum of the signed tetrahedra from the origin to each facet. Positive for the
-    outward orientation this module produces, and independent of where the
-    origin sits, which is what makes it a check on the triangles rather than on
-    the coordinates.
+    I sum the signed tetrahedra from the origin to each facet. It comes out
+    positive for the outward orientation I produce, and it does not depend on
+    where the origin sits, which is what makes it a check on my triangles
+    rather than on my coordinates.
     """
     if mesh.is_empty:
         return 0.0
@@ -273,7 +276,7 @@ def surface_area(mesh: Mesh) -> float:
 
 
 def edge_use_counts(mesh: Mesh) -> np.ndarray:
-    """How many triangles use each undirected edge. Watertight means all twos."""
+    """How many triangles I put on each undirected edge. Watertight means all twos."""
     tri = mesh.triangles.astype(np.int64)
     pairs = np.concatenate([tri[:, [0, 1]], tri[:, [1, 2]], tri[:, [2, 0]]])
     lo = pairs.min(axis=1)
@@ -283,10 +286,11 @@ def edge_use_counts(mesh: Mesh) -> np.ndarray:
 
 
 def connected_components(mesh: Mesh) -> int:
-    """Number of disconnected pieces, by union-find over the welded vertices.
+    """How many disconnected pieces I find, by union-find over my welded vertices.
 
-    Meaningful only because the mesh is welded: an unwelded surface has one
-    component per triangle and would report a p orbital as thousands of lobes.
+    This means something only because I weld the mesh: an unwelded surface has
+    one component per triangle, and I would report a p orbital as thousands of
+    lobes.
     """
     if mesh.is_empty:
         return 0
