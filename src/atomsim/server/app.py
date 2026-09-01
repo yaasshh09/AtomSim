@@ -1758,9 +1758,9 @@ def create_app() -> FastAPI:
         makes my Lyman lines go black while the Balmer lines stay invisible in
         the same gas, and it is the fact my emission endpoint cannot represent.
 
-        I leave the window to the engine unless you ask, because sizing it by
-        eye is how I lost a third of an equivalent width in Phase 19 without
-        anything reporting a problem.
+        I leave the window to my own synthesis unless you ask, because sizing
+        it by eye is how I lost a third of an equivalent width in Phase 19
+        without anything reporting a problem.
         """
         # Absorption has no meaning without populations, so unlike my emission
         # endpoint I do not make these conditions optional. I default them
