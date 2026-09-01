@@ -1,21 +1,21 @@
-"""Line profiles: how wide a spectral line is, and what shape that makes.
+"""How I give a spectral line its width, and what shape that makes.
 
-Every spectrum drawn before this module was a picket fence: a line was a bar of
-zero width at one wavelength. That is right about where lines are and silent
-about what a line *is*. Real lines have width, and the width is not noise, it
-is the densest piece of information in observational spectroscopy. One profile
-carries the temperature (Doppler), the density (collisions), the lifetime of
-the upper level (natural), and the instrument.
+Every spectrum I drew before this module was a picket fence: a line was a bar of
+zero width at one wavelength. That is right about where my lines sit and silent
+about what a line *is*. Real lines have width, and the width is not noise, it is
+the densest piece of information in observational spectroscopy. One profile
+carries the temperature (Doppler), the density (collisions), the lifetime of the
+upper level (natural), and the instrument.
 
-Three mechanisms are modelled here, and one loud one is not:
+I model three mechanisms here, and I leave one loud one out:
 
     natural       Lorentzian; from the total decay rate of both levels
     Doppler       Gaussian; from the Maxwellian at T
-    instrumental  Gaussian; from a resolving power, a model of the machine
-    collisional   NOT modelled; its size is computed and reported instead
+    instrumental  Gaussian; from a resolving power, my model of the machine
+    collisional   NOT modelled; I size it and report it instead
 
-The Gaussian terms add in quadrature and the Lorentzian terms add linearly, and
-the convolution of the two families is the Voigt profile. Given the widths, the
+I add the Gaussian terms in quadrature and the Lorentzian terms linearly, and
+the convolution of the two families is the Voigt profile. Given the widths, my
 profile is exact to machine precision, so it carries the fidelity of its inputs
 rather than claiming a tier of its own.
 
@@ -55,37 +55,37 @@ _FWHM_PER_SIGMA: float = 2.0 * math.sqrt(2.0 * math.log(2.0))
 #: inter-particle distance, which is the natural scale of an ion microfield.
 _HOLTSMARK: float = 2.603
 
-#: Cap on profile evaluations (lines times grid points). A spectrum is drawn
-#: interactively, so the grid is allowed to coarsen rather than the request
-#: being allowed to hang; when it does, the provenance says so.
+#: Cap on profile evaluations (lines times grid points). You watch a spectrum
+#: appear, so I would rather coarsen my grid than let a request hang; when I do,
+#: my provenance says so.
 _WORK_BUDGET: int = 4_000_000
 
-#: Hard cap on grid points, so a short line list cannot mint an enormous array
-#: that has to cross the wire for no visible gain.
+#: Hard cap on grid points, so a short line list cannot make me mint an enormous
+#: array that has to cross the wire for no visible gain.
 _MAX_POINTS: int = 24_000
 
-#: How far, in FWHM, a line is summed before its wings are dropped. Generous
-#: on purpose: at this distance a Lorentzian tail is about 1e-6 of the line.
+#: How far, in FWHM, I sum a line before I drop its wings. Generous on purpose:
+#: at this distance a Lorentzian tail is about 1e-6 of the line.
 _CUT_FWHM: float = 1e5
 
-#: Cap on grid points evaluated for one line, so a very broad line in a long
-#: list cannot reintroduce the quadratic cost the cut exists to avoid.
+#: Cap on the grid points I evaluate for one line, so a very broad line in a
+#: long list cannot bring back the quadratic cost my cut exists to avoid.
 _MAX_EVAL_PER_LINE: int = 4_000
 
 _NOT_MODELLED = (
-    "collisional (pressure) broadening is NOT included; for hydrogen in a "
+    "I do NOT include collisional (pressure) broadening; for hydrogen in a "
     "plasma the linear Stark effect of the ion microfield overtakes Doppler "
-    "at attainable densities, and its size is reported separately rather "
-    "than folded in",
+    "at attainable densities, so I report its size separately rather than "
+    "folding it in",
     "no self-absorption: an optically thick line develops a flat or reversed "
-    "core that this profile can never show",
+    "core that my profile can never show",
     "no bulk motion, rotation, Zeeman splitting, or hyperfine components",
 )
 
 
 @dataclass(frozen=True)
 class LineProfile:
-    """The width budget of one line, and the area it carries."""
+    """My width budget for one line, and the area I put under it."""
 
     wavelength_nm: float
     n_upper: int
@@ -96,55 +96,55 @@ class LineProfile:
     gamma_nm: float
     #: Total Voigt FWHM, nm.
     fwhm_nm: float
-    #: Area under this line in the synthesized spectrum, in the weight's unit.
+    #: The area I put under this line, in the weight's unit.
     weight: float
-    #: Which mechanisms actually contributed, in the order they were applied.
+    #: Which mechanisms actually contributed, in the order I applied them.
     terms: tuple[str, ...]
     label: str
 
 
 @dataclass(frozen=True)
 class SyntheticSpectrum:
-    """A continuous spectral emissivity, and the widths that shaped it."""
+    """A continuous spectral emissivity of mine, and the widths that shaped it."""
 
     #: values = spectral emissivity per nm, grid = vacuum wavelength in nm.
     spectrum: Field
     profiles: tuple[LineProfile, ...]
-    #: The lines the profiles were built from, one per profile and in the same
-    #: order. Kept because a profile does not identify its line: degenerate
-    #: transitions share a wavelength exactly (all of 3d->2p, 3p->2s, 3s->2p sit
-    #: at 656.47 nm), so anything that needs a line's other properties back has
-    #: to be handed the pairing rather than reconstruct it from what it can see.
+    #: The lines I built the profiles from, one per profile and in the same
+    #: order. I keep them because a profile does not identify its line:
+    #: degenerate transitions share a wavelength exactly (all of 3d->2p, 3p->2s,
+    #: 3s->2p sit at 656.47 nm), so I hand over the pairing rather than let
+    #: anything try to reconstruct it from what it can see.
     lines: tuple[SpectralLine, ...]
     #: "emissivity" | "rate" | "uniform", what the area under a line means.
     weight_kind: str
     resolving_power: float | None
-    #: The curve's integral divided by the summed line strengths. An
-    #: area-normalized profile moves flux around in wavelength without
-    #: creating or destroying it, so this is 1 for a perfect grid, and the
-    #: distance from 1 is the grid's own quadrature error, measured rather
-    #: than assumed. Below 1 also picks up flux that fell outside the window.
+    #: My curve's integral divided by the summed line strengths. An
+    #: area-normalized profile moves flux around in wavelength without creating
+    #: or destroying it, so this is 1 for a perfect grid, and the distance from
+    #: 1 is my grid's own quadrature error, measured rather than assumed. Below
+    #: 1 also picks up flux that fell outside the window.
     flux_closure: float = 1.0
-    #: The size of the collisional broadening this module leaves out, for the
-    #: strongest line in the list. None when it does not apply (no plasma
-    #: conditions given, or a non-hydrogenic atom with no linear Stark effect).
+    #: The size of the collisional broadening I leave out, for the strongest
+    #: line in the list. None when it does not apply (you gave me no plasma
+    #: conditions, or a non-hydrogenic atom has no linear Stark effect).
     stark_span: Quantity | None = None
-    #: Set only when that missing width is comparable to or larger than the
-    #: modelled one, which is when the curve stops being trustworthy.
+    #: I set this only when that missing width is comparable to or larger than
+    #: the one I model, which is when my curve stops being trustworthy.
     stark_note: str | None = None
 
 
 def natural_gamma_nm(gamma_total_s: float, wavelength_nm: float) -> float:
-    """Lorentzian HWHM in nm from a total decay rate in s^-1.
+    """My Lorentzian HWHM in nm, from a total decay rate in s^-1.
 
         FWHM_lambda = lambda^2 (Gamma_u + Gamma_l) / (2 pi c)
 
     An excited level with total decay rate Gamma has an energy uncertain by
     hbar Gamma, and the Weisskopf-Wigner treatment makes the resulting line
-    exactly Lorentzian. Both levels contribute: a transition between two
+    exactly Lorentzian. I count both levels: a transition between two
     short-lived levels is broader than either level alone.
 
-    Anchor: Lyman-alpha, Gamma = 6.2649e8 s^-1, gives 99.7 MHz, which is the
+    My anchor: Lyman-alpha, Gamma = 6.2649e8 s^-1, gives 99.7 MHz, which is the
     textbook natural linewidth, and 4.92e-6 nm.
     """
     if gamma_total_s <= 0.0:
@@ -156,21 +156,20 @@ def natural_gamma_nm(gamma_total_s: float, wavelength_nm: float) -> float:
 def doppler_sigma_nm(
     wavelength_nm: float, temperature_k: float, mass_kg: float
 ) -> float:
-    """Gaussian sigma in nm from thermal motion of the emitting atom.
+    """My Gaussian sigma in nm, from thermal motion of the emitting atom.
 
         sigma_lambda = lambda_0 sqrt(k T / (m c^2))
 
-    `mass_kg` is the mass of the whole radiating atom. Using the electron mass
-    here would widen every line by a factor of 43, so the caller is expected to
-    have gone through `systems.emitter_mass`, which derives it rather than
-    guessing.
+    `mass_kg` is the mass of the whole radiating atom. Handing me the electron
+    mass would widen every line by a factor of 43, so I expect you to have gone
+    through `systems.emitter_mass`, which derives it rather than guessing.
 
-    An infinite mass returns exactly zero: a nucleus that cannot recoil cannot
-    shift its own photon. That is the correct answer for an idealized preset
-    and the wrong answer about any real ion, which is why `emitter_mass` says
-    so on the mass itself.
+    I return exactly zero for an infinite mass: a nucleus that cannot recoil
+    cannot shift its own photon. That is the correct answer for an idealized
+    preset and the wrong answer about any real ion, which is why `emitter_mass`
+    says so on the mass itself.
 
-    Anchor: H-alpha at 10,000 K gives FWHM 0.0468 nm.
+    My anchor: H-alpha at 10,000 K gives FWHM 0.0468 nm.
     """
     if temperature_k <= 0.0:
         raise ValueError(f"temperature must be > 0 K, got {temperature_k}")
@@ -182,11 +181,12 @@ def doppler_sigma_nm(
 
 
 def instrumental_sigma_nm(wavelength_nm: float, resolving_power: float) -> float:
-    """Gaussian sigma in nm for a slit function of resolving power R = lambda/dlambda.
+    """My Gaussian sigma in nm for a slit function of resolving power R.
 
-    This is not the atom. It is a model of the spectrograph, and it belongs in
-    the profile only because every real spectrum has been through one. Turning
-    R down until a resolved doublet merges is the whole reason it is here.
+    R = lambda/dlambda, and this is not the atom. It is my model of the
+    spectrograph, and it belongs in the profile only because every real spectrum
+    has been through one. Turning R down until a resolved doublet merges is the
+    whole reason I carry it.
     """
     if resolving_power <= 0.0:
         raise ValueError(f"resolving power must be > 0, got {resolving_power}")
@@ -194,21 +194,21 @@ def instrumental_sigma_nm(wavelength_nm: float, resolving_power: float) -> float
 
 
 def voigt(delta_nm: np.ndarray, sigma_nm: float, gamma_nm: float) -> np.ndarray:
-    """Area-normalized Voigt profile: a Gaussian convolved with a Lorentzian.
+    """My area-normalized Voigt profile: a Gaussian convolved with a Lorentzian.
 
         V(x) = Re[w(z)] / (sigma sqrt(2 pi)),   z = (x + i gamma) / (sigma sqrt 2)
 
-    with w the Faddeeva function. Both limits are exact rather than
-    approached: gamma = 0 gives the Gaussian (w of a real argument is real and
-    equals exp(-x^2)), and sigma = 0 takes the analytic Lorentzian branch,
-    since z would otherwise diverge.
+    with w the Faddeeva function. I hit both limits exactly rather than
+    approaching them: gamma = 0 gives the Gaussian (w of a real argument is real
+    and equals exp(-x^2)), and for sigma = 0 I take the analytic Lorentzian
+    branch, since z would otherwise diverge.
     """
     x = np.asarray(delta_nm, dtype=float)
     if sigma_nm < 0.0 or gamma_nm < 0.0:
         raise ValueError(f"widths must be >= 0, got sigma={sigma_nm}, gamma={gamma_nm}")
     if sigma_nm == 0.0 and gamma_nm == 0.0:
         raise ValueError(
-            "a line with no width has no profile; supply a temperature, a "
+            "a line with no width has no profile; give me a temperature, a "
             "decay rate, or a resolving power"
         )
     if sigma_nm == 0.0:
@@ -218,13 +218,13 @@ def voigt(delta_nm: np.ndarray, sigma_nm: float, gamma_nm: float) -> np.ndarray:
 
 
 def voigt_fwhm(sigma_nm: float, gamma_nm: float) -> float:
-    """Total FWHM of a Voigt profile, Olivero & Longbothum (1977).
+    """The total FWHM I quote for a Voigt profile, Olivero & Longbothum (1977).
 
         f_V = 0.5346 f_L + sqrt(0.2166 f_L^2 + f_G^2)
 
-    Accurate to 0.02 percent, which is far inside anything that depends on it
-    here (grid spacing and a reported width). The Voigt FWHM has no closed
-    form, so the alternative would be a root-find per line for no gain.
+    Accurate to 0.02 percent, which is far inside anything I use it for (grid
+    spacing and a width I report). The Voigt FWHM has no closed form, so my
+    alternative would be a root-find per line for no gain.
     """
     f_l = 2.0 * gamma_nm
     f_g = _FWHM_PER_SIGMA * sigma_nm
@@ -232,21 +232,21 @@ def voigt_fwhm(sigma_nm: float, gamma_nm: float) -> float:
 
 
 def level_decay_rates(lines) -> dict[tuple, float]:
-    """Total E1 decay rate out of each upper level, in s^-1, keyed (n, l, j).
+    """The total E1 decay rate I find out of each upper level, keyed (n, l, j).
 
-    Summed over the caller's own line list rather than recomputed, so the width
-    of a line and the rates shown beside it cannot disagree.
+    In s^-1, and I sum it over your own line list rather than recomputing it, so
+    the width I give a line and the rates shown beside it cannot disagree.
 
-    For a hydrogen-like list this sum is **complete, not truncated**: decay only
+    For a hydrogen-like list my sum is **complete, not truncated**: decay only
     goes downward, so every channel out of a level with n <= n_max lands on a
-    level with n' < n that is already in the list. Nothing is being cut off,
-    unlike the partition function of Phase 17.
+    level with n' < n that is already in the list. I am cutting nothing off
+    here, unlike my partition function in Phase 17.
 
-    What is cut off is the multipole order. E1 only means the 2s_1/2 level,
+    What I do cut off is the multipole order. E1 only means the 2s_1/2 level,
     which has no dipole-allowed decay at all, comes out with Gamma = 0 and an
     infinitely sharp line. The real 2s is metastable and decays by two-photon
-    emission at about 8.2 s^-1, a lifetime of 0.12 s rather than infinity. That
-    is named in the provenance wherever a zero width is used.
+    emission at about 8.2 s^-1, a lifetime of 0.12 s rather than infinity. I
+    name that in my provenance wherever a zero width is used.
     """
     rates: dict[tuple, float] = {}
     for ln in lines:
@@ -260,11 +260,11 @@ def level_decay_rates(lines) -> dict[tuple, float]:
 def stark_span_estimate(
     n_upper: int, n_lower: int, wavelength_nm: float, electron_density_cm3: float
 ) -> Quantity:
-    """Size of the collisional broadening this module leaves out, in nm.
+    """How big the collisional broadening I leave out would be, in nm.
 
-    Not a profile: a number, so the user can see how wrong the modelled width
-    is instead of being told only that something is missing. Two steps, both
-    from parts already in the engine:
+    Not a profile: a number, so you can see how wrong my modelled width is
+    instead of hearing only that something is missing. Two steps, both from
+    parts I already have:
 
     1. The Holtsmark normal field of the ion microfield,
        F_0 = 2.603 e n_e^(2/3) / (4 pi eps_0), the field a singly charged
@@ -274,19 +274,19 @@ def stark_span_estimate(
        at (3/2) n (n-1) e a_0 F, so the transition's components span
        3 e a_0 F_0 [n_u(n_u - 1) + n_l(n_l - 1)] peak to peak.
 
-    The number returned is that peak-to-peak span, which is a well-defined
-    quantity and deliberately not called a FWHM: most emitters see a field
-    below F_0, so the real Holtsmark-averaged FWHM is smaller, by roughly a
-    factor of two for Balmer lines.
+    What I return is that peak-to-peak span, which is a well-defined quantity
+    and which I deliberately do not call a FWHM: most emitters see a field below
+    F_0, so the real Holtsmark-averaged FWHM is smaller, by roughly a factor of
+    two for Balmer lines.
 
-    Cross-checked independently: for H-beta at n_e = 1e14 cm^-3 this gives
-    0.034 nm, while Griem's empirical n_e^(2/3) scaling anchored on the
-    standard ~2 nm at 1e17 cm^-3 extrapolates to 0.02 nm. Agreement to within
-    a factor of two is all an order-of-magnitude flag needs.
+    I cross-checked it independently: for H-beta at n_e = 1e14 cm^-3 I get
+    0.034 nm, while Griem's empirical n_e^(2/3) scaling anchored on the standard
+    ~2 nm at 1e17 cm^-3 extrapolates to 0.02 nm. Agreement to within a factor of
+    two is all an order-of-magnitude flag needs.
 
     Linear Stark is a hydrogenic effect: it exists because the l levels of a
     shell are degenerate. A screened atom has no such manifold and shifts
-    quadratically, so this must not be applied to one.
+    quadratically, so I must never apply this to one.
     """
     if electron_density_cm3 <= 0.0:
         raise ValueError(f"electron density must be > 0, got {electron_density_cm3}")
@@ -307,35 +307,38 @@ def stark_span_estimate(
         provenance=Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method=(
-                "peak-to-peak span of the linear Stark components at the "
-                "Holtsmark normal field F_0 = 2.603 e n_e^(2/3) / (4 pi eps_0); "
+                "I took the peak-to-peak span of the linear Stark components at "
+                "the Holtsmark normal field "
+                "F_0 = 2.603 e n_e^(2/3) / (4 pi eps_0); "
                 f"F_0 = {f_0:.3g} V/m here"
             ),
             assumptions=(
-                "quasi-static approximation: the perturbing ions are treated as "
-                "frozen while the atom radiates",
-                "one representative field F_0 stands in for the whole Holtsmark "
-                "distribution, so this is a span, NOT a FWHM: the real averaged "
-                "profile is narrower, by roughly a factor of two for Balmer lines",
+                "quasi-static approximation: I freeze the perturbing ions while "
+                "the atom radiates",
+                "I let one representative field F_0 stand in for the whole "
+                "Holtsmark distribution, so this is a span, NOT a FWHM: the real "
+                "averaged profile is narrower, by roughly a factor of two for "
+                "Balmer lines",
                 "hydrogenic only: linear Stark needs the degenerate l manifold of "
                 "a shell, and a screened atom shifts quadratically instead",
-                "electron and ion densities taken as equal (singly ionized gas)",
+                "I take the electron and ion densities as equal (singly ionized "
+                "gas)",
             ),
             refinement=(
                 "a Holtsmark field distribution, or Griem's tabulated line "
-                "shapes, would turn this estimate into an actual profile"
+                "shapes, would turn my estimate into an actual profile"
             ),
         ),
     )
 
 
 def _tail_fraction(span_nm: float, sigma_nm: float, gamma_nm: float) -> float:
-    """Fraction of a line's area lying further than `span_nm` from its centre.
+    """How much of a line's area lies further than `span_nm` from its centre.
 
-    The price of cutting a line's wings, computed rather than waved at. Both
-    families have closed-form tails, and adding them is a bound rather than an
-    identity: the Voigt is their convolution, not their sum, so this cannot
-    understate what was dropped.
+    This is the price of cutting a line's wings, which I compute rather than
+    wave at. Both families have closed-form tails, and adding them is a bound
+    rather than an identity: the Voigt is their convolution, not their sum, so I
+    cannot understate what I dropped.
 
         Lorentzian:  2 gamma / (pi d)   for d >> gamma
         Gaussian:    erfc(d / (sigma sqrt 2))
@@ -350,31 +353,31 @@ def _tail_fraction(span_nm: float, sigma_nm: float, gamma_nm: float) -> float:
 
 
 def _offsets(n_core: int, n_wing: int) -> np.ndarray:
-    """Sample offsets for one line, in units of its own FWHM.
+    """Where I sample one line, in units of its own FWHM.
 
-    Uniform through the core, geometric through the wings. Both spacings are
-    chosen against the quadrature error, not by eye.
+    Uniform through the core, geometric through the wings. I chose both spacings
+    against the quadrature error, not by eye.
 
     A uniform grid over a function that decays to zero at both ends is
-    spectrally accurate (the Euler-Maclaurin correction terms vanish), so the
-    core is sampled uniformly out to 2.5 FWHM, where a Gaussian is down to
-    3e-8 of its peak and finished. An earlier version stopped the uniform
-    region at 1.0 FWHM and jumped straight to sparse wing points; the chord
-    across that gap sat above a still-steep Gaussian and put 0.8 percent of
-    extra flux into every line in the spectrum.
+    spectrally accurate (the Euler-Maclaurin correction terms vanish), so I
+    sample the core uniformly out to 2.5 FWHM, where a Gaussian is down to 3e-8
+    of its peak and finished. I once stopped the uniform region at 1.0 FWHM and
+    jumped straight to sparse wing points; the chord across that gap sat above a
+    still-steep Gaussian and put 0.8 percent of extra flux into every line in my
+    spectrum.
 
-    Past the core only the Lorentzian tail survives, falling as 1/x^2, for
-    which geometric spacing gives equal relative error per interval: a ratio r
-    costs (r + 1/r)/2 - 1 per step, so r near 1.2 holds the tail integral
-    inside 0.2 percent.
+    Past the core only the Lorentzian tail survives, falling as 1/x^2, for which
+    geometric spacing gives equal relative error per interval: a ratio r costs
+    (r + 1/r)/2 - 1 per step, so r near 1.2 holds the tail integral inside 0.2
+    percent.
 
-    The wings run to 1e5 FWHM, which looks absurd until you price the
+    My wings run to 1e5 FWHM, which looks absurd until you price the
     alternative. A natural width can be 2e-6 nm while the gap to the next
-    background sample is several nm. Stopping the cluster at a few hundred
-    FWHM leaves a chord from a still-appreciable wing value straight across
-    that gap, which is not merely a quadrature error: a polyline renderer
-    draws it, so a 3e-3 nm spike acquires a multi-nm tent at its foot. Going
-    out to 1e5 FWHM costs only 60 points, because geometric spacing is cheap.
+    background sample is several nm. Stopping the cluster at a few hundred FWHM
+    leaves a chord from a still-appreciable wing value straight across that gap,
+    which is not merely a quadrature error: a polyline renderer draws it, so a
+    3e-3 nm spike acquires a multi-nm tent at its foot. Going out to 1e5 FWHM
+    costs me only 60 points, because geometric spacing is cheap.
     """
     return np.concatenate([
         np.linspace(0.0, 2.5, n_core), np.geomspace(2.8, 1e5, n_wing)
@@ -390,17 +393,17 @@ def _grid(
     n_core: int,
     n_wing: int,
 ) -> np.ndarray:
-    """Adaptive wavelength grid: coarse background plus a cluster per line.
+    """My adaptive wavelength grid: coarse background plus a cluster per line.
 
     A uniform grid fine enough for a 1e-6 nm natural width across an 800 nm
-    window would need 1e9 points. Clustering buys the same peak fidelity for a
-    few thousand, and gives one guarantee worth stating in the caption: every
-    line's own centre is a grid point, so no peak is ever underestimated
-    because the sampling missed it.
+    window would need 1e9 points. Clustering buys me the same peak fidelity for
+    a few thousand, and gives one guarantee worth stating in the caption: every
+    line's own centre is a grid point of mine, so I never underestimate a peak
+    because my sampling missed it.
 
-    The clustering only decides *where* samples are. Every line is still
-    evaluated at every point, so there is no wing cutoff and overlapping wings
-    add up exactly.
+    The clustering only decides *where* my samples are. I still evaluate every
+    line at every point, so there is no wing cutoff and overlapping wings add up
+    exactly.
     """
     half = _offsets(n_core, n_wing)
     offsets = np.concatenate([-half[::-1], half[1:]])
@@ -422,39 +425,38 @@ def synthesize(
     weight_fn: Callable[[Any], float] | None = None,
     weight_label: tuple[str, str] | None = None,
 ) -> SyntheticSpectrum:
-    """Sum the line profiles of a LineList into a continuous spectral emissivity.
+    """I sum a LineList's profiles into one continuous spectral emissivity.
 
-    The area under each line is the same quantity the bars already use, so the
-    two renderings of one spectrum cannot disagree:
+    I put the same quantity under each line that my bars already use, so the two
+    renderings of one spectrum cannot disagree:
 
         thermal state present -> LTE emissivity   [eV/s per atom per nm]
         Einstein A present    -> rate             [s^-1 per nm]
         neither               -> uniform          [per nm], equal area each
 
     `emitter_mass` is the mass of the whole radiating atom (`systems.emitter_mass`
-    for a preset, the element's standard atomic weight for a screened atom). It
-    is taken as a Quantity rather than looked up here so that both kinds of
-    caller can supply one, and an infinite mass carries its own explanation.
-    Without it, or without a temperature, there is no thermal width and the
-    profile is natural plus instrumental only.
+    for a preset, the element's standard atomic weight for a screened atom). I
+    take it as a Quantity rather than looking it up here so that both kinds of
+    caller can hand me one, and so an infinite mass carries its own explanation.
+    Without it, or without a temperature, I have no thermal width and my profile
+    is natural plus instrumental only.
 
-    `hydrogenic` gates the collisional-broadening estimate, which is a linear
+    `hydrogenic` gates my collisional-broadening estimate, which is a linear
     Stark effect and therefore exists only for a degenerate l manifold.
 
-    `max_points` is a transport limit, not a physics one: the curve has to
-    cross a wire. Lowering it coarsens the grid, and whatever that costs shows
-    up in `flux_closure` rather than being hidden.
+    `max_points` is a transport limit, not a physics one: my curve has to cross
+    a wire. Lowering it coarsens my grid, and whatever that costs shows up in
+    `flux_closure` rather than hiding.
 
-    `weight_fn` replaces the area rule above with the caller's own, taking a
-    line and returning the area to put under it; `weight_label` names the
-    result as (kind, unit). This exists so that absorption can be summed by
-    exactly this routine: an optical depth is the same superposition of
-    area-normalized Voigts as an emissivity, differing only in what each area
-    means, and duplicating the grid, the wing accounting and the closure check
-    for the sake of one line of arithmetic would be two things to keep true
-    instead of one.
+    `weight_fn` replaces the area rule above with your own, taking a line and
+    returning the area I should put under it; `weight_label` names the result as
+    (kind, unit). It exists so that absorption can be summed by exactly this
+    routine: an optical depth is the same superposition of area-normalized
+    Voigts as an emissivity, differing only in what each area means, and
+    duplicating my grid, my wing accounting and my closure check for the sake of
+    one line of arithmetic would be two things to keep true instead of one.
 
-    Raises if no mechanism gives any line a width, because the honest output
+    I raise if no mechanism gives any line a width, because my honest output
     then is not a curve but a message saying which knob is missing.
     """
     lines = [
@@ -481,8 +483,8 @@ def synthesize(
     mass = emitter_mass
     temperature = thermal.conditions.temperature_k if thermal is not None else None
     rates = level_decay_rates(lines)
-    # The lower level's decay rate is looked up in the same table: it is an
-    # upper level for some shorter transition unless it is the ground state.
+    # I look the lower level's decay rate up in the same table: it is an upper
+    # level for some shorter transition unless it is the ground state.
     profiles: list[LineProfile] = []
     metastable: set[str] = set()
     for ln in lines:
@@ -490,7 +492,7 @@ def synthesize(
         terms: list[str] = []
         lower_key = (ln.n_lower, ln.l_lower, ln.j_lower)
         # A lower level with no E1 channel out of it, that is not the ground
-        # state, is metastable. It contributes exactly zero natural width here.
+        # state, is metastable. I give it exactly zero natural width.
         if ln.n_lower > 1 and lower_key not in rates:
             metastable.add(f"{ln.n_lower}{'spdfgh'[ln.l_lower]}")
         gamma_s = (
@@ -532,10 +534,10 @@ def synthesize(
 
     if all(p.fwhm_nm <= 0.0 for p in profiles):
         raise ValueError(
-            "every line in this list has zero width: there is no decay rate "
+            "every line in this list has zero width: I have no decay rate "
             "(turn on intensities), no temperature (turn on LTE weighting), "
-            "and no instrument (set a resolving power). A profile would have "
-            "to be invented, so none is drawn"
+            "and no instrument (set a resolving power). I would have to invent "
+            "a profile, so I draw none"
         )
 
     lo = min(p.wavelength_nm for p in profiles)
@@ -544,29 +546,29 @@ def synthesize(
         lo, hi = window_nm
     else:
         pad = max(3.0 * max(p.fwhm_nm for p in profiles), 0.01 * (hi - lo), 1e-6)
-        # The pad is set by the widest line in the list, and with fine
-        # structure that is a within-n component out at metre wavelengths
-        # whose thermal width alone is kilometres. Subtracting that from the
-        # bluest line walks the window past zero, and a wavelength grid does
-        # not have a negative end. Floor it at half the bluest line instead,
-        # which keeps a real margin without inventing negative light.
+        # The widest line in the list sets my pad, and with fine structure that
+        # is a within-n component out at metre wavelengths whose thermal width
+        # alone is kilometres. Subtracting that from the bluest line walks my
+        # window past zero, and a wavelength grid does not have a negative end.
+        # So I floor it at half the bluest line, which keeps a real margin
+        # without inventing negative light.
         lo, hi = max(lo - pad, 0.5 * lo), hi + pad
     # Zero-width lines (a 2s lower level with no E1 channel, at T = 0) would
-    # collapse their own cluster onto one point; give them the list's median
+    # collapse their own cluster onto one point; I give them the list's median
     # width for *sampling* only, never for the profile itself.
     positive = [p.fwhm_nm for p in profiles if p.fwhm_nm > 0.0]
     fallback = float(np.median(positive))
     widths = np.array([p.fwhm_nm if p.fwhm_nm > 0 else fallback for p in profiles])
     centres = np.array([p.wavelength_nm for p in profiles])
 
-    # The grid is capped for the payload's sake, not the arithmetic's: the
-    # sampling per line is fixed, so a long line list gets a longer grid, and
-    # only a very long one has to give any resolution back.
+    # I cap the grid for the payload's sake, not the arithmetic's: my sampling
+    # per line is fixed, so a long line list gets a longer grid, and only a very
+    # long one has to give any resolution back.
     n_wing, n_core = 60, 21
     background = n_background
     grid = _grid(centres, widths, lo, hi, background, n_core, n_wing)
     coarsened = False
-    # Give up the cheapest thing first: the baseline between lines, then the
+    # I give up the cheapest thing first: the baseline between lines, then the
     # far wings, and only last the core, which is the only part that decides
     # what the peak looks like.
     while grid.size > max_points and (background > 2 or n_wing > 4 or n_core > 5):
@@ -579,18 +581,18 @@ def synthesize(
         grid = _grid(centres, widths, lo, hi, background, n_core, n_wing)
         coarsened = True
 
-    # Each line is summed only over the span where it has anything to say.
+    # I sum each line only over the span where it has anything to say.
     #
-    # The alternative, evaluating every line at every grid point, is exact and
-    # quadratic, and a fine-structure list at n_max = 10 makes that 1e8
-    # profile evaluations. Cutting the wings is the compromise, so the cut has
-    # to be paid for honestly: the neglected flux is computed analytically
-    # from the tail integrals and reported, rather than being assumed small.
+    # My alternative, evaluating every line at every grid point, is exact and
+    # quadratic, and a fine-structure list at n_max = 10 makes that 1e8 profile
+    # evaluations. Cutting the wings is my compromise, so I pay for the cut
+    # honestly: I compute the neglected flux analytically from the tail
+    # integrals and report it, rather than assuming it is small.
     #
     # A Lorentzian tail beyond d carries 2 gamma / (pi d) of the line, and a
-    # Gaussian one carries erfc(d / (sigma sqrt2)). At the default cut of 1e5
-    # FWHM that is around 1e-6 of a line, but the number is measured for the
-    # cut that was actually used, which may be tighter for a broad line.
+    # Gaussian one carries erfc(d / (sigma sqrt2)). At my default cut of 1e5
+    # FWHM that is around 1e-6 of a line, but I measure the number for the cut I
+    # actually used, which may be tighter for a broad line.
     values = np.zeros_like(grid)
     neglected = 0.0
     for p in profiles:
@@ -612,72 +614,72 @@ def synthesize(
         neglected += p.weight * _tail_fraction(span, p.sigma_nm, p.gamma_nm)
 
     # A gas hot and dense enough to be fully ionized has no bound-bound
-    # emission at all, so every weight is legitimately zero. The curve is then
-    # flat zero, which is the answer rather than a failure, and there is no
-    # total to normalize the closure or the dropped flux against.
+    # emission at all, so every weight is legitimately zero. My curve is then
+    # flat zero, which is the answer rather than a failure, and I have no total
+    # to normalize the closure or the dropped flux against.
     total_weight = sum(p.weight for p in profiles)
     closure = (
         float(np.trapezoid(values, grid)) / total_weight if total_weight > 0 else 1.0
     )
     lost = neglected / total_weight if total_weight > 0 else 0.0
     assumptions = [
-        "profile = Voigt (Gaussian widths in quadrature, Lorentzian widths "
-        "added) evaluated with the Faddeeva function; exact given the widths",
-        "grid is adaptive (a cluster per line over a coarse background); each "
-        "line's own centre is a grid point, so no peak is undersampled",
-        f"each line is summed out to {_CUT_FWHM:.0e} of its own FWHM and its "
+        "I used a Voigt profile (Gaussian widths in quadrature, Lorentzian "
+        "widths added) evaluated with the Faddeeva function; exact given the "
+        "widths",
+        "my grid is adaptive (a cluster per line over a coarse background); "
+        "each line's own centre is a grid point, so I undersample no peak",
+        f"I summed each line out to {_CUT_FWHM:.0e} of its own FWHM, with its "
         f"wings dropped beyond that, which loses {lost:.2e} "
         "of the total flux (computed from the analytic tail integrals, not "
-        "assumed); overlapping wings inside that span are summed exactly",
+        "assumed); I sum overlapping wings inside that span exactly",
     ]
     if total_weight <= 0.0:
         assumptions.append(
-            "every line in this spectrum has zero strength, so the curve is "
+            "every line in this spectrum has zero strength, so my curve is "
             "flat zero: at these conditions the gas is fully ionized and there "
             "are no bound electrons left to make a bound-bound line"
         )
     if window_nm is not None:
         assumptions.append(
-            "lines outside the requested window are dropped whole, including "
-            "the wing flux they would have contributed inside it"
+            "I drop lines outside the requested window whole, including the "
+            "wing flux they would have contributed inside it"
         )
     if "Doppler" not in {t for p in profiles for t in p.terms} and temperature:
         assumptions.append(
-            "no Doppler width: this system has no finite emitter mass, so the "
+            "no Doppler width: this system has no finite emitter mass, so my "
             "thermal term is exactly zero (see the mass provenance)"
         )
     assumptions.append(
-        f"the curve integrates to {closure:.4f} times the summed line "
-        "strengths on this grid; the gap is the quadrature error plus any "
+        f"my curve integrates to {closure:.4f} times the summed line "
+        "strengths on this grid; the gap is my quadrature error plus any "
         "flux whose wings fall outside the window, measured here rather "
         "than assumed"
     )
     if metastable:
         assumptions.append(
             "the lower level(s) " + ", ".join(sorted(metastable)) + " have no "
-            "E1 decay channel at all, so they add exactly zero natural width. "
-            "The real 2s is metastable rather than stable: it decays by "
+            "E1 decay channel at all, so I give them exactly zero natural "
+            "width. The real 2s is metastable rather than stable: it decays by "
             "two-photon emission at about 8.2 s^-1, a 0.12 s lifetime. That "
-            "rate is negligible beside the upper level's, so the width is "
-            "right, but the level is not the infinitely sharp thing this "
-            "implies"
+            "rate is negligible beside the upper level's, so my width is right, "
+            "but the level is not the infinitely sharp thing I imply"
         )
     if coarsened:
         assumptions.append(
-            f"grid coarsened to stay inside the evaluation budget "
+            f"I coarsened my grid to stay inside the evaluation budget "
             f"({background} background points, {n_wing} wing samples per line); "
-            "the uniform core of every line was kept, so peak heights are "
-            "unaffected and it is the wings and the baseline that are sampled "
-            "more sparsely"
+            "I kept the uniform core of every line, so peak heights are "
+            "unaffected and it is the wings and the baseline I sample more "
+            "sparsely"
         )
     if resolving_power is not None:
         assumptions.append(
-            f"includes a Gaussian instrument profile at R = {resolving_power:g}, "
+            f"I included a Gaussian instrument profile at R = {resolving_power:g}, "
             "which is a model of a spectrograph and not a property of the atom"
         )
-    # What is missing, sized. Reported for the strongest line, since that is
-    # the one being looked at, and flagged only when it is big enough to
-    # change the shape the user is reading.
+    # What I am missing, sized. I report it for the strongest line, since that
+    # is the one you are looking at, and I flag it only when it is big enough to
+    # change the shape you are reading.
     stark_span = stark_note = None
     if thermal is not None and hydrogenic:
         strongest = max(profiles, key=lambda p: p.weight)
@@ -690,9 +692,9 @@ def synthesize(
                 f"At n_e = {thermal.conditions.electron_density_cm3:.1e} cm^-3, "
                 f"collisional (linear Stark) broadening of the {strongest.label} "
                 f"line would span about {stark_span.value:.3g} nm, against the "
-                f"{strongest.fwhm_nm:.3g} nm modelled here. This curve is "
-                "therefore too narrow: pressure broadening is the missing "
-                "mechanism, and at these densities it is not a correction."
+                f"{strongest.fwhm_nm:.3g} nm I model. My curve is therefore too "
+                "narrow: pressure broadening is the mechanism I am missing, and "
+                "at these densities it is not a correction."
             )
             assumptions.insert(0, stark_note)
 
@@ -704,17 +706,17 @@ def synthesize(
             grid_unit="nm (vacuum)",
             label=f"spectral emissivity ({weight_kind}-weighted)",
             provenance=Provenance(
-                # The Voigt evaluation is exact; every uncertainty here rides in
+                # My Voigt evaluation is exact; every uncertainty here rides in
                 # on the widths (E1-only rates, a Maxwellian, LTE conditions).
                 fidelity=Fidelity.APPROXIMATION,
                 method=(
-                    "sum of area-normalized Voigt line profiles; area of each "
-                    f"line = its {weight_kind}"
+                    "I summed area-normalized Voigt line profiles; the area I "
+                    f"gave each line = its {weight_kind}"
                 ),
                 assumptions=tuple(assumptions) + _NOT_MODELLED,
                 refinement=(
                     "collisional broadening, self-absorption, and a velocity "
-                    "field would each add width this does not have"
+                    "field would each add width my curve does not have"
                 ),
             ),
         ),
