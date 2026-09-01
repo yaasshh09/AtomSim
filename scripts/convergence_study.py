@@ -1,4 +1,4 @@
-"""How I write docs/phase0-convergence.md: my error against grid spacing."""
+"""How I write docs/notes/phase0-convergence.md: my error against grid spacing."""
 
 from pathlib import Path
 
@@ -45,7 +45,7 @@ def main() -> None:
         " via `solve_radial_with_error`.",
         "",
     ]
-    out = Path(__file__).resolve().parents[1] / "docs" / "phase0-convergence.md"
+    out = Path(__file__).resolve().parents[1] / "docs" / "notes" / "phase0-convergence.md"
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"wrote {out}")
 

@@ -110,7 +110,7 @@ def test_convergence_order_harmonic_is_second_order():
 def test_convergence_order_coulomb_documented():
     # u = r*R is smooth at the origin for Coulomb, so O(h^2) is expected; the
     # >1.3 floor guards against regressions on rougher potentials. Observed
-    # orders are recorded in docs/phase0-convergence.md.
+    # orders are recorded in docs/notes/phase0-convergence.md.
     orders, errs = _observed_order(
         lambda r: -1.0 / r, exact=-0.5, l=0, r_max=60.0, n_list=[3000, 6000, 12000]
     )

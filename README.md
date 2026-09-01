@@ -117,8 +117,9 @@ shareable: `?n=3&l=1&m=-1&system=mu-h&view=plane&plane=psi`.
 
 Run the suites with `pytest` from the repo root and `npm test` from `web/`.
 
-Design notes are under [docs/specs/](docs/specs/) and the phase-by-phase
-implementation plans under [docs/plans/](docs/plans/).
+Further documentation is indexed in [docs/](docs/README.md): setup and
+deployment guides, plus the design record, where every phase has a spec saying
+what was built and why, and a plan saying how.
 
 ## License
 

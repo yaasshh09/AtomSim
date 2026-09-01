@@ -57,5 +57,5 @@ it by full path (default all-users install: `C:\ProgramData\miniforge3\condabin\
 
 The spec's open question (does Psi4 ship native Windows builds?) was answered
 during Phase 0: **yes, Psi4 1.11 on conda-forge, win-64, Python 3.10-3.14.**
-Details in [psi4-windows-status.md](psi4-windows-status.md). Psi4 is deliberately
+Details in [notes/psi4-windows-status.md](notes/psi4-windows-status.md). Psi4 is deliberately
 NOT part of the current environment; it arrives in the Hartree-Fock phase.
