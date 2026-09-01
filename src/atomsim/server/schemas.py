@@ -1,7 +1,7 @@
-"""THE canonical JSON forms of Provenance, Quantity, and Field.
+"""THE shapes I speak JSON in: Provenance, Quantity, and Field.
 
-Defined exactly once here; web/src/api/types.ts mirrors these shapes.
-Provenance reaches the browser by construction, never as an afterthought.
+I define them exactly once, here; web/src/api/types.ts mirrors them. My
+provenance reaches the browser by construction, never as an afterthought.
 """
 
 import dataclasses
@@ -45,7 +45,7 @@ class ProvenanceModel(BaseModel):
 
 
 class ChannelModel(BaseModel):
-    """One binary per-point channel of a sample job (positions / density / phase)."""
+    """One binary per-point channel I send for a sample job (positions / density / phase)."""
 
     name: str
     dtype: str
@@ -148,7 +148,7 @@ class FieldModel(BaseModel):
     @classmethod
     def from_field(cls, f: Field) -> "FieldModel":
         if f.values.ndim != 1:
-            raise ValueError(f"only 1-D fields serialize in M1, got shape {f.values.shape}")
+            raise ValueError(f"I only serialize 1-D fields in M1, got shape {f.values.shape}")
         return cls(
             values=f.values.tolist(),
             grid=f.grid.tolist(),
@@ -160,7 +160,7 @@ class FieldModel(BaseModel):
 
 
 class ShellPeakModel(BaseModel):
-    """One shell under both models. A null radius means this model resolves none."""
+    """One shell under both models. A null radius means I resolve none there."""
 
     label: str
     gsz_radius: float | None
@@ -195,14 +195,14 @@ class DensityComparisonModel(BaseModel):
 
 
 def _to_fm(q: Quantity) -> Quantity:
-    """Display conversion bohr -> fm for nuclear radii (server boundary only)."""
+    """My display conversion bohr -> fm for nuclear radii, at this boundary only."""
     return Quantity(
         value=q.value * BOHR_RADIUS_FM,
         unit="fm",
         label=q.label + " [fm]",
         provenance=dataclasses.replace(
             q.provenance,
-            method=q.provenance.method + "; converted to fm via CODATA Bohr radius",
+            method=q.provenance.method + "; I converted it to fm via the CODATA Bohr radius",
             error_estimate=(
                 None if q.provenance.error_estimate is None
                 else q.provenance.error_estimate * BOHR_RADIUS_FM
@@ -218,16 +218,18 @@ class SystemModel(BaseModel):
     mu_ratio: QuantityModel
     m_over_m_nucleus: float
     description: str
-    # None = honestly absent (point lepton or unidentified nucleus), never zero
+    # None = honestly absent to me (point lepton or unidentified nucleus), never
+    # zero
     nuclear_radius: QuantityModel | None
     nuclear_radius_fm: QuantityModel | None
-    # Hydrogenic presets stay exactly as before; screened atoms set kind/n_electrons.
+    # My hydrogenic presets stay as they were; screened atoms set kind and
+    # n_electrons.
     kind: Literal["hydrogenic", "screened"] = "hydrogenic"
     n_electrons: int | None = None
     #: Whether the GSZ screened model has published parameters for this atom.
-    #: False for sulfur and chlorine, which Hartree-Fock solves anyway, so the
-    #: client can grey one model choice instead of hiding the whole element.
-    #: Meaningless for hydrogenic presets, which no screened model touches.
+    #: False for sulfur and chlorine, which I solve with Hartree-Fock anyway, so
+    #: the client can grey one model choice instead of hiding the whole element.
+    #: Meaningless for my hydrogenic presets, which no screened model touches.
     has_gsz: bool = True
 
     @classmethod
@@ -250,7 +252,7 @@ class SystemModel(BaseModel):
             1.0, "m_e", f"mu/m_e ({element.name})",
             Provenance(
                 fidelity=Fidelity.APPROXIMATION,
-                method="infinite nuclear mass (screened-atom model)",
+                method="I assume infinite nuclear mass (screened-atom model)",
             ),
         )
         return cls(
@@ -258,9 +260,9 @@ class SystemModel(BaseModel):
             mu_ratio=QuantityModel.from_quantity(mu), m_over_m_nucleus=0.0,
             description=description, nuclear_radius=None, nuclear_radius_fm=None,
             kind="screened", n_electrons=n_electrons,
-            # Derived, never passed in: a caller that had to remember this flag
-            # would eventually forget it, and the wrong answer here is the app
-            # offering a model that has no parameters to run on.
+            # I derive this, never take it: a caller that had to remember the
+            # flag would eventually forget it, and the wrong answer here is my
+            # app offering a model that has no parameters to run on.
             has_gsz=has_gsz_parameters(element.z),
         )
 
@@ -284,12 +286,12 @@ class ScreenedLevelsModel(BaseModel):
 
 
 class HFOrbitalModel(BaseModel):
-    """One converged Hartree-Fock subshell.
+    """One Hartree-Fock subshell of mine, converged.
 
-    Mirrors ScreenedOrbitalModel field for field so the two models are
-    swappable in a view, and adds `channel`: the orbital amplitude P(r) is an
-    array, so it travels as raw float32 on /api/jobs/{id}/data like every other
-    array in this API rather than being inflated into JSON.
+    I mirror ScreenedOrbitalModel field for field so a view can swap the two
+    models, and I add `channel`: the orbital amplitude P(r) is an array, so I
+    send it as raw float32 on /api/jobs/{id}/data like every other array I have,
+    rather than inflating it into JSON.
     """
 
     n: int
@@ -302,20 +304,21 @@ class HFOrbitalModel(BaseModel):
 
 
 class PauliCollapseModel(BaseModel):
-    """The real atom carried alongside the collapsed one, so the view can say
-    what the exclusion principle was worth without fetching it separately.
+    """The real atom I carry alongside the collapsed one, so a view can say what
+    the exclusion principle was worth without fetching it separately.
 
-    Both halves come off one comparison in the engine rather than two requests,
-    for the reason the exchange energy does: a client free to difference two
-    jobs is free to difference a warm solve against a cold one and report the
-    gap between two calculations as the gap between two models.
+    Both halves come off one comparison inside me rather than two requests, for
+    the reason my exchange energy does: a client free to difference two jobs is
+    free to difference a warm solve against a cold one and report the gap
+    between two calculations as the gap between two models.
 
-    The variational fields are the closed-form check - N electrons in one 1s of
-    exponent zeta - and they are here so the page can show that the collapsed
-    number was tested against something outside this codebase.
+    The variational fields are my closed-form check (N electrons in one 1s of
+    exponent zeta), and they are here so the page can show that I tested the
+    collapsed number against something outside this codebase.
     """
 
-    #: E(collapsed) - E(real). Negative: the collapsed atom is far more bound.
+    #: E(collapsed) - E(real). Negative, because I bind the collapsed atom far
+    #: harder.
     binding_change: QuantityModel
     binding_change_ev: QuantityModel
     real_total_energy: QuantityModel
@@ -331,16 +334,16 @@ class PauliCollapseModel(BaseModel):
 
 
 class HFResultModel(BaseModel):
-    """A finished Hartree-Fock solve, as the browser sees it.
+    """One of my finished Hartree-Fock solves, as the browser sees it.
 
-    Carries z and n_electrons rather than a SystemModel. The screened models
-    are keyed to a named neutral preset, but Hartree-Fock needs no fitted table
-    and so also solves ions that have no preset - K+ and Ar-like Fe both
-    converge - and inventing an Element for those to satisfy the schema would
-    be a fiction in the one place this codebase least wants one.
+    I carry z and n_electrons rather than a SystemModel. My screened models are
+    keyed to a named neutral preset, but Hartree-Fock needs no fitted table, so
+    I also solve ions that have no preset (K+ and Ar-like Fe both converge), and
+    inventing an Element for those to satisfy my schema would be a fiction in
+    the one place this codebase least wants one.
 
     `iterations` and `virial_ratio` are convergence diagnostics. They describe
-    the solve, not the atom, and their provenance says NUMERICAL rather than
+    my solve, not the atom, and their provenance says NUMERICAL rather than
     APPROXIMATION for exactly that reason; a view must not present the virial
     ratio as a physical result.
     """
@@ -351,26 +354,26 @@ class HFResultModel(BaseModel):
     symbol: str | None
     config: str
     is_ground: bool
-    # False means the exchange term was removed: the Hartree model, in which
-    # electrons repel but are distinguishable. Sent as a field rather than left
-    # for the client to infer from the provenance tier, because a view that has
-    # to parse prose to find out which physics it is drawing will eventually
-    # draw the wrong one.
+    # False means I removed the exchange term: the Hartree model, in which
+    # electrons repel but are distinguishable. I send it as a field rather than
+    # leaving the client to infer it from the provenance tier, because a view
+    # that has to parse prose to find out which physics it is drawing will
+    # eventually draw the wrong one.
     exchange: bool = True
-    # E_HF - E_Hartree, present only on a solve that has both to compare, which
-    # in practice means the exchange-energy endpoint rather than a plain solve.
+    # E_HF - E_Hartree, which I send only on a solve that has both to compare,
+    # in practice the exchange-energy endpoint rather than a plain solve.
     exchange_energy: QuantityModel | None = None
     exchange_energy_ev: QuantityModel | None = None
-    # False means the occupancy cap was lifted as well and the configuration
-    # collapsed to 1s^N. Its own field rather than inferred from `exchange`,
-    # because exchange=False on its own is the weaker counterfactual in which
-    # the cap is still enforced, and a view that conflated them would show the
-    # wrong disclosure for whichever one it guessed.
+    # False means I lifted the occupancy cap as well and let the configuration
+    # collapse to 1s^N. Its own field rather than something inferred from
+    # `exchange`, because exchange=False on its own is my weaker counterfactual
+    # in which the cap is still enforced, and a view that conflated them would
+    # show the wrong disclosure for whichever one it guessed.
     pauli: bool = True
-    # The real atom next to the collapsed one. Present only on a pauli=False
+    # The real atom next to the collapsed one. I send it only on a pauli=False
     # solve of a ground configuration; a hand-written collapsed configuration
-    # has no "same atom with the cap on" to be compared against, so nothing is
-    # sent rather than a comparison against a different configuration.
+    # has no "same atom with the cap on" to compare against, so I send nothing
+    # rather than a comparison against a different configuration.
     collapse: PauliCollapseModel | None = None
     orbitals: list[HFOrbitalModel]
     total_energy: QuantityModel
@@ -382,7 +385,7 @@ class HFResultModel(BaseModel):
     coarse_iterations: int
     converged: bool
     provenance: ProvenanceModel
-    # The shared radial grid every P channel is sampled on, in bohr.
+    # The shared radial grid I sample every P channel on, in bohr.
     grid_channel: str
     grid_points: int
     channels: list[ChannelModel]
@@ -435,12 +438,12 @@ class LineModel(BaseModel):
     j_lower: float | None
     energy_ev: QuantityModel
     wavelength_nm: QuantityModel
-    #: Null unless intensities were asked for and can be given honestly; the
+    #: Null unless you asked for intensities and I can give them honestly; my
     #: line list's `intensity_note` then says which case applies.
     einstein_a_s: QuantityModel | None = None
     oscillator_strength: QuantityModel | None = None
-    #: eV/s per atom of the element. Null unless thermal conditions were given.
-    #: A modelled LTE emission rate, not a measured brightness: see the
+    #: eV/s per atom of the element. Null unless you gave me thermal conditions.
+    #: An LTE emission rate I modelled, not a measured brightness: see my
     #: response's `thermal` block for the conditions and their assumptions.
     emissivity: QuantityModel | None = None
 
@@ -467,11 +470,11 @@ class LineModel(BaseModel):
 
 
 class ThermalModel(BaseModel):
-    """The LTE conditions a spectrum was computed at, and what they produced.
+    """The LTE conditions I computed a spectrum at, and what they produced.
 
-    Carried so the view can state what it is drawing. The ionized fraction in
-    particular is not decoration: once it approaches 1 the whole spectrum is
-    dim because there are no neutrals left, and a view that rescaled to the
+    I carry them so a view can state what it is drawing. The ionized fraction in
+    particular is not decoration: once it approaches 1 my whole spectrum is dim
+    because there are no neutrals left, and a view that rescaled to the
     brightest remaining line without saying so would hide that entirely.
     """
 
@@ -491,11 +494,11 @@ class ThermalModel(BaseModel):
 
 
 class LineWidthModel(BaseModel):
-    """The width budget of one line, so the view can say what set it.
+    """My width budget for one line, so a view can say what set it.
 
-    Kept separate from the curve: a user pointing at a line wants to know
-    whether they are looking at temperature, lifetime, or the spectrograph,
-    and only the breakdown answers that.
+    I keep it separate from the curve: someone pointing at a line wants to know
+    whether they are looking at temperature, lifetime, or the spectrograph, and
+    only the breakdown answers that.
     """
 
     label: str
@@ -511,7 +514,7 @@ class LineWidthModel(BaseModel):
 
 
 class ProfileModel(BaseModel):
-    """A synthesized spectrum: the curve, its widths, and what it leaves out."""
+    """A spectrum I synthesized: the curve, its widths, and what I left out."""
 
     wavelength_nm: list[float]
     intensity: list[float]
@@ -519,11 +522,11 @@ class ProfileModel(BaseModel):
     #: "emissivity" | "rate" | "uniform", what the area under a line means.
     weight_kind: str
     resolving_power: float | None
-    #: Curve integral over summed line strengths. The grid's own quadrature
-    #: error, measured by the engine rather than assumed to be negligible.
+    #: Curve integral over summed line strengths. My grid's own quadrature
+    #: error, which I measure rather than assume is negligible.
     flux_closure: float
     widths: list[LineWidthModel]
-    #: The collisional broadening that is NOT in the curve, sized.
+    #: The collisional broadening that is NOT in my curve, sized.
     stark_span_nm: QuantityModel | None
     stark_note: str | None
     provenance: ProvenanceModel
@@ -556,18 +559,18 @@ class ProfileModel(BaseModel):
 
 
 class CurveOfGrowthModel(BaseModel):
-    """How a line's measured strength responds to adding more gas.
+    """How a line's measured strength responds when you add more gas.
 
-    The regime labels are the payload, not the curve. Which branch a line sits
-    on decides whether its strength measures the amount of gas at all, and a
-    plot without that answer would invite exactly the misreading the phase
-    exists to prevent.
+    My regime labels are the payload, not the curve. Which branch a line sits on
+    decides whether its strength measures the amount of gas at all, and a plot
+    without that answer would invite exactly the misreading this phase exists to
+    prevent.
     """
 
     label: str
     wavelength_nm: float
     oscillator_strength: float
-    #: The widths the curve was computed for; the knees sit where they put them.
+    #: The widths I computed the curve for; the knees sit where they put them.
     sigma_nm: float
     gamma_nm: float
     damping_parameter: float
@@ -576,7 +579,7 @@ class CurveOfGrowthModel(BaseModel):
     #: "linear" | "saturated" | "damping", per point.
     regime: list[str]
     #: Local log-log slope: 1, then ~0, then 1/2. The visible signature of the
-    #: branch, though not what the branch is decided by.
+    #: branch, though not what I decide the branch by.
     slope: list[float]
     tau_centre: list[float]
     window_nm: float
@@ -604,14 +607,14 @@ class CurveOfGrowthModel(BaseModel):
 
 
 class AbsorbingLineModel(BaseModel):
-    """One line's share of a blended absorption spectrum."""
+    """One line's share of a blended absorption spectrum of mine."""
 
     wavelength_nm: float
     label: str
     oscillator_strength: float
-    #: Column in *this line's* lower level. The reason one gas gives every
-    #: line a different optical depth, and the number the view has to show
-    #: for the Lyman/Balmer contrast to mean anything.
+    #: Column in *this line's* lower level. The reason I give every line in one
+    #: gas a different optical depth, and the number a view has to show for the
+    #: Lyman/Balmer contrast to mean anything.
     lower_column_m2: float
     tau_centre: float
     regime: str
@@ -633,11 +636,11 @@ class AbsorbingLineModel(BaseModel):
 
 
 class AbsorptionSpectrumModel(BaseModel):
-    """A whole line list absorbing at once against a flat continuum.
+    """A whole line list of mine absorbing at once against a flat continuum.
 
     `saturation` is the payload rather than the curve. It is how much of the
-    census the spectrum is losing, and without it a plot of transmission
-    invites the reading this phase exists to prevent: that a deeper line means
+    census my spectrum is losing, and without it a plot of transmission invites
+    the reading this phase exists to prevent: that a deeper line means
     proportionally more gas.
     """
 
@@ -645,9 +648,9 @@ class AbsorptionSpectrumModel(BaseModel):
     transmission: list[float]
     optical_depth: list[float]
     lines: list[AbsorbingLineModel]
-    #: The gas that produced these populations. Without it the spectrum is a
+    #: The gas that produced these populations. Without it my spectrum is a
     #: shape with no conditions attached, and the whole Lyman/Balmer contrast
-    #: below is unexplained.
+    #: below goes unexplained.
     thermal: ThermalModel | None
     column_density_m2: float
     equivalent_width_nm: float
@@ -657,7 +660,7 @@ class AbsorptionSpectrumModel(BaseModel):
     blends: list[tuple[str, str]]
     flux_closure: float
     provenance: ProvenanceModel
-    #: Provenance of the column density itself, which is a knob and says so.
+    #: Provenance of the column density itself, which is your knob and says so.
     column_provenance: ProvenanceModel
 
     @classmethod
