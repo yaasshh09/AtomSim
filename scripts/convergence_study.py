@@ -1,4 +1,4 @@
-"""Generate docs/phase0-convergence.md: solver error vs grid spacing, observed order."""
+"""How I write docs/phase0-convergence.md: my error against grid spacing."""
 
 from pathlib import Path
 
