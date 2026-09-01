@@ -1,10 +1,12 @@
-"""Classical ghost: what classical electrodynamics predicts for a one-electron atom.
+"""My classical ghost: what classical electrodynamics predicts for a
+one-electron atom.
 
-A classical orbiting electron is an accelerating charge; by the Larmor formula it
-radiates, loses energy, and spirals into the nucleus in picoseconds. That is the
-COUNTERFACTUAL truth of classical rules, computed exactly. The circular Bohr orbits
-are a semi-classical APPROXIMATION (right energy scale, wrong picture). Quantum
-mechanics forbids the collapse, which is the whole lesson.
+A classical orbiting electron is an accelerating charge; by the Larmor formula
+it radiates, loses energy, and spirals into the nucleus in picoseconds. That is
+the COUNTERFACTUAL truth of classical rules, and I compute it exactly. The
+circular Bohr orbits I draw are a semi-classical APPROXIMATION: the right energy
+scale, the wrong picture. Quantum mechanics forbids the collapse, which is the
+whole lesson I am here to show.
 """
 
 import math
@@ -14,16 +16,16 @@ from atomsim.constants import FundamentalConstants
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System, get_system
 
-_APPROX = "Bohr model r_n = n^2 a0 / Z (semi-classical circular orbit)"
-_LARMOR = "Larmor radiative collapse, classical E&M, exact under classical rules"
-_ASSUME = ("classical electrodynamics (deliberately non-quantum)",)
+_APPROX = "Bohr model r_n = n^2 a0 / Z (a semi-classical circular orbit)"
+_LARMOR = "Larmor radiative collapse in classical E&M, exact under classical rules"
+_ASSUME = ("I use classical electrodynamics here, deliberately non-quantum",)
 
 
 @dataclass(frozen=True)
 class BohrOrbit:
     n: int
-    radius_bohr: Quantity   # for drawing in the cloud's Bohr units
-    radius_pm: Quantity     # for display
+    radius_bohr: Quantity   # what I draw with, in the cloud's Bohr units
+    radius_pm: Quantity     # what I display
 
 
 @dataclass(frozen=True)
@@ -51,22 +53,23 @@ def _bohr_orbit(n: int, a0_sys_m: float, a0_m: float, z: int) -> BohrOrbit:
 def classical_ghost(n: int, system: str | System = "h") -> ClassicalGhost:
     if n < 1:
         raise ValueError(f"n must be >= 1, got {n}")
-    # Accept a bare key (registered systems) or an already-resolved System, so the
-    # server can hand us generic hydrogen-like ions (z{N}) that get_system doesn't know.
+    # I accept a bare key for my registered systems or an already-resolved
+    # System, so my server can hand me generic hydrogen-like ions (z{N}) that
+    # get_system does not know.
     sys = system if isinstance(system, System) else get_system(system)
     z = sys.Z
     c = FundamentalConstants.codata()
-    m = sys.mu_ratio.value * c.m_e                 # orbiting reduced mass (kg)
-    a0_m = c.bohr_radius                           # real-electron Bohr radius (m)
-    a0_sys_m = a0_m / sys.mu_ratio.value           # reduced-mass Bohr radius (m)
+    m = sys.mu_ratio.value * c.m_e                 # the orbiting reduced mass (kg)
+    a0_m = c.bohr_radius                           # the real-electron Bohr radius (m)
+    a0_sys_m = a0_m / sys.mu_ratio.value           # the reduced-mass Bohr radius (m)
     k = 1.0 / (4.0 * math.pi * c.eps0)
 
     orbits = tuple(_bohr_orbit(i, a0_sys_m, a0_m, z) for i in range(1, n + 1))
     r0_m = n * n * a0_sys_m / z
 
-    # Larmor closed form: t = r0^3 m^2 c^3 / (4 Z k^2 e^4)
+    # I use the Larmor closed form: t = r0^3 m^2 c^3 / (4 Z k^2 e^4)
     t_collapse = (r0_m**3 * m**2 * c.c**3) / (4.0 * z * k**2 * c.e**4)
-    # initial circular speed and angular velocity
+    # the initial circular speed and angular velocity
     v0 = math.sqrt(z * k * c.e**2 / (m * r0_m))
     omega0 = v0 / r0_m
     period = 2.0 * math.pi / omega0

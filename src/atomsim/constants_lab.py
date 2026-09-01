@@ -1,13 +1,14 @@
-"""What-If Lab: derive the observable consequences of altering the raw constants.
+"""My What-If Lab: I derive the observable consequences of altering the raw
+constants.
 
-The five fundamental constants (hbar, e, m_e, eps0, c) are supplied as multipliers
-on their real CODATA values. From an altered FundamentalConstants this module
-derives the three quantities that are actually observable for a one-electron atom
-against fixed SI rulers, the fine-structure constant alpha, the Bohr radius
-(size), and the Hartree energy (binding), each as a Quantity whose fidelity is
-COUNTERFACTUAL when any multiplier departs from 1, EXACT otherwise. The
-per-observable `changed` flag IS the degeneracy lesson: many distinct multiplier
-tuples leave all three observables identical.
+You give me the five fundamental constants (hbar, e, m_e, eps0, c) as
+multipliers on their real CODATA values. From an altered FundamentalConstants I
+derive the three quantities that are actually observable for a one-electron atom
+against fixed SI rulers: the fine-structure constant alpha, the Bohr radius
+(size), and the Hartree energy (binding). I return each as a Quantity whose
+fidelity is COUNTERFACTUAL when any multiplier departs from 1 and EXACT
+otherwise. My per-observable `changed` flag IS the degeneracy lesson: many
+distinct multiplier tuples leave all three observables identical.
 """
 
 import math
@@ -23,7 +24,7 @@ _MULT_NAMES = ("hbar", "e", "m_e", "eps0", "c")
 class DerivedObservable:
     quantity: Quantity
     ratio: float   # altered / real
-    changed: bool  # not isclose(ratio, 1)
+    changed: bool  # true when I find ratio not close to 1
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def _observable(
     changed = not math.isclose(ratio, 1.0, rel_tol=1e-9)
     method = formula
     if altered:
-        method += f"; altered raw constants ({applied})"
+        method += f"; I altered the raw constants ({applied})"
     return DerivedObservable(
         quantity=Quantity(
             value=alt_value,
@@ -52,7 +53,7 @@ def _observable(
                 fidelity=Fidelity.COUNTERFACTUAL if altered else Fidelity.EXACT,
                 method=method,
                 assumptions=(
-                    "observable measured against fixed real-universe SI rulers",
+                    "I measure this observable against fixed real-universe SI rulers",
                 ),
             ),
         ),
@@ -65,7 +66,7 @@ def analyze_constants(
     hbar: float = 1.0, e: float = 1.0, m_e: float = 1.0,
     eps0: float = 1.0, c: float = 1.0,
 ) -> ConstantsReport:
-    """Derive alpha, Bohr radius (pm), and Hartree energy (eV) from multipliers."""
+    """I derive alpha, the Bohr radius (pm) and the Hartree energy (eV) from your multipliers."""
     mults = (hbar, e, m_e, eps0, c)
     altered = any(not math.isclose(v, 1.0, rel_tol=1e-12) for v in mults)
     applied = ", ".join(
@@ -78,7 +79,7 @@ def analyze_constants(
         hbar=real.hbar * hbar, e=real.e * e, m_e=real.m_e * m_e,
         eps0=real.eps0 * eps0, c=real.c * c,
     )
-    # 1 eV = (real elementary charge) joules, a fixed SI ruler, never altered.
+    # 1 eV = (the real elementary charge) joules, a fixed SI ruler I never alter.
     joule_per_ev = real.e
 
     return ConstantsReport(

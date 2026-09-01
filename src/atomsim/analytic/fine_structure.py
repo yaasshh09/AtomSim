@@ -60,7 +60,10 @@ def fine_structure_shift(
             method=method,
             assumptions=_FS_ASSUMPTIONS,
             error_estimate=error,
-            refinement="I could solve Dirac hydrogen exactly instead (the planned Phase 3 flagship)",
+            refinement=(
+                "I could solve Dirac hydrogen exactly instead "
+                "(the planned Phase 3 flagship)"
+            ),
         ),
     )
 

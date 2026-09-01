@@ -15,7 +15,7 @@ class Fidelity(Enum):
     EXACT = "exact"                    # I solved the stated model in closed form
     NUMERICAL = "numerical"            # I converged numerically, and I quantify the error
     APPROXIMATION = "approximation"    # an honest simplified model, and I state my assumptions
-    COUNTERFACTUAL = "counterfactual"  # I altered the physics deliberately, then solved it rigorously
+    COUNTERFACTUAL = "counterfactual"  # physics I deliberately altered, then solved rigorously
     VISUAL_LIBERTY = "visual_liberty"  # a purely presentational choice of mine, disclosed
 
 

@@ -90,7 +90,10 @@ def _dipole_quadrature(n: int, l: int, n2: int, l2: int, kappa: float, nodes: in
 def dipole_radial_integral(
     n: int, l: int, n2: int, l2: int, Z: int = 1, mu_ratio: float = 1.0,
 ) -> Quantity:
-    """The radial dipole matrix element <n2 l2 | r | n l> I compute, in bohr. It is symmetric in the pair."""
+    """The radial dipole matrix element <n2 l2 | r | n l> I compute, in bohr.
+
+    It is symmetric in the pair.
+    """
     validate_quantum_numbers(n, l)
     validate_quantum_numbers(n2, l2)
     _validate_physical(Z, mu_ratio)
@@ -194,7 +197,10 @@ def oscillator_strength(
 def einstein_A(
     n_up: int, l_up: int, n_low: int, l_low: int, Z: int = 1, mu_ratio: float = 1.0,
 ) -> Quantity:
-    """The spontaneous emission rate A I get for n'l' -> nl, in s^-1. I return 0 when it is not a decay channel."""
+    """The spontaneous emission rate A I get for n'l' -> nl, in s^-1.
+
+    I return 0 when it is not a decay channel.
+    """
     validate_quantum_numbers(n_up, l_up)
     validate_quantum_numbers(n_low, l_low)
     dE = energy(n_up, Z=Z, mu_ratio=mu_ratio).value - energy(n_low, Z=Z, mu_ratio=mu_ratio).value

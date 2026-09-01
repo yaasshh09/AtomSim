@@ -30,7 +30,7 @@ _CHEMISTRY_LABELS = {
 
 @dataclass(frozen=True)
 class AngularValues:
-    """Y_lm or S_lm as I evaluated them on (theta, phi) points. The container carries my provenance."""
+    """Y_lm or S_lm as I evaluated them on (theta, phi) points, with my provenance."""
 
     values: np.ndarray  # complex128 for basis="complex", float64 for "real"
     theta: np.ndarray

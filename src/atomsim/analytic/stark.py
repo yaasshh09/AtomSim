@@ -22,11 +22,13 @@ from atomsim.constants import E0_V_PER_M
 from atomsim.provenance import Fidelity, Provenance, Quantity
 
 _S_ASSUMPTIONS = (
-    "I use second-order perturbation theory (linear + quadratic) and neglect third and higher orders",
+    "I use second-order perturbation theory (linear + quadratic) and neglect "
+    "third and higher orders",
     "I treat the field as static, so this manifold is a resonance rather than a true bound state "
     "and I neglect field ionization",
     "I work on the gross structure only, neglecting fine structure and its low-field crossover",
-    "I work non-relativistically, so this is independent of alpha: altering alpha does not move this shift",
+    "I work non-relativistically, so this is independent of alpha: altering "
+    "alpha does not move this shift",
 )
 
 

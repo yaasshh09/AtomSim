@@ -15,9 +15,11 @@ from atomsim.provenance import Fidelity, Provenance, Quantity
 
 _DIRAC_ASSUMPTIONS = (
     "I return the exact eigenvalue of the one-body Dirac-Coulomb equation (point nucleus)",
-    "I include no Lamb shift or QED radiative corrections, and in reality those split 2s1/2 from 2p1/2",
+    "I include no Lamb shift or QED radiative corrections, and in reality "
+    "those split 2s1/2 from 2p1/2",
     "I model no hyperfine structure and apply no finite-nuclear-size correction",
-    "I take the reduced mass by mu-scaling the rest energy and neglect two-body relativistic recoil",
+    "I take the reduced mass by mu-scaling the rest energy and neglect "
+    "two-body relativistic recoil",
 )
 
 
@@ -40,7 +42,7 @@ def _validate(n: int, j: float, Z: int, alpha: float) -> None:
 def dirac_energy(
     n: int, j: float, Z: int = 1, mu_ratio: float = 1.0, alpha: float = ALPHA
 ) -> Quantity:
-    """The exact Dirac-Coulomb binding energy E(n, j) I return, in hartree, with the rest energy subtracted."""
+    """The exact Dirac-Coulomb energy E(n, j) I return, in hartree, rest energy subtracted."""
     _validate(n, j, Z, alpha)
     gamma = math.sqrt((j + 0.5) ** 2 - (Z * alpha) ** 2)
     d = n - (j + 0.5) + gamma
@@ -69,7 +71,10 @@ def dirac_energy(
             method=method,
             assumptions=_DIRAC_ASSUMPTIONS,
             error_estimate=omitted,
-            refinement="I could add QED and the Lamb shift (the 2s-2p splitting), then hyperfine structure",
+            refinement=(
+                "I could add QED and the Lamb shift (the 2s-2p splitting), "
+                "then hyperfine structure"
+            ),
         ),
     )
 
