@@ -1,18 +1,17 @@
-"""Minimal in-memory async-job pattern: create -> run (in any thread) -> poll/stream.
+"""How I run slow work: create -> run (in any thread) -> poll or stream.
 
 Deliberately simple, but not unbounded. A finished job holds its whole result,
-and a result is an array: 1.2 MB for the default 100k-point cloud, about 20 MB
-for a million-point one once psi is counted alongside the positions. A store
-that only ever grew was fine for one person on a laptop for an afternoon and is
-a slow memory leak on a host that stays up for weeks, so the store keeps the
-most recent `max_jobs` and drops the rest oldest-first.
+and a result is an array: 1.2 MB for my default 100k-point cloud, about 20 MB
+for a million-point one once I count psi alongside the positions. A store that
+only ever grew was fine for one person on a laptop for an afternoon and is a
+slow memory leak on a host that stays up for weeks, so I keep the most recent
+`max_jobs` and drop the rest oldest-first.
 
-Only finished jobs are ever evicted. Dropping a RUNNING one would leave its
-worker thread writing a result into an object nobody can reach, and the client
-watching its websocket would wait for a completion that can no longer be
-reported. If nothing has finished, the store exceeds the cap and says so by
-simply not evicting, which is the honest failure: too much memory beats a job
-that vanishes mid-flight.
+I only ever evict finished jobs. Dropping a RUNNING one would leave its worker
+thread writing a result into an object nobody can reach, and the client watching
+its websocket would wait for a completion I can no longer report. If nothing has
+finished I go over the cap and say so by simply not evicting, which is my honest
+failure: too much memory beats a job that vanishes mid-flight.
 """
 
 import threading
@@ -23,10 +22,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-#: Retained finished jobs. 16 x 20 MB is the worst case (sixteen consecutive
-#: requests at the million-point ceiling); 16 x 1.2 MB is the realistic one.
-#: The client fetches a job's data immediately after it reports DONE, so the
-#: window in which eviction could beat a fetch is milliseconds wide.
+#: How many finished jobs I keep. 16 x 20 MB is my worst case (sixteen
+#: consecutive requests at the million-point ceiling); 16 x 1.2 MB is the
+#: realistic one. The client fetches a job's data immediately after I report
+#: DONE, so the window in which my eviction could beat a fetch is milliseconds
+#: wide.
 DEFAULT_MAX_JOBS = 16
 
 
@@ -37,7 +37,7 @@ class JobStatus(Enum):
     ERROR = "error"
 
 
-#: A job that will never change again, and so may be evicted.
+#: A job that will never change again, so I may evict it.
 _FINISHED = (JobStatus.DONE, JobStatus.ERROR)
 
 
@@ -59,8 +59,8 @@ class JobStore:
         self._jobs: OrderedDict[str, Job] = OrderedDict()
         self._lock = threading.Lock()
         self._max_jobs = max_jobs
-        #: Called once per evicted id. The server keeps per-job lookup tables
-        #: beside the store, and they would leak in step with it otherwise.
+        #: I call this once per evicted id. The server keeps per-job lookup
+        #: tables beside me, and they would leak in step with me otherwise.
         self._on_evict = on_evict
 
     def create(self) -> Job:
@@ -68,15 +68,15 @@ class JobStore:
         with self._lock:
             self._jobs[job.id] = job
             evicted = self._evict_locked()
-        # Outside the lock: a callback reaching back into the store would
-        # deadlock, and nothing here needs the store to stay frozen.
+        # Outside the lock: a callback reaching back into me would deadlock,
+        # and nothing here needs me frozen.
         for job_id in evicted:
             if self._on_evict is not None:
                 self._on_evict(job_id)
         return job
 
     def _evict_locked(self) -> list[str]:
-        """Drop finished jobs, oldest first, until the store fits. Caller holds the lock."""
+        """I drop finished jobs, oldest first, until I fit. Caller holds the lock."""
         evicted: list[str] = []
         while len(self._jobs) > self._max_jobs:
             oldest = next(
@@ -84,7 +84,7 @@ class JobStore:
                 None,
             )
             if oldest is None:
-                break  # everything still in flight; over the cap is the safe side
+                break  # all still in flight; I would rather sit over the cap
             del self._jobs[oldest]
             evicted.append(oldest)
         return evicted
@@ -98,7 +98,7 @@ class JobStore:
             return len(self._jobs)
 
     def run(self, job_id: str, fn: Callable[[Callable[[float], None]], Any]) -> None:
-        """Execute fn in the calling thread, streaming progress into the job."""
+        """I run fn in the calling thread, streaming its progress into the job."""
         job = self.get(job_id)
         if job is None:
             raise KeyError(f"unknown job id: {job_id}")
@@ -109,7 +109,7 @@ class JobStore:
 
         try:
             job.result = fn(report)
-        except Exception as exc:  # honest failure: surface type + message
+        except Exception as exc:  # my honest failure: surface type + message
             job.error = f"{type(exc).__name__}: {exc}"
             job.status = JobStatus.ERROR
         else:

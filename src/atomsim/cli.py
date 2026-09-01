@@ -1,10 +1,10 @@
-"""Command-line entry point: `atomsim serve` launches the local app.
+"""My command line: `atomsim serve` launches the local app.
 
-The server stack is imported inside `main`, not at module scope. Importing it
-eagerly cost 5.4 of the 6.3 seconds it took to load this module - FastAPI,
-uvicorn, and matplotlib by way of the thumbnail renderer - and every one of
-those seconds was paid by `atomsim --help` and by any future subcommand that
-never starts a server. Argument parsing does not need a web framework.
+I import the server stack inside `main`, not at module scope. Importing it
+eagerly cost 5.4 of the 6.3 seconds I took to load (FastAPI, uvicorn, and
+matplotlib by way of the thumbnail renderer), and `atomsim --help` paid every
+one of those seconds, as would any future subcommand that never starts a
+server. Parsing arguments does not need a web framework.
 """
 
 import argparse
@@ -38,5 +38,5 @@ def main(argv: list[str] | None = None) -> None:
         uvicorn.run(create_app(), host="127.0.0.1", port=args.port)
 
 
-if __name__ == "__main__":  # `python -m atomsim.cli`, alongside the console script
+if __name__ == "__main__":  # `python -m atomsim.cli`, beside the console script
     main()

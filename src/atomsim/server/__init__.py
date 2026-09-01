@@ -1,1 +1,1 @@
-"""Local FastAPI server: the engine's honesty-preserving boundary to the browser."""
+"""My local FastAPI server: the boundary where I hand my honesty to the browser."""
