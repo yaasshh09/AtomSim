@@ -63,6 +63,13 @@ def test_a_mounted_build_is_said_out_loud(monkeypatch, built, caplog):
         create_app()
 
     assert str(built) in caplog.text
+    # The wording, not only the path. `scripts/smoke_container.sh` greps the
+    # container's logs for this phrase, and the path alone cannot tell it apart
+    # from the warning that names the same directory when nothing mounted. That
+    # left the phrase asserted only on a Linux runner: rewording the log line
+    # kept every test here green and failed the container job instead. Reword
+    # this and the script together, or neither.
+    assert "I mounted the UI from" in caplog.text
 
 
 def test_an_unconfigured_root_is_given_a_handler():

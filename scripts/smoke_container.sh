@@ -31,7 +31,7 @@ echo "--- the interface is mounted"
 curl -fsS "${BASE}/" | grep -q 'id="root"'
 
 echo "--- the startup said where it mounted from"
-docker logs "$NAME" 2>&1 | grep -q "UI mounted from /app/web/dist"
+docker logs "$NAME" 2>&1 | grep -q "I mounted the UI from /app/web/dist"
 
 echo "--- a job runs to completion"
 JOB=$(curl -fsS -X POST "${BASE}/api/jobs/sample" \
