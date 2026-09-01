@@ -1,10 +1,11 @@
-"""Elements, subshells, and Aufbau configurations for screened atoms (Phase 6).
+"""My elements, subshells, and Aufbau configurations for screened atoms
+(Phase 6).
 
-Pure data and combinatorics, no physics engine. A Configuration is an ordered
-tuple of ((n, l), occupancy) in Madelung filling order. The screened potential
-depends only on (Z, N); the configuration decides which computed orbitals are
-occupied and thus the summed energy. See docs/specs/
-2026-07-18-phase6-screened-atoms-design.md.
+This is pure data and combinatorics: I run no physics engine here. A
+Configuration is an ordered tuple of ((n, l), occupancy) in Madelung filling
+order. My screened potential depends only on (Z, N), and the configuration
+decides which of the orbitals I computed are occupied, and so what I sum for
+the energy. See docs/specs/2026-07-18-phase6-screened-atoms-design.md.
 """
 
 import itertools
@@ -22,7 +23,7 @@ def subshell_capacity(l: int) -> int:
 
 
 def _madelung_order() -> list[Subshell]:
-    """(n, l) shells sorted by (n + l, n), the Madelung/Aufbau rule."""
+    """My (n, l) shells, sorted by (n + l, n): the Madelung/Aufbau rule."""
     shells = [(n, l) for n in range(1, 8) for l in range(n)]
     shells.sort(key=lambda nl: (nl[0] + nl[1], nl[0]))
     return shells
@@ -32,12 +33,12 @@ _MADELUNG = _madelung_order()
 
 
 def aufbau_configuration(n_electrons: int, pauli: bool = True) -> Configuration:
-    """The ground configuration for this many electrons.
+    """The ground configuration I give for this many electrons.
 
-    pauli=False lifts the occupancy cap, and then the ground configuration is
+    pauli=False lifts my occupancy cap, and then the ground configuration is
     1s^N: with nothing forbidding it, every electron sits in the lowest orbital.
-    That single line is the whole of "why chemistry exists" - the Madelung walk
-    below exists only because the cap makes it necessary.
+    That single line is the whole of "why chemistry exists", because the
+    Madelung walk below exists only where the cap makes it necessary.
     """
     if n_electrons < 1:
         raise ValueError(f"n_electrons must be >= 1, got {n_electrons}")
@@ -79,11 +80,11 @@ def is_ground(config: Configuration, pauli: bool = True) -> bool:
 
 
 def validate_config(config: Configuration, pauli: bool = True) -> None:
-    """Reject a configuration this model cannot mean.
+    """I reject a configuration I cannot mean.
 
-    pauli=False drops only the capacity check. `n > l` stays: that one is not
+    pauli=False drops only my capacity check. I keep `n > l`: that one is not
     the exclusion principle, it is what makes (n, l) name a radial function at
-    all, and a subshell with n <= l has no orbital to put an electron in
+    all, and a subshell with n <= l gives me no orbital to put an electron in
     whether or not electrons exclude each other.
     """
     for (n, l), occ in config:
@@ -98,17 +99,17 @@ def validate_config(config: Configuration, pauli: bool = True) -> None:
 
 
 def open_subshells(config: Configuration) -> Configuration:
-    """The partially filled subshells: 0 < q < 2(2l+1)."""
+    """The partially filled subshells I find: 0 < q < 2(2l+1)."""
     return tuple(
         (nl, occ) for nl, occ in config if 0 < occ < subshell_capacity(nl[1])
     )
 
 
 def _microstate_census(l: int, q: int) -> Counter[tuple[int, int]]:
-    """(M_L, 2*M_S) census of the determinants of one l^q subshell.
+    """My (M_L, 2*M_S) census of the determinants of one l^q subshell.
 
-    M_S is half-integral, so it is carried doubled to keep every key an int and
-    the arithmetic exact.
+    M_S is half-integral, so I carry it doubled to keep every key an int and my
+    arithmetic exact.
     """
     spin_orbitals = [(ml, ms) for ml in range(-l, l + 1) for ms in (1, -1)]
     census: Counter[tuple[int, int]] = Counter()
@@ -118,18 +119,19 @@ def _microstate_census(l: int, q: int) -> Counter[tuple[int, int]]:
 
 
 def subshell_terms(l: int, q: int) -> tuple[tuple[int, int], ...]:
-    """The Russell-Saunders terms of the equivalent electrons l^q, as (L, 2S).
+    """The Russell-Saunders terms I find for the equivalent electrons l^q, as
+    (L, 2S).
 
-    The textbook peel: take the largest M_S still in the census, the largest
-    M_L that survives at it, call that a term (L, S), strike its whole
-    (2L+1)(2S+1) rectangle of microstates, repeat until the census is empty.
-    p^2 gives 3P, 1D, 1S; p^3 gives 4S, 2D, 2P; p^1 and p^5 give a bare 2P.
+    I run the textbook peel: take the largest M_S still in my census, then the
+    largest M_L that survives at it, call that a term (L, S), strike its whole
+    (2L+1)(2S+1) rectangle of microstates, and repeat until the census is empty.
+    p^2 gives me 3P, 1D, 1S; p^3 gives 4S, 2D, 2P; p^1 and p^5 give a bare 2P.
 
-    S is returned doubled, for the same reason the census carries it that way:
-    a spin of 3/2 is exact as the integer 3 and inexact as the float 1.5.
+    I return S doubled, for the same reason my census carries it that way: a
+    spin of 3/2 is exact as the integer 3 and inexact as the float 1.5.
 
-    This is combinatorics, not a computed quantity, so it returns plain ints.
-    The terms follow from the Pauli principle alone; there is no model in here
+    This is combinatorics and not something I computed, so I return plain ints.
+    The terms follow from the Pauli principle alone, and I have no model in here
     to be honest or dishonest about.
     """
     if not 0 <= q <= subshell_capacity(l):
@@ -155,17 +157,17 @@ def subshell_terms(l: int, q: int) -> tuple[tuple[int, int], ...]:
 
 
 def subshell_term_count(l: int, q: int) -> int:
-    """How many Russell-Saunders terms l^q spans. 1 means nothing to average."""
+    """How many Russell-Saunders terms l^q spans. 1 leaves me nothing to average."""
     return len(subshell_terms(l, q))
 
 
 def is_single_term(config: Configuration) -> bool:
     """True when the configuration spans exactly one Russell-Saunders term.
 
-    This decides whether "average of configuration" is a real limitation or an
-    empty one. A configuration with one term has nothing to average: its
-    configuration-average energy IS that term's energy. Closed subshells span
-    only 1S; a lone open subshell is the interesting case and is counted;
+    This decides whether my "average of configuration" is a real limitation or
+    an empty one. A configuration with one term leaves me nothing to average:
+    its configuration-average energy IS that term's energy. Closed subshells
+    span only 1S; a lone open subshell is the interesting case, so I count it;
     two or more open subshells always span at least two terms, because each
     contributes a term with S >= 1/2 and coupling those gives more than one
     total spin.
@@ -181,17 +183,17 @@ class Element:
     z: int
     symbol: str
     name: str
-    #: Standard atomic weight, in unified atomic mass units. This is the mass
-    #: of the whole neutral atom for the natural terrestrial isotope mixture,
-    #: which is what a Doppler width needs: the emitter that recoils is the
-    #: atom, not the electron. A mixture is not one mass, and the spread shows
-    #: up in a real spectrum as an isotope shift that this does not model.
+    #: The standard atomic weight, in unified atomic mass units. This is the
+    #: mass of the whole neutral atom for the natural terrestrial isotope
+    #: mixture, which is what a Doppler width needs: the emitter that recoils is
+    #: the atom, not the electron. A mixture is not one mass, and the spread
+    #: shows up in a real spectrum as an isotope shift I do not model.
     mass_u: float
 
 
-#: Standard atomic weights, IUPAC/CIAAW 2021 table (abridged to the digits that
-#: matter here: a Doppler width goes as 1/sqrt(m), so the fourth digit moves it
-#: by parts in ten thousand, far below the model's own error).
+#: The standard atomic weights I use, from the IUPAC/CIAAW 2021 table. I abridge
+#: them to the digits that matter to me: a Doppler width goes as 1/sqrt(m), so
+#: the fourth digit moves it by parts in ten thousand, far below my own error.
 ELEMENTS: tuple[Element, ...] = (
     Element(1, "H", "Hydrogen", 1.008), Element(2, "He", "Helium", 4.002602),
     Element(3, "Li", "Lithium", 6.94), Element(4, "Be", "Beryllium", 9.012183),
@@ -207,43 +209,43 @@ ELEMENTS: tuple[Element, ...] = (
 _BY_SYMBOL = {e.symbol: e for e in ELEMENTS}
 _BY_Z = {e.z: e for e in ELEMENTS}
 
-# Elements with no published neutral GSZ screening parameters. Szydlik & Green,
-# Phys. Rev. A 9, 1885 (1974), Table I tabulates neutral atoms He..P and Ar, but
-# skips neutral S and Cl (their 3s^2 3p^4 / 3p^5 blocks list only Ar^2+ / Ar^+).
-# Rather than invent parameters, we omit these atoms from the preset library, the
-# prime directive forbids quietly shipping physics we cannot source.
+# The elements I have no published neutral GSZ screening parameters for. Szydlik
+# & Green, Phys. Rev. A 9, 1885 (1974), Table I tabulates neutral atoms He..P and
+# Ar, but skips neutral S and Cl (their 3s^2 3p^4 / 3p^5 blocks list only Ar^2+ /
+# Ar^+). Rather than invent parameters, I leave these atoms out of my preset
+# library: my prime directive forbids quietly shipping physics I cannot source.
 #
-# This set bounds the GSZ model, not the engine. Hartree-Fock builds its own
-# potential out of the orbitals it is solving for, so it needs no fitted table
+# This set bounds my GSZ model, not my engine. Hartree-Fock builds its own
+# potential out of the orbitals it is solving for, so it needs no fitted table,
 # and hf_atom.solve_hartree_fock runs sulfur and chlorine like any other atom.
 NO_GSZ_PARAMETERS: frozenset[int] = frozenset({16, 17})  # S, Cl
 
-# Every many-electron atom the application can name, neutral He..Ar. Membership
-# means "this key identifies an atom", and nothing more.
+# Every many-electron atom I can name, neutral He..Ar. Membership means "this
+# key identifies an atom", and nothing more.
 #
-# It used to mean "this key means the screened model" as well, and the two were
-# the same list because GSZ was the only model that could draw anything. Since
-# Hartree-Fock reaches every view that stopped being true, and the conflation
-# had a visible cost: sulfur and chlorine were absent from the application
-# entirely - including the Levels view, which runs on Hartree-Fock and needs no
-# fitted parameters - purely because a 1974 paper does not tabulate them. The
-# atom the engine can solve and the atom one model has parameters for are two
-# different questions, so they are two lists.
+# It used to mean "this key means my screened model" as well, and the two were
+# the same list because GSZ was the only model I had that could draw anything.
+# Once Hartree-Fock reached every view that stopped being true, and conflating
+# the two cost me something visible: sulfur and chlorine were missing from the
+# application entirely, the Levels view included, which runs on Hartree-Fock and
+# needs no fitted parameters, purely because a 1974 paper does not tabulate them.
+# The atom I can solve and the atom one of my models has parameters for are two
+# different questions, so I keep two lists.
 ATOM_KEYS: tuple[str, ...] = tuple(
     e.symbol.lower() for e in ELEMENTS if e.z >= 2
 )
 
-# The atoms the GSZ screened model can speak for: neutral He..P and Ar. Callers
-# that are about to build a screened potential want this one, and owe the
-# reader a refusal naming NO_GSZ_PARAMETERS rather than a ValueError from
-# inside the screening table.
+# The atoms my GSZ screened model can speak for: neutral He..P and Ar. A caller
+# about to build a screened potential wants this list, and owes the reader a
+# refusal naming NO_GSZ_PARAMETERS rather than a ValueError thrown from inside
+# my screening table.
 GSZ_ATOM_KEYS: tuple[str, ...] = tuple(
     k for k in ATOM_KEYS if _BY_SYMBOL[k.capitalize()].z not in NO_GSZ_PARAMETERS
 )
 
 
 def has_gsz_parameters(z: int) -> bool:
-    """Whether Szydlik and Green fitted this element. See NO_GSZ_PARAMETERS."""
+    """Whether Szydlik and Green fitted this element for me. See NO_GSZ_PARAMETERS."""
     return z not in NO_GSZ_PARAMETERS
 
 

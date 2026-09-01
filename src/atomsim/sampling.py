@@ -1,9 +1,11 @@
-"""Monte-Carlo sampling of |psi_nlm|^2: sampling IS physics and carries provenance.
+"""How I sample |psi_nlm|^2 by Monte-Carlo. My sampling IS physics, so it
+carries provenance.
 
-Factorized inverse-CDF sampling: r from P(r) = r^2 R_nl^2 and cos(theta) from
-the normalized |Theta_lm|^2 in both bases. phi is uniform in the complex basis
-(|Y_lm|^2 is phi-independent) and follows the analytic cos^2/sin^2(m phi)
-marginal for real orbitals (|S_lm|^2 stays separable in theta and phi).
+I factorize the inverse-CDF draw: r from P(r) = r^2 R_nl^2 and cos(theta) from
+the normalized |Theta_lm|^2 in both bases. I draw phi uniformly in the complex
+basis, because |Y_lm|^2 does not depend on it, and from the analytic
+cos^2/sin^2(m phi) marginal for real orbitals, because |S_lm|^2 stays separable
+in theta and phi.
 """
 
 from collections.abc import Callable
@@ -26,7 +28,7 @@ _X_GRID_POINTS = 4096
 
 @dataclass(frozen=True)
 class SampleCloud:
-    """Positions sampled from |psi_nlm|^2, in bohr. Container carries provenance."""
+    """The positions I sampled from |psi_nlm|^2, in bohr, with my provenance."""
 
     positions: np.ndarray  # (count, 3) float32
     n: int
@@ -39,7 +41,7 @@ class SampleCloud:
 
 
 def _radial_inverse_cdf_tabulated(r_grid: np.ndarray, R_values: np.ndarray):
-    """Grid r and CDF of P(r) = r^2 R^2 from a tabulated R_nl (grid, values)."""
+    """My r grid and the CDF of P(r) = r^2 R^2, from a tabulated R_nl."""
     p = r_grid * r_grid * R_values * R_values
     cdf = cumulative_trapezoid(p, r_grid, initial=0.0)
     cdf /= cdf[-1]
@@ -47,15 +49,15 @@ def _radial_inverse_cdf_tabulated(r_grid: np.ndarray, R_values: np.ndarray):
 
 
 def _radial_inverse_cdf(n: int, l: int, Z: int, mu_ratio: float):
-    """Grid r and CDF of P(r) = r^2 R_nl^2 for inverse-CDF sampling (analytic)."""
-    r_max = 20.0 * n * n / (Z * mu_ratio)  # P(r_max)/P_peak < 1e-15 for all l < n
+    """My r grid and the CDF of P(r) = r^2 R_nl^2, from the analytic R_nl."""
+    r_max = 20.0 * n * n / (Z * mu_ratio)  # P(r_max)/P_peak < 1e-15 for every l < n
     r = np.linspace(0.0, r_max, _R_GRID_POINTS)
     R = radial_wavefunction(n, l, r, Z=Z, mu_ratio=mu_ratio).values
     return _radial_inverse_cdf_tabulated(r, R)
 
 
 def _costheta_inverse_cdf(l: int, m: int):
-    """Grid x = cos(theta) and CDF of |Theta_lm|^2 (normalization cancels)."""
+    """My x = cos(theta) grid and the CDF of |Theta_lm|^2. The normalization cancels."""
     x = np.linspace(-1.0, 1.0, _X_GRID_POINTS)
     p = lpmv(abs(m), l, x) ** 2
     cdf = cumulative_trapezoid(p, x, initial=0.0)
@@ -64,7 +66,7 @@ def _costheta_inverse_cdf(l: int, m: int):
 
 
 def _phi_inverse_cdf(m: int):
-    """Grid phi and CDF of the real-basis phi marginal (cos^2/sin^2 type)."""
+    """My phi grid and the CDF of the real-basis phi marginal (cos^2/sin^2 type)."""
     phi = np.linspace(0.0, 2.0 * np.pi, _X_GRID_POINTS)
     am = abs(m)
     if m > 0:
@@ -76,7 +78,7 @@ def _phi_inverse_cdf(m: int):
 
 
 def _draw_positions(count, r_grid, r_cdf, x_grid, x_cdf, phi_sampler, seed, n_chunks, progress):
-    """Inverse-CDF draw of `count` Cartesian positions (bohr) from factorized CDFs."""
+    """I draw `count` Cartesian positions (bohr) from my factorized CDFs."""
     rng = np.random.default_rng(seed)
     sizes = np.full(n_chunks, count // n_chunks)
     sizes[: count % n_chunks] += 1
@@ -116,7 +118,7 @@ def sample_density(
     n_chunks: int = 10,
     basis: str = "complex",
 ) -> SampleCloud:
-    """Draw `count` positions from |psi_nlm|^2 in the chosen angular basis."""
+    """I draw `count` positions from |psi_nlm|^2 in the angular basis you name."""
     validate_quantum_numbers(n, l)
     if abs(m) > l:
         raise ValueError(f"|m| must be <= l, got m={m}, l={l}")
@@ -139,16 +141,17 @@ def sample_density(
     provenance = Provenance(
         fidelity=Fidelity.NUMERICAL,
         method=(
-            f"factorized inverse-CDF Monte-Carlo of |psi_nlm|^2 ({basis} basis): "
-            f"r from P(r)=r^2 R^2 (grid N={_R_GRID_POINTS}, r_max={r_max:g} bohr), "
-            f"cos(theta) from |Theta_lm|^2 (grid N={_X_GRID_POINTS}), {phi_desc}"
+            f"I sampled |psi_nlm|^2 by factorized inverse-CDF Monte-Carlo "
+            f"({basis} basis): r from P(r)=r^2 R^2 (grid N={_R_GRID_POINTS}, "
+            f"r_max={r_max:g} bohr), cos(theta) from |Theta_lm|^2 "
+            f"(grid N={_X_GRID_POINTS}), {phi_desc}"
         ),
         assumptions=(
-            f"angular basis: {basis}",
-            f"RNG PCG64 seed={seed}, count={count}",
-            "positions in bohr",
+            f"I used the {basis} angular basis",
+            f"I drew from RNG PCG64 seed={seed}, count={count}",
+            "I report positions in bohr",
         ),
-        refinement="increase CDF grid resolution or sample count",
+        refinement="I could raise my CDF grid resolution or my sample count",
     )
     return SampleCloud(
         positions=positions, n=n, l=l, m=m, Z=Z, mu_ratio=mu_ratio,
@@ -169,10 +172,11 @@ def sample_screened_density(
     n_chunks: int = 10,
     basis: str = "complex",
 ) -> SampleCloud:
-    """Draw `count` positions from |psi_nlm|^2 for a screened GSZ/GJG atom.
+    """I draw `count` positions from |psi_nlm|^2 for a screened GSZ/GJG atom.
 
-    Radial source is the numerical screened R_nl; the angular part is the same
-    central-field Y_lm as hydrogen. Fidelity is APPROXIMATION (model error).
+    My radial source is the numerical screened R_nl, and my angular part is the
+    same central-field Y_lm I use for hydrogen. I call this APPROXIMATION,
+    because the model error dominates.
     """
     validate_quantum_numbers(n, l)
     if abs(m) > l:
@@ -199,19 +203,22 @@ def sample_screened_density(
     provenance = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=(
-            f"factorized inverse-CDF Monte-Carlo of |psi_nlm|^2 over a numerical "
-            f"screened R_nl ({basis} basis): r from P(r)=r^2 R^2 (grid N={r_grid.size}, "
-            f"r_max={r_max:g} bohr), cos(theta) from |Theta_lm|^2, {phi_desc}; "
-            f"{base.method}"
+            f"I sampled |psi_nlm|^2 by factorized inverse-CDF Monte-Carlo over a "
+            f"numerical screened R_nl ({basis} basis): r from P(r)=r^2 R^2 "
+            f"(grid N={r_grid.size}, r_max={r_max:g} bohr), cos(theta) from "
+            f"|Theta_lm|^2, {phi_desc}; {base.method}"
         ),
         assumptions=base.assumptions
         + (
-            f"angular basis: {basis}",
-            f"RNG PCG64 seed={seed}, count={count}",
-            "positions in bohr",
+            f"I used the {basis} angular basis",
+            f"I drew from RNG PCG64 seed={seed}, count={count}",
+            "I report positions in bohr",
         ),
         error_estimate=r_field.provenance.error_estimate,
-        refinement="increase CDF grid resolution, sample count, or radial solver resolution",
+        refinement=(
+            "I could raise my CDF grid resolution, my sample count, "
+            "or my radial solver resolution"
+        ),
     )
     return SampleCloud(
         positions=positions, n=n, l=l, m=m, Z=z, mu_ratio=1.0,
@@ -235,16 +242,16 @@ def sample_hf_density(
     exchange: bool = True,
     pauli: bool = True,
 ) -> SampleCloud:
-    """Draw `count` positions from |psi_nlm|^2 for a Hartree-Fock orbital.
+    """I draw `count` positions from |psi_nlm|^2 for a Hartree-Fock orbital.
 
-    The same shape as sample_screened_density and for the same reason: the
-    radial source is a tabulated numerical R_nl and the angular part is the
+    I keep the same shape as sample_screened_density, and for the same reason:
+    my radial source is a tabulated numerical R_nl and my angular part is the
     central-field Y_lm, so only the first line differs between the two models.
-    Keeping them identical below that line is what makes the two comparable in
-    the same camera.
+    Keeping them identical below that line is what lets me put the two models
+    in the same camera.
 
-    Fidelity is inherited from the solve rather than asserted here, so the two
-    counterfactual switches carry through to the cloud's badge.
+    I inherit my fidelity from the solve rather than asserting it here, so the
+    two counterfactual switches carry through to the badge on my cloud.
     """
     validate_quantum_numbers(n, l)
     if abs(m) > l:
@@ -274,16 +281,16 @@ def sample_hf_density(
     provenance = Provenance(
         fidelity=base.fidelity,
         method=(
-            f"factorized inverse-CDF Monte-Carlo of |psi_nlm|^2 over a "
+            f"I sampled |psi_nlm|^2 by factorized inverse-CDF Monte-Carlo over a "
             f"Hartree-Fock R_nl ({basis} basis): r from P(r)=r^2 R^2 "
             f"(grid N={r_grid.size}, r_max={r_max:g} bohr), cos(theta) from "
             f"|Theta_lm|^2, {phi_desc}; {base.method}"
         ),
         assumptions=base.assumptions
         + (
-            f"angular basis: {basis}",
-            f"RNG PCG64 seed={seed}, count={count}",
-            "positions in bohr",
+            f"I used the {basis} angular basis",
+            f"I drew from RNG PCG64 seed={seed}, count={count}",
+            "I report positions in bohr",
         ),
         error_estimate=base.error_estimate,
         refinement=base.refinement,
