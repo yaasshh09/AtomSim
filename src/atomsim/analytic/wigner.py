@@ -1,24 +1,24 @@
-"""My Wigner 6j symbols, by the Racah formula.
+"""Wigner 6j symbols, by the Racah formula.
 
-This is the angular-momentum recoupling algebra I need to split a
+This is the angular-momentum recoupling algebra needed to split a
 gross-structure transition rate across its fine-structure components. See
 docs/specs/2026-07-25-phase15-fine-structure-line-strengths-design.md.
 
-**On my provenance rule.** Everywhere else in this package I return a
-`Quantity` or a `Field` carrying a `Fidelity`. I make a 6j symbol deliberately
+**On the provenance rule.** Everywhere else in this package a function returns
+a `Quantity` or a `Field` carrying a `Fidelity`. A 6j symbol is deliberately
 different: it is a dimensionless algebraic constant determined entirely by six
 angular-momentum quantum numbers, in the same category as a Clebsch-Gordan
-coefficient or pi, not a modelled physical value with a fidelity tier. So I
-return plain `float` here, and the physical `Quantity` I build from them in
-`transitions.py` carries the provenance for the rate. That is a decision of
-mine, not an oversight.
+coefficient or pi, not a modelled physical value with a fidelity tier. So these
+return a plain `float`, and the physical `Quantity` built from them in
+`transitions.py` carries the provenance for the rate. That is a deliberate
+decision, not an oversight.
 
-You may give me integer or half-integer arguments. I carry them internally as
-doubled integers, so I decide triangle conditions by integer arithmetic and
-never by a floating-point comparison. My values are exact up to float64 roundoff
-in the alternating factorial sum, and I sum over a short range for the small
+Arguments may be integer or half-integer. They are held internally as doubled
+integers, so triangle conditions are decided by integer arithmetic and never by
+a floating-point comparison. The values are exact up to float64 roundoff in the
+alternating factorial sum, and the sum runs over a short range for the small
 momenta this project uses (l <= 10, spin 1/2), so cancellation is not a
-practical issue for me.
+practical issue here.
 """
 
 import math
@@ -26,24 +26,24 @@ from functools import lru_cache
 
 __all__ = ["triangular", "wigner_3j", "wigner_6j"]
 
-# Both symbols are pure functions of six small numbers, so when I memoize them I
-# am being exact rather than approximate: my cache returns the identical float
-# the Racah sum would have produced, not a rounded or interpolated one.
+# Both symbols are pure functions of six small numbers, so memoizing them stays
+# exact rather than approximate: the cache returns the identical float the Racah
+# sum would have produced, not a rounded or interpolated one.
 #
 # It is worth doing because of where these get called from. My Hartree-Fock
 # exchange operator asks for its angular coefficients inside the LOBPCG matvec,
 # which runs hundreds of times per channel against an unchanged (l_a, k, l_b),
-# and each miss costs me a Racah sum of factorials. When I profiled argon I saw
-# 23907 calls to wigner_3j driving 389484 calls to math.factorial.
+# and each miss costs a Racah sum of factorials. Profiling argon showed 23907
+# calls to wigner_3j driving 389484 calls to math.factorial.
 #
-# The distinct arguments in an atomic calculation number in the dozens, since I
-# build them from l values of 0 to 3 and small multipole orders, so the physics
-# bounds my cache in practice rather than maxsize doing it.
+# The distinct arguments in an atomic calculation number in the dozens, since
+# they come from l values of 0 to 3 and small multipole orders, so the physics
+# bounds the cache in practice rather than maxsize doing it.
 _CACHE_SIZE = 4096
 
 
 def _doubled(j: float, name: str) -> int:
-    """2j as an exact integer. I reject anything that is not a (half-)integer."""
+    """2j as an exact integer. Anything that is not a (half-)integer is rejected."""
     two_j = round(2 * j)
     if abs(2 * j - two_j) > 1e-9:
         raise ValueError(f"{name} must be integer or half-integer, got {j}")
@@ -53,7 +53,7 @@ def _doubled(j: float, name: str) -> int:
 
 
 def _triangular_doubled(a2: int, b2: int, c2: int) -> bool:
-    """The triangle condition I apply on doubled momenta: |a-b| <= c <= a+b, and a+b+c integral."""
+    """The triangle condition on doubled momenta: |a-b| <= c <= a+b, and a+b+c integral."""
     if (a2 + b2 + c2) % 2 != 0:
         return False
     return abs(a2 - b2) <= c2 <= a2 + b2
@@ -80,15 +80,15 @@ def wigner_6j(
 ) -> float:
     """The 6j symbol {j1 j2 j3; j4 j5 j6}.
 
-    I return exactly 0.0 when any of the four triads fails its triangle
+    Returns exactly 0.0 when any of the four triads fails its triangle
     condition, which is what makes the selection rules structural rather than
-    something my caller has to special-case.
+    something the caller has to special-case.
     """
     a = [_doubled(j, n) for j, n in
          ((j1, "j1"), (j2, "j2"), (j3, "j3"), (j4, "j4"), (j5, "j5"), (j6, "j6"))]
     j1_, j2_, j3_, j4_, j5_, j6_ = a
 
-    # The four triads the symbol couples; any failure means I return a zero.
+    # The four triads the symbol couples; any failure means a zero.
     triads = ((j1_, j2_, j3_), (j1_, j5_, j6_), (j4_, j2_, j6_), (j4_, j5_, j3_))
     if not all(_triangular_doubled(*t) for t in triads):
         return 0.0
@@ -122,7 +122,7 @@ def wigner_6j(
 
 
 def _doubled_m(m: float, name: str) -> int:
-    """2m as an exact integer. Unlike in _doubled, I let m be negative here."""
+    """2m as an exact integer. Unlike in _doubled, m may be negative here."""
     two_m = round(2 * m)
     if abs(2 * m - two_m) > 1e-9:
         raise ValueError(f"{name} must be integer or half-integer, got {m}")
@@ -135,13 +135,13 @@ def wigner_3j(
 ) -> float:
     """The 3j symbol (j1 j2 j3; m1 m2 m3), by the Racah formula.
 
-    I return exactly 0.0 when the projections do not sum to zero, when any
+    Returns exactly 0.0 when the projections do not sum to zero, when any
     |m_i| > j_i, or when the triangle condition fails, so the selection rules
-    are structural rather than something my caller has to special-case.
+    are structural rather than something the caller has to special-case.
 
-    My Hartree-Fock angular coefficients need only the m1=m2=m3=0 case, where
-    the symbol also vanishes unless j1+j2+j3 is even. I do not special-case that
-    parity rule: it falls out of the general formula.
+    The Hartree-Fock angular coefficients need only the m1=m2=m3=0 case, where
+    the symbol also vanishes unless j1+j2+j3 is even. That parity rule is not
+    special-cased: it falls out of the general formula.
     """
     j1_, j2_, j3_ = (_doubled(j, n) for j, n in ((j1, "j1"), (j2, "j2"), (j3, "j3")))
     m1_, m2_, m3_ = (_doubled_m(m, n) for m, n in ((m1, "m1"), (m2, "m2"), (m3, "m3")))
@@ -149,7 +149,7 @@ def wigner_3j(
     if m1_ + m2_ + m3_ != 0:
         return 0.0
     for j, m in ((j1_, m1_), (j2_, m2_), (j3_, m3_)):
-        if abs(m) > j or (j - m) % 2 != 0:  # I require m to share j's half-integrality
+        if abs(m) > j or (j - m) % 2 != 0:  # m must share j's half-integrality
             return 0.0
     if not _triangular_doubled(j1_, j2_, j3_):
         return 0.0
@@ -160,9 +160,9 @@ def wigner_3j(
             math.factorial((j + m) // 2) * math.factorial((j - m) // 2)
         )
 
-    # My Racah sum: t runs where every factorial argument stays non-negative.
-    # My three lower bounds come from t >= 0, (j3-j2+m1)/2 + t >= 0 and
-    # (j3-j1-m2)/2 + t >= 0; my three upper bounds from the remaining three
+    # The Racah sum: t runs where every factorial argument stays non-negative.
+    # The three lower bounds come from t >= 0, (j3-j2+m1)/2 + t >= 0 and
+    # (j3-j1-m2)/2 + t >= 0; the three upper bounds from the remaining three
     # factorials.
     lower = max(0, -((j3_ - j2_ + m1_) // 2), -((j3_ - j1_ - m2_) // 2))
     upper = min(

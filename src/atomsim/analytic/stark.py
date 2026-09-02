@@ -1,17 +1,17 @@
-"""My Stark effect: hydrogen in a static electric field, the parabolic manifold.
+"""The Stark effect: hydrogen in a static electric field, the parabolic manifold.
 
 A uniform field along z keeps axial symmetry (m stays good) but breaks
 rotational symmetry (l does not); the hydrogen + (-F z) Hamiltonian separates
 exactly in parabolic coordinates with non-negative integers n1, n2 and
 n = n1 + n2 + |m| + 1. Second-order degenerate perturbation theory is closed
-form, so I split each shell n into n^2 sublevels labelled by the electric
+form, so each shell n splits into n^2 sublevels labelled by the electric
 quantum number k = n1 - n2, linear in the field (the l-degeneracy signature)
 with a quadratic correction.
 
-I am APPROXIMATION here by construction: I go to second order only, and the
-Stark manifold is not truly bound, since a static field ionizes and the series
-is asymptotic and diverges near F_ion ~ Z^3 mu^2 / (16 n^4) a.u. Nothing here
-depends on alpha, because I work non-relativistically, so I have no
+This is APPROXIMATION by construction: second order only, and the Stark
+manifold is not truly bound, since a static field ionizes and the series is
+asymptotic and diverges near F_ion ~ Z^3 mu^2 / (16 n^4) a.u. Nothing here
+depends on alpha, because the treatment is non-relativistic, so there is no
 COUNTERFACTUAL branch. See docs/specs/2026-07-24-phase11-stark-effect-design.md.
 """
 
@@ -22,12 +22,12 @@ from atomsim.constants import E0_V_PER_M
 from atomsim.provenance import Fidelity, Provenance, Quantity
 
 _S_ASSUMPTIONS = (
-    "I use second-order perturbation theory (linear + quadratic) and neglect "
+    "second-order perturbation theory (linear + quadratic), neglecting "
     "third and higher orders",
-    "I treat the field as static, so this manifold is a resonance rather than a true bound state "
-    "and I neglect field ionization",
-    "I work on the gross structure only, neglecting fine structure and its low-field crossover",
-    "I work non-relativistically, so this is independent of alpha: altering "
+    "the field is static, so this manifold is a resonance rather than a true bound state, "
+    "and field ionization is neglected",
+    "gross structure only, neglecting fine structure and its low-field crossover",
+    "a non-relativistic treatment, so this is independent of alpha: altering "
     "alpha does not move this shift",
 )
 
@@ -37,14 +37,14 @@ class StarkSublevel:
     n1: int
     n2: int
     m: int
-    k: int            # n1 - n2, which is the electric quantum number I label by
+    k: int            # n1 - n2, the electric quantum number these are labelled by
     energy: Quantity
 
 
 def stark_sublevels(
     n: int, Z: int = 1, mu_ratio: float = 1.0, field_mv_per_m: float = 0.0,
 ) -> list[StarkSublevel]:
-    """The parabolic Stark sublevels I find for shell n in a field F (MV/m)."""
+    """The parabolic Stark sublevels for shell n in a field F (MV/m)."""
     if n < 1:
         raise ValueError(f"n must be >= 1, got {n}")
     if Z < 1:
@@ -55,7 +55,7 @@ def stark_sublevels(
     f_au = field_mv_per_m * 1e6 / E0_V_PER_M  # atomic units of field
     e_bohr = energy(n, Z=Z, mu_ratio=mu_ratio).value
     zm = Z * mu_ratio
-    # the classical field-ionization scale (a.u.), which guards my F/F_ion error ratio.
+    # the classical field-ionization scale (a.u.), which guards the F/F_ion error ratio.
     f_ion = (Z ** 3) * (mu_ratio ** 2) / (16.0 * n ** 4)
 
     method = (
@@ -70,7 +70,7 @@ def stark_sublevels(
         for n1 in range(0, n - am):
             n2 = n - am - 1 - n1
             k = n1 - n2
-            # I use hydrogenic scaling (energy unit mu*Z^2, length 1/(mu*Z),
+            # Hydrogenic scaling (energy unit mu*Z^2, length 1/(mu*Z),
             # field mu^2*Z^3): the linear shift goes as F/(Z*mu) and the
             # quadratic as F^2/(Z^4 * mu^3). The reduced-mass powers differ
             # (1 vs 3) and are NOT both (Z*mu): see the polarizability
@@ -92,7 +92,7 @@ def stark_sublevels(
                         fidelity=Fidelity.APPROXIMATION, method=method,
                         assumptions=_S_ASSUMPTIONS, error_estimate=err,
                         refinement=(
-                            "I could go to third-order Stark, then to the full "
+                            "going to third-order Stark, then to the full "
                             "non-perturbative (field-ionization) resonance treatment"
                         ),
                     ),

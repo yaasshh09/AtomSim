@@ -1,8 +1,8 @@
-"""The exact Dirac-Coulomb energy I have for hydrogen-like atoms, which is my
-refinement of the fine structure.
+"""The exact Dirac-Coulomb energy for hydrogen-like atoms, the refinement that
+the perturbative fine structure points at.
 
 This is the closed form of the one-body Dirac equation in a point Coulomb
-field. I am EXACT for that model, and that model still omits the Lamb shift and
+field. It is EXACT for that model, and that model still omits the Lamb shift and
 QED, hyperfine structure, finite nuclear size, and two-body recoil beyond
 reduced-mass scaling. See docs/specs/2026-07-23-phase9-dirac-hydrogen-design.md.
 """
@@ -14,12 +14,12 @@ from atomsim.constants import ALPHA
 from atomsim.provenance import Fidelity, Provenance, Quantity
 
 _DIRAC_ASSUMPTIONS = (
-    "I return the exact eigenvalue of the one-body Dirac-Coulomb equation (point nucleus)",
-    "I include no Lamb shift or QED radiative corrections, and in reality "
+    "the exact eigenvalue of the one-body Dirac-Coulomb equation (point nucleus)",
+    "no Lamb shift or QED radiative corrections, and in reality "
     "those split 2s1/2 from 2p1/2",
-    "I model no hyperfine structure and apply no finite-nuclear-size correction",
-    "I take the reduced mass by mu-scaling the rest energy and neglect "
-    "two-body relativistic recoil",
+    "no hyperfine structure and no finite-nuclear-size correction",
+    "the reduced mass enters by mu-scaling the rest energy, and two-body "
+    "relativistic recoil is neglected",
 )
 
 
@@ -42,22 +42,22 @@ def _validate(n: int, j: float, Z: int, alpha: float) -> None:
 def dirac_energy(
     n: int, j: float, Z: int = 1, mu_ratio: float = 1.0, alpha: float = ALPHA
 ) -> Quantity:
-    """The exact Dirac-Coulomb energy E(n, j) I return, in hartree, rest energy subtracted."""
+    """The exact Dirac-Coulomb energy E(n, j), in hartree, rest energy subtracted."""
     _validate(n, j, Z, alpha)
     gamma = math.sqrt((j + 0.5) ** 2 - (Z * alpha) ** 2)
     d = n - (j + 0.5) + gamma
     # E_bind = mu*c^2 ((1+x)^(-1/2) - 1) with x = (Za/D)^2. The bracket subtracts
-    # two near-1 numbers, so I evaluate it cancellation-free:
+    # two near-1 numbers, so evaluate it cancellation-free:
     # (1+x)^(-1/2) - 1 = -x/(s(1+s)), s = sqrt(1+x). Scaled by 1/alpha^2
-    # (~1.9e4) the naive form would lose me ~1e-11.
+    # (~1.9e4) the naive form would lose ~1e-11.
     x = (Z * alpha / d) ** 2
     s = math.sqrt(1.0 + x)
     e_bind = (mu_ratio / alpha**2) * (-x / (s * (1.0 + s)))
 
     altered = not math.isclose(alpha, ALPHA, rel_tol=1e-12)
     bohr = energy(n, Z=Z, mu_ratio=mu_ratio).value
-    # The scale of the physics I omit here, dominated by the Lamb shift. I mean
-    # it as an honest order of magnitude, not as a bound.
+    # The scale of the physics omitted here, dominated by the Lamb shift. It is
+    # an honest order of magnitude, not a bound.
     omitted = abs(bohr) * (Z * alpha) ** 3
     method = "exact Dirac-Coulomb energy E(n,j) = mu*c^2([1+(Za/D)^2]^(-1/2) - 1)"
     if altered:
@@ -72,7 +72,7 @@ def dirac_energy(
             assumptions=_DIRAC_ASSUMPTIONS,
             error_estimate=omitted,
             refinement=(
-                "I could add QED and the Lamb shift (the 2s-2p splitting), "
+                "adding QED and the Lamb shift (the 2s-2p splitting), "
                 "then hyperfine structure"
             ),
         ),
@@ -82,7 +82,7 @@ def dirac_energy(
 def dirac_fine_splitting(
     n: int, l: int, Z: int = 1, mu_ratio: float = 1.0, alpha: float = ALPHA
 ) -> float:
-    """E(n, j=l+1/2) - E(n, j=l-1/2) in hartree. I need l >= 1 for this."""
+    """E(n, j=l+1/2) - E(n, j=l-1/2) in hartree. Needs l >= 1."""
     if l < 1:
         raise ValueError(f"fine splitting needs l >= 1, got {l}")
     hi = dirac_energy(n, l + 0.5, Z=Z, mu_ratio=mu_ratio, alpha=alpha).value

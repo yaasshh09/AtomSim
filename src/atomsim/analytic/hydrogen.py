@@ -1,9 +1,9 @@
-"""The exact analytic solutions I have for hydrogen-like (one-electron) atoms.
+"""Exact analytic solutions for hydrogen-like (one-electron) atoms.
 
-I work in Hartree atomic units (hbar = m_e = e = 1/(4 pi eps0) = 1). The
-reduced-mass ratio mu_ratio = mu/m_e lets me keep isotopes, muonic atoms and
-positronium exact inside the same formulas. This is also the ground truth I
-validate my numerical radial solver against.
+Everything here is in Hartree atomic units (hbar = m_e = e = 1/(4 pi eps0) = 1).
+The reduced-mass ratio mu_ratio = mu/m_e keeps isotopes, muonic atoms and
+positronium exact inside the same formulas. These closed forms are also the
+ground truth the numerical radial solver is validated against.
 """
 
 import math
@@ -36,7 +36,7 @@ def _validate_physical(Z: int, mu_ratio: float) -> None:
 
 
 def energy(n: int, Z: int = 1, mu_ratio: float = 1.0) -> Quantity:
-    """The exact bound-state energy I get, E_n = -mu_ratio * Z^2 / (2 n^2), in hartree."""
+    """The exact bound-state energy E_n = -mu_ratio * Z^2 / (2 n^2), in hartree."""
     validate_quantum_numbers(n)
     _validate_physical(Z, mu_ratio)
     value = -mu_ratio * Z**2 / (2.0 * n**2)
@@ -53,11 +53,11 @@ def energy(n: int, Z: int = 1, mu_ratio: float = 1.0) -> Quantity:
 
 
 def _radial_eval(n: int, l: int, r: np.ndarray, kappa: float) -> np.ndarray:
-    """Bare R_nl(r) values with no Field wrapper: my one copy of the closed form.
+    """Bare R_nl(r) values with no Field wrapper: the one copy of the closed form.
 
-    My callers must have validated (n, l, Z, mu_ratio) already. `transitions.py`
-    uses this directly inside its quadrature inner loop, so I keep the
-    normalization here once rather than transcribing it per module.
+    Callers must have validated (n, l, Z, mu_ratio) already. `transitions.py`
+    uses this directly inside its quadrature inner loop, so the normalization
+    lives here once rather than being transcribed per module.
     """
     rho = 2.0 * kappa * r / n
     norm = math.sqrt(
@@ -71,7 +71,7 @@ def _radial_eval(n: int, l: int, r: np.ndarray, kappa: float) -> np.ndarray:
 def radial_wavefunction(
     n: int, l: int, r: np.ndarray, Z: int = 1, mu_ratio: float = 1.0
 ) -> Field:
-    """The normalized radial wavefunction R_nl(r) I return, in atomic units (r in bohr).
+    """The normalized radial wavefunction R_nl(r), in atomic units (r in bohr).
 
     R_nl = N * exp(-rho/2) * rho^l * L_{n-l-1}^{2l+1}(rho),  rho = 2 Z mu' r / n.
     """
@@ -95,7 +95,7 @@ def radial_wavefunction(
 
 
 def mean_radius(n: int, l: int, Z: int = 1, mu_ratio: float = 1.0) -> Quantity:
-    """The exact <r> = (3 n^2 - l(l+1)) / (2 Z mu') I get, in bohr."""
+    """The exact <r> = (3 n^2 - l(l+1)) / (2 Z mu'), in bohr."""
     validate_quantum_numbers(n, l)
     _validate_physical(Z, mu_ratio)
     value = (3.0 * n**2 - l * (l + 1)) / (2.0 * Z * mu_ratio)
@@ -112,7 +112,7 @@ def mean_radius(n: int, l: int, Z: int = 1, mu_ratio: float = 1.0) -> Quantity:
 
 
 def angular_momentum_magnitude(l: int) -> Quantity:
-    """|L| = sqrt(l(l+1)) hbar: the exact magnitude I read off the L^2 eigenvalue."""
+    """|L| = sqrt(l(l+1)) hbar: the exact magnitude read off the L^2 eigenvalue."""
     if l < 0:
         raise ValueError(f"l must be >= 0, got {l}")
     return Quantity(

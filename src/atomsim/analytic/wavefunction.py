@@ -1,8 +1,8 @@
-"""The full hydrogen-like wavefunctions I build, psi_nlm(r) = R_nl(r) Y_lm(theta, phi).
+"""The full hydrogen-like wavefunctions, psi_nlm(r) = R_nl(r) Y_lm(theta, phi).
 
-I treat both angular bases as first-class (spec 5.1). I return complex128 values
-in the complex basis, where the phase feeds my phase-as-hue rendering, and
-float64 in the real basis. I take positions as Cartesian, in bohr.
+Both angular bases are first-class (spec 5.1). The complex basis returns
+complex128 values, whose phase feeds the phase-as-hue rendering; the real basis
+returns float64. Positions are Cartesian, in bohr.
 """
 
 from dataclasses import dataclass
@@ -16,7 +16,7 @@ from atomsim.provenance import Fidelity, Provenance
 
 @dataclass(frozen=True)
 class WavefunctionValues:
-    """psi_nlm as I evaluated it at Cartesian points (bohr). The container carries my provenance."""
+    """psi_nlm evaluated at Cartesian points (bohr). The container carries its provenance."""
 
     values: np.ndarray      # (N,) complex128 or float64, unit bohr^-3/2
     positions: np.ndarray   # (N, 3) float, bohr
@@ -38,7 +38,7 @@ def evaluate_state(
     mu_ratio: float = 1.0,
     basis: str = "complex",
 ) -> WavefunctionValues:
-    """I evaluate psi_nlm at (N, 3) Cartesian positions in bohr."""
+    """Evaluate psi_nlm at (N, 3) Cartesian positions in bohr."""
     validate_quantum_numbers(n, l)
     validate_angular(l, m)
     pos = np.asarray(positions, dtype=float)
