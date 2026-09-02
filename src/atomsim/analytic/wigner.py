@@ -30,7 +30,7 @@ __all__ = ["triangular", "wigner_3j", "wigner_6j"]
 # exact rather than approximate: the cache returns the identical float the Racah
 # sum would have produced, not a rounded or interpolated one.
 #
-# It is worth doing because of where these get called from. My Hartree-Fock
+# It is worth doing because of where these get called from. The Hartree-Fock
 # exchange operator asks for its angular coefficients inside the LOBPCG matvec,
 # which runs hundreds of times per channel against an unchanged (l_a, k, l_b),
 # and each miss costs a Racah sum of factorials. Profiling argon showed 23907
@@ -97,7 +97,7 @@ def wigner_6j(
     for t in triads:
         prefactor *= _delta(*t)
 
-    # My Racah sum: t runs over the range where every factorial argument is >= 0.
+    # The Racah sum: t runs over the range where every factorial argument is >= 0.
     lower = max(sum(t) for t in triads)
     upper = min(
         j1_ + j2_ + j4_ + j5_,

@@ -1,10 +1,10 @@
-"""My magnetic-dipole hyperfine structure: the nuclear spin talking to the
+"""Magnetic-dipole hyperfine structure: the nuclear spin talking to the
 electron.
 
 The nuclear spin I couples to the electron's angular momentum J, splitting
 each level into total-angular-momentum states F = I + J, |I-J| .. I+J. For an
 s-electron (l = 0) the coupling is the Fermi contact interaction, driven by the
-electron density at the nucleus. My flagship case is hydrogen 1s: I = J = 1/2,
+electron density at the nucleus. The flagship case is hydrogen 1s: I = J = 1/2,
 F = 0 or 1, and the F=1 -> F=0 transition is the 21 cm line, 1420.4 MHz.
 
 The hyperfine coupling constant for an ns level (energy, hartree):
@@ -31,7 +31,7 @@ from atomsim.constants import ALPHA
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System
 
-# My fixed real-universe inputs: measured moments and masses, from an EXACT source.
+# Fixed real-universe inputs: measured moments and masses, from an EXACT source.
 _G_E = abs(_sc.physical_constants["electron g factor"][0])          # 2.0023193...
 _M_E_OVER_M_P = 1.0 / _sc.physical_constants["proton-electron mass ratio"][0]
 

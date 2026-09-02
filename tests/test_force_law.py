@@ -54,7 +54,7 @@ def test_potential_curve_is_field_in_hartree():
 
 
 def test_unknown_preset_raises():
-    with pytest.raises(ValueError, match="do not know the preset"):
+    with pytest.raises(ValueError, match="unknown preset"):
         force_law_levels("nope", {}, l=0)
 
 

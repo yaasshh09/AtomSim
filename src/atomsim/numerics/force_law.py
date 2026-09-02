@@ -1,9 +1,9 @@
-"""My What-If force laws: energy levels under a counterfactual central potential.
+"""What-If force laws: energy levels under a counterfactual central potential.
 
-I drive my numerical radial solver from a preset registry of V(r) shapes, pair
-each one with an honest per-preset reference (EXACT hydrogen, EXACT
-harmonic-oscillator levels, or structural markers), and return a sampled V(r)
-curve so my view can draw the potential itself. See
+The numerical radial solver is driven from a preset registry of V(r) shapes,
+each paired with an honest per-preset reference (EXACT hydrogen, EXACT
+harmonic-oscillator levels, or structural markers), returning a sampled V(r)
+curve so the view can draw the potential itself. See
 docs/specs/2026-07-17-phase5-force-law-presets-design.md.
 """
 
@@ -52,8 +52,8 @@ class Reference:
 @dataclass(frozen=True)
 class ForceLawLevel:
     radial_index: int
-    energy: Quantity  # NUMERICAL, hartree, carrying my grid-halving error
-    trusted: bool = True  # False when my free-form trust gate flags the level
+    energy: Quantity  # NUMERICAL, hartree, carrying its grid-halving error
+    trusted: bool = True  # False when the free-form trust gate flags the level
 
 
 @dataclass(frozen=True)
@@ -68,7 +68,7 @@ class ForceLawResult:
     requested_count: int
     reference: Reference
     potential_curve: Field  # hartree vs bohr, EXACT
-    expression: str | None = None  # I set this for the free-form "custom" preset
+    expression: str | None = None  # set for the free-form "custom" preset
 
 
 @dataclass(frozen=True)
@@ -76,13 +76,13 @@ class ForcePreset:
     key: str
     params: tuple[ParamSpec, ...]
     uses_Z: bool
-    binding: str  # "decay" (I call it bound iff E<0) | "confining" (I take all as bound)
+    binding: str  # "decay" (bound iff E<0) | "confining" (all levels count as bound)
     build_potential: Callable[[Params, int, float], PotentialFn]
     reference: Callable[[Params, int, float, int, int], Reference]
     r_max: Callable[[Params, int, int], float]
 
 
-# ---- the hydrogen-ladder reference I share across the Coulomb-family presets --
+# ---- the hydrogen-ladder reference shared across the Coulomb-family presets ---
 
 def _hydrogen_reference(params: Params, z: int, mu: float, l: int, n_states: int) -> Reference:
     items = tuple(
@@ -125,8 +125,8 @@ def _yukawa_potential(params: Params, z: int, mu: float) -> PotentialFn:
 
 
 def _yukawa_rmax(params: Params, z: int, n_states: int) -> float:
-    # I take a few screening lengths, but never less than the Coulomb box my
-    # ideal ladder needs
+    # A few screening lengths, but never less than the Coulomb box the ideal
+    # ladder needs
     return max(8.0 * params["lambda"], 20.0 * (n_states + 1) ** 2 / z)
 
 
@@ -181,9 +181,9 @@ def _harmonic_reference(params: Params, z: int, mu: float, l: int, n_states: int
 
 
 def _harmonic_rmax(params: Params, z: int, n_states: int) -> float:
-    # I size this from the classical turning point of my highest level, with
+    # Sized from the classical turning point of the highest level, with
     # headroom: E ~ omega(2(n_states-1)+3/2), r_turn = sqrt(2E/(mu omega^2)),
-    # and I take mu=1 as the upper bound
+    # taking mu=1 as the upper bound
     omega = params["omega"]
     e_top = omega * (2 * (n_states - 1) + 1.5)
     return 4.0 * math.sqrt(2.0 * e_top / omega**2)
@@ -212,7 +212,7 @@ def _finitewell_reference(params: Params, z: int, mu: float, l: int, n_states: i
     v0 = params["v0"]
     marker = Provenance(
         fidelity=Fidelity.EXACT,
-        method="finite-well structural marker, definitional once you give me V0 and a",
+        method="finite-well structural marker, definitional once V0 and a are given",
     )
     items = (
         ReferenceItem(
@@ -254,20 +254,20 @@ PRESETS: dict[str, ForcePreset] = {
 }
 
 
-# ---- my driver ---------------------------------------------------------------
+# ---- the driver --------------------------------------------------------------
 
 def _validate(preset: ForcePreset, params: Params, l: int, n_states: int) -> None:
     if l < 0:
-        raise ValueError(f"I need an orbital quantum number l >= 0, got {l}")
+        raise ValueError(f"orbital quantum number l must be >= 0, got {l}")
     if n_states < 1:
-        raise ValueError(f"I need n_states >= 1, got {n_states}")
+        raise ValueError(f"n_states must be >= 1, got {n_states}")
     for spec in preset.params:
         if spec.name not in params:
-            raise ValueError(f"my preset {preset.key!r} needs the parameter {spec.name!r}")
+            raise ValueError(f"preset {preset.key!r} needs the parameter {spec.name!r}")
         v = params[spec.name]
         if not spec.min <= v <= spec.max:
             raise ValueError(
-                f"I need {spec.name} in [{spec.min}, {spec.max}], got {v}"
+                f"{spec.name} must be in [{spec.min}, {spec.max}], got {v}"
             )
 
 
@@ -293,7 +293,7 @@ def _sample_curve(potential: PotentialFn, r_max: float, note: str) -> Field:
         label="V(r)",
         provenance=Provenance(
             fidelity=Fidelity.EXACT,
-            method=f"I sampled the analytic potential on a {CURVE_POINTS}-point grid{note}",
+            method=f"the analytic potential sampled on a {CURVE_POINTS}-point grid{note}",
         ),
     )
 
@@ -306,7 +306,7 @@ def force_law_levels(
     n_states: int = 4,
 ) -> ForceLawResult:
     if preset not in PRESETS:
-        raise ValueError(f"I do not know the preset {preset!r}; I know: {sorted(PRESETS)}")
+        raise ValueError(f"unknown preset {preset!r}; known presets: {sorted(PRESETS)}")
     spec = PRESETS[preset]
     _validate(spec, params, l, n_states)
 
@@ -342,10 +342,10 @@ def force_law_levels(
     )
 
 
-# ---- free-form V(r): the potential you type, plus my trust gate --------------
+# ---- free-form V(r): a typed potential, plus the trust gate ------------------
 
-FREE_FORM_BOX_TOL = 5e-3   # hartree; a box-doubling shift above this and I call it unconverged
-FREE_FORM_GRID_FRAC = 1e-2  # a grid error above this fraction of |E| and I call it unconverged
+FREE_FORM_BOX_TOL = 5e-3   # hartree; a box-doubling shift above this is unconverged
+FREE_FORM_GRID_FRAC = 1e-2  # a grid error above this fraction of |E| is unconverged
 
 
 def _free_form_rmax(z: int, n_states: int) -> float:
@@ -358,18 +358,18 @@ def free_form_levels(
     system: str | System = "h",
     n_states: int = 4,
 ) -> ForceLawResult:
-    """I solve a radial potential V(r) you typed, and gate each level for trust.
+    """Solve a typed radial potential V(r), and gate each level for trust.
 
-    I trust a level only when it is box-converged (its energy is stable under
-    doubling r_max, so it is not continuum contamination) and grid-converged
-    (its grid-halving error is small relative to |E|, so it is not
-    fall-to-center). I return the untrusted levels labelled, and never drop
-    them silently.
+    A level is trusted only when it is box-converged (its energy is stable
+    under doubling r_max, so it is not continuum contamination) and
+    grid-converged (its grid-halving error is small relative to |E|, so it is
+    not fall-to-center). Untrusted levels come back labelled, never dropped
+    silently.
     """
     if l < 0:
-        raise ValueError(f"I need an orbital quantum number l >= 0, got {l}")
+        raise ValueError(f"orbital quantum number l must be >= 0, got {l}")
     if n_states < 1:
-        raise ValueError(f"I need n_states >= 1, got {n_states}")
+        raise ValueError(f"n_states must be >= 1, got {n_states}")
 
     potential = compile_potential(expr)  # this raises ExpressionError on bad input
 
@@ -378,7 +378,7 @@ def free_form_levels(
     mu = sys.mu_ratio.value
     r_max = _free_form_rmax(z, n_states)
 
-    # I need the expression finite on my interior grid before I trust a solve.
+    # The expression has to be finite on the interior grid before a solve is trusted.
     r_probe = np.linspace(r_max / CURVE_POINTS, r_max, CURVE_POINTS)
     v_probe = np.asarray(potential(r_probe), dtype=float)
     if not np.all(np.isfinite(v_probe)):
@@ -395,7 +395,7 @@ def free_form_levels(
     levels: list[ForceLawLevel] = []
     for k in range(n_states):
         e = small.energies[k]
-        if e.value >= threshold:  # above my continuum floor, so not a bound state
+        if e.value >= threshold:  # above the continuum floor, so not a bound state
             continue
         box_shift = abs(e.value - big.energies[k].value)
         grid_err = e.provenance.error_estimate or 0.0
@@ -405,7 +405,7 @@ def free_form_levels(
         )
         reason = (
             "" if trusted
-            else "; UNTRUSTED (I could not converge it in box or grid, "
+            else "; UNTRUSTED (did not converge in box or grid, "
                  "so it is not a real bound state)"
         )
         levels.append(

@@ -1,8 +1,8 @@
-"""My safe whitelist-AST compiler: I turn a V(r) string you typed into a
+"""A safe whitelist-AST compiler: it turns a typed V(r) string into a
 NumPy-vectorized closure.
 
-I use no eval and no exec. I allow only a small math whitelist, and I reject
-every other AST construct with a message naming it. See
+No eval and no exec. Only a small math whitelist is allowed, and every other
+AST construct is rejected with a message naming it. See
 docs/specs/2026-07-23-phase8-freeform-potential-design.md.
 """
 
@@ -20,7 +20,7 @@ PotentialFn = Callable[[np.ndarray], np.ndarray]
 
 
 class ExpressionError(ValueError):
-    """Your expression is empty, too large, or uses a construct I do not whitelist."""
+    """The expression is empty, too large, or uses a construct outside the whitelist."""
 
 
 _CONSTANTS = {"pi": math.pi, "e": math.e}
@@ -44,10 +44,10 @@ _CMPOPS = {
 
 
 def compile_potential(expr: str) -> PotentialFn:
-    """I compile a V(r) expression you typed into a NumPy-vectorized closure.
+    """Compile a typed V(r) expression into a NumPy-vectorized closure.
 
-    I raise ExpressionError for anything outside my math whitelist, or if your
-    expression is empty, too long, or too complex for me.
+    Raises ExpressionError for anything outside the math whitelist, or if the
+    expression is empty, too long, or too complex.
     """
     if not expr or not expr.strip():
         raise ExpressionError("expression is empty")
@@ -62,7 +62,7 @@ def compile_potential(expr: str) -> PotentialFn:
     if len(nodes) > MAX_NODES:
         raise ExpressionError(f"expression too complex ({len(nodes)} > {MAX_NODES} nodes)")
 
-    _check(tree.body)  # I raise ExpressionError on any construct I disallow
+    _check(tree.body)  # raises ExpressionError on any construct outside the whitelist
 
     def potential(r: np.ndarray) -> np.ndarray:
         out = _eval(tree.body, r)
@@ -89,7 +89,7 @@ def _check(node: ast.AST, *, in_where: bool = False) -> None:
             raise ExpressionError("only numeric constants are allowed")
     elif isinstance(node, ast.Name):
         if node.id != "r" and node.id not in _CONSTANTS:
-            raise ExpressionError(f"I do not know the name {node.id!r}; I allow only r, pi, e")
+            raise ExpressionError(f"unknown name {node.id!r}; only r, pi and e are allowed")
     elif isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name) or node.func.id not in _FUNCS:
             name = getattr(node.func, "id", type(node.func).__name__)
@@ -123,4 +123,4 @@ def _eval(node: ast.AST, r: np.ndarray):
         return _FUNCS[node.func.id](*[_eval(a, r) for a in node.args])
     if isinstance(node, ast.Compare):
         return _CMPOPS[type(node.ops[0])](_eval(node.left, r), _eval(node.comparators[0], r))
-    raise ExpressionError(f"{type(node).__name__} is not allowed")  # my defense in depth
+    raise ExpressionError(f"{type(node).__name__} is not allowed")  # defense in depth

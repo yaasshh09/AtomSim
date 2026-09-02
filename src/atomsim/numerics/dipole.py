@@ -1,19 +1,20 @@
-"""My dipole matrix elements over numerically solved radial functions.
+"""Dipole matrix elements over numerically solved radial functions.
 
-In my analytic engine (`analytic/transitions.py`) I integrate closed-form
-hydrogenic R_nl. Here I do the same job for **any central potential** by reusing
-my radial solver, which is what lets screened atoms, and later counterfactual
-force laws, carry line strengths.
+The analytic engine (`analytic/transitions.py`) integrates closed-form
+hydrogenic R_nl. This module does the same job for **any central potential** by
+reusing the radial solver, which is what lets screened atoms, and later
+counterfactual force laws, carry line strengths.
 
-My solver returns `u = r R(r)` normalized so `integral u^2 dr = 1`, so my dipole
-integral is a plain overlap with no division by r and no reconstruction of R:
+The solver returns `u = r R(r)` normalized so `integral u^2 dr = 1`, so the
+dipole integral is a plain overlap with no division by r and no reconstruction
+of R:
 
     R_dipole = integral R_b(r) r R_a(r) r^2 dr = integral u_a(r) u_b(r) r dr
 
-**I have to solve both states on one grid.** If I ask my solver twice with
-per-state box sizes I get two different radial meshes back, and multiplying
-those sample-by-sample is meaningless. So everywhere here I solve both l
-channels at the same `r_max` and `n_points`. See
+**Both states have to be solved on one grid.** Calling the solver twice with
+per-state box sizes gives two different radial meshes back, and multiplying
+those sample-by-sample is meaningless. So everywhere here both l channels are
+solved at the same `r_max` and `n_points`. See
 docs/specs/2026-07-25-phase16-screened-line-strengths-design.md.
 """
 
@@ -31,35 +32,35 @@ __all__ = [
     "grid_points_for",
 ]
 
-#: My target grid spacing in bohr. The dipole overlap converges in h, not in
-#: r_max once the box holds both states, and my finite-difference scheme is
+#: The target grid spacing in bohr. The dipole overlap converges in h, not in
+#: r_max once the box holds both states, and the finite-difference scheme is
 #: O(h^2): at h = 0.01 a screened valence element is good to ~0.1%, which is
-#: well under the GSZ model error I will be combining it with.
+#: well under the GSZ model error it gets combined with.
 _H_TARGET = 0.01
 
 
 def dipole_box_radius(n_top: int, z_net: float = 1.0) -> float:
-    """A box I size to hold the more extended of the two states comfortably.
+    """A box sized to hold the more extended of the two states comfortably.
 
-    I mirror `screened_atom._r_max` here: orbital extent goes as n^2 / Z_net.
+    This mirrors `screened_atom._r_max`: orbital extent goes as n^2 / Z_net.
 
-    My coefficient is 10, not the 40 I started at, because the box now sets my
-    cost: `grid_points_for` holds h fixed, so points scale with r_max. At 10 the
-    hydrogenic <6p|r|5s> and <4p|r|1s> integrals, and the screened Na 3s->3p,
+    The coefficient is 10, not the 40 it started at, because the box now sets
+    the cost: `grid_points_for` holds h fixed, so points scale with r_max. At 10
+    the hydrogenic <6p|r|5s> and <4p|r|1s> integrals, and the screened Na 3s->3p,
     agree with the 40 box to six significant digits; the value only starts to
-    move at a coefficient of 2.5, so I keep a 4x margin in box size and pay a
-    quarter as much.
+    move at a coefficient of 2.5, which leaves a 4x margin in box size at a
+    quarter of the cost.
     """
     return 10.0 * (n_top + 1) ** 2 / z_net
 
 
 def grid_points_for(r_max: float, h_target: float = _H_TARGET) -> int:
-    """The point count I need to keep the spacing at or below `h_target`.
+    """The point count needed to keep the spacing at or below `h_target`.
 
-    Sizing my grid by point count alone is a trap: a generous box with a fixed
-    N silently coarsens h. Before I had this, a 640-bohr box at N = 8000 gave me
+    Sizing the grid by point count alone is a trap: a generous box with a fixed
+    N silently coarsens h. Before this existed, a 640-bohr box at N = 8000 gave
     h = 0.08 and a 6.7% error on the Na 3s->3p element, with nothing in the
-    number I returned to say so.
+    returned number to say so.
     """
     return int(np.ceil(r_max / h_target))
 
@@ -67,14 +68,14 @@ def grid_points_for(r_max: float, h_target: float = _H_TARGET) -> int:
 def dipole_from_solutions(
     sol_a: RadialSolution, k_a: int, sol_b: RadialSolution, k_b: int
 ) -> float:
-    """integral u_a u_b r dr for two states I have already solved on one grid.
+    """integral u_a u_b r dr for two states already solved on one grid.
 
-    I keep this separate so a caller with many lines can solve each l channel
-    once and reuse it, instead of making me re-run the eigenproblem per line.
+    This is separate so a caller with many lines can solve each l channel
+    once and reuse it, rather than re-running the eigenproblem per line.
     """
     if sol_a.r.shape != sol_b.r.shape or not np.array_equal(sol_a.r, sol_b.r):
         raise ValueError(
-            "I need the two states solved on one grid; got "
+            "the two states must be solved on one grid; got "
             f"{sol_a.r.size} and {sol_b.r.size} points"
         )
     r = sol_a.r
@@ -86,8 +87,8 @@ def _overlap(
     l_a: int, k_a: int, l_b: int, k_b: int,
     r_max: float, n_points: int, mu_ratio: float,
 ) -> float:
-    """integral u_a u_b r dr, where I solve both states on one grid."""
-    # At the same l one eigenproblem serves both states, but I have to solve it
+    """integral u_a u_b r dr, solving both states on one grid."""
+    # At the same l one eigenproblem serves both states, but it has to be solved
     # deep enough to contain the higher node count of the two.
     same_l = l_b == l_a
     states_a = max(k_a, k_b) + 1 if same_l else k_a + 1
@@ -110,22 +111,22 @@ def dipole_matrix_element(
     n_points: int | None = None,
     mu_ratio: float = 1.0,
 ) -> Quantity:
-    """The radial dipole matrix element <b|r|a> I compute in bohr, for a central
+    """The radial dipole matrix element <b|r|a> in bohr, for a central
     potential.
 
-    I name states by (l, k) with k the radial node count, so k = n - l - 1 for a
-    hydrogen-like labelling. `n_top` sizes my box: pass the larger n of the
-    pair. My error estimate comes from grid-halving, the same convention my
-    radial solver uses.
+    States are named by (l, k) with k the radial node count, so k = n - l - 1
+    for a hydrogen-like labelling. `n_top` sizes the box: pass the larger n of
+    the pair. The error estimate comes from grid-halving, the same convention
+    the radial solver uses.
 
-    The sign is my solver's: `solve_radial` fixes each u to start positive, so
+    The sign is the solver's: `solve_radial` fixes each u to start positive, so
     the element is reproducible but its overall sign carries no physics. Only
     |R|^2 enters a rate.
     """
     if k_a < 0 or k_b < 0:
-        raise ValueError(f"I need node indices >= 0, got k_a={k_a}, k_b={k_b}")
+        raise ValueError(f"node indices must be >= 0, got k_a={k_a}, k_b={k_b}")
     if l_a < 0 or l_b < 0:
-        raise ValueError(f"I need l >= 0, got l_a={l_a}, l_b={l_b}")
+        raise ValueError(f"l must be >= 0, got l_a={l_a}, l_b={l_b}")
     r_max = dipole_box_radius(n_top, z_net)
     if n_points is None:
         n_points = grid_points_for(r_max)
@@ -142,11 +143,11 @@ def dipole_matrix_element(
                 "solver: <b|r|a> = integral u_a u_b r dr (both states on one grid)"
             ),
             assumptions=(
-                f"I put both states on one uniform grid: r_max={r_max:g} bohr, N={2 * n_points}",
-                "I use trapezoid quadrature on that solver grid",
-                "only my box-converged bound states mean anything here",
+                f"both states on one uniform grid: r_max={r_max:g} bohr, N={2 * n_points}",
+                "trapezoid quadrature on that solver grid",
+                "only box-converged bound states mean anything here",
             ),
             error_estimate=abs(fine - coarse),
-            refinement="raise n_points or r_max; I estimated this by grid-halving",
+            refinement="raise n_points or r_max; this was estimated by grid-halving",
         ),
     )
