@@ -47,42 +47,41 @@ export type ViewMode =
 export type ColorMode = "solid" | "density" | "phase";
 
 /**
- * What I draw in the 3-D view: the sampled cloud, the enclosing surface, or
- * both.
+ * What the 3-D view draws: the sampled cloud, the enclosing surface, or both.
  *
- * This is purely a choice of representation over the same state, so it
- * invalidates nothing, the same rule I hold my view and colour-mode toggles
- * to. I do invalidate the surface data it selects, but by (n, l, m, system,
- * basis) like every other derived payload, not by this.
+ * Purely a choice of representation over the same state, so it invalidates
+ * nothing, the same rule the view and colour-mode toggles follow. The surface
+ * data it selects does get invalidated, but by (n, l, m, system, basis) like
+ * every other derived payload, never by this.
  */
 export type SurfaceMode = "cloud" | "surface" | "both";
 
 /**
- * The fractions I offer as one-click contours.
+ * The fractions offered as one-click contours.
  *
- * 0.9 is the textbook lobe and my default, so the first surface you see is the
- * one you have seen in books, with the 10% it leaves out stated. I keep 0.99
- * because it looks nothing like a textbook lobe, which is the lesson.
+ * 0.9 is the textbook lobe and the default, so the first surface anyone sees is
+ * the one they have seen in books, with the 10% it leaves out stated. 0.99
+ * stays because it looks nothing like a textbook lobe, which is the lesson.
  */
 export const ISO_FRACTIONS = [0.5, 0.75, 0.9, 0.95, 0.99] as const;
 
 /**
- * Which many-electron model I take an atom's levels from.
+ * Which many-electron model an atom's levels come from.
  *
  * "gsz" is the fitted Green-Sellin-Zachor screened central field, "hf" the
  * self-consistent Hartree-Fock solve. Both are APPROXIMATION, but of different
- * things, and they disagree, so this is a physics input and I invalidate on
- * it, unlike my presentational toggles which deliberately invalidate nothing.
+ * things, and they disagree, so this is a physics input and it invalidates,
+ * unlike the presentational toggles that deliberately invalidate nothing.
  */
 export type AtomModel = "gsz" | "hf";
 
 const N_MAX_DIAGRAM = 6;
 
 /**
- * The `/api/systems` request I have in flight, or null.
+ * The `/api/systems` request in flight, or null.
  *
- * I keep it at module level rather than in the store on purpose: no view
- * renders it or should re-render on it, it is bookkeeping for one fetch. See
+ * Kept at module level rather than in the store on purpose: no view renders it
+ * or should re-render on it, it is bookkeeping for one fetch. See
  * `loadSystems` for who races for it.
  */
 let inFlightSystems: Promise<{ systems: SystemInfo[] }> | null = null;
@@ -100,39 +99,39 @@ interface AppState {
   bField: number;
   eField: number;
   hyperfine: boolean;
-  /** Whether I show real line strengths in the Spectrum view. On by default,
+  /** Whether the Spectrum view shows real line strengths. On by default,
    *  because uniform bars silently assert that every line is equally strong,
    *  which is false. */
   intensities: boolean;
-  /** Whether I weight the Spectrum view by LTE populations. Off by default,
-   *  because it is a model with a temperature in it and you should switch it
-   *  on deliberately rather than getting it without asking. */
+  /** Whether the Spectrum view is weighted by LTE populations. Off by default,
+   *  because it is a model with a temperature in it and deserves to be
+   *  switched on deliberately rather than arriving unasked. */
   thermal: boolean;
   temperatureK: number;
-  /** log10(n_e / cm^-3). My control is logarithmic, so my state is too. */
+  /** log10(n_e / cm^-3). The control is logarithmic, so the state is too. */
   logNe: number;
-  /** Whether I synthesize a line-profile curve instead of leaving the lines as
-   *  bars. Off by default, because it costs a wider request and only means
+  /** Whether a line-profile curve gets synthesized instead of leaving the lines
+   *  as bars. Off by default, because it costs a wider request and only means
    *  something once a width mechanism is switched on. */
   profile: boolean;
   /** log10 of the spectrograph resolving power R = lambda/dlambda, or null when
    *  there is no instrument at all. A model of a machine, never of the atom. */
   logResolvingPower: number | null;
-  /** The wavelength window [nm] I synthesize the profile over, or null for the
-   *  full across-n range. You set it by clicking a line. */
+  /** The wavelength window [nm] the profile is synthesized over, or null for
+   *  the full across-n range. Clicking a line sets it. */
   profileZoom: [number, number] | null;
-  /** Whether I show the curve of growth for the zoomed line. Off by default,
+  /** Whether the curve of growth shows for the zoomed line. Off by default,
    *  because it answers a different question from the profile (how the line
    *  responds to more gas, not what it looks like) and deserves to be asked
    *  for. */
   showCurveOfGrowth: boolean;
   curveOfGrowth: CurveOfGrowthInfo | null;
-  /** Whether I put the whole line list in front of a continuum instead of
-   *  watching it emit. A different question from either panel above: not what
-   *  the gas gives off, but what it takes out of light passing through. Off by
-   *  default, and I need populations for it, so I need LTE on. */
+  /** Whether the whole line list goes in front of a continuum instead of being
+   *  watched emit. A different question from either panel above: not what the
+   *  gas gives off, but what it takes out of light passing through. Off by
+   *  default, and it needs populations, so it needs LTE on. */
   absorption: boolean;
-  /** log10(column density of the element / m^-2). The knob my curve of growth
+  /** log10(column density of the element / m^-2). The knob the curve of growth
    *  sweeps, held here at one value for every line at once. */
   logColumn: number;
   absorptionData: AbsorptionInfo | null;
@@ -153,7 +152,7 @@ interface AppState {
   planeStatus: SampleStatus;
   planeProgress: number;
   surfaceMode: SurfaceMode;
-  /** The fraction of the electron I need the surface to enclose. The level follows. */
+  /** The fraction of the electron the surface should enclose. The level follows. */
   isoFraction: number;
   iso: {
     meta: IsoMeta;
@@ -164,57 +163,57 @@ interface AppState {
   isoStatus: SampleStatus;
   isoProgress: number;
   radial: RadialResponse | null;
-  /** Hydrogenic keys give me a LevelsResponse; screened atoms give me ScreenedLevels. */
+  /** Hydrogenic keys return a LevelsResponse; screened atoms return ScreenedLevels. */
   levels: LevelsResponse | ScreenedLevels | null;
   spectrum: SpectrumResponse | null;
-  /** null means the Aufbau ground config, which my server fills in; otherwise an explicit config string. */
+  /** null means the Aufbau ground config, which the server fills in; otherwise an explicit config string. */
   config: string | null;
   model: AtomModel;
   /**
    * The finished Hartree-Fock solve, or null.
    *
-   * I derive it from (system, config) and from nothing else: an HF solve knows
-   * about occupied subshells, not about the (n, l, m) state I am drawing. So I
-   * reset it explicitly in setSystem and setConfig rather than putting it in
+   * Derived from (system, config) and nothing else: an HF solve knows about
+   * occupied subshells, not about the (n, l, m) state being drawn. So it gets
+   * reset explicitly in setSystem and setConfig rather than living in
    * INVALIDATED, exactly like classicalGhost, and a change of n does not throw
    * away seconds of solve.
    */
   hf: HFLevels | null;
   hfStatus: SampleStatus;
   /**
-   * Whether I keep the exchange term in my Hartree-Fock solve.
+   * Whether the Hartree-Fock solve keeps the exchange term.
    *
-   * False asks me for the Hartree model: electrons that repel but are
-   * distinguishable, which I return COUNTERFACTUAL. It is a physics input, so
-   * it clears `hf` exactly the way setConfig does: the two models are
-   * different atoms and I must never leave a stale one under a flipped switch.
+   * False asks for the Hartree model: electrons that repel but are
+   * distinguishable, returned as COUNTERFACTUAL. It is a physics input, so it
+   * clears `hf` exactly the way setConfig does: the two models are different
+   * atoms, and a stale one must never sit under a flipped switch.
    *
-   * True by default, and I deliberately do not remember it across a system
-   * change: altered physics should be something you asked for on the atom in
-   * front of you, not something I inherited from the last one.
+   * True by default, and deliberately not remembered across a system change:
+   * altered physics should be something asked for on the atom in front of you,
+   * not something inherited from the last one.
    */
   exchange: boolean;
   /**
-   * Whether I keep the occupancy cap in my Hartree-Fock solve.
+   * Whether the Hartree-Fock solve keeps the occupancy cap.
    *
    * False is the stronger counterfactual: no cap, so every electron falls into
    * the 1s and the atom has no shells left to have. It contains the exchange
-   * one, since antisymmetry is what the exclusion principle IS, so I couple
-   * the two flags here rather than leaving them free, and `pauli: false,
-   * exchange: true` never leaves this store. My server would answer 422 for
-   * it, and I will not pass through a state my API defines as meaningless.
+   * one, since antisymmetry is what the exclusion principle IS, so the two
+   * flags are coupled here rather than left free, and `pauli: false,
+   * exchange: true` never leaves this store. The server would answer 422 for
+   * it, and a state the API defines as meaningless does not get passed through.
    *
-   * True by default, and I reset it in setSystem exactly like `exchange`.
+   * True by default, and reset in setSystem exactly like `exchange`.
    */
   pauli: boolean;
   /**
-   * Whether I draw both models at once in the density plot.
+   * Whether the density plot draws both models at once.
    *
-   * I keep it out of INVALIDATED and do not spread it with them. It names an
-   * extra curve on one payload rather than a different atom, so my cloud,
-   * plane and surface are all still exactly as true as they were; throwing
-   * them away would be seconds of solve spent telling you nothing. Only the
-   * radial response goes, because only the radial response is missing a field.
+   * Kept out of INVALIDATED and never spread with it. It names an extra curve
+   * on one payload rather than a different atom, so the cloud, plane and
+   * surface are all still exactly as true as they were; throwing them away
+   * would be seconds of solve spent saying nothing. Only the radial response
+   * goes, because only the radial response is missing a field.
    */
   compare: boolean;
   labConst: ConstMultipliers;
@@ -254,39 +253,38 @@ interface AppState {
   setPauli: (pauli: boolean) => void;
   setCompare: (compare: boolean) => void;
   /**
-   * The tour you are taking, or null.
+   * The tour in progress, or null.
    *
-   * `savedState` is your own state, which I snapshot on entry and restore on
-   * exit. If you are three minutes into a chlorine Hartree-Fock solve I should
-   * not lose it because you clicked a tour out of curiosity.
+   * `savedState` is the reader's own state, snapshotted on entry and restored
+   * on exit. Three minutes into a chlorine Hartree-Fock solve is no time to
+   * lose it to a tour clicked out of curiosity.
    */
   tourId: string | null;
   stepIndex: number;
   savedState: UrlState | null;
   startTour: (id: string, step?: number) => void;
   exitTour: () => void;
-  /** Leave the tour, and I record that you read it to the end. */
+  /** Leave the tour, recording that it was read to the end. */
   finishTour: () => void;
   goToStep: (i: number) => void;
   /**
-   * Whether I still have the first-visit invitation on screen.
+   * Whether the first-visit invitation is still on screen.
    *
-   * I seed it from the browser's memory, so if you have already answered it,
-   * by taking a tour or by skipping past it, you never meet it again. I stay
-   * usable underneath it either way: my invitation is a bar, not a gate.
+   * Seeded from the browser's memory, so an invitation already answered, by
+   * taking a tour or by skipping past it, never comes back. The app stays
+   * usable underneath it either way: the invitation is a bar, not a gate.
    */
   inviteOpen: boolean;
-  /** The tours you have read to the last step, for my menu's done marks. */
+  /** The tours read to the last step, for the menu's done marks. */
   completedTours: string[];
   dismissInvite: () => void;
   loadHF: () => Promise<void>;
   /**
-   * I solve the atom before drawing it, under Hartree-Fock only.
+   * Solve the atom before drawing it, under Hartree-Fock only.
    *
-   * The solve is what tells me which subshells exist, so a picture I fire
-   * before it lands may be about to be refused. This resolves to whether I
-   * have a solve available; false means I have already put the reason on
-   * `error`.
+   * The solve is what says which subshells exist, so a picture fired before it
+   * lands may be about to be refused. This resolves to whether a solve is
+   * available; false means the reason is already on `error`.
    */
   ensureHF: () => Promise<boolean>;
   setBasis: (basis: Basis) => void;
@@ -325,7 +323,7 @@ interface AppState {
   loadSpectrum: () => Promise<void>;
 }
 
-/** Everything I derive from (n, l, m, system, basis), which I clear when any of them changes. */
+/** Everything derived from (n, l, m, system, basis), cleared when any of them changes. */
 export const INVALIDATED = {
   stateInfo: null,
   positions: null,
@@ -338,9 +336,9 @@ export const INVALIDATED = {
   plane: null,
   planeStatus: "idle" as SampleStatus,
   planeProgress: 0,
-  // A mesh is a contour of one particular |psi|^2, so it goes as stale as my
-  // cloud does the moment the state changes. I leave the requested fraction
-  // out of here: that is a question you asked, and it survives to be asked
+  // A mesh is a contour of one particular |psi|^2, so it goes as stale as the
+  // cloud does the moment the state changes. The requested fraction stays out
+  // of here: that is a question the reader asked, and it survives to be asked
   // again of the next orbital.
   iso: null,
   isoStatus: "idle" as SampleStatus,
@@ -351,18 +349,19 @@ export const INVALIDATED = {
   curveOfGrowth: null,
   absorptionData: null,
   // A zoom window names a wavelength, and a wavelength names a line of one
-  // particular system. If I carried it across a system change I would point
-  // the profile at empty spectrum and quietly return nothing.
+  // particular system. Carried across a system change it would point the
+  // profile at empty spectrum and quietly return nothing.
   profileZoom: null as [number, number] | null,
 };
 
 /**
- * What the browser remembers about tours, which I read once at startup.
+ * What the browser remembers about tours, read once at startup.
  *
- * I read it here rather than in the components that need it because the record
- * only ever changes through my own actions, so one read at load with my store
- * as the live copy cannot disagree with itself. If a second tab finishes a
- * tour I will not notice until reload, which costs a returning reader nothing.
+ * Read here rather than in the components that need it, because the record
+ * only ever changes through this store's own actions, so one read at load with
+ * the store as the live copy cannot disagree with itself. A tour finished in a
+ * second tab goes unnoticed until reload, which costs a returning reader
+ * nothing.
  */
 const startingMemory = readMemory();
 
@@ -388,10 +387,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   showCurveOfGrowth: false,
   absorption: false,
   // 1e20 m^-2 of hydrogen at 10,000 K: Lyman-alpha black, Balmer-alpha barely
-  // there. I chose this default so I open on the contrast the view exists to
-  // show rather than on a flat line or an all-black one.
+  // there. The default opens on the contrast the view exists to show, rather
+  // than on a flat line or an all-black one.
   logColumn: 20,
-  // I keep profileZoom's default in INVALIDATED, which I spread below.
+  // profileZoom's default lives in INVALIDATED, spread below.
   nucleusMode: "marker",
   count: 100_000,
   systems: [],
@@ -414,8 +413,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   forceLaw: null,
   forceStatus: "idle",
   config: null,
-  // I default to gsz, so that every deep link written before I could do
-  // Hartree-Fock keeps resolving to the physics it was written against.
+  // gsz is the default, so every deep link written before Hartree-Fock existed
+  // keeps resolving to the physics it was written against.
   model: "gsz",
   hf: null,
   hfStatus: "idle",
@@ -428,64 +427,62 @@ export const useAppStore = create<AppState>((set, get) => ({
   inviteOpen: shouldInvite(startingMemory),
   completedTours: startingMemory.completed,
   ...INVALIDATED,
-  // My classical ghost data depends on (n, system) but not (l, m, basis), so I
-  // reset it explicitly here rather than keeping it in INVALIDATED (a basis
+  // The classical ghost data depends on (n, system) but not (l, m, basis), so
+  // it gets reset explicitly here rather than living in INVALIDATED (a basis
   // change keeps it).
   setQuantumNumbers: (n, l, m) =>
     set({ ...clampState(n, l, m), ...INVALIDATED, classicalGhost: null, classicalStatus: "idle" }),
   setSystem: (system) =>
     set((state) => ({
       system,
-      // Sulfur and chlorine have no GSZ parameters, so I cannot draw them with
-      // the screened model at all. When you select one I move to Hartree-Fock
-      // rather than leaving a model selected under which I refuse every
-      // request.
+      // Sulfur and chlorine have no GSZ parameters, so the screened model
+      // cannot draw them at all. Selecting one moves to Hartree-Fock rather
+      // than leaving a model selected under which every request is refused.
       model: resolveModel(state.systems, system, state.model),
       ...INVALIDATED,
-      // selecting a system resets me to the Aufbau ground config, which my
+      // selecting a system resets to the Aufbau ground config, which the
       // server fills in
       config: null,
       classicalGhost: null,
       classicalStatus: "idle",
       forceLaw: null,
       forceStatus: "idle",
-      // a solve belongs to one atom; see my comment on `hf`
+      // a solve belongs to one atom; see the comment on `hf`
       hf: null,
       hfStatus: "idle" as SampleStatus,
-      // and I do not carry altered physics to the next atom
+      // and altered physics does not carry to the next atom
       exchange: true,
       pauli: true,
       // nor a comparison: it is something you asked for about the atom in
       // front of you, and the next one may not have both models.
       compare: false,
     })),
-  // config is its own physics input: I clear everything derived from it but
-  // keep the system you selected.
+  // config is its own physics input: everything derived from it goes, and the
+  // selected system stays.
   //
-  // I spread the full INVALIDATED rather than the four level payloads I used
-  // to clear. Since Phase 26 the configuration reaches my cloud, plane,
+  // The full INVALIDATED gets spread, rather than the four level payloads this
+  // used to clear. Since Phase 26 the configuration reaches the cloud, plane,
   // surface and radial curve as well, because a Hartree-Fock picture is an
-  // orbital of one particular configuration. A 2p I drew under 1s2 2s2 2p6
+  // orbital of one particular configuration. A 2p drawn under 1s2 2s2 2p6
   // sitting beneath a picker that now reads 1s2 2s2 2p5 3s1 is exactly the
   // stale-physics render this block exists to make impossible.
   setConfig: (config) => set({ config, ...INVALIDATED, hf: null, hfStatus: "idle" }),
-  // Switching model changes what my numbers mean, so everything I derived
-  // under the old one goes. The HF solve itself survives: I key it on the
-  // atom, not on which model I am displaying, so switching away and back is
-  // free.
+  // Switching model changes what the numbers mean, so everything derived under
+  // the old one goes. The HF solve itself survives: it is keyed on the atom,
+  // not on which model is being displayed, so switching away and back is free.
   setModel: (model) => set({ model, ...INVALIDATED }),
   // Same shape as setConfig: the solve under the old setting is a different
-  // atom, so it goes rather than sitting stale beneath a flipped switch. I put
-  // the status back to idle rather than to sampling, because nothing is
-  // running yet and a view that reported "solving" before a request existed
-  // would be describing work nobody started.
+  // atom, so it goes rather than sitting stale beneath a flipped switch. The
+  // status goes back to idle rather than to sampling, because nothing is
+  // running yet, and a view reporting "solving" before a request existed would
+  // describe work nobody started.
   // Turning exchange back ON also restores the cap, and that is physics rather
   // than tidiness: an exchange term exists because the wavefunction is
   // antisymmetric, and an antisymmetric wavefunction is what the exclusion
-  // principle is. There is no state with one and not the other, so I cannot
-  // hold one.
+  // principle is. There is no state with one and not the other, so no such
+  // state gets held here.
   //
-  // INVALIDATED goes with it since Phase 26: the switch reaches my cloud,
+  // INVALIDATED goes with it since Phase 26: the switch reaches the cloud,
   // plane, surface and radial curve now, and a Hartree orbital is a different
   // curve rather than the same curve at a different accuracy.
   setExchange: (exchange) =>
@@ -500,11 +497,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Back on restores real physics rather than leaving you in the weaker
   // counterfactual you never asked for.
   //
-  // I clear `config` in both directions, so my solve uses the ground
+  // `config` clears in both directions, so the solve uses the ground
   // configuration of whichever rule is now in force: 1s^N with the cap off,
   // Aufbau with it on. A configuration carried across the switch would be a
-  // different atom on one side of it, and my server withholds the comparison
-  // for exactly that reason, so leaving it set would silently cost you the
+  // different atom on one side of it, and the server withholds the comparison
+  // for exactly that reason, so leaving it set would silently cost the
   // comparison.
   setPauli: (pauli) =>
     set({
@@ -515,19 +512,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       hf: null,
       hfStatus: "idle",
     }),
-  // My one many-electron control that is not a physics input. Nothing about
-  // the atom changed, so my solve, cloud, plane and surface all stand; only
+  // The one many-electron control that is not a physics input. Nothing about
+  // the atom changed, so the solve, cloud, plane and surface all stand. Only
   // the radial response goes, because only it is missing a field.
   setCompare: (compare) => set({ compare, radial: null }),
-  // A tour step is a whole state, not a patch, so I send it through tourReset
-  // rather than a raw setState: see my comment on tourReset for what would
+  // A tour step is a whole state, not a patch, so it goes through tourReset
+  // rather than a raw setState: see the comment on tourReset for what would
   // otherwise render under the new labels.
   startTour: (id, step = 0) => {
     const tour = tourById(id);
-    // For an id I do not know I leave everything alone, my invitation
-    // included: a stale deep link should not cost you the offer of a tour.
+    // An unknown id leaves everything alone, the invitation included: a stale
+    // deep link should not cost anyone the offer of a tour.
     if (!tour) return;
-    // Starting one answers my invitation whichever door it came through: the
+    // Starting one answers the invitation whichever door it came through: the
     // invitation's own button, the menu, or a link someone shared.
     rememberDismissed();
     set((s) => {
@@ -537,7 +534,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         tourId: id,
         stepIndex: i,
         inviteOpen: false,
-        // Only on entry. If you re-enter mid-tour I must not overwrite your
+        // Only on entry. Re-entering mid-tour must not overwrite the reader's
         // own state with a tour step's.
         savedState: s.savedState ?? currentUrlState(s),
       };
@@ -583,31 +580,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEField: (eField) => set({ eField, levels: null }),
   setHyperfine: (hyperfine) => set({ hyperfine, levels: null }),
   setIntensities: (intensities) => set({ intensities, spectrum: null }),
-  // Each of these changes what I ask my engine for, so my cached spectrum goes
-  // stale the instant they move. Same rule as setIntensities.
+  // Each of these changes what the engine is asked for, so the cached spectrum
+  // goes stale the instant they move. Same rule as setIntensities.
   setThermal: (thermal) => set({ thermal, spectrum: null }),
   setTemperatureK: (temperatureK) => set({ temperatureK, spectrum: null }),
   setLogNe: (logNe) => set({ logNe, spectrum: null }),
-  // I synthesize the profile server-side, so every knob that changes its shape
-  // invalidates my cached response exactly like the thermal ones.
+  // The profile is synthesized server-side, so every knob that changes its
+  // shape invalidates the cached response exactly like the thermal ones.
   setProfile: (profile) => set({ profile, spectrum: null }),
   setLogResolvingPower: (logResolvingPower) =>
     set({ logResolvingPower, spectrum: null }),
-  // The curve belongs to one line, so when you move the window I discard it too.
+  // The curve belongs to one line, so moving the window discards it too.
   setProfileZoom: (profileZoom) =>
     set({ profileZoom, spectrum: null, curveOfGrowth: null, absorptionData: null }),
   setShowCurveOfGrowth: (showCurveOfGrowth) => set({ showCurveOfGrowth }),
-  // I compute the absorption curve for one column against one gas, so I
-  // discard it on either knob. Same rule as the thermal ones above.
+  // The absorption curve is computed for one column against one gas, so either
+  // knob discards it. Same rule as the thermal ones above.
   setAbsorption: (absorption) => set({ absorption, absorptionData: null }),
   setLogColumn: (logColumn) => set({ logColumn, absorptionData: null }),
-  // a pure render choice: I have nothing physical to invalidate
+  // a pure render choice: there is nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
   setPlaneQuantity: (planeQuantity) =>
     set({ planeQuantity, plane: null, planeStatus: "idle", planeProgress: 0 }),
   setFps: (fps) => set({ fps }),
-  // my lab slice: independent of the main (n,l,m,system) physics, so I never put it in INVALIDATED
+  // the lab slice: independent of the main (n,l,m,system) physics, so it never goes in INVALIDATED
   setLabConst: (partial) =>
     set((s) => ({
       labConst: { ...s.labConst, ...partial },
@@ -615,14 +612,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       whatifStatus: "idle",
     })),
   setLabZ: (labZ) => set({ labZ, whatif: null, whatifStatus: "idle" }),
-  // overlay visibility is presentational; the data I draw carries its own provenance
+  // overlay visibility is presentational; the data drawn carries its own provenance
   setGhost: (on) => {
     set({ ghost: on });
     if (on && get().classicalStatus === "idle") void get().loadClassical();
   },
-  // my force-law slice: its own axis (preset, params, l), independent of the
-  // main (n,l,m,system) physics, so I never put it in INVALIDATED. Changing
-  // the preset, a param, or l clears only my force-law data. forceViz is
+  // the force-law slice: its own axis (preset, params, l), independent of the
+  // main (n,l,m,system) physics, so it never goes in INVALIDATED. Changing the
+  // preset, a param, or l clears only the force-law data. forceViz is
   // presentational and clears nothing, which is a store invariant. A system
   // change clears it too, since Z and mu change with it.
   setForcePreset: (preset) =>
@@ -679,10 +676,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const report = await client.getConstants(labConst);
       const alpha = report.alpha.quantity.value;
-      // In What-If I only use hydrogenic z{N} systems, so I narrow the union defensively.
+      // What-If uses hydrogenic z{N} systems only, so the union narrows defensively.
       const real = await client.getLevels(sys, N_MAX_DIAGRAM, true);
       if (client.isScreenedLevels(real)) throw new Error("what-if expects hydrogenic levels");
-      // I draw the altered diagram only when the derived alpha stays in the perturbative range
+      // The altered diagram is drawn only when the derived alpha stays in the perturbative range
       const alteredRaw =
         report.altered && isAlphaValid(alpha)
           ? await client.getLevels(sys, N_MAX_DIAGRAM, true, alpha)
@@ -699,12 +696,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   loadSystems: async () => {
-    // Three of my callers want this table on first paint: the Controls panel,
-    // the ensureHF gate, and loadHF. Each guards on `systems.length === 0`,
-    // which is still zero for all three until the first response lands, so if
-    // I did not share the request in flight I would open by fetching the same
-    // 16 kB three times. I clear it in `finally` so I retry a failed load
-    // rather than remembering it.
+    // Three callers want this table on first paint: the Controls panel, the
+    // ensureHF gate, and loadHF. Each guards on `systems.length === 0`, which
+    // is still zero for all three until the first response lands, so without
+    // sharing the request in flight the app would open by fetching the same
+    // 16 kB three times. It clears in `finally`, so a failed load is retried
+    // rather than remembered.
     if (inFlightSystems === null) inFlightSystems = client.getSystems();
     let systems: SystemInfo[];
     try {
@@ -712,9 +709,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       inFlightSystems = null;
     }
-    // A deep link can name ?system=s&model=gsz, which I can only know is wrong
+    // A deep link can name ?system=s&model=gsz, which is only knowably wrong
     // once the table saying sulfur has no GSZ parameters has arrived. This is
-    // the moment it arrives, so this is where I correct that link.
+    // the moment it arrives, so this is where that link gets corrected.
     const { system, model } = get();
     set({ systems, model: resolveModel(systems, system, model) });
   },
@@ -743,10 +740,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ status: "error", error: err instanceof Error ? err.message : String(err) });
     }
   },
-  // Which of my two representations I draw is a viewing choice over the same
-  // physics, so it clears nothing. The fraction is not: it names a different
-  // contour, so the mesh under the old one goes rather than sitting beneath a
-  // moved slider claiming to enclose something it does not.
+  // Which of the two representations gets drawn is a viewing choice over the
+  // same physics, so it clears nothing. The fraction is not: it names a
+  // different contour, so the mesh under the old one goes rather than sitting
+  // beneath a moved slider claiming to enclose something it does not.
   setSurfaceMode: (surfaceMode) => set({ surfaceMode }),
   setIsoFraction: (isoFraction) =>
     set({
@@ -844,18 +841,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadHF: async () => {
     const { system, config, systems, hfStatus, exchange, pauli } = get();
     if (hfStatus === "sampling") return;
-    // Z and the electron count live on the system table, so I cannot request a
-    // solve before it has loaded. I ask for it rather than guessing them from
-    // the key: the key is a label, the table is the authority. I go through
-    // loadSystems rather than the client directly, so I share the request any
-    // other caller already has in flight.
+    // Z and the electron count live on the system table, so no solve can be
+    // requested before it has loaded. Better to fetch it than to guess them
+    // from the key: the key is a label, the table is the authority. It goes
+    // through loadSystems rather than the client directly, to share the
+    // request any other caller already has in flight.
     if (systems.length === 0) await get().loadSystems();
     const table = get().systems;
     const info = table.find((s) => s.key === system);
     if (info === undefined || info.n_electrons === null) {
       set({
         hfStatus: "error",
-        error: `I need an atom with a known electron count to run Hartree-Fock; ${system} has none`,
+        error: `Hartree-Fock needs an atom with a known electron count; ${system} has none`,
       });
       return;
     }
@@ -868,8 +865,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         exchange,
         pauli,
       });
-      // The solve reports me no intermediate progress (my server says why), so
-      // I have nothing to show between 0 and 1 and I pretend nothing.
+      // The solve reports no intermediate progress (the server says why), so
+      // there is nothing to show between 0 and 1, and nothing gets pretended.
       await client.watchJob(job.id, () => {});
       const meta = await client.getJobMeta(job.id);
       if (!client.isHFLevels(meta)) throw new Error("expected hartree-fock job meta");
@@ -879,11 +876,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   ensureHF: async () => {
-    // I take the table first, because it is what decides the model. A deep
-    // link can say ?system=s&model=gsz, and firing that request before the
-    // table lands spends a 400 on a question I am one fetch away from
-    // answering myself. It is cheap: after the first load `systems` is
-    // populated and this is a length check.
+    // The table comes first, because it is what decides the model. A deep link
+    // can say ?system=s&model=gsz, and firing that request before the table
+    // lands spends a 400 on a question one fetch away from being answered
+    // locally. It is cheap: after the first load `systems` is populated and
+    // this is a length check.
     if (get().systems.length === 0) await get().loadSystems();
     if (get().model !== "hf") return true;
     if (get().hf !== null) return true;
@@ -919,9 +916,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         columnDensityM2: 10 ** logColumn,
         thermal: { temperatureK, electronDensityCm3: 10 ** logNe },
         resolvingPower: logResolvingPower === null ? null : 10 ** logResolvingPower,
-        // I use the same window as my profile panel. Across the full 90 to
-        // 7500 nm range a line is narrower than a pixel, so the only place I
-        // can show an absorption line's actual shape is a zoom, exactly as for
+        // The same window as the profile panel. Across the full 90 to 7500 nm
+        // range a line is narrower than a pixel, so the only place an
+        // absorption line's actual shape can show is a zoom, exactly as for
         // emission.
         window: profileZoom,
         config,
