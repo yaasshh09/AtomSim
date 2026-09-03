@@ -89,24 +89,25 @@ export function CloudView() {
     model,
     meta,
   } = useAppStore();
-  // My ghost is a Kepler orbit, which exists because the field is exactly 1/r.
-  // A screened atom's whole content is that its field is not, so I have no
-  // ghost to draw and /api/classical says so with a 422. I keep three states,
-  // not two: I offer the toggle when I know the system is hydrogenic, say why
-  // not when I know it is screened, and show neither before my systems table
-  // arrives, so hydrogen does not flash the screened note on first render.
+  // The ghost is a Kepler orbit, which exists because the field is exactly
+  // 1/r. A screened atom's whole content is that its field is not, so there is
+  // no ghost to draw and /api/classical says so with a 422. Three states here,
+  // not two: offer the toggle when the system is known to be hydrogenic, say
+  // why not when it is known to be screened, and show neither before the
+  // systems table arrives, so hydrogen never flashes the screened note on
+  // first render.
   const kind = systemKind(systems, system);
-  // A deep link (?ghost=1) sets `ghost` in my initial state without going
-  // through setGhost, and changing n or the system resets my ghost data to
-  // idle while the toggle stays on. Either way, I fetch when the overlay is on
+  // A deep link (?ghost=1) sets `ghost` in the initial state without going
+  // through setGhost, and changing n or the system resets the ghost data to
+  // idle while the toggle stays on. Either way, fetch when the overlay is on
   // but the data is idle. Hiding the toggle is not enough on its own: the deep
   // link reaches `ghost` without ever touching it, and this effect is what it
   // reaches.
   useEffect(() => {
     if (kind === "hydrogenic" && ghost && classicalStatus === "idle") void loadClassical();
   }, [kind, ghost, classicalStatus, loadClassical]);
-  // The live loop phase I share between my in-Canvas animation (which writes
-  // each frame) and my HUD clock (which polls at 10 Hz), with no per-frame
+  // The live loop phase, shared between the in-Canvas animation (which writes
+  // each frame) and the HUD clock (which polls at 10 Hz), with no per-frame
   // React renders.
   const ghostTauRef = useRef(0);
   const colors = useMemo(
@@ -115,7 +116,7 @@ export function CloudView() {
   );
   const showSurface = surfaceMode !== "cloud";
   const showCloud = surfaceMode !== "surface";
-  // I fetch the surface when someone asks me to show it, exactly like the
+  // The surface is fetched when someone asks to see it, exactly like the
   // classical ghost: a deep link can arrive with ?surf=surface set without
   // ever passing through the toggle, and this is what it reaches.
   useEffect(() => {
@@ -128,9 +129,9 @@ export function CloudView() {
   const meanRadiusDistance = stateInfo
     ? Math.max(6 * stateInfo.mean_radius.value, 1e-3)
     : 5 * n * n + 3;
-  // In surface-only mode I have no cloud to frame, and a contour is smaller
-  // than the cloud around it, so if I framed on <r> I would leave it small in
-  // the middle of an empty canvas.
+  // In surface-only mode there is no cloud to frame, and a contour is smaller
+  // than the cloud around it, so framing on <r> would leave it small in the
+  // middle of an empty canvas.
   const distance =
     surfaceMode === "surface" && iso
       ? Math.max(2.6 * surfaceExtent(iso.vertices), 1e-3)
@@ -145,9 +146,9 @@ export function CloudView() {
   return (
     <div className="canvas-wrap">
       <Canvas camera={{ fov: 50 }}>
-        {/* I match --stage in index.css here. My 3-D canvas paints its own
-            opaque background, so this is the one place I do not read the stage
-            colour from the stylesheet, and I have to keep the two in step by
+        {/* This matches --stage in index.css. The 3-D canvas paints its own
+            opaque background, so it is the one place the stage colour is not
+            read from the stylesheet, and the two have to be kept in step by
             hand. */}
         <color attach="background" args={["#080c0e"]} />
         <CameraRig distance={distance} />
@@ -162,7 +163,7 @@ export function CloudView() {
         )}
         {showSurface && iso && surfaceColors && (
           <>
-            {/* A lit material needs light, and my cloud never did. Both are
+            {/* A lit material needs light, and the cloud never did. Both are
                 presentation and both ride on ISOSURFACE_LIBERTY. */}
             <ambientLight intensity={0.65} />
             <directionalLight position={[1, 1, 1]} intensity={1.1} />
@@ -186,11 +187,10 @@ export function CloudView() {
         )}
         <OrbitControls />
       </Canvas>
-      {/* What I am showing on the stage, in its top-left corner. The design
-          also put a random seed and a "1px = N pm" scale here; my sampler does
-          not report a seed and my camera is a live orbit with no fixed pixel
-          scale, so both would have been decoration reading as
-          instrumentation. */}
+      {/* What is on the stage, named in its top-left corner. The design also
+          put a random seed and a "1px = N pm" scale here. The sampler reports
+          no seed and the camera is a live orbit with no fixed pixel scale, so
+          both would have been decoration reading as instrumentation. */}
       {meta && (
         <div className="stage-caption">
           |ψ|² Monte-Carlo · {meta.count.toLocaleString()} draws
@@ -203,9 +203,9 @@ export function CloudView() {
         <Badge provenance={RENDER_LIBERTIES} />
         {nucleus?.kind === "marker" && <Badge provenance={NUCLEUS_MARKER_LIBERTY} />}
         {caption && <span className="nucleus-caption">{caption}</span>}
-        {/* My triad's scale. I draw it here rather than in 3-D so it cannot
-            land on top of the z tip, and so I state the arm length in the
-            data's own units next to the rest of my disclosures. */}
+        {/* The triad's scale. Drawn here rather than in 3-D so it cannot land
+            on top of the z tip, and so the arm length is stated in the data's
+            own units next to the rest of the disclosures. */}
         <span className="ghost-readout">
           axes ±{formatArm(axisArmLength(distance))} a{"₀"} · z is the
           quantization axis
@@ -246,7 +246,7 @@ export function CloudView() {
             solving for the level… {Math.round(isoProgress * 100)}%
           </span>
         )}
-        {/* Deliberately not .ghost-hud: I border that box in counterfactual
+        {/* Deliberately not .ghost-hud: that box is bordered in counterfactual
             pink, and a contour of the real |psi|^2 is not a counterfactual. */}
         {showSurface && iso && (
           <div className="surface-hud">
@@ -256,21 +256,20 @@ export function CloudView() {
             </div>
             <div className="ghost-readout">
               |psi|^2 = {iso.meta.level.value.toExponential(3)} bohr^-3 on the{" "}
-              {iso.meta.resolution}^3 grid I used, {componentsCaption(iso.meta)}
+              {iso.meta.resolution}^3 grid, {componentsCaption(iso.meta)}
             </div>
             <div className="ghost-readout">
-              {iso.meta.escaped_fraction.value.toExponential(1)} of the electron is
-              outside my box entirely
+              {iso.meta.escaped_fraction.value.toExponential(1)} of the electron sits
+              outside the box entirely
             </div>
-            {/* I show both error bars, because they measure different claims
-                and the fraction one is nearly blind: the level hardly moves
-                under a halved grid, so the fraction converges long before the
-                shape does. If I showed only "fraction ± 0" beside a surface
-                that is half a percent off in size it would read as
-                exactness. */}
+            {/* Both error bars show, because they measure different claims and
+                the fraction one is nearly blind: the level hardly moves under
+                a halved grid, so the fraction converges long before the shape
+                does. "Fraction ± 0" alone, beside a surface half a percent off
+                in size, would read as exactness. */}
             {iso.meta.provenance.error_estimate !== null && (
               <div className="ghost-readout">
-                halving my grid moves the enclosed fraction by{" "}
+                halving the grid moves the enclosed fraction by{" "}
                 {formatErrorScale(iso.meta.provenance.error_estimate)}
                 {iso.meta.mesh_volume.provenance.error_estimate !== null && (
                   <>
@@ -301,8 +300,8 @@ export function CloudView() {
         )}
         {kind === "screened" && (
           <span className="ghost-readout">
-            I have no classical ghost here: the Kepler orbit needs a 1/r field,
-            and the screening is the part this model adds.
+            No classical ghost here: a Kepler orbit needs a 1/r field, and
+            screening is exactly what this model adds.
           </span>
         )}
         {ghost && classicalStatus === "sampling" && (
@@ -326,7 +325,7 @@ export function CloudView() {
               collapse <Badge provenance={classicalGhost.orbit_count.provenance} />
             </div>
             <div className="ghost-readout">
-              I am showing this at ~{slowMotionFactor(classicalGhost.collapse_time_s.value).toExponential(1)}×
+              playing at about {slowMotionFactor(classicalGhost.collapse_time_s.value).toExponential(1)}×
               slow motion <Badge provenance={CLASSICAL_SLOWMO} />
             </div>
           </div>

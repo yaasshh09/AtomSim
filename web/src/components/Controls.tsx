@@ -10,7 +10,7 @@ import { ShowPhysics } from "./ShowPhysics";
 const N_CHOICES = [1, 2, 3, 4, 5, 6];
 const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];
 
-// I append entries here as each view lands.
+// One entry per view, appended as each one lands.
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "cloud", label: "3D point cloud" },
   { value: "plane", label: "2D cross-section" },
@@ -33,11 +33,11 @@ export function Controls() {
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
   }, [systems.length, loadSystems]);
-  // My picker greys the subshells the configuration does not occupy, and it
-  // can only learn which those are from the solve. I ask for it here rather
-  // than leaving it to whichever view is open: my Cloud samples on a button
-  // press, so under that view nothing else would ever request it and my picker
-  // would offer every subshell right up until the job came back 422.
+  // The picker greys the subshells the configuration does not occupy, and it
+  // can only learn which those are from the solve. The request happens here
+  // rather than in whichever view is open: Cloud samples on a button press, so
+  // under that view nothing else would ever ask, and the picker would offer
+  // every subshell right up until the job came back 422.
   useEffect(() => {
     if (model === "hf") void ensureHF();
   }, [model, ensureHF]);
@@ -47,19 +47,19 @@ export function Controls() {
   const hydrogenic = systems.filter((s) => s.kind === "hydrogenic");
   const screened = systems.filter((s) => s.kind === "screened");
   const isScreened = systems.find((s) => s.key === system)?.kind === "screened";
-  // Sulfur and chlorine are real atoms I solve; only one of my two models has
-  // parameters for them. I disable the radio rather than hiding it, so you can
-  // see the missing option and read a reason next to it.
+  // Sulfur and chlorine are real atoms the engine solves, but only one of the
+  // two models has parameters for them. The radio gets disabled rather than
+  // hidden, so the missing option stays visible with a reason next to it.
   const hasGsz = gszAvailable(systems, system);
-  // My overlay needs both models to speak, so I offer it exactly where the
-  // radio above it has two live options.
+  // The overlay needs both models, so it is offered exactly where the radio
+  // above it has two live options.
   const canCompare = compareAvailable(systems, system);
-  // My server echoes the resolved configuration back on the levels payload.
+  // The server echoes the resolved configuration back on the levels payload.
   const resolved = levels !== null && isScreenedLevels(levels) ? levels : null;
 
-  // I keep a local draft so typing does not make me refetch physics on every
-  // keystroke, and commit on submit or blur. `config` in my store is the
-  // committed value; null means the Aufbau ground state.
+  // A local draft, so typing does not refetch physics on every keystroke. It
+  // commits on submit or blur. `config` in the store is the committed value;
+  // null means the Aufbau ground state.
   const [draft, setDraft] = useState(config ?? "");
   useEffect(() => setDraft(config ?? ""), [config]);
   const commitConfig = () => {
@@ -83,8 +83,8 @@ export function Controls() {
               ))}
             </optgroup>
           )}
-          {/* I do not call this "screened": two of these atoms have no
-              screened model. */}
+          {/* Not called "screened": two of these atoms have no screened
+              model. */}
           {screened.length > 0 && (
             <optgroup label="Atoms (many-electron, approx.)">
               {screened.map((s) => (
@@ -144,10 +144,10 @@ export function Controls() {
           {!hasGsz && (
             <p className="panel-hint">
               Szydlik and Green never published neutral GSZ screening parameters
-              for this element, so I have nothing to run the screened model on.
-              My Hartree-Fock solve builds its potential out of the orbitals it
-              is solving for and needs no fitted table, which is why I can offer
-              this atom at all.
+              for this element, so there is nothing to run the screened model
+              on. Hartree-Fock builds its potential out of the orbitals it is
+              solving for and needs no fitted table, which is the only reason
+              this atom is here at all.
             </p>
           )}
           <label className="check" data-tour="compare-toggle">
@@ -161,13 +161,13 @@ export function Controls() {
           </label>
           <p className="panel-hint">
             {canCompare
-              ? "I draw the total density under both models on one axis, with the number of electrons they place differently. I leave the orbital plots on the model you selected above."
-              : "I need both models for this, and only one of them has parameters for this element."}
+              ? "Draws the total density under both models on one axis, with the number of electrons they place differently. The orbital plots stay on the model selected above."
+              : "This needs both models, and only one of them has parameters for this element."}
           </p>
           <p className="panel-hint">
             {model === "gsz"
-              ? "A fitted central field: I use one potential for every electron, with no self-consistency."
-              : "A self-consistent field, which I solve per subshell with no fitted parameters. I draw it in every view: cloud, cross-section, radial and surface. What I show you is one orbital, not the total density, which for these atoms is exactly spherical."}
+              ? "A fitted central field: one potential for every electron, and no self-consistency."
+              : "A self-consistent field, solved per subshell with no fitted parameters, and drawn in every view: cloud, cross-section, radial and surface. What you see is one orbital, not the total density, which for these atoms is exactly spherical."}
           </p>
           {model === "hf" && (
             <>
@@ -175,10 +175,10 @@ export function Controls() {
                 <input
                   type="checkbox"
                   checked={!exchange}
-                  // I disable it rather than hiding it while the cap is off,
-                  // and I leave it ticked: the weaker counterfactual is
-                  // contained in the stronger, so it is true and not available
-                  // to change. If I hid it you might think exchange came back.
+                  // Disabled rather than hidden while the cap is off, and left
+                  // ticked: the weaker counterfactual is contained in the
+                  // stronger, so it is true and not available to change.
+                  // Hiding it would suggest exchange had come back.
                   disabled={!pauli}
                   onChange={(e) => setExchange(!e.target.checked)}
                 />
@@ -188,8 +188,8 @@ export function Controls() {
                 {!pauli
                   ? "The switch below forces this on: exchange energy comes from antisymmetry, and antisymmetry is the exclusion principle."
                   : exchange
-                    ? "Exchange on: I keep the wavefunction antisymmetric, as it is in this universe."
-                    : "Counterfactual. I have removed exchange, so my wavefunction is a product instead of a determinant. I leave the Pauli occupancies untouched, so this is not electrons piling into 1s."}
+                    ? "Exchange on. The wavefunction stays antisymmetric, as it is in this universe."
+                    : "Counterfactual. Exchange is gone, so the wavefunction is a product instead of a determinant. The Pauli occupancies are untouched, so this is not electrons piling into 1s."}
               </p>
               <label className="check" data-tour="pauli-toggle">
                 <input
@@ -201,16 +201,16 @@ export function Controls() {
               </label>
               <p className="panel-hint">
                 {pauli
-                  ? "I cap the occupancies at 2(2l+1), which is why the atom has shells and the periodic table has periods."
-                  : "Counterfactual, and the stronger one. I have dropped the cap, so every electron falls into the 1s: one level, no shells, no chemistry. Compare the two energies and sizes on my Energy levels view."}
+                  ? "Occupancies are capped at 2(2l+1), which is why the atom has shells and the periodic table has periods."
+                  : "Counterfactual, and the stronger one. The cap is gone, so every electron falls into the 1s: one level, no shells, no chemistry. The Energy levels view compares the two energies and sizes."}
               </p>
             </>
           )}
         </div>
       )}
       <h2>View mode</h2>
-      {/* A list, not a dropdown: my seven views are the whole instrument, and
-          a closed <select> would hide six of them behind a click. It still
+      {/* A list, not a dropdown: these seven views are the whole instrument,
+          and a closed <select> would hide six of them behind a click. It still
           behaves as one radio group, and `aria-pressed` says which is live. */}
       <div className="view-list" data-tour="view-list">
         {VIEW_OPTIONS.map((v) => (
@@ -237,10 +237,10 @@ export function Controls() {
               <option
                 key={v}
                 value={v}
-                // I offer a shell when any subshell in it is occupied. Under
-                // the screened model that is always, since a fitted central
-                // field has a solution in every channel whether or not an
-                // electron is in it.
+                // A shell is offered when any subshell in it is occupied.
+                // Under the screened model that is always, since a fitted
+                // central field has a solution in every channel whether or not
+                // an electron sits in it.
                 disabled={
                   !Array.from({ length: v }, (_, i) => i).some((li) =>
                     subshellAvailable(hf, model, v, li),
@@ -281,9 +281,9 @@ export function Controls() {
       </div>
       {model === "hf" && hf !== null && (
         <p className="panel-hint">
-          I grey the subshells that are empty in {hf.config}. My Hartree-Fock
-          solve builds one Fock operator per occupied subshell, so an empty one
-          has no operator to be an eigenfunction of.
+          Subshells empty in {hf.config} are greyed out. Hartree-Fock builds one
+          Fock operator per occupied subshell, so an empty one has no operator
+          to be an eigenfunction of.
         </p>
       )}
       <h2>Physics</h2>
@@ -356,10 +356,10 @@ export function Controls() {
           ? `SAMPLING ${(progress * 100).toFixed(0)}%`
           : "▶ EXECUTE SAMPLE"}
       </button>
-      {/* My engine log. The design had it reading "engine ready · CDF ok"
+      {/* The engine log. The design had it reading "engine ready · CDF ok"
           before anything had run, which is a claim about a solver nobody has
-          asked a question yet. I report the job that actually happened, and
-          say "awaiting input" when none has. */}
+          asked a question yet. This reports the job that actually happened,
+          and says "awaiting input" when there has not been one. */}
       <div className="term" role="status" aria-live="polite">
         {status === "error" && error ? (
           <div className="term-line term-err">{error}</div>
@@ -371,7 +371,7 @@ export function Controls() {
         ) : meta ? (
           <div className="term-line">
             {meta.count.toLocaleString()} points drawn
-            {/* I only name the model when there is a choice of one.
+            {/* The model is named only when there is a choice of one.
                 `meta.model` reads "gsz" for hydrogen too, and printing that
                 beside a one-electron atom would claim a screened field that is
                 not there and could not be. */}
