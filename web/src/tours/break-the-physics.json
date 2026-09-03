@@ -7,8 +7,8 @@
       "id": "turn-up-alpha",
       "title": "Turn up the fine-structure constant",
       "body": [
-        "Alpha is about 1 over 137 and nothing in the theory says why. Here you can move it and I will show you the level structure responding.",
-        "My badge says COUNTERFACTUAL, which is a specific promise: I altered the physics deliberately and then solved it properly under the altered rules. I am not drawing you a cartoon."
+        "Alpha is about 1 over 137, and nothing in the theory says why. Here you can move it and watch the level structure respond.",
+        "The badge says COUNTERFACTUAL, which is a specific promise: the physics was altered deliberately, then solved properly under the altered rules. This is not a cartoon."
       ],
       "state": { "view": "whatif", "n": 2, "l": 1, "m": 0 },
       "spotlight": "const-sliders"
@@ -17,8 +17,8 @@
       "id": "change-the-force-law",
       "title": "Change the force law itself",
       "body": [
-        "Coulomb is 1 over r. Replace it with a Yukawa, a power law, or an expression you type, and I find the states of whatever you wrote with the same numerical solver.",
-        "This is why I am a radial Schrodinger solver rather than a table of hydrogen formulas. I run the counterfactual and the real atom through the same code."
+        "Coulomb is 1 over r. Replace it with a Yukawa, a power law, or an expression you type, and the same numerical solver finds the states of whatever you wrote.",
+        "This is why the engine is a radial Schrodinger solver rather than a table of hydrogen formulas. The counterfactual and the real atom go through the same code."
       ],
       "state": { "view": "forcelaw" },
       "spotlight": "force-preset"
@@ -28,7 +28,7 @@
       "title": "Electrons that repel but do not exclude",
       "body": [
         "Switch off exchange and helium's electrons still repel, but they stop being identical particles. The energy moves, and the direction it moves is the whole content of the exchange term.",
-        "I am not fudging anything here. This is my same Hartree-Fock solver with one term dropped, and I label the result for what it is."
+        "Nothing is fudged here. It is the same Hartree-Fock solver with one term dropped, and the result is labelled for what it is."
       ],
       "state": { "system": "he", "model": "hf", "view": "radial", "exchange": false },
       "spotlight": "exchange-toggle"
@@ -38,7 +38,7 @@
       "title": "Switch off exclusion and watch the atom collapse",
       "body": [
         "With no occupancy cap every electron falls into the 1s. Argon becomes 1s to the eighteenth, and the periodic table stops existing.",
-        "This is the strongest counterfactual I offer and it contains the previous one: antisymmetry is what exclusion is, so I cannot switch off one and keep the other."
+        "This is the strongest counterfactual on offer, and it contains the previous one: antisymmetry is what exclusion is, so you cannot switch off one and keep the other."
       ],
       "state": {
         "system": "ar",
