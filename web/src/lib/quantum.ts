@@ -21,7 +21,7 @@ export function clampState(n: number, l: number, m: number): { n: number; l: num
   const cn = Math.max(1, Math.round(n));
   const cl = Math.min(Math.max(0, Math.round(l)), cn - 1);
   const cm = Math.min(Math.max(Math.round(m), -cl), cl);
-  // I add 0 to normalize -0 (which -cl gives me when cl === 0) to +0
+  // Adding 0 normalizes -0 (which -cl gives when cl === 0) to +0
   return { n: cn, l: cl, m: cm + 0 };
 }
 
@@ -44,7 +44,7 @@ const CHEMISTRY_LABELS: Record<string, string> = {
   "3,-3": "f_y(3x2-y2)",
 };
 
-/** My mirror of atomsim.analytic.angular.real_orbital_label. Keep the two in lockstep. */
+/** A mirror of atomsim.analytic.angular.real_orbital_label. Keep the two in lockstep. */
 export function realOrbitalLabel(l: number, m: number): string {
   const hit = CHEMISTRY_LABELS[`${l},${m}`];
   if (hit) return hit;

@@ -1,6 +1,6 @@
 import type { ScaleLinear } from "d3-scale";
 
-/** The SVG path I trace through (xs[i], ys[i]) under the given scales. */
+/** The SVG path traced through (xs[i], ys[i]) under the given scales. */
 export function linePath(
   xs: readonly number[],
   ys: readonly number[],
@@ -15,15 +15,15 @@ export function linePath(
 /**
  * The grid indices where a sampled curve changes sign.
  *
- * I read the curve I drew and claim nothing beyond it: the positions I return
- * are linear interpolations between two adjacent samples that straddle zero,
- * which is where my plotted polyline crosses the axis, and is therefore
- * exactly what a marker drawn there points at. This is not my engine's node
- * count. That number comes off /api/state with its own provenance and I report
- * it in the left rail; if the two ever disagree, the engine is right and I am
- * telling you the grid is too coarse to show it.
+ * This reads the drawn curve and claims nothing beyond it: the positions are
+ * linear interpolations between two adjacent samples that straddle zero, which
+ * is where the plotted polyline crosses the axis, and therefore exactly what a
+ * marker drawn there points at. It is not the engine's node count. That number
+ * comes off /api/state with its own provenance and appears in the left rail. If
+ * the two ever disagree, the engine is right, and the difference means the grid
+ * is too coarse to show it.
  *
- * I skip exact zeros rather than counting them. A sample that lands on zero
+ * Exact zeros are skipped rather than counted. A sample that lands on zero
  * without the curve changing sign is a touch, not a crossing, and P(r) = r²R²
  * is made of those.
  */
@@ -37,8 +37,8 @@ export function zeroCrossings(
     const b = values[i];
     if (a === 0 || b === 0) continue;
     if (a < 0 === b < 0) continue;
-    // I interpolate linearly to the crossing: t is the fraction of the
-    // interval at which the straight segment between two samples reaches zero.
+    // Linear interpolation to the crossing: t is the fraction of the interval
+    // at which the straight segment between two samples reaches zero.
     const t = a / (a - b);
     out.push(grid[i - 1] + t * (grid[i] - grid[i - 1]));
   }
@@ -46,19 +46,19 @@ export function zeroCrossings(
 }
 
 /**
- * The index one past the last sample I think is worth drawing, for a curve
- * that may go negative.
+ * The index one past the last sample worth drawing, for a curve that may go
+ * negative.
  *
- * `informativeEnd` in lib/spark.ts does this for my left rail's P(r) card, but
+ * `informativeEnd` in lib/spark.ts does this for the left rail's P(r) card, but
  * it measures against a peak found with `v > peak`, so on R(r) the whole
  * negative lobe is invisible to it. This is the same idea on |v|.
  *
- * The window is a presentational choice and I stay honest about it exactly one
- * way: I label the axis with the r this returns, never with the end of the
- * grid, and I say that I trimmed a tail and where. My radial grid is sized for
- * the solver rather than for a picture (hydrogen's 3s runs to 180 bohr while
- * R(r) is flat past about 30), so over the whole grid the plot would be one
- * spike and 150 bohr of nothing.
+ * The window is a presentational choice, kept honest exactly one way: the axis
+ * is labelled with the r this returns, never with the end of the grid, and the
+ * caption says a tail was trimmed and where. The radial grid is sized for the
+ * solver rather than for a picture (hydrogen's 3s runs to 180 bohr while R(r)
+ * is flat past about 30), so over the whole grid the plot would be one spike
+ * and 150 bohr of nothing.
  */
 export function informativeEndSigned(
   values: readonly number[],

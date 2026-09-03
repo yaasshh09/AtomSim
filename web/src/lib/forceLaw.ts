@@ -1,4 +1,4 @@
-// My single source of truth for force-law preset parameters. I mirror the
+// The single source of truth for force-law preset parameters, mirroring the
 // Python ParamSpec ranges in src/atomsim/numerics/force_law.py.
 export type ForcePreset =
   | "powerlaw"
@@ -8,7 +8,7 @@ export type ForcePreset =
   | "coulombcore"
   | "custom";
 
-/** The expression I start the custom force law from: hydrogen's own -Z/r. */
+/** The expression the custom force law starts from: hydrogen's own -Z/r. */
 export const DEFAULT_EXPR = "-1/r";
 
 export interface ParamSpec {
@@ -41,7 +41,7 @@ export const PRESET_LABELS: Record<ForcePreset, string> = {
   custom: "Custom  V(r) = …",
 };
 
-/** A lightweight pre-check I run in the browser; my server's AST parser is the authority. */
+/** A lightweight pre-check in the browser; the server's AST parser is the authority. */
 export function validateExprClient(expr: string): string | null {
   if (!expr.trim()) return "Enter an expression in r";
   if (expr.length > 200) return "Expression is too long (max 200 characters)";
@@ -64,7 +64,7 @@ export function clampParam(spec: ParamSpec, value: number): number {
   return Math.min(Math.max(value, spec.min), spec.max);
 }
 
-/** The classically-allowed r-span [rIn, rOut] where I find E > V(r) along the curve, or null. */
+/** The classically-allowed r-span [rIn, rOut] where E > V(r) along the curve, or null. */
 export function allowedSpan(
   r: number[],
   vEv: number[],

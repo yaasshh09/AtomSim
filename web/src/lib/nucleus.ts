@@ -8,7 +8,7 @@ export const NUCLEUS_MODES: { value: NucleusMode; label: string }[] = [
   { value: "hidden", label: "hidden" },
 ];
 
-/** VISUAL LIBERTY: I draw the marker sphere at camera distance / MARKER_DIVISOR. */
+/** VISUAL LIBERTY: the marker sphere is drawn at camera distance / MARKER_DIVISOR. */
 export const MARKER_DIVISOR = 90;
 
 export interface NucleusSphere {
@@ -17,7 +17,7 @@ export interface NucleusSphere {
   magnification: number; // radius / physical r_rms (1 for true scale)
 }
 
-/** What I draw at the origin, or null in hidden mode and when no nucleus has been measured. */
+/** What sits at the origin, or null in hidden mode and when no nucleus has been measured. */
 export function nucleusSphere(
   mode: NucleusMode,
   radiusBohr: number | null,
@@ -37,7 +37,7 @@ export function formatMagnification(x: number): string {
   return `${rounded.toLocaleString("en-US")}×`;
 }
 
-/** My honest one-line caption for the nucleus overlay; null when I have nothing to say. */
+/** The one-line caption for the nucleus overlay; null when there is nothing to say. */
 export function nucleusCaption(
   mode: NucleusMode,
   system: SystemInfo | null | undefined,
@@ -45,16 +45,16 @@ export function nucleusCaption(
 ): string | null {
   if (mode === "hidden" || !system) return null;
   if (system.nuclear_radius === null || system.nuclear_radius_fm === null) {
-    return "the “nucleus” here is a point lepton, so I have no measured size to draw";
+    return "the “nucleus” here is a point lepton, so there is no measured size to draw";
   }
   const fm = system.nuclear_radius_fm.value.toFixed(3);
   const bohr = system.nuclear_radius.value.toExponential(1).replace("e-", "e-");
   if (mode === "true-scale") {
     return (
       `nucleus at true scale: r_rms = ${fm} fm (${bohr} a₀), ` +
-      "smaller than a pixel at this zoom; I am not hiding it, that IS the physics"
+      "smaller than a pixel at this zoom; nothing is being hidden, that IS the physics"
     );
   }
   if (!sphere) return null;
-  return `I drew the nucleus marker ${formatMagnification(sphere.magnification)} true size`;
+  return `the nucleus marker is drawn ${formatMagnification(sphere.magnification)} true size`;
 }

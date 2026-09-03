@@ -70,7 +70,7 @@ describe("buildSurfaceColors", () => {
 describe("enclosedCaption", () => {
   it("states the complement, which is the part textbooks leave out", () => {
     expect(enclosedCaption(meta())).toBe(
-      "I enclose 90.0% of the electron here, and it is outside this surface 10.0% of the time",
+      "this surface encloses 90.0% of the electron, which is outside it 10.0% of the time",
     );
   });
 

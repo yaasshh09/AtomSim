@@ -2,13 +2,12 @@ import { densityT, lutColor, maxAbs, maxOf, signedT } from "./colormap";
 import { INFERNO, RDBU_R } from "./luts";
 
 /**
- * I turn PlaneGrid float32 values (row i = z ascending) into RGBA pixels
+ * Turns PlaneGrid float32 values (row i = z ascending) into RGBA pixels
  * (row 0 = top).
- * For density I use inferno with the gamma compression I disclose
- * (VISUAL LIBERTY).
- * For psi I use diverging RdBu_r, LINEAR in psi with zero at the midpoint.
- * The signed structure is the honest point of that mode, so I apply no gamma
- * to it.
+ * Density gets inferno with the disclosed gamma compression (VISUAL LIBERTY).
+ * psi gets diverging RdBu_r, LINEAR in psi with zero at the midpoint. The
+ * signed structure is the honest point of that mode, so no gamma is applied to
+ * it.
  */
 export function rasterize(
   values: Float32Array,
@@ -18,7 +17,7 @@ export function rasterize(
   const out = new Uint8ClampedArray(resolution * resolution * 4);
   const vmax = quantity === "density" ? maxOf(values) : maxAbs(values);
   for (let row = 0; row < resolution; row++) {
-    const src = resolution - 1 - row; // I put +z at canvas row 0, the top
+    const src = resolution - 1 - row; // +z goes at canvas row 0, the top
     for (let col = 0; col < resolution; col++) {
       const v = values[src * resolution + col];
       const [r, g, b] =

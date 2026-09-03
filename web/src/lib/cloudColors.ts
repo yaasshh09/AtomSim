@@ -2,7 +2,7 @@ import type { ColorMode } from "../state/store";
 import { densityT, lutColor, maxOf, phaseColor } from "./colormap";
 import { INFERNO } from "./luts";
 
-/** The per-vertex RGB floats (0-1) I give the cloud, or null when I draw it in a solid colour. */
+/** The per-vertex RGB floats (0-1) for the cloud, or null when it is drawn in a solid colour. */
 export function buildCloudColors(
   mode: ColorMode,
   density: Float32Array | null,
