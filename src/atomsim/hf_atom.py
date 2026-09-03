@@ -1,16 +1,16 @@
-"""How I solve a many-electron atom by restricted Hartree-Fock (APPROXIMATION).
+"""How a many-electron atom is solved by restricted Hartree-Fock (APPROXIMATION).
 
-This is my counterpart to `screened_atom.py`, one model up. GSZ hands every
-electron the same fitted central field; here I give each subshell its own Fock
-operator, built from the other orbitals and solved to self-consistency, so my
-total energy is variational and I can compare it against vendored Hartree-Fock
+This is the counterpart to `screened_atom.py`, one model up. GSZ hands every
+electron the same fitted central field; here each subshell gets its own Fock
+operator, built from the other orbitals and solved to self-consistency, so the
+total energy is variational and can be compared against vendored Hartree-Fock
 references rather than only against spectra.
 
-What I am still missing is correlation: Hartree-Fock is a single-determinant
-ansatz, so my energy sits ABOVE the exact non-relativistic energy by the
-correlation energy (~0.04 hartree for helium, ~0.7 for argon). That gap is my
-model error, and it is why I call `total_energy` APPROXIMATION and carry the
-grid error inside it as a numerical sub-scale rather than as my headline number.
+What is still missing is correlation: Hartree-Fock is a single-determinant
+ansatz, so the energy sits ABOVE the exact non-relativistic energy by the
+correlation energy (~0.04 hartree for helium, ~0.7 for argon). That gap is the
+model error, and it is why `total_energy` is APPROXIMATION and carries the grid
+error inside it as a numerical sub-scale rather than as the headline number.
 
 See docs/specs/2026-07-27-phase21-hartree-fock-design.md.
 """
@@ -66,166 +66,164 @@ __all__ = [
     "solve_hartree_fock",
 ]
 
-#: My resampling density for evaluate_hf_state, matching screened_atom.py. My
-#: solve itself runs on a few thousand mesh points; this is the grid my
-#: interpolation reads, and I keep it deliberately finer than the 400 a plot
-#: needs.
+#: The resampling density for evaluate_hf_state, matching screened_atom.py. The
+#: solve itself runs on a few thousand mesh points; this is the grid the
+#: interpolation reads, kept deliberately finer than the 400 a plot needs.
 _HF_EVAL_POINTS = 4096
 
-# My two energy routes are algebraically identical, so a disagreement above this
-# is a coefficient bug of mine, not a discretization error. See Task 6.
+# The two energy routes are algebraically identical, so a disagreement above
+# this is a coefficient bug, not a discretization error. See Task 6.
 _ROUTE_AGREEMENT = 1e-6
 
 _TOTAL_ENERGY_METHOD = (
-    "I ran a self-consistent restricted Hartree-Fock, average of configuration, "
+    "a self-consistent restricted Hartree-Fock, average of configuration, "
     "by matrix-free preconditioned LOBPCG on an exponential radial mesh"
 )
 _TOTAL_ENERGY_ASSUMPTIONS = (
-    "I include no electron correlation; I am variational, so E_HF >= E_exact "
-    "(non-relativistic, infinite nuclear mass)",
-    "I use an infinite nuclear mass (mu_ratio = 1)",
+    "no electron correlation is included; the method is variational, so "
+    "E_HF >= E_exact (non-relativistic, infinite nuclear mass)",
+    "uses an infinite nuclear mass (mu_ratio = 1)",
 )
-# I add this only when a subshell is partially filled. Restricted Hartree-Fock
-# gives both spins the same radial function, which for a closed shell is no
-# constraint at all (the two spin populations are identical anyway) and for an
-# open shell forbids my core from polarizing around the unpaired electrons.
+# Added only when a subshell is partially filled. Restricted Hartree-Fock gives
+# both spins the same radial function, which for a closed shell is no constraint
+# at all (the two spin populations are identical anyway) and for an open shell
+# forbids the core from polarizing around the unpaired electrons.
 _OPEN_SHELL_ASSUMPTION = (
-    "I am restricted: one radial function per subshell shared by both spins, so "
-    "my core cannot spin-polarize around an unpaired electron; that omission of "
-    "mine is far smaller than the correlation energy I named above"
+    "restricted: one radial function per subshell shared by both spins, so the "
+    "core cannot spin-polarize around an unpaired electron; that omission is "
+    "far smaller than the correlation energy named above"
 )
-# I add this only when the configuration spans more than one term.
+# Added only when the configuration spans more than one term.
 _MULTI_TERM_ASSUMPTION = (
-    "I use an average of configuration: one energy per configuration, not per "
-    "term, so this energy of mine lies among the terms the configuration splits "
-    "into rather than on the lowest of them"
+    "an average of configuration: one energy per configuration, not per term, "
+    "so this energy lies among the terms the configuration splits into rather "
+    "than on the lowest of them"
 )
 
-# Everything below is my exchange=False branch: the Hartree model.
+# Everything below is the exchange=False branch: the Hartree model.
 _HARTREE_METHOD = (
-    "I ran a self-consistent Hartree, average of configuration: the same solve "
-    "with the exchange term taken out of my Fock operator and out of my energy "
+    "a self-consistent Hartree, average of configuration: the same solve with "
+    "the exchange term taken out of the Fock operator and out of the energy "
     "functional"
 )
-# I lead my assumption list with this, and it says which counterfactual this is.
-# A badge of mine reading COUNTERFACTUAL without naming the altered rule is
-# decoration.
+# This leads the assumption list, and it says which counterfactual this is. A
+# badge reading COUNTERFACTUAL without naming the altered rule is decoration.
 _HARTREE_ALTERATION = (
-    "COUNTERFACTUAL: I treat electrons as distinguishable, so my wavefunction is "
-    "a product rather than an antisymmetrized determinant and I have no exchange "
-    "term at all"
+    "COUNTERFACTUAL: electrons are treated as distinguishable, so the "
+    "wavefunction is a product rather than an antisymmetrized determinant and "
+    "there is no exchange term at all"
 )
-# The disclosure that stops my badge from being read as the stronger claim.
+# The disclosure that stops the badge from being read as the stronger claim.
 _HARTREE_PAULI_INTACT = (
-    "the Pauli principle is NOT switched off: I still cap subshell occupancies "
-    "at 2(2l+1) and I leave the configuration alone, so this is 'the "
+    "the Pauli principle is NOT switched off: subshell occupancies are still "
+    "capped at 2(2l+1) and the configuration is left alone, so this is 'the "
     "wavefunction is not antisymmetric', not 'the electrons may all fall into 1s'"
 )
 _HARTREE_SELF_INTERACTION = (
-    "an electron still does not repel itself: my (q-1) pair count is "
-    "electrostatics, true in either model, and is not part of what I removed"
+    "an electron still does not repel itself: the (q-1) pair count is "
+    "electrostatics, true in either model, and is not part of what was removed"
 )
 _HARTREE_REFINEMENT = (
-    "I could turn exchange back on; this model of mine is not an approximation "
-    "to the real atom that a better calculation would improve on"
+    "turn exchange back on; this model is not an approximation to the real atom "
+    "that a better calculation would improve on"
 )
 
-# Everything below is my pauli=False branch: the exclusion principle removed.
+# Everything below is the pauli=False branch: the exclusion principle removed.
 _NO_PAULI_METHOD = (
-    "I ran a self-consistent Hartree with my occupancy cap lifted: every "
-    "electron occupies the 1s, and I have neither exchange nor term structure"
+    "a self-consistent Hartree with the occupancy cap lifted: every electron "
+    "occupies the 1s, and there is neither exchange nor term structure"
 )
 _NO_PAULI_ALTERATION = (
-    "COUNTERFACTUAL: the Pauli exclusion principle is switched off, so my "
-    "2(2l+1) occupancy cap is gone and my ground configuration is 1s^N"
+    "COUNTERFACTUAL: the Pauli exclusion principle is switched off, so the "
+    "2(2l+1) occupancy cap is gone and the ground configuration is 1s^N"
 )
-# I state this explicitly because my Phase 22 counterfactual, which is weaker,
+# Stated explicitly because the Phase 22 counterfactual, which is weaker,
 # promises the opposite in those words. A reader who learned that disclosure and
 # then meets this one has to be told which of the two they are looking at.
 _NO_PAULI_IMPLIES_NO_EXCHANGE = (
-    "my exchange is gone too, and that was not a separate choice: exchange "
-    "energy is a consequence of antisymmetry, and antisymmetry is what the "
-    "exclusion principle is"
+    "exchange is gone too, and that was not a separate choice: exchange energy "
+    "is a consequence of antisymmetry, and antisymmetry is what the exclusion "
+    "principle is"
 )
-# I replace, rather than omit, the line the real atom carries about averaging.
-# Omitting it would read as "this configuration happens to be a single term",
-# which is a different and false claim.
+# This replaces, rather than omits, the line the real atom carries about
+# averaging. Omitting it would read as "this configuration happens to be a
+# single term", which is a different and false claim.
 _NO_PAULI_NO_TERMS = (
-    "term structure is undefined here, and I am not averaging over it: L-S "
+    "term structure is undefined here, and nothing is being averaged over: L-S "
     "terms are counted by enumerating distinct spin-orbital assignments, which "
     "is the exclusion principle's own combinatorics, so 1s^N spans no terms "
     "rather than many"
 )
 _NO_PAULI_REFINEMENT = (
-    "I could turn the exclusion principle back on; no calculation makes this the "
-    "real atom, because the real atom has shells and this one does not"
+    "turn the exclusion principle back on; no calculation makes this the real "
+    "atom, because the real atom has shells and this one does not"
 )
-# I refuse this rather than computing it. A Slater determinant with two
-# electrons in the same spin-orbital is identically zero, so I have no
+# This combination is refused rather than computed. A Slater determinant with
+# two electrons in the same spin-orbital is identically zero, so there is no
 # wavefunction to take an exchange integral over: the combination names a state
 # that does not exist, and returning a number for it would be inventing physics.
 _NO_PAULI_WITH_EXCHANGE = (
     "pauli=False with exchange=True is not a model: exchange energy is a "
     "consequence of antisymmetry and the exclusion principle IS antisymmetry, "
-    "so I have nothing left for an exchange integral to act on. Pass "
-    "exchange=False explicitly. I will not flip it for you, because a caller "
-    "that asked me for both was asking for something that does not exist."
+    "so nothing is left for an exchange integral to act on. Pass "
+    "exchange=False explicitly. It is not flipped automatically, because a "
+    "caller that asked for both was asking for something that does not exist."
 )
 _TOTAL_ENERGY_REFINEMENT = (
     "configuration interaction or many-body perturbation theory would recover "
-    "the correlation energy I am missing"
+    "the missing correlation energy"
 )
 
-# I attach this to every orbital I hand out for drawing, because the picture
-# invites exactly the reading it denies.
+# Attached to every orbital handed out for drawing, because the picture invites
+# exactly the reading it denies.
 #
-# The total electron density IS an observable, and for every atom I solve it is
-# exactly spherical: my orbitals are central-field, P_nl(r)/r times Y_lm; a
-# filled subshell sums over m to (2l+1)/4pi by Unsold's theorem; and my
+# The total electron density IS an observable, and for every atom solved here it
+# is exactly spherical: the orbitals are central-field, P_nl(r)/r times Y_lm; a
+# filled subshell sums over m to (2l+1)/4pi by Unsold's theorem; and the
 # average-of-configuration functional spreads a partly filled subshell equally
-# over m, so my m-sum is spherical there too. Carbon, oxygen and chlorine come
+# over m, so the m-sum is spherical there too. Carbon, oxygen and chlorine come
 # out as perfect balls.
 #
-# So drawing the observable instead would give me a sphere for every atom in the
-# application, honestly and uselessly. I draw the orbital and state the sphere in
-# words. The counterweight belongs beside it and is also true: restricted
-# Hartree-Fock on a spherically averaged configuration leaves the angular
-# dependence exactly Y_lm, so my lobes are this model's own answer rather than
-# hydrogen's answer reused.
+# So drawing the observable instead would give a sphere for every atom in the
+# application, honestly and uselessly. The orbital is drawn and the sphere is
+# stated in words. The counterweight belongs beside it and is also true:
+# restricted Hartree-Fock on a spherically averaged configuration leaves the
+# angular dependence exactly Y_lm, so these lobes are this model's own answer
+# rather than hydrogen's answer reused.
 _ORBITAL_NOT_OBSERVABLE = (
-    "this is one orbital of a self-consistent field of mine, and an orbital is "
-    "not an observable: the total density of this atom is exactly spherical, so "
-    "the shape I draw here is a basis choice rather than a photograph"
+    "this is one orbital of a self-consistent field, and an orbital is not an "
+    "observable: the total density of this atom is exactly spherical, so the "
+    "shape drawn here is a basis choice rather than a photograph"
 )
-#: Below this Z the relativity I neglect is under a tenth of a percent of my
-#: deepest orbital, which is far under the correlation energy I disclose above
-#: it, so quantifying it separately would be noise. I set it from the formula in
-#: _relativistic_scale rather than choosing it: (Z*alpha)^2/4 reaches 1e-3 near
+#: Below this Z the neglected relativity is under a tenth of a percent of the
+#: deepest orbital, far under the correlation energy disclosed above it, so
+#: quantifying it separately would be noise. It follows from the formula in
+#: _relativistic_scale rather than being chosen: (Z*alpha)^2/4 reaches 1e-3 near
 #: Z = 9.
 _RELATIVITY_WORTH_STATING_Z = 9
 _DIAGNOSTIC_METHOD = (
     "a property of the solution I converged to, not a claim about the atom"
 )
 
-# The mesh's own optimum; see numerics/mesh.py for the measurement behind it. I
-# deliberately do NOT duplicate the matching inner radius here: mesh.py owns it,
-# and mesh_for_atom_at_step is what keeps my point count consistent with it.
+# The mesh's own optimum; see numerics/mesh.py for the measurement behind it.
+# The matching inner radius is deliberately NOT duplicated here: mesh.py owns it,
+# and mesh_for_atom_at_step is what keeps the point count consistent with it.
 _MESH_STEP = 0.01
 
-# The part of my error a refinement pair is structurally blind to.
+# The part of the error a refinement pair is structurally blind to.
 #
-# Both meshes in my pair share r_min, so halving the step cancels the inner-wall
-# truncation and the eigensolver conditioning noise out entirely. Those do not
-# vanish as delta -> 0; they are the floor numerics/mesh.py derives and pins,
-# and past it my spread keeps shrinking while my answer stops moving. So quoting
-# the spread alone would claim an accuracy that tightens without bound while my
-# real error sits still, which is the exact shape of a number that lies about
-# itself.
+# Both meshes in the pair share r_min, so halving the step cancels the
+# inner-wall truncation and the eigensolver conditioning noise out entirely.
+# Those do not vanish as delta -> 0; they are the floor numerics/mesh.py derives
+# and pins, and past it the spread keeps shrinking while the answer stops
+# moving. So quoting the spread alone would claim an accuracy that tightens
+# without bound while the real error sits still, which is the exact shape of a
+# number that lies about itself.
 #
-# I measured this on the total energy rather than inheriting the mesh's
+# This was measured on the total energy rather than inherited from the mesh's
 # single-eigenvalue figure, because a total energy sums several orbital
 # contributions and their floors accumulate. Extrapolating the delta^2 term away
-# from a refinement pair leaves me, relative to |E|: He 3.9e-6, Be 3.8e-6, Ne
+# from a refinement pair leaves, relative to |E|: He 3.9e-6, Be 3.8e-6, Ne
 # 3.0e-6, Mg 2.9e-6, Ar 2.5e-6, flat in Z and about 1.6x the mesh's own 2.4e-6,
 # as summing contributions predicts.
 _MESH_FLOOR_RELATIVE = 4.0e-6
@@ -237,7 +235,7 @@ class HFOrbital:
     l: int
     occupancy: int
     energy: Quantity  # APPROXIMATION, hartree
-    P: Field  # r R_nl(r), on my solver grid
+    P: Field  # r R_nl(r), on the solver grid
 
 
 @dataclass(frozen=True)
@@ -247,26 +245,26 @@ class HFResult:
     n_electrons: int
     config: Configuration
     is_ground: bool
-    # False means my Hartree model: distinguishable electrons, no exchange. I
-    # carry it on the result rather than leaving it implicit in my provenance
-    # text, so a caller can branch on it without parsing my prose.
+    # False means the Hartree model: distinguishable electrons, no exchange. It
+    # rides on the result rather than staying implicit in the provenance text,
+    # so a caller can branch on it without parsing prose.
     exchange: bool
-    # False means I lifted the occupancy cap too, and the configuration
-    # collapsed to 1s^N. I keep it as its own flag rather than inferring it from
+    # False means the occupancy cap was lifted too, and the configuration
+    # collapsed to 1s^N. It is its own flag rather than inferred from
     # `exchange`, because the two are not the same statement: exchange=False
-    # alone is my Phase 22 half-step, in which I still enforce the cap.
+    # alone is the Phase 22 half-step, in which the cap is still enforced.
     pauli: bool
     orbitals: tuple[HFOrbital, ...]
     total_energy: Quantity  # APPROXIMATION, or COUNTERFACTUAL if exchange=False
     kinetic: Quantity  # NUMERICAL
     potential: Quantity  # NUMERICAL
     virial_ratio: Quantity  # NUMERICAL, target 2
-    # My SCF iterations on the fine mesh, which I warm-start from the coarse one
-    # and so converge in a handful whatever my mixing does.
+    # SCF iterations on the fine mesh, which is warm-started from the coarse one
+    # and so converges in a handful whatever the mixing does.
     iterations: int
-    # My SCF iterations on the coarse mesh, which starts from a central field and
-    # is where nearly all my wall time goes. I report it separately because the
-    # two respond to completely different things: a mixing parameter that has
+    # SCF iterations on the coarse mesh, which starts from a central field and is
+    # where nearly all the wall time goes. Reported separately because the two
+    # respond to completely different things: a mixing parameter that has
     # regressed roughly triples this one and barely moves `iterations`. A
     # performance guard wants this number.
     coarse_iterations: int
@@ -276,24 +274,24 @@ class HFResult:
 
 
 def hf_mesh(z: int, n_electrons: int, n_top: int, refinement: int = 1) -> RadialMesh:
-    """The mesh I run a Hartree-Fock solve on.
+    """The mesh a Hartree-Fock solve runs on.
 
-    I make it exponential, because a uniform grid has to resolve the 1s core
-    (which contracts as 1/Z) and reach the valence tail at the same time, and
-    pays for the finer of the two everywhere. Argon cost me 72000 uniform points
-    and about an hour; here it costs roughly 1400.
+    It is exponential, because a uniform grid has to resolve the 1s core (which
+    contracts as 1/Z) and reach the valence tail at the same time, and pays for
+    the finer of the two everywhere. Argon cost 72000 uniform points and about
+    an hour; here it costs roughly 1400.
 
-    I set my box by where the valence actually reaches, n^2 / Z_net, but
-    generously: a larger box costs me only logarithmically on this mesh, so I
-    have no reason to crowd the tail. I choose my step to land near delta = 0.01,
-    which numerics/mesh.py measures as the sweet spot: past it the eigensolver's
-    conditioning noise grows faster than my discretization error falls, so more
-    points make my answer worse.
+    The box follows where the valence actually reaches, n^2 / Z_net, but
+    generously: a larger box costs only logarithmically on this mesh, so there
+    is no reason to crowd the tail. The step lands near delta = 0.01, which
+    numerics/mesh.py measures as the sweet spot: past it the eigensolver's
+    conditioning noise grows faster than the discretization error falls, so more
+    points make the answer worse.
 
-    `refinement` halves my step, and exists so a caller can run the same physics
-    on two meshes of mine and quote the difference as an error estimate. Both
-    meshes share r_min and r_max exactly and differ only in point count, which is
-    what makes their difference a clean statement about my step.
+    `refinement` halves the step, and exists so a caller can run the same physics
+    on two meshes and quote the difference as an error estimate. Both meshes
+    share r_min and r_max exactly and differ only in point count, which is what
+    makes their difference a clean statement about the step.
     """
     z_net = max(z - n_electrons + 1, 1)
     r_max = min(60.0, 12.0 * (n_top + 1) ** 2 / z_net)
@@ -301,14 +299,14 @@ def hf_mesh(z: int, n_electrons: int, n_top: int, refinement: int = 1) -> Radial
 
 
 def _start_potential(z: int, n_electrons: int):
-    """The central field I draw my first guess from.
+    """The central field the first guess is drawn from.
 
-    I use GSZ where Szydlik and Green fitted it, and the bare nucleus otherwise.
-    That bare-nucleus fallback is what lets me run sulfur and chlorine at all:
+    GSZ where Szydlik and Green fitted it, and the bare nucleus otherwise. That
+    bare-nucleus fallback is what makes sulfur and chlorine runnable at all:
     their GSZ parameters were never published, and a hydrogenic guess at
-    Z_eff = Z - N + 1 = 1 would start every core orbital of mine an order of
-    magnitude too diffuse. Starting from -Z/r errs the other way, too
-    contracted, which my SCF screens outward, and it invents no parameter.
+    Z_eff = Z - N + 1 = 1 would start every core orbital an order of magnitude
+    too diffuse. Starting from -Z/r errs the other way, too contracted, which the
+    SCF screens outward, and it invents no parameter.
     """
     if n_electrons == 1:
         return screened_potential(z, n_electrons)  # exactly -Z/r, with no screening term
@@ -322,18 +320,18 @@ def _start_potential(z: int, n_electrons: int):
 def _guess_from_central_field(
     z: int, n_electrons: int, config: Configuration, mesh: RadialMesh
 ) -> tuple[Subshell, ...]:
-    """One central-field solve per l channel, which I reuse across its subshells.
+    """One central-field solve per l channel, reused across its subshells.
 
-    I diagonalize on this mesh rather than going through
+    The diagonalization runs on this mesh rather than through
     radial_solver.solve_radial, which builds a uniform grid of its own: a guess
     sampled somewhere else and interpolated across is exactly the kind of
-    piecewise-linear kink that cost me 2.8% of hydrogen's energy earlier in this
+    piecewise-linear kink that cost 2.8% of hydrogen's energy earlier in this
     module's history.
     """
     v = np.asarray(_start_potential(z, n_electrons)(mesh.r), dtype=float)
     by_l: dict[int, np.ndarray] = {}
     for (n, l), _ in config:
-        needed = n - l  # my radial states 0..n-l-1
+        needed = n - l  # radial states 0..n-l-1
         if l not in by_l or by_l[l].shape[0] < needed:
             diag, offdiag = mesh.hamiltonian_bands(v, l)
             vectors = eigh_tridiagonal(
@@ -349,31 +347,31 @@ def _guess_from_central_field(
 def _refine(
     coarse: SCFSolution, coarse_mesh: RadialMesh, fine: RadialMesh
 ) -> tuple[Subshell, ...]:
-    """I interpolate a converged coarse solution onto my finer mesh.
+    """Interpolate a converged coarse solution onto the finer mesh.
 
-    I need the coarse solve anyway for my error estimate, so seeding the fine
-    solve with it is free: my fine SCF starts a step or two from its own fixed
-    point instead of from a central-field guess.
+    The coarse solve is needed anyway for the error estimate, so seeding the
+    fine solve with it is free: the fine SCF starts a step or two from its own
+    fixed point instead of from a central-field guess.
 
     Two details here are not decoration.
 
-    I anchor the endpoints at P = 0 on both walls. On this mesh that is no
-    longer load-bearing the way it was on my uniform grids, where the two grids
-    had different first points and an interpolant that clamps rather than
+    The endpoints are anchored at P = 0 on both walls. On this mesh that is no
+    longer load-bearing the way it was on the old uniform grids, where the two
+    grids had different first points and an interpolant that clamps rather than
     extrapolating flattened every P across the innermost interval, putting a kink
     exactly where -Z/r and the kinetic term are largest, at a cost of 2.8% of
-    hydrogen's total energy. Both meshes here share r_min and r_max exactly, so I
-    never evaluate outside the coarse span. I keep the anchors because P(0) = 0
-    is true, and giving my spline that knot shapes it correctly approaching
-    r_min, which is where the amplitude changes fastest.
+    hydrogen's total energy. Both meshes here share r_min and r_max exactly, so
+    nothing is ever evaluated outside the coarse span. The anchors stay because
+    P(0) = 0 is true, and giving the spline that knot shapes it correctly
+    approaching r_min, which is where the amplitude changes fastest.
 
-    I interpolate with a cubic rather than a linear, because my SCF then runs the
-    result through a second difference. A piecewise-linear P has zero curvature
-    between knots and all of it concentrated at them, and my kinetic operator
-    amplifies that by 1/h^2, so an O(h_coarse^2) amplitude error becomes an
-    O(h_coarse^2 / h_fine^2) energy error, which is not small at all. It also
-    made LOBPCG stagnate on every fine step of mine, so this is a speed fix as
-    much as an accuracy one.
+    The interpolant is a cubic rather than a linear, because the SCF then runs
+    the result through a second difference. A piecewise-linear P has zero
+    curvature between knots and all of it concentrated at them, and the kinetic
+    operator amplifies that by 1/h^2, so an O(h_coarse^2) amplitude error becomes
+    an O(h_coarse^2 / h_fine^2) energy error, which is not small at all. It also
+    made LOBPCG stagnate on every fine step, so this is a speed fix as much as an
+    accuracy one.
     """
     knots = np.concatenate(([0.0], coarse_mesh.r, [coarse_mesh.outer_wall]))
     return tuple(
@@ -388,25 +386,25 @@ def _refine(
 
 
 def _relativistic_scale(z: int) -> float:
-    """How large the relativity I neglect is, as a fraction of the 1s energy.
+    """How large the neglected relativity is, as a fraction of the 1s energy.
 
-    "Non-relativistic" is already in my assumption list, but as a word it says
-    nothing about whether you should care, and the answer changes by two orders
-    of magnitude across the atoms I solve: 0.003% for helium, 0.4% for argon,
+    "Non-relativistic" is already in the assumption list, but as a word it says
+    nothing about whether it matters, and the answer changes by two orders of
+    magnitude across the atoms solved here: 0.003% for helium, 0.4% for argon,
     1.7% at Z = 36. A phrase that reads identically in all three cases is not a
     disclosure.
 
-    I measure this rather than modelling it: the exact hydrogenic Dirac 1s
-    energy against the Schrodinger one at the same Z, using the dirac_energy I
-    already ship. The 1s is the right orbital to ask, because relativity is a
-    core effect that lives where the electron moves fastest, and my 1s pair
+    This is measured rather than modelled: the exact hydrogenic Dirac 1s energy
+    against the Schrodinger one at the same Z, using the dirac_energy this
+    package already ships. The 1s is the right orbital to ask, because relativity
+    is a core effect that lives where the electron moves fastest, and the 1s pair
     dominates the total energy at every Z here.
 
-    This is an order-of-magnitude scale for what I am missing, not a correction
-    to apply: a real atom's screening puts its 1s at slightly less than the
-    hydrogenic value, so I read a little high, which is the safe direction for an
-    honesty estimate. Note that it stays well under the correlation energy my
-    assumption list leads with, which is why I state it second.
+    This is an order-of-magnitude scale for what is missing, not a correction to
+    apply: a real atom's screening puts its 1s at slightly less than the
+    hydrogenic value, so the number reads a little high, which is the safe
+    direction for an honesty estimate. It stays well under the correlation energy
+    the assumption list leads with, which is why it is stated second.
     """
     schrodinger = hydrogen_energy(1, Z=z).value
     relativistic = dirac_energy(1, 0.5, Z=z).value
@@ -416,25 +414,25 @@ def _relativistic_scale(z: int) -> float:
 def _energy_assumptions(
     config: Configuration, z: int, exchange: bool = True, pauli: bool = True
 ) -> tuple[str, ...]:
-    """What this configuration actually costs you, and nothing more.
+    """What this configuration actually costs, and nothing more.
 
-    I make two of my four claims conditional, because disclosing a limitation my
+    Two of the four claims are conditional, because disclosing a limitation the
     solve does not have misleads exactly as much as hiding one it does.
 
-    Neon fills every subshell it touches: there is no spin for me to polarize and
-    no second term to average over, so both extra lines would be noise. Lithium
-    has an open 2s, so it pays my restriction, but its configuration spans one
-    term (2S) and my configuration average is the degeneracy-weighted mean of the
+    Neon fills every subshell it touches: there is no spin to polarize and no
+    second term to average over, so both extra lines would be noise. Lithium has
+    an open 2s, so it pays the restriction, but its configuration spans one term
+    (2S) and the configuration average is the degeneracy-weighted mean of the
     term energies, and with one term in the sum that mean is exactly that term.
-    Claiming otherwise would hand you an error bar that is not there. Carbon's
-    2p2 spans 3P, 1D and 1S, and there my average really is none of them.
+    Claiming otherwise would hand over an error bar that is not there. Carbon's
+    2p2 spans 3P, 1D and 1S, and there the average really is none of them.
 
-    With pauli=False I replace both conditional lines rather than dropping them.
+    With pauli=False both conditional lines are replaced rather than dropped.
     "Open subshell" and "spans several terms" are counted by enumerating distinct
     spin-orbital assignments, which is the exclusion principle's own
-    combinatorics; with the principle gone those two questions have no answers
-    for me to report, and staying silent about them would read as "neither
-    limitation applies here", which is a different and false claim.
+    combinatorics; with the principle gone those two questions have no answers to
+    report, and staying silent about them would read as "neither limitation
+    applies here", which is a different and false claim.
     """
     out = list(_TOTAL_ENERGY_ASSUMPTIONS)
     if not pauli:
@@ -445,10 +443,10 @@ def _energy_assumptions(
             _NO_PAULI_NO_TERMS,
         ]
     elif not exchange:
-        # I put these ahead of the rest, because they change what my number IS
-        # rather than how close it lands to the truth. My correlation line keeps
+        # These go ahead of the rest, because they change what the number IS
+        # rather than how close it lands to the truth. The correlation line keeps
         # its place behind them and stays true: Hartree is missing correlation as
-        # well as exchange, and you are owed both.
+        # well as exchange, and both are owed.
         out[:0] = [
             _HARTREE_ALTERATION,
             _HARTREE_PAULI_INTACT,
@@ -456,9 +454,9 @@ def _energy_assumptions(
         ]
     if z >= _RELATIVITY_WORTH_STATING_Z:
         out.append(
-            f"my model neglects relativity, which at Z = {z} shifts the hydrogenic 1s "
+            f"the model neglects relativity, which at Z = {z} shifts the hydrogenic 1s "
             f"by {100 * _relativistic_scale(z):.2f}% of its energy; that is the "
-            f"scale of what I am missing here, not a correction to apply"
+            f"scale of what is missing here, not a correction to apply"
         )
     if pauli:
         if open_subshells(config):
@@ -476,16 +474,16 @@ def _solve_on_grid(
     start: tuple[Subshell, ...] | None,
     exchange: bool = True,
 ) -> tuple[SCFSolution, tuple[float, ...], float]:
-    """I run the SCF on one mesh and return the solution, my quadrature orbital
-    energies, and the total energy I assembled directly.
+    """Run the SCF on one mesh and return the solution, the quadrature orbital
+    energies, and the directly assembled total energy.
     """
     if start is None:
         start = _guess_from_central_field(z, n_electrons, config, mesh)
 
-    # My SCF residual is a change in orbital energies, and the deepest of those
+    # The SCF residual is a change in orbital energies, and the deepest of those
     # scales as Z^2/2, so a fixed absolute tolerance would silently demand more
-    # significant figures of me as Z grows. I scale it to keep the demand fixed
-    # at roughly ten digits on the 1s level.
+    # significant figures as Z grows. It is scaled to keep the demand fixed at
+    # roughly ten digits on the 1s level.
     solution = scf(
         z, start, lambda rr: -z / rr, mesh, tol=1e-9 * max(1, z**2),
         exchange=exchange,
@@ -507,29 +505,28 @@ def solve_hartree_fock(
     exchange: bool = True,
     pauli: bool = True,
 ) -> HFResult:
-    """I converge the restricted Hartree-Fock equations for one atom or ion.
+    """Converge the restricted Hartree-Fock equations for one atom or ion.
 
-    I raise HFConvergenceError rather than returning an unconverged result: an
-    HFResult of mine with converged=False would be a quiet lie in object form.
+    This raises HFConvergenceError rather than returning an unconverged result:
+    an HFResult with converged=False would be a quiet lie in object form.
 
-    exchange=False makes me solve the Hartree model instead, electrons that
-    repel but are distinguishable, and my result comes back COUNTERFACTUAL
-    rather than APPROXIMATION. It is a positional argument and part of my cache
-    key, so my two models never share a cached solve.
+    exchange=False solves the Hartree model instead, electrons that repel but
+    are distinguishable, and the result comes back COUNTERFACTUAL rather than
+    APPROXIMATION. It is a positional argument and part of the cache key, so the
+    two models never share a cached solve.
 
-    pauli=False goes one step further and takes my occupancy cap away, so the
-    configuration collapses to 1s^N. It requires exchange=False, and I refuse
-    the other combination rather than computing it; see
-    _NO_PAULI_WITH_EXCHANGE.
+    pauli=False goes one step further and takes the occupancy cap away, so the
+    configuration collapses to 1s^N. It requires exchange=False, and the other
+    combination is refused rather than computed; see _NO_PAULI_WITH_EXCHANGE.
 
-    None of my angular coefficients change for q > 2(2l+1), and that is a
+    None of the angular coefficients change for q > 2(2l+1), and that is a
     derivation rather than an observation that nothing crashed. What survives is
-    my direct potential's (q_a - 1) and my functional's q_a(q_a - 1)/2, which
+    the direct potential's (q_a - 1) and the functional's q_a(q_a - 1)/2, which
     are "how many other electrons an electron sees" and "how many pairs there
     are": pure combinatorics on a count, blind to capacity, and correct for ten
-    electrons in one orbital (45 pairs) exactly as for two. Every coefficient I
-    would have had to rederive carries a squared 3j symbol and belongs to
-    exchange, which is gone.
+    electrons in one orbital (45 pairs) exactly as for two. Every coefficient
+    that would have had to be rederived carries a squared 3j symbol and belongs
+    to exchange, which is gone.
     """
     if z < 1:
         raise ValueError(f"Z must be >= 1, got {z}")
@@ -541,7 +538,7 @@ def solve_hartree_fock(
     if total_electrons(config) != n_electrons:
         raise ValueError(
             f"this configuration holds {total_electrons(config)} electrons, "
-            f"not the {n_electrons} you asked me for"
+            f"not the {n_electrons} requested"
         )
 
     n_top = max(n for (n, _), _ in config)
@@ -556,15 +553,14 @@ def solve_hartree_fock(
         exchange=exchange,
     )
 
-    # My route 2 shares no code with route 1 beyond the one-electron integral,
-    # so a disagreement means an angular-coefficient bug of mine, not a coarse
-    # grid.
+    # Route 2 shares no code with route 1 beyond the one-electron integral, so a
+    # disagreement means an angular-coefficient bug, not a coarse grid.
     e_identity = total_energy_from_orbitals(solution.subshells, energies, z, mesh)
     if abs(e_direct - e_identity) > _ROUTE_AGREEMENT:
         raise HFConvergenceError(
-            f"my two total-energy routes disagree by "
+            f"the two total-energy routes disagree by "
             f"{abs(e_direct - e_identity):.3e} hartree for Z={z}, N={n_electrons}; "
-            f"that is a coding error of mine, not a discretization one"
+            f"that is a coding error, not a discretization one"
         )
 
     kinetic, potential = kinetic_and_potential(
@@ -572,13 +568,12 @@ def solve_hartree_fock(
     )
 
     assumptions = _energy_assumptions(config, z, exchange, pauli)
-    # Three models of mine share this solve, and each names itself.
-    # COUNTERFACTUAL rather than APPROXIMATION for the two altered ones is not
-    # cosmetic: my truth-distance tiers say how far a number is from the real
-    # atom, and these numbers are not trying to be the real atom at all. Calling
-    # them APPROXIMATION would invite you to read the gap to the reference
-    # energy as an error, when that gap IS the physics the toggle exists to
-    # show.
+    # Three models share this solve, and each names itself. COUNTERFACTUAL
+    # rather than APPROXIMATION for the two altered ones is not cosmetic: the
+    # truth-distance tiers say how far a number is from the real atom, and these
+    # numbers are not trying to be the real atom at all. Calling them
+    # APPROXIMATION would invite reading the gap to the reference energy as an
+    # error, when that gap IS the physics the toggle exists to show.
     if not pauli:
         method, refinement = _NO_PAULI_METHOD, _NO_PAULI_REFINEMENT
     elif not exchange:
@@ -592,15 +587,15 @@ def solve_hartree_fock(
         fidelity=fidelity,
         method=method,
         assumptions=assumptions,
-        # Two error sources, and I add rather than max them because they are
-        # independent: the spread between my two meshes, which measures the step
+        # Two error sources, added rather than maxed because they are
+        # independent: the spread between the two meshes, which measures the step
         # discretization, plus the mesh floor that spread cannot see (see
-        # _MESH_FLOOR_RELATIVE). I deliberately do NOT Richardson-extrapolate it
+        # _MESH_FLOOR_RELATIVE). It is deliberately NOT Richardson-extrapolated
         # away: the residual past the delta^2 term is conditioning noise, not a
         # smooth power of delta, and extrapolating noise sharpens nothing.
         #
-        # Checked against the vendored energies, this brackets my true deviation
-        # for every atom I solve here, by 1.6x (Be) to 2.2x (Ar).
+        # Checked against the vendored energies, this brackets the true deviation
+        # for every atom solved here, by 1.6x (Be) to 2.2x (Ar).
         error_estimate=(
             abs(e_direct - e_coarse) + _MESH_FLOOR_RELATIVE * abs(e_direct)
         ),
@@ -610,24 +605,24 @@ def solve_hartree_fock(
         fidelity=Fidelity.NUMERICAL,
         method=_DIAGNOSTIC_METHOD,
         assumptions=(
-            f"I converged in {coarse.iterations} SCF iterations on my coarse "
-            f"mesh and {solution.iterations} on my fine one, which starts from "
+            f"converged in {coarse.iterations} SCF iterations on the coarse "
+            f"mesh and {solution.iterations} on the fine one, which starts from "
             f"the coarse solution rather than from a central field",
         ),
     )
-    # I give my orbital amplitude its own provenance carrying NO error estimate,
-    # rather than letting it borrow the energy's. I document
-    # Provenance.error_estimate as being in the unit of the quantity it
-    # describes, and P is in bohr^-1/2: an error bar in hartree attached to it
-    # would not be a loose error bar, it would be a number in the wrong
-    # dimension. I do not estimate the mesh spread for the orbital SHAPE in this
-    # solve, and saying nothing is my honest form of not knowing.
+    # The orbital amplitude gets its own provenance carrying NO error estimate,
+    # rather than borrowing the energy's. Provenance.error_estimate is documented
+    # as being in the unit of the quantity it describes, and P is in bohr^-1/2:
+    # an error bar in hartree attached to it would not be a loose error bar, it
+    # would be a number in the wrong dimension. The mesh spread for the orbital
+    # SHAPE is not estimated in this solve, and saying nothing is the honest form
+    # of not knowing.
     shape_prov = Provenance(
-        # My orbital SHAPE is as counterfactual as my energy. Exchange changes
-        # the operator these came out of, so a Hartree 2s of mine is a different
-        # curve, not the same curve at a different accuracy.
+        # The orbital SHAPE is as counterfactual as the energy. Exchange changes
+        # the operator these came out of, so a Hartree 2s is a different curve,
+        # not the same curve at a different accuracy.
         fidelity=fidelity,
-        method=f"{method}; I sampled the radial amplitude on my solver mesh",
+        method=f"{method}; the radial amplitude sampled on the solver mesh",
         assumptions=assumptions,
         refinement=refinement,
     )
@@ -635,11 +630,11 @@ def solve_hartree_fock(
     orbitals = tuple(
         HFOrbital(
             n=a.n, l=a.l, occupancy=a.q,
-            # I give each orbital energy ITS OWN spread, not the total energy's.
-            # eps_3p is about -0.6 hartree for argon while my E_total is -527, so
-            # handing every orbital the total's error bar would overstate my
+            # Each orbital energy gets ITS OWN spread, not the total energy's.
+            # eps_3p is about -0.6 hartree for argon while E_total is -527, so
+            # handing every orbital the total's error bar would overstate the
             # valence uncertainty by three orders of magnitude and understate
-            # nothing usefully. Same two terms as my total: the coarse-to-fine
+            # nothing usefully. Same two terms as the total: the coarse-to-fine
             # spread plus the mesh floor that spread cannot see.
             energy=Quantity(
                 fine, "hartree", f"eps_{a.n}{a.l}",
@@ -661,7 +656,7 @@ def solve_hartree_fock(
     )
 
     return HFResult(
-        # My key names the calculation and not just the atom, so a Hartree solve
+        # The key names the calculation and not just the atom, so a Hartree solve
         # and a Hartree-Fock solve of the same atom cannot be mistaken for each
         # other anywhere downstream that caches or labels by key.
         key=f"z{z}n{n_electrons}" + ("" if pauli else "-nopauli")
@@ -690,21 +685,21 @@ def solve_hartree_fock(
 def hf_valence_ionization_energy(result: HFResult) -> Quantity:
     """IE = -epsilon_valence, by Koopmans' theorem.
 
-    I mirror screened_atom.valence_ionization_energy so my two models stay
-    swappable, but the approximation I make here is NOT the same one, and my
+    This mirrors screened_atom.valence_ionization_energy so the two models stay
+    swappable, but the approximation made here is NOT the same one, and the
     provenance says so rather than inheriting the solve's.
 
-    Koopmans equates the ionization energy with minus my orbital energy, which
+    Koopmans equates the ionization energy with minus the orbital energy, which
     assumes the remaining N-1 electrons do not relax when one leaves. They do.
-    That error of mine does not shrink with a finer mesh or a tighter SCF, so it
-    is a model error stacked on top of Hartree-Fock's own, and it is not small:
-    my Koopmans IE for helium is 24.98 eV against 24.587 measured, an
-    overestimate of 0.39 eV, because ionizing a two-electron atom contracts what
-    is left of it hard. I do far better on the alkalis, since removing the lone
-    valence electron barely disturbs the closed core: lithium lands 0.05 eV out.
+    That error does not shrink with a finer mesh or a tighter SCF, so it is a
+    model error stacked on top of Hartree-Fock's own, and it is not small: the
+    Koopmans IE for helium is 24.98 eV against 24.587 measured, an overestimate
+    of 0.39 eV, because ionizing a two-electron atom contracts what is left of it
+    hard. The alkalis fare far better, since removing the lone valence electron
+    barely disturbs the closed core: lithium lands 0.05 eV out.
 
-    My two neglected effects push opposite ways, which is worth stating because
-    it explains why my error is not simply "HF is missing correlation". Frozen
+    The two neglected effects push opposite ways, which is worth stating because
+    it explains why the error is not simply "HF is missing correlation". Frozen
     orbitals overestimate the IE; missing correlation underestimates it.
     Relaxing the ion properly (Delta-SCF) gives helium 23.45 eV, 1.14 eV LOW,
     which is its correlation energy almost exactly.
@@ -716,16 +711,16 @@ def hf_valence_ionization_energy(result: HFResult) -> Quantity:
     base = valence.energy.provenance
     prov = dataclasses.replace(
         base,
-        method=f"{base.method}; I take the ionization energy as -epsilon_valence (Koopmans)",
+        method=f"{base.method}; the ionization energy is -epsilon_valence (Koopmans)",
         assumptions=base.assumptions
         + (
-            "Koopmans: I assume the N-1 remaining electrons do not relax, which "
-            "overestimates my ionization energy (0.39 eV for helium, less for "
-            "atoms whose valence electron sits outside a closed core)",
+            "Koopmans: the N-1 remaining electrons are assumed not to relax, "
+            "which overestimates the ionization energy (0.39 eV for helium, less "
+            "for atoms whose valence electron sits outside a closed core)",
         ),
         refinement=(
             "a Delta-SCF ionization energy, E(ion) - E(atom), would relax the ion "
-            "and remove my Koopmans error, leaving only the correlation one"
+            "and remove the Koopmans error, leaving only the correlation one"
         ),
     )
     return Quantity(-valence.energy.value, "hartree", "IE_valence", prov)
@@ -736,24 +731,24 @@ def hf_exchange_energy(
 ) -> Quantity:
     """E_HF - E_Hartree: what antisymmetry is worth to this atom, in hartree.
 
-    Negative, because exchange stabilizes. I solve both models here rather than
-    letting the caller subtract, and that is why this function exists: my two
-    energies have to come off the same mesh at the same refinement, and a UI
-    that fetched them separately would be free to difference a fine solve
-    against a coarse one and report my mesh spread as physics.
+    Negative, because exchange stabilizes. Both models are solved here rather
+    than left for the caller to subtract, and that is why this function exists:
+    the two energies have to come off the same mesh at the same refinement, and a
+    UI that fetched them separately would be free to difference a fine solve
+    against a coarse one and report the mesh spread as physics.
 
-    I return exactly zero for helium and for every other atom whose
-    configuration is a single closed s shell, and that is my model being right,
-    not my toggle failing. Exchange couples same-spin pairs only; 1s2 holds one
-    spin up and one spin down, so there is no such pair and my
-    `exchange_operator` builds no terms. The k = 0 same-shell integral you might
-    expect to see here is already carried by the (q - 1) factor in my direct
-    potential, where it belongs, in both models.
+    The result is exactly zero for helium and for every other atom whose
+    configuration is a single closed s shell, and that is the model being right,
+    not the toggle failing. Exchange couples same-spin pairs only; 1s2 holds one
+    spin up and one spin down, so there is no such pair and `exchange_operator`
+    builds no terms. The k = 0 same-shell integral one might expect to see here
+    is already carried by the (q - 1) factor in the direct potential, where it
+    belongs, in both models.
 
-    The difference of two variational energies is not itself variational, so I
-    carry no error bar against any exact quantity here. I take the loosest of my
-    two solves' mesh estimates, which is an honest statement about my arithmetic
-    and not a claim about the physics.
+    The difference of two variational energies is not itself variational, so
+    there is no error bar against any exact quantity here. What is quoted is the
+    loosest of the two solves' mesh estimates, an honest statement about the
+    arithmetic and not a claim about the physics.
     """
     with_exchange = solve_hartree_fock(z, n_electrons, config, True)
     without = solve_hartree_fock(z, n_electrons, config, False)
@@ -765,19 +760,18 @@ def hf_exchange_energy(
         "E_exchange",
         Provenance(
             # COUNTERFACTUAL, because half of what produced it is: nobody can
-            # measure this number, and I can only compute it by running an
+            # measure this number, and it can only be computed by running an
             # experiment on a universe that does not exist and differencing.
             fidelity=Fidelity.COUNTERFACTUAL,
             method=(
-                "I took E(Hartree-Fock) - E(Hartree): the same atom on the same "
-                "mesh, solved once with my exchange term and once without"
+                "E(Hartree-Fock) - E(Hartree): the same atom on the same mesh, "
+                "solved once with the exchange term and once without"
             ),
             assumptions=(
                 "this is the stabilization an antisymmetric wavefunction buys, at "
-                "my average-of-configuration level, and it is not an observable",
-                "I return exactly zero whenever no two electrons share a spin, "
-                "which includes helium and every closed single-s-shell "
-                "configuration",
+                "the average-of-configuration level, and it is not an observable",
+                "exactly zero whenever no two electrons share a spin, which "
+                "includes helium and every closed single-s-shell configuration",
             )
             + _TOTAL_ENERGY_ASSUMPTIONS,
             error_estimate=max(
@@ -786,25 +780,25 @@ def hf_exchange_energy(
             ),
             refinement=(
                 "correlation energy is the other half of what a single "
-                "determinant misses, and I leave it out of this difference"
+                "determinant misses, and it is left out of this difference"
             ),
         ),
     )
 
 
 def hf_mean_radius(result: HFResult) -> Quantity:
-    """<r> for my whole electron cloud: sum_a q_a <r>_a / N, in bohr.
+    """<r> for the whole electron cloud: sum_a q_a <r>_a / N, in bohr.
 
-    This is the size of the atom as my solve actually has it, and it is the
-    number my Pauli comparison turns on. I take each subshell's <r>_a as
-    integral P_a^2 r dr divided by integral P_a^2 dr, so a P of mine that
-    drifted off unit norm cannot scale the answer.
+    This is the size of the atom as the solve actually has it, and it is the
+    number the Pauli comparison turns on. Each subshell's <r>_a is integral
+    P_a^2 r dr divided by integral P_a^2 dr, so a P that drifted off unit norm
+    cannot scale the answer.
 
-    I inherit my fidelity from the solve rather than setting it to NUMERICAL:
-    this is a claim about how big the atom is, so a counterfactual atom's radius
-    is counterfactual. I carry NO error estimate, for the reason my orbital
-    shapes carry none: my solve estimates its spread in hartree, and pinning a
-    hartree number onto a length would be wrong in dimension, not merely loose.
+    The fidelity is inherited from the solve rather than set to NUMERICAL: this
+    is a claim about how big the atom is, so a counterfactual atom's radius is
+    counterfactual. There is NO error estimate, for the reason the orbital shapes
+    carry none: the solve estimates its spread in hartree, and pinning a hartree
+    number onto a length would be wrong in dimension, not merely loose.
     """
     n_top = max(n for (n, _), _ in result.config)
     mesh = hf_mesh(result.z, result.n_electrons, n_top, refinement=2)
@@ -820,8 +814,8 @@ def hf_mean_radius(result: HFResult) -> Quantity:
         Provenance(
             fidelity=base.fidelity,
             method=(
-                f"{base.method}; I took <r> = sum_a q_a integral P_a^2 r dr / N "
-                f"on my solver mesh"
+                f"{base.method}; <r> = sum_a q_a integral P_a^2 r dr / N "
+                f"on the solver mesh"
             ),
             assumptions=base.assumptions,
             refinement=base.refinement,
@@ -830,10 +824,10 @@ def hf_mean_radius(result: HFResult) -> Quantity:
 
 
 _TOTAL_DENSITY_IS_OBSERVABLE = (
-    "this one IS an observable: the total electron density, which I summed over "
-    "every occupied subshell, is what an X-ray diffraction experiment measures. "
-    "Its peaks are the shells, and the orbitals I plot elsewhere are the basis I "
-    "assembled it from rather than things anyone can measure one at a time"
+    "this one IS an observable: the total electron density, summed over every "
+    "occupied subshell, is what an X-ray diffraction experiment measures. Its "
+    "peaks are the shells, and the orbitals plotted elsewhere are the basis it "
+    "was assembled from rather than things anyone can measure one at a time"
 )
 
 
@@ -848,30 +842,30 @@ def hf_total_radial_density(
 ) -> Field:
     """D(r) = sum_a q_a P_a(r)^2, in electrons per bohr.
 
-    This is the radial distribution of my whole electron cloud, so
+    This is the radial distribution of the whole electron cloud, so
     integral D dr = N and the area under each peak is how many electrons that
-    shell holds. It is the observable my orbital plots are not: the angular part
+    shell holds. It is the observable the orbital plots are not: the angular part
     of the total density is exactly uniform (Unsold on each filled subshell, and
-    my average-of-configuration spreads a partly filled one equally over m), so
-    all of my structure is here, in r, and none of it is a basis choice.
+    the average of configuration spreads a partly filled one equally over m), so
+    all the structure is here, in r, and none of it is a basis choice.
 
-    Unlike every other shape I return, this one carries an error estimate, and
-    the reason is dimensional rather than a change of policy. I normalize each
-    P_a so that integral P_a^2 dr = 1 in my solver mesh's own quadrature, which
-    makes integral D dr = N exactly there. Resampling for display breaks that,
-    and my residual is a real error measured in electrons, the unit of the
-    quantity it describes. An error bar the quantity's own normalization hands
-    me is one worth reporting.
+    Unlike every other shape returned here, this one carries an error estimate,
+    and the reason is dimensional rather than a change of policy. Each P_a is
+    normalized so that integral P_a^2 dr = 1 in the solver mesh's own
+    quadrature, which makes integral D dr = N exactly there. Resampling for
+    display breaks that, and the residual is a real error measured in electrons,
+    the unit of the quantity it describes. An error bar the quantity's own
+    normalization supplies is one worth reporting.
 
-    I make my display grid logarithmic, and that is not a cosmetic choice. A
+    The display grid is logarithmic, and that is not a cosmetic choice. A
     uniform grid cannot carry this quantity at all: neon's box runs to 48 bohr
     while its 1s peaks near 0.1 bohr and is narrower than that, so 400 uniform
-    points step straight over the K shell. Built that way first, I lost 0.35 of
+    points step straight over the K shell. Built that way first, it lost 0.35 of
     neon's 10 electrons and reported argon as having two shells instead of
-    three. My closure residual below is what caught it, on the first run, which
+    three. The closure residual below is what caught it, on the first run, which
     is the whole argument for computing an error bar from the physics rather
     than trusting a grid to be fine enough. Log spacing is the same reasoning
-    numerics/mesh.py already applies to my solve.
+    numerics/mesh.py already applies to the solve.
     """
     cfg = aufbau_configuration(n_electrons, pauli) if config is None else config
     result = solve_hartree_fock(z, n_electrons, cfg, exchange, pauli)
@@ -885,9 +879,9 @@ def hf_total_radial_density(
             * np.interp(grid, orbital.P.grid, orbital.P.values) ** 2
         )
 
-    # My closure check, which I keep as the error bar rather than asserting it
-    # away. A transcription slip in the sum above moves it immediately, which is
-    # exactly what an error bar computed from the physics is for.
+    # The closure check, kept as the error bar rather than asserted away. A
+    # transcription slip in the sum above moves it immediately, which is exactly
+    # what an error bar computed from the physics is for.
     residual = abs(float(np.trapezoid(values, grid)) - float(n_electrons))
 
     base = result.total_energy.provenance
@@ -900,8 +894,8 @@ def hf_total_radial_density(
         provenance=Provenance(
             fidelity=base.fidelity,
             method=(
-                f"{base.method}; I summed the total radial density over my "
-                f"occupied subshells and resampled it onto {points} "
+                f"{base.method}; the total radial density summed over the "
+                f"occupied subshells and resampled onto {points} "
                 f"logarithmically spaced points (a uniform grid steps over the 1s)"
             ),
             assumptions=base.assumptions + (_TOTAL_DENSITY_IS_OBSERVABLE,),
@@ -912,25 +906,25 @@ def hf_total_radial_density(
 
 
 def collapsed_variational_energy(z: int, n_electrons: int) -> tuple[Quantity, Quantity]:
-    """My closed-form check on a collapsed atom: (zeta*, E(zeta*)), in hartree.
+    """The closed-form check on a collapsed atom: (zeta*, E(zeta*)), in hartree.
 
-    I put N electrons in one hydrogenic 1s of exponent zeta with no exchange.
-    Then <1s|h|1s> = zeta^2/2 - Z zeta and F_0(1s,1s) = 5 zeta / 8, so
+    N electrons go in one hydrogenic 1s of exponent zeta with no exchange. Then
+    <1s|h|1s> = zeta^2/2 - Z zeta and F_0(1s,1s) = 5 zeta / 8, so
 
         E(zeta) = N (zeta^2/2 - Z zeta) + [N(N-1)/2] (5 zeta / 8)
         zeta*   = Z - (5/16)(N - 1)
 
-    This is a ground truth nobody in this repo chose, which is unusual for one
-    of my counterfactuals and is why I carry it. At Z = N = 2 it gives me
+    This is a ground truth nobody in this repo chose, which is unusual for a
+    counterfactual here and is why it is carried. At Z = N = 2 it gives
     zeta* = 1.6875 and -2.8477 hartree, the textbook variational helium number.
 
-    My SCF optimizes the 1s radial FUNCTION rather than the best exponential, so
-    it searches a strictly larger space and must land at or below this:
-    E_SCF <= E(zeta*), and close. That inequality is my test, and it is a real
-    one: a wrong angular coefficient in my collapsed branch would still converge
-    smoothly, and would break it.
+    The SCF optimizes the 1s radial FUNCTION rather than the best exponential,
+    so it searches a strictly larger space and must land at or below this:
+    E_SCF <= E(zeta*), and close. That inequality is the test, and it is a real
+    one: a wrong angular coefficient in the collapsed branch would still
+    converge smoothly, and would break it.
 
-    COUNTERFACTUAL rather than EXACT, despite being closed form. My tier is
+    COUNTERFACTUAL rather than EXACT, despite being closed form. The tier is
     truth-distance from the real atom, not arithmetic precision, and this is an
     exact statement about an atom that does not exist.
     """
@@ -944,14 +938,14 @@ def collapsed_variational_energy(z: int, n_electrons: int) -> tuple[Quantity, Qu
     prov = Provenance(
         fidelity=Fidelity.COUNTERFACTUAL,
         method=(
-            "I took the closed-form variational minimum for N electrons in one "
+            "the closed-form variational minimum for N electrons in one "
             "hydrogenic 1s of exponent zeta, with direct repulsion and no exchange"
         ),
         assumptions=(
             _NO_PAULI_ALTERATION,
             _NO_PAULI_IMPLIES_NO_EXCHANGE,
-            "I constrain the orbital to an exponential, so this is an upper "
-            "bound on the collapsed atom's energy and my SCF must come in at or "
+            "the orbital is constrained to an exponential, so this is an upper "
+            "bound on the collapsed atom's energy and the SCF must come in at or "
             "below it",
         ),
         refinement=_NO_PAULI_REFINEMENT,
@@ -964,41 +958,41 @@ def collapsed_variational_energy(z: int, n_electrons: int) -> tuple[Quantity, Qu
 
 @dataclass(frozen=True)
 class PauliCollapse:
-    """The real atom and the collapsed one, which I solve together and difference.
+    """The real atom and the collapsed one, solved together and differenced.
 
-    I keep both solves here rather than fetching them separately, for the reason
-    hf_exchange_energy solves both models itself: my two energies have to come
-    off the same mesh at the same refinement, or the difference I report as
-    physics is partly my mesh spread.
+    Both solves stay here rather than being fetched separately, for the reason
+    hf_exchange_energy solves both models itself: the two energies have to come
+    off the same mesh at the same refinement, or the difference reported as
+    physics is partly the mesh spread.
     """
     z: int
     n_electrons: int
     real: HFResult
     collapsed: HFResult
     #: E(collapsed) - E(real). Negative, because nothing holds the electrons out
-    #: of the deep well any more, so my collapsed atom is far more bound.
+    #: of the deep well any more, so the collapsed atom is far more bound.
     binding_change: Quantity
     real_radius: Quantity
     collapsed_radius: Quantity
     #: <r>(collapsed) / <r>(real). Below 1, and it keeps falling with Z.
     radius_ratio: Quantity
-    #: The closed-form bound from collapsed_variational_energy. I carry it so a
-    #: caller can show that my collapsed number was checked against something
+    #: The closed-form bound from collapsed_variational_energy. It is carried so
+    #: a caller can show that the collapsed number was checked against something
     #: outside this codebase rather than only against itself.
     variational_zeta: Quantity
     variational_energy: Quantity
 
 
 def pauli_collapse(z: int, n_electrons: int | None = None) -> PauliCollapse:
-    """I solve one atom twice, with the exclusion principle and without.
+    """Solve one atom twice, with the exclusion principle and without.
 
-    This is my teaching payoff stated as two numbers. With Pauli on, atomic size
-    oscillates across a period, and that oscillation is the periodic table; with
-    Pauli off every electron falls into my 1s, the atom shrinks like 1/Z
+    This is the teaching payoff stated as two numbers. With Pauli on, atomic
+    size oscillates across a period, and that oscillation is the periodic table;
+    with Pauli off every electron falls into the 1s, the atom shrinks like 1/Z
     forever, and there is no chemistry to have.
 
-    I take both halves as ground configurations for their own rule: Aufbau for
-    the real atom, 1s^N for the collapsed one.
+    Both halves are ground configurations for their own rule: Aufbau for the
+    real atom, 1s^N for the collapsed one.
     """
     if n_electrons is None:
         n_electrons = z
@@ -1017,19 +1011,19 @@ def pauli_collapse(z: int, n_electrons: int | None = None) -> PauliCollapse:
     compare_prov = Provenance(
         fidelity=Fidelity.COUNTERFACTUAL,
         method=(
-            "I solved the same atom twice on the same mesh, once under the "
-            "exclusion principle and once with my occupancy cap lifted"
+            "the same atom solved twice on the same mesh, once under the "
+            "exclusion principle and once with the occupancy cap lifted"
         ),
         assumptions=(
             _NO_PAULI_ALTERATION,
             _NO_PAULI_IMPLIES_NO_EXCHANGE,
-            "this is a difference between one real model of mine and one "
-            "impossible one, so it is not an observable and has no measured "
-            "value to be checked against",
+            "this is a difference between one real model and one impossible "
+            "one, so it is not an observable and has no measured value to be "
+            "checked against",
         )
         + _TOTAL_ENERGY_ASSUMPTIONS,
-        # I add both solves' mesh spreads: my difference carries the error of
-        # each end, and they are independent solves.
+        # Both solves' mesh spreads are added: the difference carries the error
+        # of each end, and they are independent solves.
         error_estimate=(
             (real.total_energy.provenance.error_estimate or 0.0)
             + (collapsed.total_energy.provenance.error_estimate or 0.0)
@@ -1038,9 +1032,9 @@ def pauli_collapse(z: int, n_electrons: int | None = None) -> PauliCollapse:
     )
     ratio_prov = dataclasses.replace(
         compare_prov,
-        method=f"{compare_prov.method}; I took the ratio of the two <r> values",
+        method=f"{compare_prov.method}; the ratio of the two <r> values",
         # A ratio of two lengths is dimensionless, so a hartree error bar would
-        # be wrong in dimension rather than merely loose. Same rule my orbital
+        # be wrong in dimension rather than merely loose. Same rule the orbital
         # shapes follow.
         error_estimate=None,
     )
@@ -1077,17 +1071,17 @@ def _occupied_orbital(
     exchange: bool = True,
     pauli: bool = True,
 ) -> HFOrbital:
-    """The converged orbital I have for one subshell, or a refusal.
+    """The converged orbital for one subshell, or a refusal.
 
-    I cannot hand back an arbitrary channel the way a central-field model can.
-    I have no single potential here: each occupied subshell has its own Fock
-    operator, built from the others, so an unoccupied subshell has no operator
-    to be an eigenfunction of. Asking me for one is a question this model of
-    mine cannot answer, and inventing a channel by borrowing another subshell's
+    An arbitrary channel cannot be handed back the way a central-field model
+    can. There is no single potential here: each occupied subshell has its own
+    Fock operator, built from the others, so an unoccupied subshell has no
+    operator to be an eigenfunction of. Asking for one is a question this model
+    cannot answer, and inventing a channel by borrowing another subshell's
     operator would answer a different question silently.
 
     `config` defaults to the ground configuration for the rule in force, which
-    is Aufbau normally and 1s^N with my cap lifted. I keep it a parameter rather
+    is Aufbau normally and 1s^N with the cap lifted. It stays a parameter rather
     than a constant because the caller may have chosen a different one, and
     drawing the Aufbau orbital under a label that says otherwise is the same
     class of lie as drawing the wrong model.
@@ -1100,15 +1094,15 @@ def _occupied_orbital(
         if (orbital.n, orbital.l) == (n, l):
             return orbital
     held = ", ".join(f"{o.n}{'spdf'[o.l]}" for o in result.orbitals)
-    # Two different facts wear the same shape here, and you are owed the one
-    # that applies. Under the exclusion principle an empty subshell is a
-    # contingent fact about this atom. With my cap lifted it is the switch the
-    # caller just flipped: I have one orbital and every electron is in it.
+    # Two different facts wear the same shape here, and the one that applies is
+    # owed to the caller. Under the exclusion principle an empty subshell is a
+    # contingent fact about this atom. With the cap lifted it is the switch the
+    # caller just flipped: there is one orbital and every electron is in it.
     why = (
-        "my occupancy cap is lifted, so every electron is in the 1s and no "
-        "other orbital of mine exists to be an eigenfunction of anything"
+        "the occupancy cap is lifted, so every electron is in the 1s and no "
+        "other orbital exists to be an eigenfunction of anything"
         if not pauli
-        else "I build one Fock operator per occupied subshell, so I have no "
+        else "one Fock operator is built per occupied subshell, so there is no "
         "operator for an empty one"
     )
     raise ValueError(
@@ -1128,40 +1122,40 @@ def hf_radial(
     exchange: bool = True,
     pauli: bool = True,
 ) -> tuple[Field, Field]:
-    """R_nl(r) and the radial density r^2 R^2, on my uniform display grid.
+    """R_nl(r) and the radial density r^2 R^2, on a uniform display grid.
 
-    I mirror screened_atom.screened_radial, including its convention that my
-    second field is the probability density and not the amplitude. Note that my
-    solver's own HFOrbital.P is the amplitude P = r R, a different quantity with
-    a different unit; I follow screened_atom's naming because these are what a
-    caller plots.
+    This mirrors screened_atom.screened_radial, including its convention that
+    the second field is the probability density and not the amplitude. Note that
+    the solver's own HFOrbital.P is the amplitude P = r R, a different quantity
+    with a different unit; screened_atom's naming is followed because these are
+    what a caller plots.
 
     Every Hartree-Fock picture in this application routes through here: the
     radial plot directly, the cloud through its inverse CDF, and the plane and
-    the surface through evaluate_hf_state. So this is the one place I have to
-    attach the orbital-is-not-an-observable claim to reach all four.
+    the surface through evaluate_hf_state. So this is the one place the
+    orbital-is-not-an-observable claim has to be attached to reach all four.
     """
     orbital = _occupied_orbital(
         z, n_electrons, n, l, config=config, exchange=exchange, pauli=pauli
     )
     solver_r = orbital.P.grid
-    # I window to the orbital, not to my mesh's outer edge. My SCF mesh has to
-    # hold the valence tail while resolving a 1s two decades smaller, and
+    # The window follows the orbital, not the mesh's outer edge. The SCF mesh
+    # has to hold the valence tail while resolving a 1s two decades smaller, and
     # resampling uniformly across the whole of it put a handful of samples on an
-    # inner orbital. I touch neither the mesh nor the solve here; I choose only
-    # which samples get plotted. See numerics.mesh.display_window.
+    # inner orbital. Neither the mesh nor the solve is touched here; only which
+    # samples get plotted. See numerics.mesh.display_window.
     #
     # P = r R is the amplitude, so P^2 is already the radial probability r^2R^2
-    # and is the right thing for me to measure the window against.
+    # and is the right thing to measure the window against.
     r_out = display_window(solver_r, orbital.P.values**2)
     grid = np.linspace(solver_r[0], r_out, points)
-    # R = P / r. My mesh never reaches r = 0, so I need no special case here,
-    # which is exactly why my exponential mesh starts where it does.
+    # R = P / r. The mesh never reaches r = 0, so no special case is needed
+    # here, which is exactly why the exponential mesh starts where it does.
     values = np.interp(grid, solver_r, orbital.P.values / solver_r)
     prov = dataclasses.replace(
         orbital.P.provenance,
         method=(
-            f"{orbital.P.provenance.method}; I resampled R_nl = P/r uniformly"
+            f"{orbital.P.provenance.method}; R_nl = P/r resampled uniformly"
             f" to r={grid[-1]:.3g} bohr, windowed from a mesh reaching"
             f" {solver_r[-1]:.3g}"
         ),
@@ -1191,18 +1185,18 @@ def evaluate_hf_state(
     exchange: bool = True,
     pauli: bool = True,
 ) -> WavefunctionValues:
-    """My psi_nlm = Hartree-Fock R_nl(|r|) x hydrogenic Y_lm, at your (N, 3)
+    """psi_nlm = Hartree-Fock R_nl(|r|) x hydrogenic Y_lm, at the given (N, 3)
     positions.
 
-    I mirror evaluate_screened_state. My angular factor is still the hydrogenic
-    harmonic: restricted Hartree-Fock on a spherically averaged configuration
-    leaves the angular dependence exactly Y_lm, so this is my model's own shape
-    rather than a convenience.
+    This mirrors evaluate_screened_state. The angular factor is still the
+    hydrogenic harmonic: restricted Hartree-Fock on a spherically averaged
+    configuration leaves the angular dependence exactly Y_lm, so this is the
+    model's own shape rather than a convenience.
 
     `config`, `exchange` and `pauli` name which solve the orbital comes out of,
-    and I forward them unchanged. I read the tier below off that solve rather
-    than asserting it here, so a counterfactual picture of mine cannot arrive
-    wearing the real atom's badge.
+    and they are forwarded unchanged. The tier below is read off that solve
+    rather than asserted here, so a counterfactual picture cannot arrive wearing
+    the real atom's badge.
     """
     pos = np.asarray(positions, dtype=float)
     if pos.ndim != 2 or pos.shape[1] != 3:
@@ -1218,24 +1212,24 @@ def evaluate_hf_state(
         z, n_electrons, n, l, points=_HF_EVAL_POINTS,
         config=config, exchange=exchange, pauli=pauli,
     )
-    # Inside my first mesh point I hold R flat rather than extrapolating, and
-    # past my box I give zero. Both match evaluate_screened_state.
+    # Inside the first mesh point R is held flat rather than extrapolated, and
+    # past the box it is zero. Both match evaluate_screened_state.
     R = np.interp(r, r_field.grid, r_field.values, left=r_field.values[0], right=0.0)
     angular = spherical_harmonic(l, m, theta, phi, basis=basis)
 
     base = r_field.provenance
     prov = Provenance(
-        # I inherit this and never assert it. A Hartree orbital of mine under an
-        # APPROXIMATION badge would be a badge advertising the real atom over a
-        # picture of a different universe, which is worse than no badge at all.
+        # Inherited, never asserted. A Hartree orbital under an APPROXIMATION
+        # badge would be a badge advertising the real atom over a picture of a
+        # different universe, which is worse than no badge at all.
         fidelity=base.fidelity,
         method=(
-            f"I built psi_nlm = Hartree-Fock R_nl (P/r) x "
+            f"psi_nlm built as Hartree-Fock R_nl (P/r) x "
             f"{angular.provenance.method}; {base.method}"
         ),
         assumptions=base.assumptions
         + angular.provenance.assumptions
-        + ("I report values in bohr^-3/2 at Cartesian positions in bohr",),
+        + ("values are in bohr^-3/2 at Cartesian positions in bohr",),
         error_estimate=base.error_estimate,
     )
     return WavefunctionValues(
