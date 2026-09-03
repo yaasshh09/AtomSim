@@ -2,17 +2,17 @@ import { useAppStore } from "../state/store";
 import { FLAGSHIP_TOUR_ID, tourById } from "../tours/registry";
 
 /**
- * My one-time offer of a tour, for a reader I have never shown one to.
+ * A one-time offer of a tour, for a reader who has never been shown one.
  *
- * I put it in a row in the shell rather than a card over it, and never a
- * modal: if you already know this instrument you should be able to ignore me
- * entirely and use what is underneath, which is the whole point of the skip. I
- * remember your answer either way, so I appear once per browser and then never
- * again.
+ * It sits in a row in the shell rather than a card over it, and never a modal.
+ * Anyone who already knows this instrument should be able to ignore it
+ * entirely and use what is underneath, which is the whole point of the skip.
+ * The answer is remembered either way, so it appears once per browser and then
+ * never again.
  *
- * The title and blurb are the tour's own. If I wrote a second description here
- * it would be a claim about the tour that nothing checks, and my registry test
- * already holds the tour's own prose to my rules.
+ * The title and blurb are the tour's own. A second description written here
+ * would be a claim about the tour that nothing checks, and the registry test
+ * already holds the tour's own prose to the rules.
  */
 export function TourInvite() {
   const inviteOpen = useAppStore((s) => s.inviteOpen);
@@ -20,8 +20,8 @@ export function TourInvite() {
   const startTour = useAppStore((s) => s.startTour);
   const dismissInvite = useAppStore((s) => s.dismissInvite);
   const tour = tourById(FLAGSHIP_TOUR_ID);
-  // I stay away while a tour is running: a deep link straight into one arrives
-  // with my invitation still unanswered for a beat.
+  // Stay away while a tour is running: a deep link straight into one arrives
+  // with the invitation still unanswered for a beat.
   if (!inviteOpen || tourId || !tour) return null;
   return (
     <aside className="tour-invite" aria-label="guided tour invitation">
@@ -42,7 +42,7 @@ export function TourInvite() {
         </button>
       </div>
       <p className="tour-invite-note">
-        Skip and I keep this out of your way for good. I leave the tours in the top bar.
+        Skip and this stays out of the way for good. The tours live in the top bar.
       </p>
     </aside>
   );

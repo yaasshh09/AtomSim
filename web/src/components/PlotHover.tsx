@@ -3,13 +3,13 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { viewBoxX } from "../lib/hover";
 
 /**
- * How I track the pointer on an SVG plot, in the plot's own coordinates.
+ * Pointer tracking on an SVG plot, in the plot's own coordinates.
  *
  * This hook stores a viewBox x and nothing else. Which sample that lands on,
- * and what I print for it, is the caller's decision, because only the caller
- * knows which of its arrays is the grid and what the values mean. If I kept
- * the lookup here I would be quietly choosing a nearest-point rule for curves
- * I have never seen.
+ * and what gets printed for it, is the caller's decision, because only the
+ * caller knows which of its arrays is the grid and what the values mean.
+ * Keeping the lookup here would quietly pick a nearest-point rule for curves
+ * this file has never seen.
  */
 export function usePlotHover(viewBoxWidth: number) {
   const ref = useRef<SVGSVGElement | null>(null);
@@ -27,12 +27,12 @@ export function usePlotHover(viewBoxWidth: number) {
 }
 
 /**
- * My crosshair and its readout.
+ * The crosshair and its readout.
  *
- * I draw it at the sample, not at the pointer: `px` is where the nearest grid
- * point actually is, so my line sits on a number my engine computed rather
- * than between two of them. On a coarse grid my crosshair therefore snaps,
- * which is the honest behaviour; it is showing you where the data is.
+ * Drawn at the sample, not at the pointer: `px` is where the nearest grid
+ * point actually is, so the line sits on a number the engine computed rather
+ * than between two of them. On a coarse grid the crosshair therefore snaps,
+ * which is the honest behaviour. It is showing where the data is.
  */
 export function HoverReadout({
   px,
@@ -47,14 +47,14 @@ export function HoverReadout({
   py: number | null;
   top: number;
   bottom: number;
-  /** My readout rows, longest first: I size the box off the first one. */
+  /** The readout rows, longest first: the box is sized off the first one. */
   lines: string[];
   width: number;
   rightMargin: number;
 }) {
   const boxW = Math.max(...lines.map((s) => s.length)) * 5.6 + 12;
   const boxH = lines.length * 12 + 8;
-  // I flip to the left of the crosshair when the box would overrun the frame,
+  // Flips to the left of the crosshair when the box would overrun the frame,
   // so a readout near the right edge stays inside the plot instead of being
   // clipped by the viewBox.
   const flip = px + boxW + 10 > width - rightMargin;

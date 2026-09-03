@@ -66,8 +66,8 @@ export function PlaneView() {
           x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
           {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
           {plane.meta.quantity === "density"
-            ? "I γ-compress the inferno brightness at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
-            : "I use a diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
+            ? "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
+            : "A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
         </p>
       )}
       {plane?.meta.model === "hf" && <p className="caption">{HF_ORBITAL_CAPTION}</p>}

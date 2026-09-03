@@ -4,14 +4,14 @@ import { Badge } from "./Badge";
 import { TourMenu } from "./TourMenu";
 
 /**
- * My session header: what I have loaded, and what tier its energy came out of.
+ * The session header: what is loaded, and what tier its energy came out of.
  *
- * Everything here I measured, or I leave it out. The design I built this from
- * also carried a session id, a memory figure and a frame rate as constants; a
- * fabricated telemetry field is a lie about the run even when nobody reads it,
- * so I dropped the id and the memory figure, and the frame rate I show is the
- * one my renderer actually counts (`FpsMeter` in CloudView), which I show only
- * while the view that counts it is open.
+ * Everything here is measured, or it is left out. The design this was built
+ * from also carried a session id, a memory figure and a frame rate, all of
+ * them constants. A fabricated telemetry field is a lie about the run even
+ * when nobody reads it, so the id and the memory figure went. The frame rate
+ * is the one the renderer actually counts (`FpsMeter` in CloudView), shown
+ * only while the view that counts it is open.
  */
 export function TopBar() {
   const { n, l, m, system, systems, basis, model, stateInfo, fps, view } =
@@ -20,7 +20,7 @@ export function TopBar() {
   const isScreened =
     systems.find((s) => s.key === system)?.kind === "screened";
   // For a many-electron atom the basis is not the interesting half of the
-  // sentence; which of my two models is solving it is.
+  // sentence. Which of the two models is solving it is.
   const method = isScreened
     ? model === "hf"
       ? "Hartree-Fock"

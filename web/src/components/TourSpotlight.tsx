@@ -13,30 +13,30 @@ function same(a: Ring, b: Ring): boolean {
 }
 
 /**
- * The ring I draw around the control a step is talking about.
+ * The ring drawn around the control a step is talking about.
  *
- * I make it fixed-position and pointer-events:none, so it never intercepts a
- * click: my controls stay live during a tour and ringing one must not stop it
- * working. If the anchor is missing or measures zero I simply do not render
- * the ring, and the card downstairs carries the step on its own.
+ * Fixed-position and pointer-events:none, so it never intercepts a click: the
+ * controls stay live during a tour, and ringing one must not stop it working.
+ * If the anchor is missing or measures zero, no ring renders at all and the
+ * card downstairs carries the step on its own.
  *
- * I re-find and re-measure the anchor after every render rather than looking
- * it up once, and walking my flagship tour in a browser is what forced that.
- * Two failures, one cause: measuring once assumes I have finished moving, and
- * I have not.
+ * The anchor gets re-found and re-measured after every render rather than
+ * looked up once. Walking the flagship tour in a browser is what forced that.
+ * Two failures, one cause: measuring once assumes the layout has finished
+ * moving, and it has not.
  *
- * My Dirac toggle only exists after the levels payload arrives, so a one-shot
- * querySelector found nothing and gave up for good; I drew no ring at all on
- * that step. My surface controls kept their exact size and slid 247 px up once
- * the cloud view finished laying out, so a ResizeObserver never fired and I
- * left the ring a third of a screen below the control it was pointing at.
+ * The Dirac toggle only exists after the levels payload arrives, so a one-shot
+ * querySelector found nothing and gave up for good, leaving no ring at all on
+ * that step. The surface controls kept their exact size and slid 247 px up
+ * once the cloud view finished laying out, so a ResizeObserver never fired and
+ * the ring sat a third of a screen below the control it pointed at.
  *
- * Re-syncing after every render fixes both, because every layout change I make
+ * Re-syncing after every render fixes both, because every layout change here
  * comes from a store change and this component re-renders on all of them. The
  * observers below cover the rest: a window resize, and a settle that arrives
- * without a render. `same` is what stops that from looping, since setting
- * state from an effect with no dependency array would otherwise have me
- * re-rendering forever on a fresh object.
+ * without a render. `same` is what stops that looping, since setting state
+ * from an effect with no dependency array would otherwise re-render forever on
+ * a fresh object.
  */
 export function TourSpotlight() {
   const { tourId, stepIndex } = useAppStore();
@@ -53,14 +53,14 @@ export function TourSpotlight() {
     setBox(next);
   }, [anchor]);
 
-  // No dependency array: I sync after every render, which is after every store
+  // No dependency array: sync after every render, which is after every store
   // change.
   useEffect(sync);
 
   useEffect(() => {
     if (!anchor) return;
-    // I wait two frames, because the frame right after a step lands is often
-    // one layout pass short of settled.
+    // Two frames, because the frame right after a step lands is often one
+    // layout pass short of settled.
     let second = 0;
     const first = requestAnimationFrame(() => {
       sync();

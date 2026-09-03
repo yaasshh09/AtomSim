@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
 
 /**
- * The control vocabulary I share across my instrument views.
+ * The control vocabulary shared across the instrument views.
  *
- * Before this I invented one per view: my LevelsView packed four controls into
- * the same flex row as its title, and my SpectrumView stacked nine bare
+ * Before this, every view invented its own: LevelsView packed four controls
+ * into the same flex row as its title, and SpectrumView stacked nine bare
  * checkboxes that revealed one another with nothing to say which layer you
- * were in. The physics under them was fine, and my arrangement was the reason
- * nobody could find it.
+ * were in. The physics under them was fine. The arrangement was why nobody
+ * could find it.
  *
- * Three rules hold across everything here. A control of mine says what it does
- * in words, not in a symbol. A number says what it means beside it, so I never
- * put "20 T" on screen without something that tells you 20 T is a lot. A
- * control that cannot act right now I disable and explain, rather than hiding:
- * a control that disappears is one you will hunt for.
+ * Three rules hold across everything here. A control says what it does in
+ * words, not in a symbol. A number carries its meaning beside it, so "20 T"
+ * never appears without something that says 20 T is a lot. A control that
+ * cannot act right now gets disabled and explained rather than hidden: a
+ * control that disappears is one somebody goes hunting for.
  */
 
 /** A titled group of related controls, with an optional one-line purpose. */
@@ -26,7 +26,7 @@ export function ControlGroup({
   title: string;
   hint?: string;
   children: ReactNode;
-  /** `active` tints the rail when I have this group doing something. */
+  /** `active` tints the rail when this group is doing something. */
   tone?: "plain" | "active";
 }) {
   return (
@@ -41,10 +41,10 @@ export function ControlGroup({
 /**
  * A range input with its value and its meaning on the same line.
  *
- * `readout` is the number in its own units and `anchor` is what that number is
- * comparable to. I keep them as separate parameters because they are separate
- * claims: the readout is mine, the anchor is a fact about the world, and only
- * the readout may ever be derived from a solve.
+ * `readout` is the number in its own units, and `anchor` is what that number
+ * is comparable to. They stay separate parameters because they are separate
+ * claims: the readout comes from the app, the anchor is a fact about the
+ * world, and only the readout may ever be derived from a solve.
  */
 export function Slider({
   label,
@@ -68,7 +68,7 @@ export function Slider({
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
-  /** True when the slider sits where I have applied nothing. */
+  /** True when the slider sits where nothing has been applied. */
   atRest?: boolean;
   tourId?: string;
 }) {
@@ -93,11 +93,11 @@ export function Slider({
 }
 
 /**
- * A checkbox with a plain-English label and a line saying what I will do.
+ * A checkbox with a plain-English label and a line saying what it does.
  *
- * I show `why` whenever it is given, in both states. A hint that only appears
- * once a box is ticked cannot help you decide whether to tick it, which is the
- * moment the hint is for.
+ * `why` shows whenever it is given, in both states. A hint that only appears
+ * once a box is ticked cannot help anyone decide whether to tick it, which is
+ * the moment the hint is for.
  */
 export function Toggle({
   label,
@@ -113,7 +113,7 @@ export function Toggle({
   onChange: (v: boolean) => void;
   why?: string;
   disabled?: boolean;
-  /** What I show in place of `why` when the control cannot act. */
+  /** Shown in place of `why` when the control cannot act. */
   disabledReason?: string;
   tourId?: string;
 }) {
@@ -138,23 +138,23 @@ export function Toggle({
 export interface ChoiceOption<T extends string> {
   value: T;
   label: string;
-  /** What I show under the row once this option is the live one. */
+  /** Shown under the row once this option is the live one. */
   hint?: string;
   disabled?: boolean;
-  /** Why I cannot let you pick this option; I show it when the option is disabled. */
+  /** Why this option cannot be picked. Shown when the option is disabled. */
   disabledReason?: string;
 }
 
 /**
- * A segmented picker for a set of options I used to make mutually exclusive by
- * accident.
+ * A segmented picker for a set of options that used to be mutually exclusive
+ * by accident.
  *
- * My LevelsView is the case that motivated it. Its magnifier panel could show
+ * LevelsView is the case that motivated it. Its magnifier panel could show
  * fine structure, a Zeeman fan, a Stark manifold or a hyperfine split, and
  * which one you got fell out of a chain of nested ternaries: turn on hyperfine
- * with the electric field already up and my hyperfine toggle silently did
- * nothing. Exclusivity that is real should be visible, so I make it a picker
- * now, and the option I cannot run says so on its face.
+ * with the electric field already up, and the hyperfine toggle silently did
+ * nothing. Exclusivity that is real should be visible, so it is a picker now,
+ * and an option that cannot run says so on its face.
  */
 export function Choice<T extends string>({
   legend,
