@@ -6,9 +6,10 @@ const W = 680;
 const H = 260;
 const M = { left: 62, right: 16, top: 20, bottom: 34 };
 
-/** I give each branch its own colour, so you can read the regimes off the plot
- *  without a legend lookup. I deliberately reuse the amber from my Stark
- *  warning for the branch where a line's strength stops measuring anything. */
+/** Each branch gets its own colour, so the regimes read off the plot without a
+ *  legend lookup. The amber is deliberately the same amber as the Stark
+ *  warning: it marks the branch where a line's strength stops measuring
+ *  anything. */
 export const REGIME_COLOR: Record<GrowthRegime, string> = {
   linear: "#4ade80",
   saturated: "#fbbf24",
@@ -22,11 +23,11 @@ export const REGIME_LABEL: Record<GrowthRegime, string> = {
 };
 
 /**
- * I split the curve into runs of one regime each, so I can draw every segment
+ * Split the curve into runs of one regime each, so every segment can be drawn
  * in its own colour.
  *
- * I reach each run back one point so consecutive runs share an endpoint;
- * without that my polyline shows a gap at every branch change, which reads as
+ * Each run reaches back one point so consecutive runs share an endpoint.
+ * Without that the polyline shows a gap at every branch change, which reads as
  * missing data rather than as a transition.
  */
 export function regimeSegments(
@@ -44,7 +45,7 @@ export function regimeSegments(
   return out;
 }
 
-/** The path I trace through a log-log curve, over an index range. */
+/** The path traced through a log-log curve, over an index range. */
 export function logLogPath(
   xs: number[],
   ys: number[],
@@ -63,11 +64,11 @@ export function logLogPath(
 }
 
 /**
- * The log₁₀ range of the values I can place on a log axis, as [min, max].
+ * The log₁₀ range of the values a log axis can hold, as [min, max].
  *
  * Zero and negative values are not points on a log axis, and neither is a
- * degenerate range: a constant array would collapse my scale onto one pixel,
- * so I open it out by a decade either side instead.
+ * degenerate range: a constant array would collapse the scale onto one pixel,
+ * so it opens out by a decade either side instead.
  */
 export function logDomain(values: number[]): [number, number] {
   const logs = values.filter((v) => v > 0 && Number.isFinite(v)).map(Math.log10);
@@ -77,7 +78,7 @@ export function logDomain(values: number[]): [number, number] {
   return hi > lo ? [lo, hi] : [lo - 1, hi + 1];
 }
 
-/** The decade tick values I span a log range with, as exponents. */
+/** The decade tick values spanning a log range, as exponents. */
 export function decadeTicks(lo: number, hi: number, max = 8): number[] {
   const first = Math.ceil(lo);
   const last = Math.floor(hi);
@@ -89,10 +90,10 @@ export function decadeTicks(lo: number, hi: number, max = 8): number[] {
 }
 
 export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
-  // I take only the points a log axis can actually place. `logLogPath` already
-  // skips the rest, so when I took the domain from the raw arrays a single
-  // zero equivalent width stretched my axis down 300 decades while the curve
-  // stayed in the top percent of the panel.
+  // Only the points a log axis can actually place. `logLogPath` already skips
+  // the rest, so taking the domain from the raw arrays let a single zero
+  // equivalent width stretch the axis down 300 decades while the curve stayed
+  // in the top percent of the panel.
   const logN = logDomain(cog.column_density_m2);
   const logW = logDomain(cog.equivalent_width_nm);
   const x = scaleLinear(logN, [M.left, W - M.right]);
@@ -101,9 +102,9 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
   const present = [...new Set(cog.regime)];
 
   return (
-    // I use a fragment, not a nested .view-wrap: that class is a flex column
-    // with its own overflow, and nesting one inside another collapses the
-    // child's height so I draw the plot as a 10:1 sliver.
+    // A fragment, not a nested .view-wrap: that class is a flex column with
+    // its own overflow, and nesting one inside another collapses the child's
+    // height, which draws the plot as a 10:1 sliver.
     <>
       <div className="view-header">
         <span className="plot-title">
@@ -162,42 +163,42 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
         </text>
       </svg>
       <p className="caption">
-        How much light the line removes, against how much gas is in the way. I
-        draw three branches and they are the point: while the core is
-        transparent every atom absorbs as much as the last and the width tracks
-        the column exactly (slope 1). Once the core goes black it cannot absorb
-        more, so the line grows only through its Doppler shoulders and{" "}
-        <strong>a hundred times more gas barely widens it</strong>, which is
-        why a strong line is a poor measure of how much gas there is. Far
+        How much light the line removes, against how much gas sits in the way.
+        The three branches are the whole point. While the core is still
+        transparent, every atom absorbs as much as the last and the width
+        tracks the column exactly (slope 1). Once the core goes black it cannot
+        absorb any more, so the line only grows through its Doppler shoulders,
+        and <strong>a hundred times more gas barely widens it</strong>. That is
+        why a strong line makes a poor measure of how much gas there is. Far
         enough along, the Lorentzian wings from the upper level's finite
         lifetime take over and growth resumes at slope ½.
       </p>
       <p className="caption">
-        Everywhere else I assume the gas is optically thin, which is only the
+        Every other view assumes the gas is optically thin, which is only the
         first branch here. f = {cog.oscillator_strength.toExponential(3)},
         Gaussian σ = {cog.sigma_nm.toExponential(2)} nm, Lorentzian γ ={" "}
         {cog.gamma_nm.toExponential(2)} nm, damping parameter a ={" "}
-        {cog.damping_parameter.toExponential(2)}. My knees sit where τ at line
+        {cog.damping_parameter.toExponential(2)}. The knees sit where τ at line
         centre reaches 1 and where a·τ reaches 1, so heating the gas widens the
-        line and pushes the first knee to higher column, which is exactly how a
-        real curve-of-growth fit measures a temperature.
+        line and pushes the first knee to a higher column. That is exactly how
+        a real curve-of-growth fit measures a temperature.
       </p>
     </>
   );
 }
 
 /**
- * The exponent of a decade tick, which I put in a raised `tspan` rather than
- * using Unicode superscript characters.
+ * The exponent of a decade tick, in a raised `tspan` rather than a Unicode
+ * superscript character.
  *
- * I used to build these labels from ⁰¹²³⁴⁵⁶⁷⁸⁹. I set every number in a plot
+ * These labels used to be built from ⁰¹²³⁴⁵⁶⁷⁸⁹. Every number in a plot is set
  * in the mono, and the mono gives a superscript glyph the same advance as a
  * full-size digit, so "10²³" came out spaced like "10 ² ³" and the exponent
  * read as detached from its mantissa. A tspan carries its own size and
- * tracking, so my exponent sits tight against the ten and stays tabular.
+ * tracking, so the exponent sits tight against the ten and stays tabular.
  *
- * I use U+2212 for the sign, matching the minus I name my zoomed axes with,
- * not the hyphen a keyboard gives.
+ * The sign is U+2212, matching the minus the zoomed axes are named with, not
+ * the hyphen a keyboard gives.
  */
 export function exponentLabel(e: number): string {
   return (e < 0 ? "−" : "") + Math.abs(e).toString();
