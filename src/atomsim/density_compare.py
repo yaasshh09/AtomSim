@@ -1,20 +1,20 @@
-"""How I put my two many-electron densities on one axis, with a number on the
+"""How the two many-electron densities go on one axis, with a number on the
 gap.
 
-My `hf_atom` and `screened_atom` both give me D(r) for the same atom, and they
-do not agree. Each is an APPROXIMATION of the same observable, so the difference
+`hf_atom` and `screened_atom` both produce D(r) for the same atom, and they do
+not agree. Each is an APPROXIMATION of the same observable, so the difference
 between them is a statement about physics and not about convention, which is
 what makes this comparison worth drawing at all and what makes the equivalent
 comparison of two R(r) curves meaningless.
 
-This is the only module of mine that imports both models. It stays that way on
-purpose: `hf_atom` mirrors the `screened_atom` API surface precisely so the two
-are swappable, and that property survives exactly as long as neither imports the
+This is the only module that imports both models. It stays that way on purpose:
+`hf_atom` mirrors the `screened_atom` API surface precisely so the two are
+swappable, and that property survives exactly as long as neither imports the
 other.
 
-Neither curve is my reference. Hartree-Fock has no correlation and GSZ has
-fitted parameters, so the number I give below is a disagreement between two
-approximations and never an error in one of them. My provenance says so.
+Neither curve is the reference. Hartree-Fock has no correlation and GSZ has
+fitted parameters, so the number below is a disagreement between two
+approximations and never an error in one of them. The provenance says so.
 """
 
 import dataclasses
@@ -27,9 +27,9 @@ from atomsim.hf_atom import hf_total_radial_density
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.screened_atom import screened_total_radial_density
 
-#: Increasing weakness. I leave VISUAL_LIBERTY out deliberately: a density is
-#: not a presentational choice of mine, and a default that silently ranked one
-#: would hide the day that stopped being true.
+#: Increasing weakness. VISUAL_LIBERTY is left out deliberately: a density is
+#: not a presentational choice, and a default that silently ranked one would
+#: hide the day that stopped being true.
 _WEAKNESS = {
     Fidelity.EXACT: 0,
     Fidelity.NUMERICAL: 1,
@@ -39,33 +39,33 @@ _WEAKNESS = {
 
 
 def _weaker(a: Fidelity, b: Fidelity) -> Fidelity:
-    """The weaker of two tiers, which is the strongest claim I can make about a
-    comparison.
+    """The weaker of two tiers, which is the strongest claim a comparison can
+    carry.
     """
     return a if _WEAKNESS[a] >= _WEAKNESS[b] else b
 
 
 def _common_grid(a: Field, b: Field, points: int) -> np.ndarray:
-    """My log grid on the intersection of the two solver boxes.
+    """The log grid on the intersection of the two solver boxes.
 
-    I take the intersection rather than the union, because outside it one of my
-    two curves would be an extrapolation past where its solver ran, and an
-    extrapolated density drawn beside a computed one is exactly the quiet lie I
-    exist not to tell. I measure what that costs rather than assuming it: see
-    `_window_loss`, whose result goes into my error bar.
+    The intersection rather than the union, because outside it one of the two
+    curves would be an extrapolation past where its solver ran, and an
+    extrapolated density drawn beside a computed one is exactly the quiet lie
+    this codebase exists not to tell. What that costs is measured rather than
+    assumed: see `_window_loss`, whose result goes into the error bar.
     """
     lo = max(a.grid[0], b.grid[0])
     hi = min(a.grid[-1], b.grid[-1])
     if not lo < hi:
         raise ValueError(
-            f"my two solver boxes do not overlap: [{a.grid[0]:.3g}, "
+            f"the two solver boxes do not overlap: [{a.grid[0]:.3g}, "
             f"{a.grid[-1]:.3g}] and [{b.grid[0]:.3g}, {b.grid[-1]:.3g}]"
         )
     return np.geomspace(lo, hi, points)
 
 
 def _resample(f: Field, grid: np.ndarray) -> Field:
-    """`f` on `grid`, by linear interpolation. I say so in its own method string."""
+    """`f` on `grid`, by linear interpolation, said so in its own method string."""
     return dataclasses.replace(
         f,
         values=np.interp(grid, f.grid, f.values),
@@ -73,7 +73,7 @@ def _resample(f: Field, grid: np.ndarray) -> Field:
         provenance=dataclasses.replace(
             f.provenance,
             method=f.provenance.method
-            + "; I resampled it by linear interpolation onto my common comparison grid",
+            + "; resampled by linear interpolation onto the common comparison grid",
         ),
     )
 
@@ -81,35 +81,33 @@ def _resample(f: Field, grid: np.ndarray) -> Field:
 def _displaced_charge(grid: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
     """Half the L1 norm, in electrons.
 
-    Both of my densities integrate to N, so their signed difference integrates
-    to zero and tells me nothing. Half the absolute difference is the whole
-    story: the charge one model puts where the other does not, counted once
-    rather than twice.
+    Both densities integrate to N, so their signed difference integrates to zero
+    and says nothing. Half the absolute difference is the whole story: the charge
+    one model puts where the other does not, counted once rather than twice.
     """
     return 0.5 * float(np.trapezoid(np.abs(a - b), grid))
 
 
 def _window_loss(f: Field, grid: np.ndarray) -> float:
-    """The charge this model holds outside my common window, in electrons."""
+    """The charge this model holds outside the common window, in electrons."""
     inside = np.trapezoid(np.interp(grid, f.grid, f.values), grid)
     return abs(float(np.trapezoid(f.values, f.grid) - inside))
 
 
-#: My shells by principal quantum number, in spectroscopic order.
+#: The shells by principal quantum number, in spectroscopic order.
 SHELL_LABELS = ("K", "L", "M", "N", "O")
 
 
 @dataclass(frozen=True)
 class ShellPeak:
-    """One shell under both of my models, including a model that cannot resolve
-    it.
+    """One shell under both models, including a model that cannot resolve it.
 
-    `None` for a radius is a real answer of mine and not missing data: it says
-    this model's density has no local maximum for this shell, which is what GSZ
-    does to sodium and magnesium. `depth` is the relative drop into the minimum
+    `None` for a radius is a real answer and not missing data: it says this
+    model's density has no local maximum for this shell, which is what GSZ does
+    to sodium and magnesium. `depth` is the relative drop into the minimum
     before the peak, so a small number means the shell is barely separated from
-    the one inside it. My innermost shell has no preceding minimum, so I report
-    `None` for its depth under both models.
+    the one inside it. The innermost shell has no preceding minimum, so its
+    depth is `None` under both models.
     """
 
     label: str
@@ -129,16 +127,16 @@ class DensityComparison:
     provenance: Provenance
 
 
-#: I treat maxima below this fraction of the tallest as numerical noise, not
-#: shells. I set it from both ends of a gap I measured across thirty-two orders
-#: of magnitude. The faintest real shell in He..Ar is sodium's outermost
+#: Maxima below this fraction of the tallest count as numerical noise, not
+#: shells. The value comes from both ends of a gap measured across thirty-two
+#: orders of magnitude. The faintest real shell in He..Ar is sodium's outermost
 #: Hartree-Fock peak at 2.2e-2 of the tallest, and magnesium's is 5.3e-2. The
 #: loudest noise is argon's Hartree-Fock tail beyond 40 bohr, which jitters at
 #: about 1e-32 against a peak density of about 51, which is about 1e-34
 #: relative, because the orbital amplitude out there has decayed past what a
-#: float64 eigensolve can represent and starts changing sign; my screened solver
-#: does the same thing past 11 bohr for neon with the occupancy cap off, at
-#: 1e-60. This floor sits six orders below the faintest shell and twenty-six
+#: float64 eigensolve can represent and starts changing sign; the screened
+#: solver does the same thing past 11 bohr for neon with the occupancy cap off,
+#: at 1e-60. This floor sits six orders below the faintest shell and twenty-six
 #: above the loudest noise.
 _NOISE_FLOOR = 1e-8
 
@@ -146,24 +144,24 @@ _NOISE_FLOOR = 1e-8
 def _peaks_with_depth(
     grid: np.ndarray, values: np.ndarray
 ) -> list[tuple[float, float | None]]:
-    """My interior maxima above the noise floor, each with the depth of the
+    """The interior maxima above the noise floor, each with the depth of the
     valley before it.
 
-    I keep the floor as low as it can be while still doing its job, because a
-    floor is also how I drop a real shell: sodium's outermost Hartree-Fock peak
+    The floor stays as low as it can while still doing its job, because a floor
+    is also how a real shell gets dropped: sodium's outermost Hartree-Fock peak
     stands at 2 percent of the tallest one, and argon's box bug in Phase 28
-    gave me a spurious peak at nearly full height, so height alone sorts neither
-    case correctly. What sorts them is three things together: this floor, which
-    only ever removes values my solve cannot represent; the depth of each
-    valley, which I report rather than threshold on; and the shell count, which
-    I take from the configuration rather than from either peak list.
+    produced a spurious peak at nearly full height, so height alone sorts
+    neither case correctly. What sorts them is three things together: this
+    floor, which only ever removes values the solve cannot represent; the depth
+    of each valley, which is reported rather than thresholded on; and the shell
+    count, which comes from the configuration rather than from either peak list.
 
-    I put the floor on the maxima only. A deep valley is what "well separated"
-    means, so flooring the minima would throw away the measurement my depth
+    The floor applies to the maxima only. A deep valley is what "well separated"
+    means, so flooring the minima would throw away the measurement the depth
     number exists to make, and would throw it away hardest in the clearest
-    cases. It would also protect me from nothing: the noise lives beyond every
-    real peak, and the valley I report for a peak is the last minimum BEFORE it,
-    so a minimum out in the tail is never the one I select.
+    cases. It would also protect nothing: the noise lives beyond every real
+    peak, and the valley reported for a peak is the last minimum BEFORE it, so a
+    minimum out in the tail is never the one selected.
     """
     floor = _NOISE_FLOOR * float(np.max(values))
     big = values > floor
@@ -191,21 +189,21 @@ def _peaks_with_depth(
 def _shell_table(
     grid: np.ndarray, gsz: np.ndarray, hf: np.ndarray, config: Configuration
 ) -> tuple[ShellPeak, ...]:
-    """I match each model's maxima to shells, inside out.
+    """Match each model's maxima to shells, inside out.
 
-    I take the number of shells from the distinct principal quantum numbers in
+    The number of shells comes from the distinct principal quantum numbers in
     the configuration, never from the length of either peak list, because that
     is the difference between "sodium has three shells and one model cannot see
     the third" and "sodium has two shells".
 
-    I match from the inside out, and pad the shorter list at the OUTER end. That
-    is not a convention of mine, it is what physically happens: a valence shell
-    that fails to separate merges into the tail, not into the core. Both cases
-    in He..Ar are exactly this.
+    The match runs from the inside out, and pads the shorter list at the OUTER
+    end. That is not a convention, it is what physically happens: a valence
+    shell that fails to separate merges into the tail, not into the core. Both
+    cases in He..Ar are exactly this.
 
-    I raise on more maxima than shells, because that is a density with a shell
-    the atom does not have, which is what an unresolved core orbital looks like.
-    It is a failure in my solve, and a table that quietly dropped the extra row
+    More maxima than shells raises, because that is a density with a shell the
+    atom does not have, which is what an unresolved core orbital looks like. It
+    is a failure in the solve, and a table that quietly dropped the extra row
     would hide it.
     """
     n_shells = len({n for (n, _), _ in config})
@@ -214,7 +212,7 @@ def _shell_table(
         if len(found) > n_shells:
             radii = ", ".join(f"{r:.4g}" for r, _ in found)
             raise ValueError(
-                f"my {name} density has {len(found)} maxima at r = {radii} bohr "
+                f"the {name} density has {len(found)} maxima at r = {radii} bohr "
                 f"but the configuration occupies only {n_shells} shells, so that "
                 f"is an unresolved orbital and not a shell"
             )
@@ -241,21 +239,20 @@ def compare_total_densities(
     pauli: bool = True,
     points: int = 800,
 ) -> DensityComparison:
-    """Both of my models' D(r) on one grid, with the charge they place
-    differently.
+    """Both models' D(r) on one grid, with the charge they place differently.
 
-    I keep `n_electrons` separate from `z` to match the signature both of my
-    density functions take, but it must equal it: the Szydlik-Green (d, K)
-    parameters are fitted to neutral atoms, and running GSZ at N != Z would
-    compare Hartree-Fock against a model outside its own fit.
+    `n_electrons` stays separate from `z` to match the signature both density
+    functions take, but it must equal it: the Szydlik-Green (d, K) parameters
+    are fitted to neutral atoms, and running GSZ at N != Z would compare
+    Hartree-Fock against a model outside its own fit.
 
-    With `pauli` off I give both models the same configuration, so my overlay
+    With `pauli` off both models get the same configuration, so the overlay
     answers one counterfactual question rather than two.
     """
     if n_electrons != z:
         raise ValueError(
-            f"the GSZ screening parameters are fitted to neutral atoms, so I "
-            f"need N = Z for this comparison; got Z={z}, N={n_electrons}"
+            f"the GSZ screening parameters are fitted to neutral atoms, so this "
+            f"comparison needs N = Z; got Z={z}, N={n_electrons}"
         )
     cfg = aufbau_configuration(n_electrons, pauli) if config is None else config
     hf = hf_total_radial_density(
@@ -268,14 +265,14 @@ def compare_total_densities(
     hf_r = _resample(hf, grid)
     displaced = _displaced_charge(grid, gsz_r.values, hf_r.values)
 
-    # Four terms, and I measured all of them: each model's own closure residual,
-    # plus the charge each holds outside the window they share. I assume none of
-    # them negligible. For argon they are 0.00085 (HF closure), 0.00029 (GSZ
+    # Four terms, all of them measured: each model's own closure residual, plus
+    # the charge each holds outside the window they share. None is assumed
+    # negligible. For argon they are 0.00085 (HF closure), 0.00029 (GSZ
     # closure), 0.00077 (GSZ outside the window) and 0.00049 (HF outside),
     # totalling 0.0024 against a displaced charge of 0.0599: about a
     # twenty-fifth of the number they are the bar on, and no single term
-    # dominates, which is why I add all four rather than keeping one and calling
-    # the rest negligible.
+    # dominates, which is why all four are summed rather than keeping one and
+    # calling the rest negligible.
     bar = (
         (hf.provenance.error_estimate or 0.0)
         + (gsz.provenance.error_estimate or 0.0)
@@ -289,25 +286,25 @@ def compare_total_densities(
         if not on
     ]
     method = (
-        "I took half the L1 norm of D_HF - D_GSZ on my common log grid, in electrons"
+        "half the L1 norm of D_HF - D_GSZ on the common log grid, in electrons"
     )
     if altered:
-        method += f"; I switched {' and '.join(altered)} off on the Hartree-Fock side"
+        method += f"; {' and '.join(altered)} switched off on the Hartree-Fock side"
     provenance = Provenance(
         fidelity=fidelity,
         method=method,
         assumptions=(
-            "I resampled both densities by linear interpolation onto a shared grid",
-            "my window is the intersection of the two solver boxes, and I measure "
-            "the charge outside it and fold it into my error estimate",
-            "Hartree-Fock is not truth: what I give you is the distance between "
-            "two approximations, never the error in one of them",
+            "both densities are resampled by linear interpolation onto a shared grid",
+            "the window is the intersection of the two solver boxes, and the "
+            "charge outside it is measured and folded into the error estimate",
+            "Hartree-Fock is not truth: this is the distance between two "
+            "approximations, never the error in one of them",
         ),
         error_estimate=bar,
         refinement=(
             "a correlated method (configuration interaction, coupled cluster) "
-            "would give both of my models a reference to be measured against, "
-            "rather than only against each other"
+            "would give both models a reference to be measured against, rather "
+            "than only against each other"
         ),
     )
     return DensityComparison(
@@ -317,7 +314,7 @@ def compare_total_densities(
         displaced_charge=Quantity(
             value=displaced,
             unit="electrons",
-            label="charge my two models place differently",
+            label="charge the two models place differently",
             provenance=provenance,
         ),
         shells=_shell_table(grid, gsz_r.values, hf_r.values, cfg),
