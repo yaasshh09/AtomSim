@@ -1,10 +1,10 @@
-"""My exotic-but-real hydrogen-like system presets (spec 5.5).
+"""The exotic-but-real hydrogen-like system presets (spec 5.5).
 
-Each preset hands me a nuclear charge Z and the exact reduced-mass ratio
-mu/m_e, as a Quantity whose provenance cites the CODATA mass ratios I built it
-from. My m_over_M (orbiting mass / nuclear mass) feeds the fine-structure
-recoil error scale: I stay honest about positronium by quantifying that error,
-never by serving a silent wrong number.
+Each preset carries a nuclear charge Z and the exact reduced-mass ratio mu/m_e,
+as a Quantity whose provenance cites the CODATA mass ratios it was built from.
+m_over_M (orbiting mass / nuclear mass) feeds the fine-structure recoil error
+scale: positronium stays honest because that error is quantified, never because
+a silent wrong number is served.
 """
 
 from dataclasses import dataclass
@@ -22,9 +22,9 @@ class System:
     mu_ratio: Quantity  # mu / m_e, unit "m_e"
     m_over_M: float     # orbiting mass / nuclear mass (recoil scale)
     description: str
-    # The rms charge radius of the nucleus, in bohr, my canonical unit.
-    # None is how I say honestly absent: a point lepton (positronium's
-    # positron) or a generic Z with no nucleus I can name, never a silent zero.
+    # The rms charge radius of the nucleus, in bohr, the canonical unit here.
+    # None says honestly absent: a point lepton (positronium's positron) or a
+    # generic Z with no nameable nucleus, never a silent zero.
     nuclear_radius: Quantity | None = None
 
 
@@ -39,7 +39,7 @@ _A0_M = _sc.physical_constants["Bohr radius"][0]
 def _radius_quantity(
     r_m: float, unc_m: float, nucleus: str, source: str
 ) -> Quantity:
-    """I wrap a nuclear rms charge radius as a Quantity of mine, in bohr."""
+    """Wrap a nuclear rms charge radius as a Quantity, in bohr."""
     return Quantity(
         value=r_m / _A0_M,
         unit="bohr",
@@ -48,8 +48,8 @@ def _radius_quantity(
             fidelity=Fidelity.EXACT,
             method=f"the measured rms charge radius of the {nucleus}, {source}",
             assumptions=(
-                "this is a reference measurement, not something I predicted",
-                "my Coulomb engine still treats the nucleus as a point charge",
+                "this is a reference measurement, not a prediction",
+                "the Coulomb engine still treats the nucleus as a point charge",
             ),
             error_estimate=unc_m / _A0_M,
         ),
@@ -63,8 +63,8 @@ def _codata_radius(constant_name: str, nucleus: str) -> Quantity:
     )
 
 
-# The triton is absent from scipy's CODATA table, so I take the standard
-# compilation value instead.
+# The triton is absent from scipy's CODATA table, so the standard compilation
+# value is used instead.
 _TRITON_RADIUS = _radius_quantity(
     1.7591e-15, 0.0363e-15, "triton",
     "Angeli & Marinova (2013), At. Data Nucl. Data Tables 99, 69",
@@ -76,8 +76,8 @@ def _codata_system(
     orbiter_constant: str | None = None,
     nuclear_radius: Quantity | None = None,
 ) -> System:
-    """I build a preset from CODATA mass ratios, orbited by an electron unless
-    you name something else.
+    """Build a preset from CODATA mass ratios, orbited by an electron unless
+    something else is named.
     """
     R_nuc, u_nuc = _mass_ratio(nucleus_constant)  # M / m_e
     if orbiter_constant is None:
@@ -98,11 +98,11 @@ def _codata_system(
             provenance=Provenance(
                 fidelity=Fidelity.EXACT,
                 method=(
-                    "I take mu/m_e = m_orb M / (m_orb + M) from CODATA mass "
+                    "mu/m_e = m_orb M / (m_orb + M) from CODATA mass "
                     f"ratios (scipy.constants: {nucleus_constant}"
                     + (f", {orbiter_constant})" if orbiter_constant else ")")
                 ),
-                assumptions=(f"I orbit a {orb_name} here",),
+                assumptions=(f"a {orb_name} is the orbiting particle here",),
                 error_estimate=mu * rel_unc,
             ),
         ),
@@ -123,7 +123,7 @@ _POSITRONIUM = System(
         provenance=Provenance(
             fidelity=Fidelity.EXACT,
             method="mu = m_e/2 exactly, because the electron and positron weigh the same",
-            assumptions=("I orbit an electron here, and my 'nucleus' is a positron",),
+            assumptions=("an electron orbits here, and the 'nucleus' is a positron",),
             error_estimate=0.0,
         ),
     ),
@@ -166,28 +166,28 @@ def get_system(key: str) -> System:
 
 
 def emitter_mass(system: System) -> Quantity:
-    """The mass of my whole radiating atom (orbiter plus nucleus), in kg.
+    """The mass of the whole radiating atom (orbiter plus nucleus), in kg.
 
     A Doppler width is set by the mass of the thing that recoils, which is the
-    atom and not the electron. Getting that wrong is a factor of 1836, so I
-    derive it here once rather than at each call site.
+    atom and not the electron. Getting that wrong is a factor of 1836, so it is
+    derived here once rather than at each call site.
 
-    I need no new data: the preset already implies the mass. With
-    `x = m_orb / M_nuc` (my stored `m_over_M`) and my stored reduced mass
+    No new data is needed: the preset already implies the mass. With
+    `x = m_orb / M_nuc` (the stored `m_over_M`) and the stored reduced mass
     `mu = m_orb M / (m_orb + M) = m_orb / (1 + x)`,
 
         m_orb = mu (1 + x)
         M_nuc = m_orb / x = mu (1 + x) / x
         M_atom = m_orb + M_nuc = mu (1 + x)^2 / x
 
-    which gives me 1837.15 m_e for hydrogen (proton plus electron), exactly
-    2 m_e for positronium, and 2042.8 m_e for muonic hydrogen.
+    which gives 1837.15 m_e for hydrogen (proton plus electron), exactly 2 m_e
+    for positronium, and 2042.8 m_e for muonic hydrogen.
 
-    `m_over_M = 0` is the infinite-nucleus idealization in my generic Z preset.
-    My honest answer there is an infinite mass, and so a line with no Doppler
+    `m_over_M = 0` is the infinite-nucleus idealization in the generic Z preset.
+    The honest answer there is an infinite mass, and so a line with no Doppler
     width at all, because a nucleus that cannot recoil cannot shift its own
-    photon. That is exact *for my model* and wrong about every real ion, so I
-    say it out loud instead of serving you a sharp line.
+    photon. That is exact *for the model* and wrong about every real ion, so it
+    is said out loud rather than dressed up as a sharp line.
     """
     x = system.m_over_M
     mu = system.mu_ratio.value
@@ -198,14 +198,14 @@ def emitter_mass(system: System) -> Quantity:
             label=f"M_atom ({system.key})",
             provenance=Provenance(
                 fidelity=Fidelity.APPROXIMATION,
-                method="I use an infinite nuclear mass, so my nucleus cannot recoil",
+                method="uses an infinite nuclear mass, so the nucleus cannot recoil",
                 assumptions=(
-                    "this preset of mine carries no nuclear mass (m_over_M = 0), "
-                    "so my atom is infinitely heavy and every thermal velocity I "
-                    "get is zero; a real ion of this Z has a finite mass and a "
+                    "this preset carries no nuclear mass (m_over_M = 0), so the "
+                    "atom is infinitely heavy and every thermal velocity comes "
+                    "out zero; a real ion of this Z has a finite mass and a "
                     "finite Doppler width",
                 ),
-                refinement="give me a nuclear mass and I will give you a real thermal width",
+                refinement="supply a nuclear mass to get a real thermal width",
             ),
         )
     ratio = mu * (1.0 + x) ** 2 / x  # M_atom / m_e
@@ -216,12 +216,12 @@ def emitter_mass(system: System) -> Quantity:
         provenance=Provenance(
             fidelity=system.mu_ratio.provenance.fidelity,
             method=(
-                "I invert M_atom = mu (1 + x)^2 / x with x = m_orb/M_nuc, out of "
+                "inverts M_atom = mu (1 + x)^2 / x with x = m_orb/M_nuc, out of "
                 f"[{system.mu_ratio.provenance.method}]"
             ),
             assumptions=system.mu_ratio.provenance.assumptions
-            + ("I take the mass of the bound system as the sum of its parts: the "
-               "binding energy is ~1e-8 of the rest mass, so I drop it",),
+            + ("the mass of the bound system is taken as the sum of its parts: "
+               "the binding energy is ~1e-8 of the rest mass, so it is dropped",),
             error_estimate=(
                 None if system.mu_ratio.provenance.error_estimate is None
                 else system.mu_ratio.provenance.error_estimate
@@ -232,17 +232,16 @@ def emitter_mass(system: System) -> Quantity:
 
 
 def element_emitter_mass(element) -> Quantity:
-    """The mass of a neutral atom of `element`, in kg, which I need for a
-    Doppler width.
+    """The mass of a neutral atom of `element`, in kg, as a Doppler width needs.
 
-    `element` is an atoms.Element. I leave it untyped here to keep that module
-    free of physics imports, which is its stated boundary. Unlike my
-    hydrogen-like presets, a screened atom's mass is not implied by anything I
-    already carry, so I take it from the standard atomic weight table.
+    `element` is an atoms.Element, left untyped here to keep that module free of
+    physics imports, which is its stated boundary. Unlike the hydrogen-like
+    presets, a screened atom's mass is not implied by anything already carried,
+    so it comes from the standard atomic weight table.
 
     That weight is for the natural isotope mixture, which is not one mass. The
-    spread is real and shows up in a spectrum as an isotope shift. What I give
-    you is the width the mean mass would produce.
+    spread is real and shows up in a spectrum as an isotope shift. What comes
+    back here is the width the mean mass would produce.
     """
     return Quantity(
         value=element.mass_u * _sc.physical_constants["atomic mass constant"][0],
@@ -251,29 +250,29 @@ def element_emitter_mass(element) -> Quantity:
         provenance=Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method=(
-                f"I take the standard atomic weight {element.mass_u:g} u "
-                "(IUPAC/CIAAW) and multiply by the atomic mass constant"
+                f"takes the standard atomic weight {element.mass_u:g} u "
+                "(IUPAC/CIAAW) and multiplies by the atomic mass constant"
             ),
             assumptions=(
-                "I take the natural terrestrial isotope mixture as a single mean "
-                "mass: the real mixture broadens and shifts lines by an isotope "
-                "effect I do not model",
-                "I assume a neutral atom: an ion has lost an electron's worth of "
-                "mass, which is parts in 1e4 and below anything I resolve here",
+                "the natural terrestrial isotope mixture is taken as a single "
+                "mean mass: the real mixture broadens and shifts lines by an "
+                "isotope effect this model leaves out",
+                "assumes a neutral atom: an ion has lost an electron's worth of "
+                "mass, which is parts in 1e4 and below anything resolved here",
             ),
         ),
     )
 
 
 def hydrogen_like(Z: int, mu_ratio: float = 1.0) -> System:
-    """A generic one-electron ion of charge Z. I take the nuclear mass as
-    infinite unless you say otherwise.
+    """A generic one-electron ion of charge Z. The nuclear mass is taken as
+    infinite unless stated otherwise.
     """
     if Z < 1:
         raise ValueError(f"Z must be >= 1, got {Z}")
     assumptions = (
-        ("I used an infinite nuclear mass (mu_ratio = 1)",) if mu_ratio == 1.0
-        else (f"you gave me mu_ratio = {mu_ratio:g}",)
+        ("uses an infinite nuclear mass (mu_ratio = 1)",) if mu_ratio == 1.0
+        else (f"caller supplied mu_ratio = {mu_ratio:g}",)
     )
     return System(
         key=f"z{Z}",
@@ -285,7 +284,7 @@ def hydrogen_like(Z: int, mu_ratio: float = 1.0) -> System:
             label=f"mu/m_e (Z={Z})",
             provenance=Provenance(
                 fidelity=Fidelity.EXACT,
-                method="the reduced-mass ratio you specified",
+                method="the reduced-mass ratio supplied by the caller",
                 assumptions=assumptions,
             ),
         ),

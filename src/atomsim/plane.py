@@ -1,10 +1,10 @@
-"""My 2-D cross-sections of psi_nlm on the y=0 plane, which contains the z
+"""2-D cross-sections of psi_nlm on the y=0 plane, which contains the z
 quantization axis.
 
 This is where the classic "hydrogen poster" pictures live. On y=0 the azimuth
 is phi = 0 (x >= 0) or pi (x < 0), so e^{i m phi} = +/-1 and psi is real-valued
-in BOTH of my angular bases: a signed-psi plot is honest here, and I label
-exactly which quantity I am showing (spec 7.2, my honesty fix over the poster's
+in BOTH angular bases: a signed-psi plot is honest here, and the label states
+exactly which quantity is shown (spec 7.2, the honesty fix over the poster's
 contradictory -/+ "probability density" colorbar).
 """
 
@@ -25,11 +25,11 @@ _ROW_CHUNKS = 16
 
 
 def _plane_values(evaluator, quantity, resolution, half_extent, progress):
-    """I evaluate `quantity` on a (resolution x resolution) y=0 grid, through
+    """Evaluate `quantity` on a (resolution x resolution) y=0 grid, through
     `evaluator`.
 
-    `evaluator(pos)` takes my (N, 3) Cartesian positions (bohr) and hands back a
-    WavefunctionValues. I return (values 2-D, axis 1-D, psi assumptions).
+    `evaluator(pos)` takes (N, 3) Cartesian positions (bohr) and hands back a
+    WavefunctionValues. Returns (values 2-D, axis 1-D, psi assumptions).
     """
     axis = np.linspace(-half_extent, half_extent, resolution)
     values = np.zeros((resolution, resolution))
@@ -55,7 +55,7 @@ def _plane_values(evaluator, quantity, resolution, half_extent, progress):
 
 @dataclass(frozen=True)
 class PlaneGrid:
-    """The psi-derived values I put on a square y=0 grid, with my provenance."""
+    """The psi-derived values on a square y=0 grid, with their provenance."""
 
     values: np.ndarray  # (resolution, resolution) float64; [i, j] = (x=axis[j], 0, z=axis[i])
     axis: np.ndarray    # (resolution,) shared x/z axis, bohr
@@ -72,7 +72,7 @@ class PlaneGrid:
 
 
 def default_half_extent(n: int, Z: int = 1, mu_ratio: float = 1.0) -> float:
-    """How I frame the display: ~2.5 n^2 a0/(Z mu) keeps the outer lobes visible."""
+    """How the display is framed: ~2.5 n^2 a0/(Z mu) keeps the outer lobes visible."""
     return 2.5 * n * n / (Z * mu_ratio)
 
 
@@ -88,7 +88,7 @@ def plane_grid(
     half_extent: float | None = None,
     progress: Callable[[float], None] | None = None,
 ) -> PlaneGrid:
-    """I evaluate |psi|^2 or signed psi on a (resolution x resolution) y=0 grid."""
+    """Evaluate |psi|^2 or signed psi on a (resolution x resolution) y=0 grid."""
     validate_quantum_numbers(n, l)
     validate_angular(l, m)
     if quantity not in ("density", "psi"):
@@ -110,23 +110,23 @@ def plane_grid(
         unit = "bohr^-3"
         label = f"|psi_{n},{l},{m}|^2 on the y=0 plane"
         qdesc = "|psi|^2 (probability density)"
-        extra = ("my plane y=0 contains the z quantization axis",)
+        extra = ("the plane y=0 contains the z quantization axis",)
     else:
         unit = "bohr^-3/2"
         label = f"psi_{n},{l},{m} on the y=0 plane"
         qdesc = "signed psi"
         extra = (
-            "my plane y=0 contains the z quantization axis",
-            "psi is real on y=0 (e^{i m phi} = +/-1 there), so my signed plot is honest",
+            "the plane y=0 contains the z quantization axis",
+            "psi is real on y=0 (e^{i m phi} = +/-1 there), so the signed plot is honest",
         )
     provenance = Provenance(
         fidelity=Fidelity.EXACT,
         method=(
-            f"I evaluated {qdesc} from closed-form psi_nlm on a "
+            f"evaluated {qdesc} from closed-form psi_nlm on a "
             f"{resolution}x{resolution} y=0 grid, half-extent {he:g} bohr"
         ),
         assumptions=psi_assumptions + extra,
-        refinement="I could raise my resolution or change my extent",
+        refinement="raise the resolution or change the extent",
     )
     return PlaneGrid(
         values=values, axis=axis, quantity=quantity, unit=unit, label=label,
@@ -146,14 +146,14 @@ def screened_plane_grid(
     half_extent: float | None = None,
     progress: Callable[[float], None] | None = None,
 ) -> PlaneGrid:
-    """I evaluate |psi|^2 or signed psi for a screened GSZ/GJG atom on the y=0 plane."""
+    """Evaluate |psi|^2 or signed psi for a screened GSZ/GJG atom on the y=0 plane."""
     validate_quantum_numbers(n, l)
     validate_angular(l, m)
     if quantity not in ("density", "psi"):
         raise ValueError(f"quantity must be 'density' or 'psi', got {quantity!r}")
     if resolution < 2:
         raise ValueError(f"resolution must be >= 2, got {resolution}")
-    z_net = max(z - n_electrons + 1, 1)  # the asymptotic core charge sets my extent
+    z_net = max(z - n_electrons + 1, 1)  # the asymptotic core charge sets the extent
     he = default_half_extent(n, z_net, 1.0) if half_extent is None else float(half_extent)
     if he <= 0.0:
         raise ValueError(f"half_extent must be positive, got {he}")
@@ -169,24 +169,24 @@ def screened_plane_grid(
         unit = "bohr^-3"
         label = f"|psi_{n},{l},{m}|^2 on the y=0 plane"
         qdesc = "|psi|^2 (probability density)"
-        extra = ("my plane y=0 contains the z quantization axis",)
+        extra = ("the plane y=0 contains the z quantization axis",)
     else:
         unit = "bohr^-3/2"
         label = f"psi_{n},{l},{m} on the y=0 plane"
         qdesc = "signed psi"
         extra = (
-            "my plane y=0 contains the z quantization axis",
-            "psi is real on y=0 (e^{i m phi} = +/-1 there), so my signed plot is honest",
+            "the plane y=0 contains the z quantization axis",
+            "psi is real on y=0 (e^{i m phi} = +/-1 there), so the signed plot is honest",
         )
     provenance = Provenance(
         fidelity=Fidelity.APPROXIMATION,
         method=(
-            f"I evaluated {qdesc} from a numerical screened psi_nlm on a "
+            f"evaluated {qdesc} from a numerical screened psi_nlm on a "
             f"{resolution}x{resolution} y=0 grid, half-extent {he:g} bohr"
         ),
         assumptions=psi_assumptions + extra,
         refinement=(
-            "I could raise my resolution, my extent, or my radial solver resolution"
+            "raise the resolution, the extent, or the radial solver resolution"
         ),
     )
     return PlaneGrid(
@@ -211,9 +211,9 @@ def hf_plane_grid(
     exchange: bool = True,
     pauli: bool = True,
 ) -> PlaneGrid:
-    """I evaluate |psi|^2 or signed psi for a Hartree-Fock orbital on the y=0 plane.
+    """Evaluate |psi|^2 or signed psi for a Hartree-Fock orbital on the y=0 plane.
 
-    This is my screened routine with one line changed, which is the point: my
+    This is the screened routine with one line changed, which is the point: the
     two many-electron models have to be comparable in the same frame, and a
     plane that fitted its own extent differently would put half the difference
     between the pictures into the axes.
@@ -238,33 +238,33 @@ def hf_plane_grid(
     values, axis, psi_assumptions = _plane_values(
         evaluator, quantity, resolution, he, progress
     )
-    # I read the tier off the psi I just evaluated rather than assuming it from
-    # the model's name. It costs me one extra interpolation against a solve I
-    # have already cached, and it buys a badge that cannot drift out of step
-    # with the physics it sits over.
+    # The tier is read off the psi just evaluated rather than assumed from the
+    # model's name. It costs one extra interpolation against an already cached
+    # solve, and it buys a badge that cannot drift out of step with the physics
+    # it sits over.
     fidelity = evaluator(np.zeros((1, 3))).provenance.fidelity
 
     if quantity == "density":
         unit = "bohr^-3"
         label = f"|psi_{n},{l},{m}|^2 on the y=0 plane"
         qdesc = "|psi|^2 (probability density)"
-        extra = ("my plane y=0 contains the z quantization axis",)
+        extra = ("the plane y=0 contains the z quantization axis",)
     else:
         unit = "bohr^-3/2"
         label = f"psi_{n},{l},{m} on the y=0 plane"
         qdesc = "signed psi"
         extra = (
-            "my plane y=0 contains the z quantization axis",
-            "psi is real on y=0 (e^{i m phi} = +/-1 there), so my signed plot is honest",
+            "the plane y=0 contains the z quantization axis",
+            "psi is real on y=0 (e^{i m phi} = +/-1 there), so the signed plot is honest",
         )
     provenance = Provenance(
         fidelity=fidelity,
         method=(
-            f"I evaluated {qdesc} from a Hartree-Fock psi_nlm on a "
+            f"evaluated {qdesc} from a Hartree-Fock psi_nlm on a "
             f"{resolution}x{resolution} y=0 grid, half-extent {he:g} bohr"
         ),
         assumptions=psi_assumptions + extra,
-        refinement="I could raise my resolution, my extent, or my solver mesh refinement",
+        refinement="raise the resolution, the extent, or the solver mesh refinement",
     )
     return PlaneGrid(
         values=values, axis=axis, quantity=quantity, unit=unit, label=label,
