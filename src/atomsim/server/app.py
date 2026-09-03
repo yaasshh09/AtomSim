@@ -1,4 +1,4 @@
-"""My local server: the honest JSON and binary boundary I speak to the app over."""
+"""The local server: the honest JSON and binary boundary the app talks to."""
 
 import asyncio
 import dataclasses
@@ -138,17 +138,17 @@ logger = logging.getLogger(__name__)
 
 
 def _configure_logging() -> None:
-    """I make my own log lines audible under uvicorn.
+    """Make this package's log lines audible under uvicorn.
 
     uvicorn installs handlers for its `uvicorn*` loggers and leaves the root
-    logger alone. A module logger of mine propagating to an unconfigured root is
+    logger alone. A module logger propagating to an unconfigured root is
     not merely unformatted, it is dropped: Python's last-resort handler emits
-    WARNING and above and discards the rest. My mount disclosure below is an
+    WARNING and above and discards the rest. The mount disclosure below is an
     INFO line, so without this it exists in the code, passes its test against
     `caplog`, and prints nothing on the host where it matters.
 
     Guarded rather than unconditional. If anything has already configured
-    logging, the host or a test harness, it knows more than I do about where the
+    logging, the host or a test harness, it knows better than this where the
     output should go.
     """
     if not logging.getLogger().handlers:
@@ -156,13 +156,13 @@ def _configure_logging() -> None:
 
 
 def _web_dist() -> Path:
-    """Where I look for the built frontend.
+    """Where the built frontend is looked for.
 
-    My default assumes a source checkout: `parents[3]` is the repo root, the
+    The default assumes a source checkout: `parents[3]` is the repo root, the
     directory holding both `src/` and `web/`. Installed into site-packages the
     same expression resolves into the Python library directory, where there is
-    no `web/dist` and never will be, so I skip the mount below. That failure is
-    silent by construction, so the override exists to let a container tell me
+    no `web/dist` and never will be, so the mount below is skipped. That failure
+    is silent by construction, so the override exists to let a container say
     where it put the build rather than hope.
     """
     override = os.environ.get("ATOMSIM_WEB_DIST")
@@ -172,16 +172,16 @@ def _web_dist() -> Path:
 
 
 def _job_worker_count() -> int:
-    """How many of my jobs may hold a CPU at once.
+    """How many jobs may hold a CPU at once.
 
-    My jobs are numpy-bound and release the GIL, so this pool size is a
+    The jobs are numpy-bound and release the GIL, so this pool size is a
     statement about cores, not about concurrency. asyncio's default executor
-    would give me up to 32 of them, which is harmless on a 14-core laptop and
+    would allow up to 32 of them, which is harmless on a 14-core laptop and
     ruinous on a one-vCPU host: an isosurface (1.7 s here) and a Hartree-Fock
     solve (1.4 s here) are seconds of pinned CPU each, and thirty of them
     timesharing one core turns every request slow instead of making any fast.
 
-    My floor of 2 is deliberate. One worker would strictly serialize, which
+    The floor of 2 is deliberate. One worker would strictly serialize, which
     parks an 18 ms sample behind whatever long solve arrived first. Two lets a
     cheap request overtake, and on a single core they simply timeshare.
     """
@@ -198,12 +198,12 @@ async def _lifespan(app: FastAPI):
 
 
 def _build_rate_limiter() -> TokenBucket | None:
-    """My job-endpoint limiter, or None when you have switched it off.
+    """The job-endpoint limiter, or None when it has been switched off.
 
-    I leave it on by default, because forgetting to enable it on a public host
-    is a worse failure than tripping it on a laptop, and my default burst is
-    wider than any honest click-storm the UI can produce. That claim costs
-    something to keep, so the row I measure it against is derived on
+    It is on by default, because forgetting to enable it on a public host is a
+    worse failure than tripping it on a laptop, and the default burst is wider
+    than any honest click-storm the UI can produce. That claim costs
+    something to keep, so the row it is measured against is derived on
     `DEFAULT_CAPACITY` and asserted in `test_ratelimit.py`.
     """
     if os.environ.get("ATOMSIM_RATE_LIMIT", "").lower() in ("off", "0", "false"):
@@ -215,25 +215,25 @@ def _build_rate_limiter() -> TokenBucket | None:
 
 
 def _client_key(request, header: str | None) -> str:
-    """Who I charge for this request.
+    """Who gets charged for this request.
 
     Behind a proxy every request carries the proxy's address, so without the
     header the whole internet shares one bucket and the first busy visitor locks
-    out the rest. I take the header by name rather than assuming one, because
+    out the rest. The header is named explicitly rather than assumed, because
     trusting a forwarded address a client can set is the same as having no
     limiter at all.
 
-    I charge the rightmost entry, and the distinction is not cosmetic. A
-    forwarding proxy appends, so a caller that sends its own
-    `X-Forwarded-For: someone-else` reaches me as `someone-else, <real address>`.
+    The rightmost entry is the one charged, and the distinction is not cosmetic.
+    A forwarding proxy appends, so a caller that sends its own
+    `X-Forwarded-For: someone-else` arrives as `someone-else, <real address>`.
     Charging the leftmost entry charges a string the caller typed, and varying
     it per request buys an unlimited supply of full buckets. Only the last hop
-    was written by the proxy I was told to trust.
+    was written by the proxy that was named as trusted.
 
-    I assume exactly one trusted proxy in front, which is what my deployment
-    has. Behind two, the rightmost entry is the inner proxy and every client
-    would share its bucket: wrong in the safe direction, and worth re-deriving
-    rather than inheriting if another hop is ever added.
+    This assumes exactly one trusted proxy in front, which is what the
+    deployment has. Behind two, the rightmost entry is the inner proxy and every
+    client would share its bucket: wrong in the safe direction, and worth
+    re-deriving rather than inheriting if another hop is ever added.
     """
     if header:
         forwarded = request.headers.get(header)
@@ -348,13 +348,13 @@ class RadialResponse(BaseModel):
     system: SystemModel
     r_wavefunction: FieldModel
     radial_probability: FieldModel
-    #: D(r) for the whole cloud, summed over occupied subshells. I send it only
+    #: D(r) for the whole cloud, summed over occupied subshells. Sent only
     #: under the Hartree-Fock model, which is the one that knows the occupancies
     #: from its own solve. Null elsewhere rather than omitted, so a client reads
-    #: one response shape whichever model it asked me for.
+    #: one response shape whichever model it asked for.
     total_density: FieldModel | None = None
-    #: Both models' D(r) on one grid, which I send only when you ask, because it
-    #: costs me a second solve. Null rather than omitted for the same reason as
+    #: Both models' D(r) on one grid, sent only on request, because it
+    #: costs a second solve. Null rather than omitted for the same reason as
     #: above: one response shape, asked for or not.
     density_comparison: DensityComparisonModel | None = None
 
@@ -367,32 +367,32 @@ class SpectrumResponse(BaseModel):
     comparison: list[ComparisonModel] | None
     reference_citation: str | None
     tolerance_relative: float | None
-    #: Why my lines carry no strengths, when you asked and I withheld them.
+    #: Why the lines carry no strengths, when they were asked for but withheld.
     intensity_note: str | None = None
-    #: I send this exactly when my lines carry an emissivity.
+    #: Sent exactly when the lines carry an emissivity.
     thermal: ThermalModel | None = None
-    #: The curve I synthesized, when you asked and I could build one. Null with
-    #: `profile_note` set when you asked but no mechanism gives my lines any
-    #: width, since a width I invented would be the lie.
+    #: The synthesized curve, when one was asked for and could be built. Null
+    #: with `profile_note` set when it was asked for but no mechanism gives the
+    #: lines any width, since an invented width would be the lie.
     profile: ProfileModel | None = None
     profile_note: str | None = None
 
 
 class ManyElectronRequest(BaseModel):
-    """The four fields that pick which many-electron model I draw a picture with.
+    """The four fields that pick which many-electron model draws the picture.
 
-    My sample, plane and isosurface requests share this rather than repeating
+    The sample, plane and isosurface requests share this rather than repeating
     it, because the pauli/exchange rule below has to be the same rule in all
     three and a copied validator is a rule waiting to drift.
 
-    Every default is the screened behaviour I already shipped, so a client that
-    has never heard of any of these fields cannot accidentally ask me for
+    Every default is the already-shipped screened behaviour, so a client that
+    has never heard of any of these fields cannot accidentally ask for
     Hartree-Fock or for a counterfactual. This mirrors HFRequest.
     """
 
     model: Literal["gsz", "hf"] = "gsz"
-    #: Electron configuration, e.g. "1s2 2s2 2p5 3s1". None means I take the
-    #: ground configuration for the rule in force. I ignore it under
+    #: Electron configuration, e.g. "1s2 2s2 2p5 3s1". None means the
+    #: ground configuration for the rule in force. It is ignored under
     #: model="gsz", which has no per-subshell solve for it to change.
     config: str | None = None
     exchange: bool = True
@@ -400,17 +400,17 @@ class ManyElectronRequest(BaseModel):
 
     @model_validator(mode="after")
     def _pauli_off_implies_exchange_off(self) -> "ManyElectronRequest":
-        """I refuse the combination rather than quietly flipping a flag.
+        """Refuse the combination rather than quietly flipping a flag.
 
         Same rule and the same 422 as HFRequest: a Slater determinant holding
         two electrons in one spin-orbital is identically zero, so there is no
-        wavefunction there for an exchange integral to act on. Correcting it for
-        you would hide that you asked me for a state that does not exist.
+        wavefunction there for an exchange integral to act on. Correcting it
+        would hide that the request names a state that does not exist.
 
-        I scope this to model="hf" because these two flags name Hartree-Fock's
-        rules and my screened model has neither an exchange term nor an
-        occupancy cap of its own. A stale switch left set while you change
-        models is not an incoherent request; it is a control that does not
+        This is scoped to model="hf" because these two flags name Hartree-Fock's
+        rules and the screened model has neither an exchange term nor an
+        occupancy cap of its own. A stale switch left set while the model
+        changes is not an incoherent request; it is a control that does not
         apply.
         """
         if self.model == "hf" and not self.pauli and self.exchange:
@@ -451,8 +451,8 @@ class SampleMetaModel(BaseModel):
     m: int
     basis: str
     system: str
-    #: Which many-electron model I drew this with. I echo it back from the
-    #: request so the browser can name what it is looking at without parsing my
+    #: Which many-electron model drew this. It is echoed back from the
+    #: request so the browser can name what it is looking at without parsing
     #: provenance prose, which is a thing a view that has to parse prose
     #: eventually gets wrong.
     model: str = "gsz"
@@ -462,7 +462,7 @@ class SampleMetaModel(BaseModel):
 
 @dataclasses.dataclass(frozen=True)
 class SampleJobResult:
-    """A cloud I sampled, plus psi evaluated at exactly those positions."""
+    """A sampled cloud, plus psi evaluated at exactly those positions."""
 
     cloud: SampleCloud
     psi: WavefunctionValues
@@ -493,21 +493,22 @@ class PlaneMetaModel(BaseModel):
     m: int
     basis: str
     system: str
-    #: Which many-electron model I drew this with; see SampleMetaModel.model.
+    #: Which many-electron model drew this; see SampleMetaModel.model.
     model: str = "gsz"
     provenance: ProvenanceModel
 
 
 class IsoRequest(ManyElectronRequest):
-    """An isosurface you ask me for by enclosed fraction, never by a level.
+    """An isosurface requested by enclosed fraction, never by a level.
 
-    A raw contour value is meaningless without the grid I measured it on, and a
-    client that could pass me one would be choosing a picture rather than asking
-    a question. `fraction` is the question, and the level is what I hand back.
+    A raw contour value is meaningless without the grid it was measured on, and
+    a client that could pass one would be choosing a picture rather than asking
+    a question. `fraction` is the question, and the level comes back with the
+    answer.
 
-    I do not expose the box either. I fit it to hold 99.9% of the electron and
-    report the remainder, so the only surface you can get from me is one whose
-    escaped mass I have measured.
+    The box is not exposed either. It is fitted to hold 99.9% of the electron
+    with the remainder reported, so the only available surface is one whose
+    escaped mass has been measured.
     """
 
     n: int
@@ -549,7 +550,7 @@ class IsoMetaModel(BaseModel):
     m: int
     basis: str
     system: str
-    #: Which many-electron model I drew this with; see SampleMetaModel.model.
+    #: Which many-electron model drew this; see SampleMetaModel.model.
     model: str = "gsz"
     label: str
     provenance: ProvenanceModel
@@ -559,24 +560,24 @@ class HFRequest(BaseModel):
     z: int
     n_electrons: int | None = None  # defaults to neutral
     config: str | None = None       # defaults to the aufbau ground configuration
-    # False has me solve the Hartree model instead: electrons that repel but are
-    # distinguishable. I default to real physics, so a client that has never
-    # heard of the toggle cannot accidentally ask me for the counterfactual.
+    # False solves the Hartree model instead: electrons that repel but are
+    # distinguishable. The default is real physics, so a client that has never
+    # heard of the toggle cannot accidentally ask for the counterfactual.
     exchange: bool = True
-    # False lifts the occupancy cap too, and my configuration collapses to
+    # False lifts the occupancy cap too, and the configuration collapses to
     # 1s^N. Same default and the same reason.
     pauli: bool = True
 
     @model_validator(mode="after")
     def _pauli_off_implies_exchange_off(self) -> "HFRequest":
-        """I refuse the combination rather than quietly flipping a flag.
+        """Refuse the combination rather than quietly flipping a flag.
 
-        422 rather than 400 because this is a request I cannot understand, not
-        one I am declining: pauli=False with exchange=True does not name a model
-        I or any other solver could run. A Slater determinant holding two
-        electrons in the same spin-orbital is identically zero, so there is no
-        wavefunction there for an exchange integral to act on. Correcting it for
-        you would hide that you asked me for a state that does not exist.
+        422 rather than 400 because this is a request that cannot be understood,
+        not one being declined: pauli=False with exchange=True does not name a
+        model this or any other solver could run. A Slater determinant holding
+        two electrons in the same spin-orbital is identically zero, so there is
+        no wavefunction there for an exchange integral to act on. Correcting it
+        would hide that the request names a state that does not exist.
         """
         if not self.pauli and self.exchange:
             raise ValueError(
@@ -588,20 +589,20 @@ class HFRequest(BaseModel):
         return self
 
 
-# The outermost principal quantum number I actually converge.
+# The outermost principal quantum number that actually converges.
 #
-# Measured, and NOT a statement about Z. I take argon-like ions cleanly all the
-# way to Z = 36 (virial 2.000003 at every Z I tried), and K+ and Ca2+ solve in
-# about six seconds. What defeats me is the 4s channel of a neutral alkali: my
-# starting potential falls back to the bare nucleus above argon, which puts
-# potassium's 4s guess at -11.3 hartree against a true -0.15, and my SCF cannot
-# screen a guess that far outward. LOBPCG then stagnates at a residual 28x over
-# its ceiling, so this is stagnation rather than a budget that wants raising,
-# and refusing up front beats letting a job of mine die eight seconds in with an
-# eigensolver message.
+# Measured, and NOT a statement about Z. Argon-like ions come out cleanly all
+# the way to Z = 36 (virial 2.000003 at every Z tried), and K+ and Ca2+ solve in
+# about six seconds. What defeats the solver is the 4s channel of a neutral
+# alkali: the starting potential falls back to the bare nucleus above argon,
+# which puts potassium's 4s guess at -11.3 hartree against a true -0.15, and the
+# SCF cannot screen a guess that far outward. LOBPCG then stagnates at a
+# residual 28x over its ceiling, so this is stagnation rather than a budget that
+# wants raising, and refusing up front beats letting a job die eight seconds in
+# with an eigensolver message.
 _HF_MAX_N = 3
-# As far as I have been exercised. Beyond this my answer is untested, and a
-# non-relativistic model is also getting thin: the relativity I neglect is
+# As far as this has been exercised. Beyond it the answer is untested, and a
+# non-relativistic model is also getting thin: the neglected relativity is
 # already 1.8% of the 1s energy at Z = 36 (hf_atom quantifies it in the
 # provenance from Z = 9 up).
 _HF_MAX_Z = 36
@@ -609,38 +610,38 @@ _HF_MAX_Z = 36
 
 @dataclasses.dataclass(frozen=True)
 class HFJobResult:
-    """A finished solve of mine, plus what exchange was worth if I measured it.
+    """A finished solve, plus what exchange was worth when it was measured.
 
     A wrapper rather than a second endpoint, because the exchange energy is a
     difference between two solves and the two have to be the same solves. If a
-    view fetched the Hartree-Fock energy from one job of mine and the Hartree
-    energy from another, nothing would stop it differencing a warm result
+    view fetched the Hartree-Fock energy from one job and the Hartree energy
+    from another, nothing would stop it differencing a warm result
     against a cold one, or a fine mesh against a coarse one, and reporting the
     gap between two calculations as the gap between two models.
 
     None when the job ran only the real model, which is the common case and
-    costs me one solve rather than two.
+    costs one solve rather than two.
     """
 
     result: HFResult
     exchange_energy: Quantity | None = None
     #: The real atom beside the collapsed one, on a pauli=False ground solve.
     #: Same reasoning as exchange_energy: a comparison between two models has to
-    #: be made from two solves that are known to match, so I assemble it here
-    #: rather than leave a client to difference it across two jobs.
+    #: be made from two solves that are known to match, so it is assembled here
+    #: rather than left to a client to difference across two jobs.
     collapse: PauliCollapse | None = None
 
 
 def _parse_config_or_422(text: str, pauli: bool = True):
-    """I parse a hand-written configuration string, 422 on malformed input.
+    """Parse a hand-written configuration string, 422 on malformed input.
 
-    Two status codes are in play here and my split is deliberate. 422 means I
-    could not understand the request, since "2s^9" is not a configuration. 400
-    means I understood it perfectly and am declining it, which is what
+    Two status codes are in play here and the split is deliberate. 422 means the
+    request could not be understood, since "2s^9" is not a configuration. 400
+    means it was understood perfectly and is being declined, which is what
     _validate_hf_request returns: a neutral potassium atom is a real, well-posed
-    request that I cannot answer honestly.
+    request that cannot be answered honestly.
 
-    With pauli off, "1s10" IS a configuration, so my capacity check goes away
+    With pauli off, "1s10" IS a configuration, so the capacity check goes away
     here as well; n > l stays, because that one is not the exclusion principle.
     """
     try:
@@ -652,13 +653,13 @@ def _parse_config_or_422(text: str, pauli: bool = True):
 
 
 def _validate_hf_request(z: int, n_electrons: int, config, pauli: bool = True) -> None:
-    """I refuse what I cannot do, with the reason, before I start a job."""
+    """Refuse what cannot be done, with the reason, before starting a job."""
     if not 1 <= z <= _HF_MAX_Z:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Z must be in [1, {_HF_MAX_Z}], got {z}; I have not exercised "
-                f"my Hartree-Fock solver above {_HF_MAX_Z}, and a "
+                f"Z must be in [1, {_HF_MAX_Z}], got {z}; the Hartree-Fock "
+                f"solver has not been exercised above {_HF_MAX_Z}, and a "
                 f"non-relativistic model is a poor description of a heavier atom"
             ),
         )
@@ -684,10 +685,10 @@ def _validate_hf_request(z: int, n_electrons: int, config, pauli: bool = True) -
         raise HTTPException(
             status_code=400,
             detail=(
-                f"this configuration occupies n = {n_top}, and I converge only "
-                f"to n = {_HF_MAX_N}. My {n_top}s guess starts from a "
+                f"this configuration occupies n = {n_top}, and convergence "
+                f"reaches only n = {_HF_MAX_N}. The {n_top}s guess starts from a "
                 f"bare-nucleus potential, which for a diffuse outer shell is far "
-                f"too contracted for my self-consistent loop to recover; the "
+                f"too contracted for the self-consistent loop to recover; the "
                 f"eigensolver stagnates rather than converging slowly. Ions "
                 f"whose outermost shell is n <= {_HF_MAX_N} are fine at any Z up "
                 f"to {_HF_MAX_Z}"
@@ -700,11 +701,11 @@ def _hf_channel(n: int, l: int) -> str:
 
 
 def _hf_symbol(z: int) -> str | None:
-    """The element symbol, or None above my preset table.
+    """The element symbol, or None above the preset table.
 
-    I solve Hartree-Fock further up than my preset library reaches, and naming
+    Hartree-Fock solves further up than the preset library reaches, and naming
     the element is a convenience for the view rather than part of the physics,
-    so not knowing one is not an error of mine.
+    so not having one is not an error.
     """
     try:
         return element_by_z(z).symbol
@@ -778,7 +779,7 @@ def _hf_result_model(
         channels=[
             ChannelModel(
                 name="grid", dtype="float32", unit="bohr",
-                # My mesh is a choice I made, not a measurement of the atom.
+                # The mesh is a choice, not a measurement of the atom.
                 provenance=ProvenanceModel.from_provenance(
                     result.orbitals[0].P.provenance
                 ),
@@ -816,7 +817,7 @@ def _to_ev(q: Quantity) -> Quantity:
 
 
 def _hyperfine_shell_model(rep) -> "HyperfineShellModel":
-    """I map an available HyperfineReport to its response model, in eV as well."""
+    """Map an available HyperfineReport to its response model, in eV as well."""
     return HyperfineShellModel(
         n=rep.n,
         available=True,
@@ -855,7 +856,7 @@ def _job_model(job: Job) -> JobModel:
 
 
 def _finished_result(jobs: JobStore, job_id: str):
-    """I hand back a finished job's result container (sample or, later, plane)."""
+    """A finished job's result container (sample or, later, plane)."""
     job = jobs.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"unknown job: {job_id}")
@@ -868,13 +869,13 @@ def create_app() -> FastAPI:
     _configure_logging()
     app = FastAPI(title="atomsim", version=atomsim.__version__, lifespan=_lifespan)
     app.state.job_systems = {}
-    # Parallel to job_systems, and for the same reason: my meta endpoint sees
+    # Parallel to job_systems, and for the same reason: the meta endpoint sees
     # only the finished result object, and a SampleCloud does not know which
     # model produced it.
     app.state.job_models = {}
 
     def _forget_job(job_id: str) -> None:
-        """I keep my side tables in step with the store they are keyed against."""
+        """Keep the side tables in step with the store they are keyed against."""
         app.state.job_systems.pop(job_id, None)
         app.state.job_models.pop(job_id, None)
 
@@ -892,9 +893,9 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def _limit_job_creation(request, call_next):
-        """I meter only the endpoints that buy CPU.
+        """Meter only the endpoints that buy CPU.
 
-        My reads and static files are cheap and cacheable, and limiting them
+        Reads and static files are cheap and cacheable, and limiting them
         would throttle the page itself. Only a job POST commits the host to
         seconds of work, so only a job POST is charged.
         """
@@ -908,7 +909,7 @@ def create_app() -> FastAPI:
             wait = limiter.check(charged)
             if wait is not None:
                 retry = max(1, math.ceil(wait))
-                # I name it, because a refusal is the one moment the key matters
+                # Named here, because a refusal is the one moment the key matters
                 # operationally: it says whether one visitor is hammering the
                 # host, or whether the whole internet is sharing one bucket
                 # because nobody configured the forwarded-address header.
@@ -919,18 +920,18 @@ def create_app() -> FastAPI:
                     content={
                         "detail": (
                             f"too many compute jobs from this client; retry in "
-                            f"{retry}s. Each job is seconds of my solver time, "
-                            f"so I cap the rate to stay responsive for everyone."
+                            f"{retry}s. Each job is seconds of solver time, "
+                            f"so the rate is capped to stay responsive for everyone."
                         )
                     },
                 )
         return await call_next(request)
 
     def _dispatch(job, work) -> JobModel:
-        """I hand a job to my bounded pool and answer with its id immediately.
+        """Hand a job to the bounded pool and answer with its id immediately.
 
-        Every job endpoint of mine ends this way. Routing them all through one
-        function is what keeps my pool bounded: a new endpoint that reached for
+        Every job endpoint ends this way. Routing them all through one
+        function is what keeps the pool bounded: a new endpoint that reached for
         `run_in_executor(None, ...)` would silently opt back into the 32-thread
         default, and nothing would look wrong until the host fell over.
         """
@@ -956,20 +957,20 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     def _is_screened(key: str) -> bool:
-        """Whether this key names a many-electron atom, whatever model I draw with."""
+        """Whether this key names a many-electron atom, whatever model draws it."""
         return is_atom_key(key)
 
     def _gsz_element(key: str):
-        """The element, or my refusal if GSZ has no parameters for it.
+        """The element, or a refusal if GSZ has no parameters for it.
 
-        I call this at the top of every screened branch, in place of the bare
-        `atom_for_key` those branches used when my two lists were one. Sulfur
-        and chlorine reach these endpoints now (they are real atoms and my
-        picker offers them), and without this I would fault somewhere inside the
-        screening table with a ValueError that names no way forward.
+        This sits at the top of every screened branch, in place of the bare
+        `atom_for_key` those branches used when the two lists were one. Sulfur
+        and chlorine reach these endpoints now (they are real atoms and the
+        picker offers them), and without this the fault would land somewhere
+        inside the screening table with a ValueError that names no way forward.
 
-        400 rather than 422: the request is well posed and I understood it, and
-        I am declining it, which is the same split `_validate_hf_request`
+        400 rather than 422: the request is well posed and understood, and it is
+        being declined, which is the same split `_validate_hf_request`
         already draws for a neutral potassium atom.
         """
         element = atom_for_key(key)
@@ -980,10 +981,10 @@ def create_app() -> FastAPI:
                     f"{element.name} has no published GSZ screening parameters: "
                     f"Szydlik and Green, Phys. Rev. A 9, 1885 (1974), tabulate "
                     f"neutral He to P and Ar and skip Z = 16 and 17. Inventing "
-                    f"them would have me shipping physics with no source. Ask me "
+                    f"them would mean shipping physics with no source. Ask "
                     f"for model='hf' instead: Hartree-Fock builds its potential "
                     f"out of the orbitals it is solving for and needs no fitted "
-                    f"table, which is why I offer this atom at all"
+                    f"table, which is why this atom is offered at all"
                 ),
             )
         return element
@@ -993,9 +994,9 @@ def create_app() -> FastAPI:
     ) -> ThermalConditions | None:
         """Both knobs or neither: half of Saha is not a state anyone can read.
 
-        My bounds here are display limits, not physics limits. Below ~100 K
-        every excited level is empty and my spectrum is a single dark band;
-        above ~10^6 K hydrogen is long gone. My formulas hold outside; the view
+        These bounds are display limits, not physics limits. Below ~100 K
+        every excited level is empty and the spectrum is a single dark band;
+        above ~10^6 K hydrogen is long gone. The formulas hold outside; the view
         has nothing to show there.
         """
         if temperature_k is None and electron_density_cm3 is None:
@@ -1040,15 +1041,15 @@ def create_app() -> FastAPI:
     def _many_electron_target(
         system: str, config: str | None, pauli: bool
     ) -> tuple[int, int, Configuration]:
-        """(Z, N, configuration) for any many-electron picture, or my refusal.
+        """(Z, N, configuration) for any many-electron picture, or a refusal.
 
-        This is the half of my old `_hf_view_target` that is about which atom I
-        am solving rather than which orbital I am drawing. I split it out
-        because a total density needs the atom and does not depend on (n, l) at
-        all, so refusing a density comparison over an unoccupied subshell would
+        This is the half of the old `_hf_view_target` that is about which atom
+        is being solved rather than which orbital is being drawn. It was split
+        out because a total density needs the atom and does not depend on (n, l)
+        at all, so refusing a density comparison over an unoccupied subshell would
         refuse a legitimate request about an orbital nobody asked about.
 
-        Every refusal here is synchronous and carries its reason, because my
+        Every refusal here is synchronous and carries its reason, because the
         alternative is a job that dies several seconds in with an engine message
         the client has to guess at.
         """
@@ -1057,8 +1058,8 @@ def create_app() -> FastAPI:
                 status_code=422,
                 detail=(
                     f"this model needs an atom with a known electron count, "
-                    f"and {system!r} is a one-electron system; I already give "
-                    f"you its exact wavefunction in the other views, so there "
+                    f"and {system!r} is a one-electron system; its exact "
+                    f"wavefunction is already in the other views, so there "
                     f"is nothing a self-consistent field would add"
                 ),
             )
@@ -1075,7 +1076,7 @@ def create_app() -> FastAPI:
     def _hf_view_target(req) -> tuple[int, int, Configuration]:
         """The atom, plus the occupancy check only an orbital picture needs.
 
-        That check costs me no solve: which subshells exist is a property of the
+        That check costs no solve: which subshells exist is a property of the
         configuration, and the configuration is in the request.
         """
         z, n_electrons, config = _many_electron_target(
@@ -1085,12 +1086,12 @@ def create_app() -> FastAPI:
             held = ", ".join(f"{n}{SUBSHELL_LABELS[l]}" for (n, l), _ in config)
             why = (
                 "the occupancy cap is lifted, so every electron is in the 1s "
-                "and I have no other orbital to draw"
+                "and there is no other orbital to draw"
                 if not req.pauli
                 else "Hartree-Fock builds one Fock operator per occupied "
                 "subshell, so an empty one has no operator to be an "
                 "eigenfunction of, and borrowing another subshell's operator "
-                "would have me answering a different question silently"
+                "would silently answer a different question"
             )
             raise HTTPException(
                 status_code=422,
@@ -1107,11 +1108,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/systems", response_model=SystemsResponse)
     def systems() -> SystemsResponse:
-        """Every system you can select, and which of my models can speak for it.
+        """Every selectable system, and which models can speak for it.
 
-        I list all seventeen atoms, including the two GSZ has no parameters for.
-        `has_gsz` is what tells them apart, so the client greys one control
-        rather than hiding an atom I solve perfectly well; my description
+        All seventeen atoms are listed, including the two GSZ has no parameters
+        for. `has_gsz` is what tells them apart, so the client greys one control
+        rather than hiding an atom that solves perfectly well; the description
         carries the same fact in words, because a greyed control with no
         sentence beside it is a dead end.
         """
@@ -1125,7 +1126,7 @@ def create_app() -> FastAPI:
             return (
                 f"{element.name}: Hartree-Fock only (APPROXIMATION). Szydlik "
                 f"and Green never published neutral GSZ screening parameters "
-                f"for Z = {element.z}, and my Hartree-Fock needs none."
+                f"for Z = {element.z}, and Hartree-Fock needs none."
             )
 
         hydrogenic = [SystemModel.from_system(s) for s in list_systems()]
@@ -1295,7 +1296,7 @@ def create_app() -> FastAPI:
         if hyperfine:
             first = hyperfine_report(1, sys_)
             if not first.available:
-                # availability does not depend on n: one honest reason from me,
+                # availability does not depend on n: one honest reason,
                 # not n_max copies of it.
                 hf_shells = [HyperfineShellModel(
                     n=1, available=False, reason=first.reason,
@@ -1436,19 +1437,19 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=422, detail="points must be in [50, 2000]")
 
         def _comparison() -> DensityComparisonModel | None:
-            """Both densities, or nothing, or my refusal with the reason.
+            """Both densities, or nothing, or a refusal with the reason.
 
-            I call the two resolvers that already know when a model cannot
-            speak, so my wording and status codes cannot drift from the ones the
+            This calls the two resolvers that already know when a model cannot
+            speak, so the wording and status codes cannot drift from the ones the
             model radio shows: 400 from `_gsz_element` for sulfur and chlorine,
-            422 from `_many_electron_target` for a one-electron system. I refuse
-            nothing new here.
+            422 from `_many_electron_target` for a one-electron system. Nothing
+            new is refused here.
 
-            I take the configuration from the Hartree-Fock side and hand it to
-            both, so that with the occupancy cap off my overlay compares two
+            The configuration comes from the Hartree-Fock side and goes to
+            both, so that with the occupancy cap off the overlay compares two
             models of the same altered atom rather than two different atoms.
 
-            Order matters. I run `_many_electron_target` first because it is the
+            Order matters. `_many_electron_target` runs first because it is the
             one that refuses a one-electron system, and `_gsz_element` expects
             an atom key: asked about hydrogen first it would fail looking the
             element up rather than returning the 422 that says why.
@@ -1474,8 +1475,8 @@ def create_app() -> FastAPI:
                         "there is nothing for an exchange integral to act on"
                     ),
                 )
-            # I pass an object because _hf_view_target reads attributes, and
-            # one resolver behind four views is what keeps my refusals from
+            # An object, because _hf_view_target reads attributes, and
+            # one resolver behind four views is what keeps the refusals from
             # drifting apart between the picture endpoints and this one.
             hf_z, hf_n, hf_config = _hf_view_target(
                 SimpleNamespace(system=system, config=config, pauli=pauli, n=n, l=l)
@@ -1485,7 +1486,7 @@ def create_app() -> FastAPI:
                 config=hf_config, exchange=exchange, pauli=pauli,
             )
             # Free beside the orbital: the same cached solve, summed rather
-            # than picked from. I send it unasked because the two curves above
+            # than picked from. Sent unasked because the two curves above
             # it carry a caption saying they are not observable, and shipping
             # that claim without the thing it points at is half a sentence.
             density = hf_total_radial_density(
@@ -1512,7 +1513,7 @@ def create_app() -> FastAPI:
             # central field it cannot, since (Z, N) alone fix the field), but
             # the density does, because the configuration is what says which
             # orbitals are occupied. So this is the first thing on this branch
-            # where I have to ask.
+            # that has to ask.
             density = screened_total_radial_density(
                 element.z, element.z,
                 config=_resolve_config(system, config), points=points,
@@ -1551,7 +1552,7 @@ def create_app() -> FastAPI:
     def _resolve_zoom(
         lambda_min: float | None, lambda_max: float | None
     ) -> tuple[float, float] | None:
-        """Both ends or neither, and I need the low end to be real light."""
+        """Both ends or neither, and the low end has to be real light."""
         if lambda_min is None and lambda_max is None:
             return None
         if lambda_min is None or lambda_max is None:
@@ -1566,12 +1567,12 @@ def create_app() -> FastAPI:
         return (lambda_min, lambda_max)
 
     def _profile_window(lines) -> tuple[float, float] | None:
-        """The wavelength span I should cover with a synthesized curve.
+        """The wavelength span a synthesized curve should cover.
 
         Same structural rule the view uses for its bar axis: across-n lines set
-        my range, because a fine-structure list also holds within-n components
+        the range, because a fine-structure list also holds within-n components
         out at millimetres to metres, and stretching a synthesis over eleven
-        decades of wavelength spends my whole point budget on empty space. None
+        decades of wavelength spends the whole point budget on empty space. None
         means "no split applies, use the lot".
         """
         across = [
@@ -1585,23 +1586,23 @@ def create_app() -> FastAPI:
         lines, mass, hydrogenic: bool, resolving_power: float | None,
         full_range: bool, zoom: tuple[float, float] | None,
     ) -> tuple[ProfileModel | None, str | None]:
-        """I build the curve, or say plainly why I have none.
+        """Build the curve, or say plainly why there is none.
 
-        My failure mode here is a feature: with no decay rate, no temperature
-        and no instrument, every line has zero width, and the only way I could
-        draw a curve would be to invent one. My note names the knob instead.
+        The failure mode here is a feature: with no decay rate, no temperature
+        and no instrument, every line has zero width, and the only way to
+        draw a curve would be to invent one. The note names the knob instead.
 
         A `zoom` window is where this phase earns its keep: a profile only shows
-        its shape when the axis is narrow enough to resolve it, and my whole
-        point budget then lands on the one line you are looking at.
+        its shape when the axis is narrow enough to resolve it, and the whole
+        point budget then lands on the one line being looked at.
         """
         window = zoom if zoom else (None if full_range else _profile_window(lines.lines))
         try:
             syn = synthesize(
                 lines, emitter_mass=mass, hydrogenic=hydrogenic,
                 resolving_power=resolving_power, window_nm=window,
-                # A transport cap of mine, not a physics one. My closure stays
-                # inside 0.1% here, and I report what it actually was.
+                # A transport cap, not a physics one. The closure stays
+                # inside 0.1% here, and what it actually was gets reported.
                 max_points=6000,
             )
         except ValueError as exc:
@@ -1636,11 +1637,11 @@ def create_app() -> FastAPI:
             reference = load_reference(system)
             comparison = citation = tol = None
             if reference is not None:
-                tol = 0.05  # my 5% pass bar, disclosed rather than hidden
-                # Wide association window (25%): a GSZ valence line of mine sits
+                tol = 0.05  # the 5% pass bar, disclosed rather than hidden
+                # Wide association window (25%): a GSZ valence line sits
                 # a few percent off the real wavelength but is the correct
-                # transition, so I report it as a residual rather than silently
-                # dropping it.
+                # transition, so it is reported as a residual rather than
+                # silently dropped.
                 comparison = [
                     ComparisonModel.from_comparison(c)
                     for c in compare_lines(
@@ -1721,11 +1722,11 @@ def create_app() -> FastAPI:
         system: str, n_max: int, fine_structure: bool, thermal, config: str | None
     ):
         """A line list carrying oscillator strengths and populations, plus the
-        emitter mass I need for its Doppler widths.
+        emitter mass its Doppler widths need.
 
-        Both of my transfer endpoints want exactly this and want it identically:
+        Both transfer endpoints want exactly this and want it identically:
         a curve of growth and an absorption spectrum that disagreed about which
-        lines exist would be two answers of mine about one gas.
+        lines exist would be two answers about one gas.
         """
         if _is_screened(system):
             element = _gsz_element(system)
@@ -1753,19 +1754,19 @@ def create_app() -> FastAPI:
     ) -> AbsorptionSpectrumModel:
         """A whole line list in front of a flat continuum, and what survives it.
 
-        You give me one column density for the element; each line's own
+        One column density for the element comes in; each line's own
         lower-level fraction turns it into that line's absorbers. That is what
-        makes my Lyman lines go black while the Balmer lines stay invisible in
-        the same gas, and it is the fact my emission endpoint cannot represent.
+        makes the Lyman lines go black while the Balmer lines stay invisible in
+        the same gas, and it is the fact the emission endpoint cannot represent.
 
-        I leave the window to my own synthesis unless you ask, because sizing
-        it by eye is how I lost a third of an equivalent width in Phase 19
+        The window is left to the synthesis unless asked for, because sizing
+        it by eye is how a third of an equivalent width went missing in Phase 19
         without anything reporting a problem.
         """
-        # Absorption has no meaning without populations, so unlike my emission
-        # endpoint I do not make these conditions optional. I default them
-        # rather than refuse, and the gas they describe rides back on my
-        # response, so a spectrum of mine is never a shape with no conditions
+        # Absorption has no meaning without populations, so unlike the emission
+        # endpoint these conditions are not optional. They are defaulted
+        # rather than refused, and the gas they describe rides back on the
+        # response, so a spectrum is never a shape with no conditions
         # attached.
         thermal = _resolve_thermal(temperature_k, electron_density_cm3)
         if not 0.0 <= column_density_m2 <= 1e30:
@@ -1797,9 +1798,9 @@ def create_app() -> FastAPI:
     ) -> CurveOfGrowthModel:
         """How much light one line removes, against how much gas is in the way.
 
-        I take the line by wavelength rather than by quantum numbers so the view
-        can hand me back whatever was clicked. My widths come from the same
-        Phase 18 synthesis that drew the profile, so my curve and the profile
+        The line is taken by wavelength rather than by quantum numbers so the
+        view can hand back whatever was clicked. The widths come from the same
+        Phase 18 synthesis that drew the profile, so this curve and the profile
         beside it describe the same line.
         """
         thermal = _resolve_thermal(temperature_k, electron_density_cm3)
@@ -1816,12 +1817,12 @@ def create_app() -> FastAPI:
         )
         if not syn.profiles:
             raise HTTPException(status_code=404, detail="no lines in this spectrum")
-        # I take the nearest wavelength I computed to the one asked for, then
+        # Take the nearest computed wavelength to the one asked for, then
         # the strongest transition sitting on it. Both steps matter: "H-alpha"
         # is three lines at exactly 656.4696 nm with oscillator strengths of
-        # 0.014, 0.435 and 0.696, so taking whichever comes first in my list
+        # 0.014, 0.435 and 0.696, so taking whichever comes first in the list
         # would draw a curve of growth for the weakest of them and call it
-        # H-alpha. I take the pairing from `synthesize` rather than from a
+        # H-alpha. The pairing comes from `synthesize` rather than from a
         # second wavelength match, which could not tell those three apart.
         paired = list(zip(syn.profiles, syn.lines, strict=True))
         target = min(
@@ -1838,9 +1839,9 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    f"the {width.label} line has no oscillator strength, so I "
-                    "have no absorption cross-section for it and no curve of "
-                    "growth"
+                    f"the {width.label} line has no oscillator strength, so "
+                    "there is no absorption cross-section for it and no curve "
+                    "of growth"
                 ),
             )
         f = line.oscillator_strength.value
@@ -1875,7 +1876,7 @@ def create_app() -> FastAPI:
     @app.post("/api/jobs/sample", response_model=JobModel)
     async def create_sample_job(req: SampleRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
-        # I resolve this before the job exists, so a refusal of mine does not
+        # Resolved before the job exists, so a refusal does not
         # leave an orphan job in the store for a client that never got an id.
         hf_target = _hf_view_target(req) if req.model == "hf" else None
         job = jobs.create()
@@ -1982,10 +1983,10 @@ def create_app() -> FastAPI:
 
     @app.post("/api/jobs/isosurface", response_model=JobModel)
     async def create_iso_job(req: IsoRequest) -> JobModel:
-        """I start an isosurface extraction.
+        """Start an isosurface extraction.
 
-        A job for the same reason my cloud is: 96^3 is nearly a million psi
-        evaluations before I cut a triangle, which is about a second for a
+        A job for the same reason the cloud is: 96^3 is nearly a million psi
+        evaluations before a triangle is cut, which is about a second for a
         closed-form state and several for a screened one.
         """
         _validate_state(req.n, req.l, req.m)
@@ -2030,13 +2031,13 @@ def create_app() -> FastAPI:
 
     @app.post("/api/jobs/hf", response_model=JobModel)
     async def create_hf_job(req: HFRequest) -> JobModel:
-        """I start a Hartree-Fock solve.
+        """Start a Hartree-Fock solve.
 
-        A job rather than a plain GET because the solve takes me seconds, not
+        A job rather than a plain GET because the solve takes seconds, not
         milliseconds (argon about 5s cold, chlorine about 7s), which is long
         enough that a blocking request would be a bad answer even though it
-        would be a correct one. I memoize, so a repeat is free and the job
-        simply finishes immediately.
+        would be a correct one. Results are memoized, so a repeat is free and
+        the job simply finishes immediately.
         """
         n_electrons = req.z if req.n_electrons is None else req.n_electrons
         config = (
@@ -2045,10 +2046,10 @@ def create_app() -> FastAPI:
             else _parse_config_or_422(req.config, req.pauli)
         )
         _validate_hf_request(req.z, n_electrons, config, req.pauli)
-        # I compare a collapsed solve against the real atom only when it is the
-        # ground configuration of its own rule. A hand-written 1s5 2s3 has no
-        # "same atom with the cap on" to measure against, and comparing it to
-        # the Aufbau ground state would have me reporting the distance between
+        # A collapsed solve is compared against the real atom only when it is
+        # the ground configuration of its own rule. A hand-written 1s5 2s3 has
+        # no "same atom with the cap on" to measure against, and comparing it to
+        # the Aufbau ground state would report the distance between
         # two different configurations as the cost of the exclusion principle.
         comparable = not req.pauli and config == aufbau_configuration(
             n_electrons, pauli=False
@@ -2058,15 +2059,15 @@ def create_app() -> FastAPI:
 
         def work(progress):
             # solve_hartree_fock runs its own two-mesh loop with no progress
-            # hook, so I have nothing honest to report between 0 and 1. A
+            # hook, so there is nothing honest to report between 0 and 1. A
             # synthetic ramp would look like information and be none.
             result = solve_hartree_fock(
                 req.z, n_electrons, config, req.exchange, req.pauli
             )
-            # My counterfactual solves are the only ones that owe the reader a
-            # comparison, and the only ones I pay for a second solve on. Cheap
+            # The counterfactual solves are the only ones that owe the reader
+            # a comparison, and the only ones worth a second solve. Cheap
             # in practice: a client reaches these by flipping a switch on an
-            # atom it was just looking at, so my real solve is already memoized
+            # atom it was just looking at, so the real solve is already memoized
             # and this is arithmetic on two cached results.
             delta = (
                 None if req.exchange or not req.pauli
@@ -2180,7 +2181,7 @@ def create_app() -> FastAPI:
         if isinstance(res, Isosurface):
             return _iso_meta(res, system_key, model_key)
         if isinstance(res, HFJobResult):
-            # Unlike my sample and plane, the whole scientific result is here:
+            # Unlike the sample and plane, the whole scientific result is here:
             # the energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
@@ -2189,9 +2190,9 @@ def create_app() -> FastAPI:
     def _iso_channel_payload(surf: Isosurface, channel: str | None) -> np.ndarray:
         """Three channels, because a mesh is three arrays of different shapes.
 
-        I send `triangles` as uint32 rather than my own int32: WebGL index
-        buffers are unsigned, and converting here rather than in the browser
-        keeps the client from having to know that.
+        `triangles` goes out as uint32 rather than the internal int32: WebGL
+        index buffers are unsigned, and converting here rather than in the
+        browser keeps the client from having to know that.
         """
         if channel is None or channel == "vertices":
             return surf.vertices.astype(np.float32)
@@ -2262,8 +2263,8 @@ def create_app() -> FastAPI:
     web_dist = _web_dist()
     if web_dist.is_dir():
         app.mount("/", StaticFiles(directory=str(web_dist), html=True), name="web")
-        logger.info("I mounted the UI from %s", web_dist)
+        logger.info("Mounted the UI from %s", web_dist)
     else:
-        logger.warning("I found no UI at %s; serving the API only", web_dist)
+        logger.warning("No UI found at %s; serving the API only", web_dist)
 
     return app

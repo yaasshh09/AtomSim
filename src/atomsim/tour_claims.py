@@ -1,10 +1,10 @@
-"""How I check a guided tour's numbers against myself.
+"""How a guided tour's numbers get checked against the engine.
 
-Tour content is data (``web/src/tours/*.json``) precisely so I can read exactly
-what the browser renders. My alternative, restating each claim in Python, would
-break single-source-of-truth on the very thing I am checking.
+Tour content is data (``web/src/tours/*.json``) precisely so the checks can read
+exactly what the browser renders. The alternative, restating each claim in
+Python, would break single-source-of-truth on the very thing being checked.
 
-I keep the dispatch deliberately narrow. A resolver that silently hands back the
+The dispatch is deliberately narrow. A resolver that silently hands back the
 wrong quantity puts a green tick on prose that lies, which is worse than no test
 at all, so every kind here is pinned to a closed-form value in
 ``tests/test_tour_claims.py`` before any tour leans on it. Adding a kind means
@@ -38,16 +38,16 @@ _TOUR_DIR = Path(__file__).resolve().parents[2] / "web" / "src" / "tours"
 
 
 def load_tours() -> list[dict[str, Any]]:
-    """Every tour I know of, read from the same JSON the browser bundles."""
+    """Every known tour, read from the same JSON the browser bundles."""
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(_TOUR_DIR.glob("*.json"))]
 
 
 def iter_claims() -> Iterator[tuple[str, str, dict[str, Any]]]:
-    """(tour id, step id, claim) for every claim I find in every tour.
+    """(tour id, step id, claim) for every claim in every tour.
 
     A claim inherits its step's ``state`` for anything it does not name itself,
-    and I restrict that to the keys my resolvers read. Restricted rather than
-    merged wholesale, so a step changing a display toggle can never quietly
+    restricted to the keys the resolvers read. Restricted rather than merged
+    wholesale, so a step changing a display toggle can never quietly
     change what one of its claims asserts.
     """
     inherit = (
@@ -98,11 +98,10 @@ def _wavelength_nm(claim: dict[str, Any]) -> float:
 
 
 def _ionization_ev(claim: dict[str, Any]) -> float:
-    """The Koopmans ionization energy I get for a neutral Hartree-Fock atom.
+    """The Koopmans ionization energy for a neutral Hartree-Fock atom.
 
-    Neutral only: the tours name elements, not ions, and inventing a charge from
-    a key that does not carry one would have me answering a question nobody
-    asked.
+    Neutral only: the tours name elements, not ions, and inventing a charge
+    from a key that does not carry one would answer a question nobody asked.
     """
     key = claim.get("system", "h")
     if key not in ATOM_KEYS:
@@ -124,10 +123,10 @@ _RESOLVERS = {
 
 
 def resolve_claim(claim: dict[str, Any]) -> float:
-    """My own answer to one claim, in the unit the claim states.
+    """The engine's own answer to one claim, in the unit the claim states.
 
-    I raise rather than default on a missing input: defaulting ``n`` to 1 would
-    let a claim about the 3d silently check the 1s and pass.
+    This raises rather than defaults on a missing input: defaulting ``n`` to 1
+    would let a claim about the 3d silently check the 1s and pass.
     """
     kind = claim.get("of")
     if kind not in _RESOLVERS:

@@ -1,7 +1,7 @@
-"""My command line: `atomsim serve` launches the local app.
+"""The command line: `atomsim serve` launches the local app.
 
-I import the server stack inside `main`, not at module scope. Importing it
-eagerly cost 5.4 of the 6.3 seconds I took to load (FastAPI, uvicorn, and
+The server stack is imported inside `main`, not at module scope. Importing it
+eagerly cost 5.4 of the 6.3 seconds of startup (FastAPI, uvicorn, and
 matplotlib by way of the thumbnail renderer), and `atomsim --help` paid every
 one of those seconds, as would any future subcommand that never starts a
 server. Parsing arguments does not need a web framework.

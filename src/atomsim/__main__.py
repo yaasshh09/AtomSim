@@ -1,4 +1,4 @@
-"""My package entry point, so `python -m atomsim` works with no console script."""
+"""The package entry point, so `python -m atomsim` works with no console script."""
 
 from atomsim.cli import main
 

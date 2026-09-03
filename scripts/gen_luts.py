@@ -1,8 +1,8 @@
-"""How I write web/src/lib/luts.ts out of the matplotlib colormaps.
+"""Writes web/src/lib/luts.ts out of the matplotlib colormaps.
 
-One color authority: my server thumbnails (matplotlib) and the browser client
-read the same 256-entry tables, so a density of mine looks identical in a
-thumbnail, the cross-section canvas and the 3D cloud. Re-run me after a
+One color authority: the server thumbnails (matplotlib) and the browser client
+read the same 256-entry tables, so a density looks identical in a
+thumbnail, the cross-section canvas and the 3D cloud. Re-run this after a
 matplotlib upgrade.
 """
 

@@ -1,10 +1,10 @@
-"""The gallery thumbnails I render myself: small inferno PNGs of plane densities.
+"""The gallery thumbnails: small inferno PNGs of plane densities.
 
-They are navigation aids, not measurement surfaces: I gamma-compress the
-brightness (t = (rho/rho_max)^GAMMA) so faint outer lobes stay visible, a VISUAL
-LIBERTY I disclose in the gallery UI. The frontend cross-section renderer
-mirrors my GAMMA and my matplotlib LUT (web/src/lib/colormap.ts, luts.ts), so a
-density looks the same everywhere.
+They are navigation aids, not measurement surfaces: the brightness is
+gamma-compressed (t = (rho/rho_max)^GAMMA) so faint outer lobes stay visible, a
+VISUAL LIBERTY disclosed in the gallery UI. The frontend cross-section renderer
+mirrors this GAMMA and the matplotlib LUT (web/src/lib/colormap.ts, luts.ts), so
+a density looks the same everywhere.
 """
 
 import io
@@ -24,7 +24,7 @@ GAMMA = 0.5
 
 @lru_cache(maxsize=512)
 def render_thumbnail(n: int, l: int, m: int, system: str, basis: str, size: int) -> bytes:
-    """My inferno PNG of |psi|^2 on y=0; I flip the row order so +z is up."""
+    """An inferno PNG of |psi|^2 on y=0, with the row order flipped so +z is up."""
     sys_ = get_system(system)
     pg = plane_grid(
         n, l, m, quantity="density", basis=basis,

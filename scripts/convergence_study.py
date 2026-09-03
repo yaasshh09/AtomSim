@@ -1,4 +1,4 @@
-"""How I write docs/notes/phase0-convergence.md: my error against grid spacing."""
+"""Writes docs/notes/phase0-convergence.md: solver error against grid spacing."""
 
 from pathlib import Path
 
