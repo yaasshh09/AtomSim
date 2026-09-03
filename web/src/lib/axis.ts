@@ -65,7 +65,7 @@ export function formatOffset(axis: OffsetAxis, wavelengthNm: number): string {
 /**
  * Tick wavelengths that fall on round *offsets* from the axis centre.
  *
- * d3 picks nice values on the domain I give it, and that domain is absolute
+ * d3 picks nice values on the domain it is handed, and that domain is absolute
  * wavelengths, so a window around 121.568446 nm gets ticks at nice absolute
  * values whose offsets come out as -35.6, -25.6, ... +34.4, with no tick at
  * the line centre. Choosing the ticks in offset space instead gives -40, -20,

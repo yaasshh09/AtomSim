@@ -19,10 +19,10 @@ import { TourSpotlight } from "./components/TourSpotlight";
 import { WhatIfView } from "./components/WhatIfView";
 import { useAppStore } from "./state/store";
 
-/** three.js and @react-three/fiber are 1.1 MB, over two thirds of my bundle,
- * and they are reachable from exactly one subtree. Split out, my shell and my
- * readouts paint while it streams, and if you deep-link to the spectrum or
- * walk a 2-D tour step you never pay for a renderer you do not look at. */
+/** three.js and @react-three/fiber are 1.1 MB, over two thirds of the bundle,
+ * and they are reachable from exactly one subtree. Split out, the shell and
+ * the readouts paint while it streams, and a deep link to the spectrum or a
+ * walk through a 2-D tour step never pays for a renderer nobody looks at. */
 const CloudView = lazy(() =>
   import("./components/CloudView").then((m) => ({ default: m.CloudView })),
 );
@@ -31,8 +31,8 @@ export default function App() {
   const view = useAppStore((s) => s.view);
   const width = useViewportWidth();
 
-  // I gate this in JS rather than by a media query so I have one threshold,
-  // and so a phone never pays to build a WebGL context I will not show it.
+  // Gated in JS rather than by a media query, so there is one threshold, and
+  // so a phone never pays to build a WebGL context it will never be shown.
   if (needsWiderScreen(width)) return <NarrowNotice width={width} />;
 
   return (
