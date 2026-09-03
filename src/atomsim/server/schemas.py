@@ -45,7 +45,7 @@ class ProvenanceModel(BaseModel):
 
 
 class ChannelModel(BaseModel):
-    """One binary per-point channel I send for a sample job (positions / density / phase)."""
+    """One binary per-point channel of a sample job (positions / density / phase)."""
 
     name: str
     dtype: str
@@ -160,7 +160,7 @@ class FieldModel(BaseModel):
 
 
 class ShellPeakModel(BaseModel):
-    """One shell under both models. A null radius means I resolve none there."""
+    """One shell under both models. A null radius means none is resolved there."""
 
     label: str
     gsz_radius: float | None
@@ -202,7 +202,7 @@ def _to_fm(q: Quantity) -> Quantity:
         label=q.label + " [fm]",
         provenance=dataclasses.replace(
             q.provenance,
-            method=q.provenance.method + "; I converted it to fm via the CODATA Bohr radius",
+            method=q.provenance.method + "; converted to fm via the CODATA Bohr radius",
             error_estimate=(
                 None if q.provenance.error_estimate is None
                 else q.provenance.error_estimate * BOHR_RADIUS_FM
@@ -384,7 +384,7 @@ class HFResultModel(BaseModel):
     coarse_iterations: int
     converged: bool
     provenance: ProvenanceModel
-    # The shared radial grid I sample every P channel on, in bohr.
+    # The shared radial grid every P channel is sampled on, in bohr.
     grid_channel: str
     grid_points: int
     channels: list[ChannelModel]
@@ -578,7 +578,7 @@ class CurveOfGrowthModel(BaseModel):
     #: "linear" | "saturated" | "damping", per point.
     regime: list[str]
     #: Local log-log slope: 1, then ~0, then 1/2. The visible signature of the
-    #: branch, though not what I decide the branch by.
+    #: branch, though not what decides the branch.
     slope: list[float]
     tau_centre: list[float]
     window_nm: float

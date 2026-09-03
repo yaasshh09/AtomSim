@@ -202,7 +202,7 @@ _ORBITAL_NOT_OBSERVABLE = (
 #: Z = 9.
 _RELATIVITY_WORTH_STATING_Z = 9
 _DIAGNOSTIC_METHOD = (
-    "a property of the solution I converged to, not a claim about the atom"
+    "a property of the converged solution, not a claim about the atom"
 )
 
 # The mesh's own optimum; see numerics/mesh.py for the measurement behind it.
