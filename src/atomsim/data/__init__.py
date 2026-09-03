@@ -1,5 +1,5 @@
-"""The reference data I vendor (NIST ASD lines, Hartree-Fock total energies).
+"""The reference data vendored here (NIST ASD lines, Hartree-Fock energies).
 
-I never fetch any of it live at runtime. Each file carries its own citation and
-retrieval date.
+None of it is ever fetched live at runtime. Each file carries its own citation
+and retrieval date.
 """
