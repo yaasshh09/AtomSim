@@ -1,11 +1,11 @@
-"""My spectral lines, from level differences, with selection rules and
+"""Spectral lines, from level differences, with selection rules and
 provenance.
 
-On gross structure (fine_structure=False) I use EXACT Bohr levels, mu-scaled,
-and my lines are (n_u, l_u) -> (n_l, l_l) with Delta l = +/-1. With fine
-structure on I use APPROXIMATION levels from the alpha^2 Pauli shifts, with
-Delta j in {0, +/-1}. My wavelengths are vacuum, in nm, and my energies are in
-eV. For the NIST comparison see my compare_lines API, which reads vendored
+On gross structure (fine_structure=False) the levels are EXACT Bohr levels,
+mu-scaled, and the lines are (n_u, l_u) -> (n_l, l_l) with Delta l = +/-1. With
+fine structure on the levels are APPROXIMATION, from the alpha^2 Pauli shifts,
+with Delta j in {0, +/-1}. Wavelengths are vacuum, in nm, and energies are in
+eV. For the NIST comparison see the compare_lines API, which reads vendored
 reference data and never queries anything live.
 """
 
@@ -41,14 +41,14 @@ from atomsim.populations import (
 from atomsim.provenance import Fidelity, Provenance, Quantity
 from atomsim.systems import System
 
-_EV_NM = _sc.h * _sc.c / _sc.e * 1e9  # my photon wavelength(nm) = _EV_NM / E(eV)
+_EV_NM = _sc.h * _sc.c / _sc.e * 1e9  # photon wavelength(nm) = _EV_NM / E(eV)
 
 _REFERENCE_FILES = {
     "h": "nist_h_i.json", "d": "nist_d_i.json", "he+": "nist_he_ii.json",
     "he": "nist_he_i.json", "li": "nist_li_i.json", "na": "nist_na_i.json",
 }
 
-_DEFAULT_TOL = {False: 3e-5, True: 1e-5}  # relative, one per fidelity tier of mine
+_DEFAULT_TOL = {False: 3e-5, True: 1e-5}  # relative, one per fidelity tier
 
 
 @dataclass(frozen=True)
@@ -63,14 +63,13 @@ class SpectralLine:
     wavelength: Quantity  # nm, vacuum
     einstein_a: Quantity | None = None           # s^-1, spontaneous emission rate
     oscillator_strength: Quantity | None = None  # dimensionless, absorption f
-    #: eV/s per atom of the element. I set this only when you gave me thermal
-    #: conditions: it is an emission rate I modelled, not a measured brightness.
+    #: eV/s per atom of the element. Set only when thermal conditions were
+    #: given: a modelled emission rate, not a measured brightness.
     emissivity: Quantity | None = None
-    #: The fraction of all atoms of the element I put in this line's **lower**
-    #: level. I set it alongside the emissivity, out of the same Boltzmann pass.
-    #: It is what turns a single column density for the gas into a per-line
-    #: optical depth, and without it I cannot build an absorption spectrum at
-    #: all.
+    #: The fraction of all atoms of the element in this line's **lower** level.
+    #: Set alongside the emissivity, out of the same Boltzmann pass. It is what
+    #: turns a single column density for the gas into a per-line optical depth,
+    #: and without it there is no absorption spectrum to build.
     lower_fraction: Quantity | None = None
 
 
@@ -78,17 +77,17 @@ _L_LETTERS = "spdfghi"
 
 
 def orbital_label(n: int, l: int) -> str:
-    """A level of mine in spectroscopic notation: (3, 2) -> "3d"."""
+    """A level in spectroscopic notation: (3, 2) -> "3d"."""
     return f"{n}{_L_LETTERS[l]}" if l < len(_L_LETTERS) else f"{n}(l={l})"
 
 
 def subshell_label(line: "SpectralLine") -> str:
-    """A line of mine named by the levels it joins: "3d->2p".
+    """A line named by the levels it joins: "3d->2p".
 
-    I need this wherever lines have to be told apart rather than merely counted.
-    A gross-structure series label like "3->2" names three transitions at one
-    wavelength with oscillator strengths of 0.014, 0.435 and 0.696, which is
-    fine for a series and useless for anything that has to pick one.
+    This is needed wherever lines have to be told apart rather than merely
+    counted. A gross-structure series label like "3->2" names three transitions
+    at one wavelength with oscillator strengths of 0.014, 0.435 and 0.696, which
+    is fine for a series and useless for anything that has to pick one.
     """
     return (
         f"{orbital_label(line.n_upper, line.l_upper)}"
@@ -103,22 +102,22 @@ class LineList:
     fine_structure: bool
     lines: tuple[SpectralLine, ...]
     provenance: Provenance
-    #: I set this only when strengths were wanted and I cannot give them
-    #: honestly. It says which case applies and what I am missing, so the view
-    #: never has to guess why every bar is the same height.
+    #: Set only when strengths were wanted and cannot be given honestly. It
+    #: says which case applies and what is missing, so the view never has to
+    #: guess why every bar is the same height.
     intensity_note: str | None = None
-    #: Present exactly when my lines carry an emissivity. It holds the conditions
-    #: that produced them plus how much of the gas I ionized, so the view can say
-    #: what it is showing rather than just showing it.
+    #: Present exactly when the lines carry an emissivity. It holds the
+    #: conditions that produced them plus how much of the gas ionized, so the
+    #: view can say what it is showing rather than just showing it.
     thermal: ThermalState | None = None
 
 
 def _strength_provenance(dipole: Quantity, formula: str, value: float) -> Provenance:
-    """I carry the dipole integral's own provenance up to the strength I build
-    on it.
+    """Carry the dipole integral's own provenance up to the strength built on
+    it.
 
-    Both f and A go as |R|^2, so R's *relative* error doubles. I store the
-    absolute number, matching every other error_estimate of mine.
+    Both f and A go as |R|^2, so R's *relative* error doubles. The stored number
+    is absolute, matching every other error_estimate here.
     """
     rel = (
         (dipole.provenance.error_estimate or 0.0) / abs(dipole.value)
@@ -140,22 +139,22 @@ def _thermal_state(
     thermal: ThermalConditions,
     chi_assumptions: tuple[str, ...] = (),
 ) -> tuple[ThermalState, dict[tuple, float]]:
-    """I run the LTE chain over a level list, indexed by the caller's own keys.
+    """Run the LTE chain over a level list, indexed by the caller's own keys.
 
-    I build my levels from whatever produced the line list rather than from a
-    second source of energies, so my populations and my transition energies
+    The levels are built from whatever produced the line list rather than from a
+    second source of energies, so the populations and the transition energies
     cannot disagree about where the levels are.
 
-    You have to give me `chi_ev` rather than letting me read it off the list:
-    the highest level in a list I truncated at n_max is nowhere near the
-    continuum, so taking it as the ionization energy would understate chi badly
-    and ionize my gas far too easily.
+    `chi_ev` has to be passed in rather than read off the list: the highest
+    level in a list truncated at n_max is nowhere near the continuum, so taking
+    it as the ionization energy would understate chi badly and ionize the gas
+    far too easily.
 
     `chi_assumptions` lets a caller whose chi is itself an estimate say so on
     the quantity that used it, rather than leaving it looking exact.
 
-    I return the state to hang on the LineList, plus a key -> occupation lookup
-    for my per-line loop.
+    Returns the state to hang on the LineList, plus a key -> occupation lookup
+    for the per-line loop.
     """
     u = partition_function(levels, thermal.temperature_k)
     ionized = saha_ionization_fraction(
@@ -164,11 +163,11 @@ def _thermal_state(
         chi_ev,
         u_neutral=u.value,
     )
-    # Saha divides by U, so my ionization fraction inherits the truncation U
+    # Saha divides by U, so the ionization fraction inherits the truncation U
     # discloses. saha_ionization_fraction takes U as a bare float and cannot know
-    # where it came from, so I attach the disclosure here, where I do know it.
-    # Without this I would state the cutoff on my partition function and then
-    # drop it silently from the number I built on it.
+    # where it came from, so the disclosure is attached here, where it is known.
+    # Without this the cutoff would be stated on the partition function and then
+    # dropped silently from the number built on it.
     extra = tuple(a for a in u.provenance.assumptions if "truncat" in a) + chi_assumptions
     if extra:
         ionized = Quantity(
@@ -189,10 +188,10 @@ def _thermal_state(
 
 
 def _hydrogenic_thermal(levels: list, thermal: ThermalConditions):
-    """I build the population levels for a hydrogen-like system's own level list.
+    """Build the population levels for a hydrogen-like system's own level list.
 
-    My energies come straight from the level Quantities I built the line list
-    from, shifted so the ground level sits at zero, and my chi is that ground
+    The energies come straight from the level Quantities the line list was built
+    from, shifted so the ground level sits at zero, and chi is that ground
     level's binding energy.
     """
     ground_h = min(e.value for _, _, _, e in levels)
@@ -210,7 +209,7 @@ def _hydrogenic_thermal(levels: list, thermal: ThermalConditions):
 
 
 def _levels(system: System, n_max: int, fine_structure: bool):
-    """I yield (n, l, j, E_hartree Quantity) for every level up to n_max."""
+    """Yield (n, l, j, E_hartree Quantity) for every level up to n_max."""
     for n in range(1, n_max + 1):
         for l in range(n):
             if fine_structure:
@@ -231,16 +230,16 @@ def transition_lines(
     intensities: bool = False,
     thermal: ThermalConditions | None = None,
 ) -> LineList:
-    """Every dipole-allowed emission line I find among levels with n <= n_max.
+    """Every dipole-allowed emission line among levels with n <= n_max.
 
     With `intensities`, each line also carries its Einstein A (s^-1) and its
-    absorption oscillator strength, out of my closed-form dipole engine. With
-    `fine_structure` I resolve those rates by j through the 6j branching factor,
-    so the components of a multiplet add back up to my gross rate.
+    absorption oscillator strength, out of the closed-form dipole engine. With
+    `fine_structure` those rates are resolved by j through the 6j branching
+    factor, so the components of a multiplet add back up to the gross rate.
 
-    With `thermal`, each line additionally carries an LTE emissivity, and my
+    With `thermal`, each line additionally carries an LTE emissivity, and the
     list carries the ionization fraction those conditions produced. Thermal
-    implies intensities, since I build emissivity on A.
+    implies intensities, since emissivity is built on A.
     """
     if n_max < 2:
         raise ValueError(f"n_max must be >= 2 to have any transition, got {n_max}")
@@ -261,11 +260,11 @@ def transition_lines(
         prov = Provenance(
             fidelity=tier,
             method=(
-                f"I took a level difference: [{eu.provenance.method}] minus "
+                f"a level difference: [{eu.provenance.method}] minus "
                 f"[{el.provenance.method}]; photon lambda = hc/dE (vacuum)"
             ),
             assumptions=eu.provenance.assumptions
-            + ("I apply the electric-dipole selection rules (Delta l = +/-1"
+            + ("the electric-dipole selection rules apply (Delta l = +/-1"
                + (", Delta j in {0, +/-1})" if fine_structure else ")"),),
             error_estimate=(
                 None if eu.provenance.error_estimate is None
@@ -279,7 +278,7 @@ def transition_lines(
         if intensities:
             kw = {"Z": system.Z, "mu_ratio": system.mu_ratio.value}
             if fine_structure:
-                # I pass the real fine-structure energy: a within-n component
+                # The real fine-structure energy goes in: a within-n component
                 # like 2p_3/2 -> 2s_1/2 has no gross difference, and A goes as
                 # dE^3.
                 dE_h = eu.value - el.value
@@ -294,8 +293,8 @@ def transition_lines(
         lower_frac = None
         if state is not None:
             neutral = 1.0 - state.ionized_fraction.value
-            # This is a population and not a strength: I have it as soon as I
-            # have conditions, whether or not anyone wanted my dipole integrals.
+            # This is a population and not a strength: it is available as soon
+            # as conditions are, whether or not dipole integrals were wanted.
             lower_frac = level_column_fraction(occupation[(nl, ll_, jl)], neutral)
             if a_coeff is not None:
                 eps = line_emissivity(
@@ -324,23 +323,23 @@ def transition_lines(
         lines=tuple(lines),
         provenance=Provenance(
             fidelity=Fidelity.APPROXIMATION if fine_structure else Fidelity.EXACT,
-            method="I took the dipole-allowed level differences (see my per-line provenance)",
-            assumptions=("I list emission lines only (E_upper > E_lower)",
-                         "I report vacuum wavelengths in nm and energies in eV"),
+            method="the dipole-allowed level differences (see the per-line provenance)",
+            assumptions=("emission lines only (E_upper > E_lower)",
+                         "vacuum wavelengths in nm and energies in eV"),
         ),
         thermal=state,
     )
 
 
 def _screened_thermal(result, levels: list, thermal: ThermalConditions):
-    """My population levels for a screened atom, with a Koopmans ionization
+    """The population levels for a screened atom, with a Koopmans ionization
     energy.
 
-    I take chi as the binding energy of the outermost *occupied* orbital, which
-    is Koopmans' theorem: it assumes the remaining orbitals do not relax when
-    the electron leaves. That is a further approximation of mine stacked on a
-    GSZ model already only good to a few percent on valence energies, so I name
-    it in my assumptions rather than presenting it as the ionization energy.
+    chi is the binding energy of the outermost *occupied* orbital, which is
+    Koopmans' theorem: it assumes the remaining orbitals do not relax when the
+    electron leaves. That is a further approximation stacked on a GSZ model
+    already only good to a few percent on valence energies, so it is named in
+    the assumptions rather than presented as the ionization energy.
     """
     ground_h = min(e.value for _, _, e in levels)
     specs = tuple(
@@ -353,13 +352,13 @@ def _screened_thermal(result, levels: list, thermal: ThermalConditions):
     )
     keys = tuple((n, l) for n, l, _ in levels)
     occupied = [o for o in result.orbitals if o.occupancy > 0]
-    # My outermost occupied is the least bound, so the highest energy occupied.
+    # The outermost occupied is the least bound, so the highest energy occupied.
     chi_ev = -max(o.energy.value for o in occupied) * HARTREE_EV
     return _thermal_state(
         specs, keys, chi_ev, thermal,
         chi_assumptions=(
-            f"I took the ionization energy chi = {chi_ev:.4g} eV from Koopmans' "
-            "theorem (the binding energy of my outermost occupied GSZ orbital, "
+            f"the ionization energy chi = {chi_ev:.4g} eV comes from Koopmans' "
+            "theorem (the binding energy of the outermost occupied GSZ orbital, "
             "with no relaxation of the remaining orbitals), stacked on a "
             "screening model already only good to a few percent on valence "
             "energies",
@@ -370,25 +369,24 @@ def _screened_thermal(result, levels: list, thermal: ThermalConditions):
 def screened_transition_lines(
     result, intensities: bool = False, thermal: ThermalConditions | None = None
 ) -> LineList:
-    """The dipole-allowed emission lines I find among a screened atom's orbital
+    """The dipole-allowed emission lines among a screened atom's orbital
     energies.
 
-    `result` is a screened_atom.ScreenedAtomResult. I leave it untyped here to
-    avoid a circular import. My lines are (n_u, l_u) -> (n_l, l_l) with
-    Delta l = +/-1 and E_upper > E_lower; energies in eV, vacuum wavelengths in
-    nm, all APPROXIMATION.
+    `result` is a screened_atom.ScreenedAtomResult, left untyped here to avoid a
+    circular import. The lines are (n_u, l_u) -> (n_l, l_l) with Delta l = +/-1
+    and E_upper > E_lower; energies in eV, vacuum wavelengths in nm, all
+    APPROXIMATION.
 
     With `intensities`, each line also carries an Einstein A and an oscillator
-    strength I built from a dipole integral over the radials I solved
-    numerically. With `thermal`, it also carries an LTE emissivity, whose
-    ionization step leans on a Koopmans estimate of chi (see
-    `_screened_thermal`).
+    strength built from a dipole integral over the numerically solved radials.
+    With `thermal`, it also carries an LTE emissivity, whose ionization step
+    leans on a Koopmans estimate of chi (see `_screened_thermal`).
     """
     from atomsim.screened_atom import screened_dipole_integral  # circular at module scope
 
     levels = [(o.n, o.l, o.energy) for o in result.orbitals]
-    # I use one box for the whole list, sized by its most extended state, so
-    # every line reuses the same handful of l channels I solved.
+    # One box serves the whole list, sized by its most extended state, so every
+    # line reuses the same handful of solved l channels.
     n_box = max((n for n, _, _ in levels), default=1)
     if thermal is not None:
         intensities = True
@@ -403,11 +401,11 @@ def screened_transition_lines(
         prov = Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method=(
-                f"I took a screened orbital difference: [{eu.provenance.method}] "
+                f"a screened orbital difference: [{eu.provenance.method}] "
                 f"minus [{el.provenance.method}]; photon lambda = hc/dE (vacuum)"
             ),
             assumptions=eu.provenance.assumptions
-            + ("I apply the electric-dipole selection rule (Delta l = +/-1)",),
+            + ("the electric-dipole selection rule applies (Delta l = +/-1)",),
             error_estimate=(
                 None if eu.provenance.error_estimate is None
                 else (eu.provenance.error_estimate + (el.provenance.error_estimate or 0.0))
@@ -463,11 +461,11 @@ def screened_transition_lines(
         provenance=Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method=(
-                "I took the dipole-allowed screened orbital differences "
-                "(see my per-line provenance)"
+                "the dipole-allowed screened orbital differences "
+                "(see the per-line provenance)"
             ),
-            assumptions=("I list emission lines only (E_upper > E_lower)",
-                         "my transition energies are independent-particle"),
+            assumptions=("emission lines only (E_upper > E_lower)",
+                         "the transition energies are independent-particle"),
         ),
     )
 
@@ -499,7 +497,7 @@ class LineComparison:
 
 
 def load_reference(system_key: str) -> ReferenceData | None:
-    """My vendored NIST reference for a preset, or None. I never query live."""
+    """The vendored NIST reference for a preset, or None. Never a live query."""
     filename = _REFERENCE_FILES.get(system_key)
     if filename is None:
         return None
@@ -529,18 +527,18 @@ def compare_lines(
     tolerance_relative: float | None = None,
     window_relative: float = 0.01,
 ) -> tuple[LineComparison, ...]:
-    """I match each reference line to my nearest computed line and report the
+    """Match each reference line to the nearest computed line and report the
     residuals.
 
-    I keep two separate scales. `window_relative` decides whether a reference
-    line's transition is present in my computed set at all, which is a coarse
+    Two separate scales are kept. `window_relative` decides whether a reference
+    line's transition is present in the computed set at all, which is a coarse
     association cut; `tolerance_relative` decides whether the matched pair
-    passes, which is my disclosed accuracy bar and feeds only the
-    within_tolerance flag. They differ for my approximate models: a GSZ valence
+    passes, which is the disclosed accuracy bar and feeds only the
+    within_tolerance flag. They differ for the approximate models: a GSZ valence
     line may sit several percent off the real wavelength and still be the
-    correct transition, so I keep it and report the residual, while a reference
-    line with no computed transition near it I drop. The 0.01 default preserves
-    my exact hydrogenic behavior.
+    correct transition, so it is kept and its residual reported, while a
+    reference line with no computed transition near it is dropped. The 0.01
+    default preserves the exact hydrogenic behavior.
     """
     tol = tolerance_relative if tolerance_relative is not None else _DEFAULT_TOL[
         line_list.fine_structure
@@ -555,7 +553,7 @@ def compare_lines(
         delta = nearest.wavelength.value - ref.wavelength_nm
         rel = abs(delta) / ref.wavelength_nm
         if rel > window_relative:
-            continue  # I have no transition near this reference line, so it is not in my set
+            continue  # no transition near this reference line, so it is not in the set
         out.append(
             LineComparison(
                 line=nearest,
