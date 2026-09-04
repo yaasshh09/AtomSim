@@ -752,6 +752,16 @@ button.ghost:hover {
   gap: 0.75rem;
   min-height: 0;
   overflow-y: auto;
+  /* Sideways as well, and stated rather than inherited: `overflow-y: auto`
+     alone already computes overflow-x to `auto`, which is load-bearing here
+     and much too quiet a way to depend on something.
+
+     A plot's viewBox is now its measured pixel width, floored at the narrowest
+     width that view's labels fit in (see lib/plotSize.ts). On a screen
+     narrower than that floor the SVG keeps its size and this scrolls to it,
+     rather than the SVG scaling down and taking every axis number with it. A
+     ladder you swipe across is readable; a ladder squeezed to 60% is not. */
+  overflow-x: auto;
 }
 
 .view-header {
@@ -1394,7 +1404,7 @@ button.ghost:hover {
 /* flex-shrink: 0 for the reason .levels-svg carries it: .view-wrap is a flex
    column, so height:auto on a flex item resolved to 0 and the well plot was
    drawing into no pixels at all. */
-.forcelaw-svg { width: 100%; max-width: 680px; height: auto; flex-shrink: 0; }
+.forcelaw-svg { width: 100%; height: auto; flex-shrink: 0; }
 .forcelaw-ref { stroke: #4ade80; stroke-width: 2; stroke-dasharray: 4 3; opacity: 0.55; }
 .forcelaw-cf { stroke: #60a5fa; stroke-width: 2.5; }
 .forcelaw-curve { stroke: #94a3b8; stroke-width: 1.5; }

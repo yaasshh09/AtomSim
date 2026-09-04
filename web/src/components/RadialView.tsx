@@ -6,6 +6,7 @@ import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { formatHover, nearestIndex, withinPlot } from "../lib/hover";
 import { Notation, mathTspans } from "../lib/mathText";
 import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
+import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
@@ -13,9 +14,9 @@ import { HoverReadout, usePlotHover } from "./PlotHover";
 import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
-const W = 640;
-const H = 240;
 const M = { top: 16, right: 16, bottom: 34, left: 56 };
+/** Height per unit width, and the two limits it runs between. See plotSize.ts. */
+const SHAPE = { ratio: 0.375, min: 180, max: 300 };
 
 /** The powers of ten inside [lo, hi]. */
 function decades([lo, hi]: [number, number]): number[] {
@@ -112,6 +113,7 @@ export function shellCells(s: ShellPeak): {
  */
 function FieldPlot({
   field,
+  width: W,
   title,
   blurb,
   marker,
@@ -122,6 +124,8 @@ function FieldPlot({
   overlay,
 }: {
   field: FieldData;
+  /** The measured pixel width of the view. One viewBox unit is one of these. */
+  width: number;
   title: string;
   blurb: string;
   marker?: Quantity;
@@ -143,6 +147,7 @@ function FieldPlot({
      The marker stays inside the window. ⟨r⟩ sits out in the tail for a diffuse
      state, and cutting the plot short of the number written on it would be
      worse than the empty axis this replaces. */
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const fullEnd = field.values.length;
   const trimmed = trimTail ? informativeEndSigned(field.values) : fullEnd;
   const markerEnd =
@@ -231,7 +236,7 @@ function FieldPlot({
         </span>
       </figcaption>
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
         role="img"
         className={`plot-hoverable plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
         ref={zoom.ref}
@@ -394,6 +399,8 @@ export function RadialView() {
     // "loading" forever after the toggle.
   }, [n, l, system, model, config, exchange, pauli, compare, loadRadial]);
 
+  const { width: W, ref: wrapRef } = usePlotWidth();
+
   const intro = (
     <ViewIntro lead={VIEW_LEADS.radial}>
       <Disclosure summary="Why the two plots disagree at the nucleus">
@@ -428,7 +435,7 @@ export function RadialView() {
 
   if (!radial) {
     return (
-      <div className="view-wrap">
+      <div className="view-wrap" ref={wrapRef}>
         {intro}
         <p className="hint-block">Loading the radial functions…</p>
       </div>
@@ -436,10 +443,11 @@ export function RadialView() {
   }
 
   return (
-    <div className="view-wrap">
+    <div className="view-wrap" ref={wrapRef}>
       {intro}
       <FieldPlot
         field={radial.r_wavefunction}
+        width={W}
         title="R(r), the radial wavefunction"
         blurb="The amplitude, sign and all. It can go negative, and that sign stays: it is real, and it is what the nodes are."
         showNodes
@@ -447,6 +455,7 @@ export function RadialView() {
       />
       <FieldPlot
         field={radial.radial_probability}
+        width={W}
         title="P(r), where the electron actually is"
         blurb="Probability per unit radius. Its area under any stretch of r is the chance of finding the electron in that stretch."
         marker={stateInfo?.mean_radius ?? undefined}
@@ -460,6 +469,7 @@ export function RadialView() {
               the plot already on screen does not move underfoot. */}
           <FieldPlot
             field={radial.total_density}
+            width={W}
             title="D(r), the whole atom's electrons"
             blurb="Every occupied orbital, summed. Each bump is a shell, and this is the one curve here an experiment can measure directly."
             logX

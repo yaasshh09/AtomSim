@@ -2,18 +2,21 @@ import { scaleLinear, scaleLog } from "d3-scale";
 import type { AbsorptionInfo, AbsorbingLineInfo } from "../api/types";
 import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
 import { Notation } from "../lib/mathText";
+import { plotHeight } from "../lib/plotSize";
 import { Badge } from "./Badge";
 import { REGIME_COLOR, REGIME_LABEL } from "./CurveOfGrowthView";
 
-const W = 680;
-const H = 250;
+/** Height per unit width, and the limits it runs between. See plotSize.ts. */
+const SHAPE = { ratio: 0.368, min: 220, max: 300 };
 /* Room under the plot for the band and its label. The band used to start six
    units above this line, which put it directly under the axis title: muted
-   text on a white continuum. It now clears the title completely. */
+   text on a white continuum. It now clears the title completely.
+
+   Fixed rather than following the width: this strip holds a row of text and a
+   bar the eye reads as a colour, and neither gets more legible for being
+   taller. */
 const BAND_H = 50;
 const M = { left: 62, right: 16, top: 18, bottom: 34 };
-const BAND_LABEL_Y = H + 14;
-const BAND_Y = H + 20;
 const BAND_BAR_H = 22;
 
 /**
@@ -211,11 +214,17 @@ export function saturationVerdict(saturation: number): string {
 
 export function AbsorptionView({
   abs,
+  width: W,
   zoomed = false,
 }: {
   abs: AbsorptionInfo;
+  /** The measured pixel width of the view. One viewBox unit is one of these. */
+  width: number;
   zoomed?: boolean;
 }) {
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
+  const BAND_LABEL_Y = H + 14;
+  const BAND_Y = H + 20;
   const logLambda = abs.wavelength_nm.map((v) => Math.log10(v));
   const lo = Math.min(...logLambda);
   const hi = Math.max(...logLambda);
@@ -269,7 +278,7 @@ export function AbsorptionView({
         </span>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H + BAND_H}`} role="img" className="levels-svg">
+      <svg viewBox={`0 0 ${W} ${H + BAND_H}`} style={{ minWidth: W }} role="img" className="levels-svg">
         <line
           x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom}
           className="axis"

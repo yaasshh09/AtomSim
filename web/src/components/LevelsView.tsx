@@ -12,6 +12,7 @@ import {
 } from "../lib/levels";
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { Notation, mathTspans } from "../lib/mathText";
+import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
 import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
@@ -20,12 +21,67 @@ import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
-const W = 680;
-const H = 460;
-/** Where the hydrogen ladder's energy axis is drawn, top rung to bottom. */
-const LADDER_RANGE: [number, number] = [H - 40, 24];
+/**
+ * Height per unit width, the two limits it runs between, and the narrowest
+ * width the ladder is drawn at. See plotSize.ts.
+ */
+const SHAPE = { floor: 560, ratio: 0.676, min: 380, max: 560 };
+
+/* The four columns of text a ladder carries, in pixels, because text does not
+   get narrower when the plot does. These are the widest string each column has
+   to hold at 12px in the mono face: "n=3" against the left gutter, then
+   "-1.51 eV · 2n²=18" beside a rung, then whatever the magnified panel writes
+   beside its own bars ("l=2, j=2.5 · -2.4", or a m_j column with its label).
+
+   They were absolute x positions back when the viewBox was a fixed 680 design
+   grid, and the layout only ever fitted at exactly 680: at 770 the fine
+   structure labels ran off the right edge, and at 560 the energy labels ran
+   into the panel. Reserving the text first and giving the bars what is left
+   makes it fit at any width. */
+const GUTTER = 70;
+const LEADER = 30;
+const ENERGY_LABEL = 140;
+const PANEL_LABEL = 150;
+const GAP = 24;
+
+/** A plain ladder: a rung label on the left, an energy on the right. */
+function columns(W: number) {
+  return {
+    rungX1: GUTTER,
+    rungX2: Math.round(0.471 * W),
+  };
+}
+
+/**
+ * The hydrogen ladder, which shares its frame with a magnified panel.
+ *
+ * Text first, bars with what is left, split three to two between the ladder
+ * and the panel. The floor on the bars is what stops a very narrow frame from
+ * producing rungs of negative length; below it the SVG scrolls instead, which
+ * is what `SHAPE.floor` is for.
+ */
+function hydrogenColumns(W: number) {
+  const bars = Math.max(120, W - GUTTER - LEADER - ENERGY_LABEL - GAP - PANEL_LABEL);
+  const rungBar = Math.round(bars * 0.6);
+  const rungX2 = GUTTER + rungBar;
+  const fanX1 = rungX2 + LEADER + ENERGY_LABEL + GAP;
+  const fanX2 = fanX1 + (bars - rungBar);
+  return {
+    rungX1: GUTTER,
+    rungX2,
+    fanX1,
+    fanX2,
+    // The Zeeman sublevels, drawn to the right of the fan they split. Only
+    // ever visible when the fan's own labels are not, so they share the
+    // reserved column rather than needing one of their own.
+    subX1: fanX2 + 20,
+    subX2: fanX2 + 70,
+  };
+}
 
 function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
+  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const all = levels.orbitals;
   const es = all.map((o) => o.energy_ev.value);
   const eMin = Math.min(...es);
@@ -42,8 +98,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
      visible one aside to make room for something nobody can see, which is the
      opposite of what zooming into a crowded ladder is for. */
   const orbitals = withinView(all, (o) => o.energy_ev.value, zoom.y);
-  const rungX1 = 90;
-  const rungX2 = 340;
+  const { rungX1, rungX2 } = columns(W);
   /* Neon's virtual orbitals sit within a couple of eV of the ionization limit,
      which printed them straight through one another and through the limit's
      own label. The ionization line goes into the spread rather than staying
@@ -58,7 +113,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
   const limitLabelY = limitShown ? labelY[0] : 0;
   const rungLabelY = limitShown ? labelY.slice(1) : labelY;
   return (
-    <div className="view-wrap">
+    <div className="view-wrap" ref={wrapRef}>
       <ViewIntro
         lead={{
           title: "Energy levels of a screened atom",
@@ -78,7 +133,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         </p>
       </ViewIntro>
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
         role="img"
         className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
         ref={zoom.ref}
@@ -232,6 +287,8 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
 }
 
 function HFLadder({ levels }: { levels: HFLevels }) {
+  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const orbitals = levels.orbitals;
   // Binding energy, so the log is of a positive number. Every occupied HF
   // orbital is bound; the guard stays because a rung at exactly 0 would
@@ -252,8 +309,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
   const zoom = usePlotZoom({ width: W, height: H, y: { domain: yFull, range: yRange } });
   const y = scaleLinear(zoom.y, yRange);
   const shown = withinView(orbitals, (o) => Math.log10(Math.abs(o.energy_ev.value)), zoom.y);
-  const rungX1 = 100;
-  const rungX2 = 360;
+  const { rungX1, rungX2 } = columns(W);
   const virial = levels.virial_ratio.value;
   const modelName = !levels.pauli
     ? "No Pauli exclusion (1s^N)"
@@ -261,7 +317,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       ? "Hartree-Fock"
       : "Hartree (no exchange)";
   return (
-    <div className="view-wrap">
+    <div className="view-wrap" ref={wrapRef}>
       <ViewIntro
         lead={{
           title: `Energy levels: ${modelName}`,
@@ -285,7 +341,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         </p>
       </ViewIntro>
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
         role="img"
         className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
         ref={zoom.ref}
@@ -392,6 +448,10 @@ export function LevelsView() {
     loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
     exchange, pauli, setFineStructure, setQuantumNumbers,
   } = useAppStore();
+  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
+  /** Where the hydrogen ladder's energy axis is drawn, top rung to bottom. */
+  const ladderRange: [number, number] = [H - 40, 24];
   const wantHF = model === "hf";
   useEffect(() => {
     void loadLevels();
@@ -414,7 +474,7 @@ export function LevelsView() {
         levels && !isScreenedLevels(levels)
           ? [levels.gross[0].energy_ev.value, 0]
           : [-13.6, 0],
-      range: LADDER_RANGE,
+      range: ladderRange,
     },
   });
 
@@ -433,9 +493,8 @@ export function LevelsView() {
   if (!levels) return <p className="hint-block">Loading the levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
-  const y = scaleLinear(ladderZoom.y, LADDER_RANGE);
-  const rungX1 = 70;
-  const rungX2 = 320;
+  const y = scaleLinear(ladderZoom.y, ladderRange);
+  const { rungX1, rungX2, fanX1, fanX2, subX1, subX2 } = hydrogenColumns(W);
   /* Only transitions that actually cross a shell can be drawn on this ladder.
      A within-n fine-structure component (3p→3s, out at 9 cm) has both ends on
      the same rung, and it once rendered as a zero-length arrow with a
@@ -483,7 +542,7 @@ export function LevelsView() {
   const hyperfineBlocked = hfShell !== undefined && !hfShell.available;
 
   return (
-    <div className="view-wrap">
+    <div className="view-wrap" ref={wrapRef}>
       <ViewIntro
         lead={VIEW_LEADS.levels}
         badge={<Badge provenance={levels.gross[0].energy.provenance} />}
@@ -597,7 +656,7 @@ export function LevelsView() {
       </p>
 
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
         role="img"
         className={`levels-svg plot-zoomable${ladderZoom.dragging ? " plot-panning" : ""}`}
         ref={ladderZoom.ref}
@@ -713,10 +772,10 @@ export function LevelsView() {
             const hi = Math.max(...allValues);
             const pad = (hi - lo || 1e-9) * 0.15;
             const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
-            const zx1 = 470;
-            const zx2 = 590;
-            const sx1 = 610;
-            const sx2 = 660;
+            const zx1 = fanX1;
+            const zx2 = fanX2;
+            const sx1 = subX1;
+            const sx2 = subX2;
             return (
               <g>
                 <text x={(zx1 + zx2) / 2} y={26} textAnchor="middle" className="tick">
@@ -788,8 +847,8 @@ export function LevelsView() {
             const hi = Math.max(...shifts);
             const pad = (hi - lo || 1e-9) * 0.15;
             const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
-            const zx1 = 470;
-            const zx2 = 610;
+            const zx1 = fanX1;
+            const zx2 = fanX2;
             const kMax = Math.max(...subs.map((s) => Math.abs(s.k)));
             return (
               <g>
@@ -820,8 +879,8 @@ export function LevelsView() {
           })()}
         {mode === "hyperfine" && hfShell &&
           (() => {
-            const zx1 = 470;
-            const zx2 = 610;
+            const zx1 = fanX1;
+            const zx2 = fanX2;
             const titleY = 26;
             if (!hfShell.available) {
               return (

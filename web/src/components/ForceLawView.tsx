@@ -14,11 +14,17 @@ import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
+import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
-const W = 680;
-const H = 460;
+/**
+ * Height per unit width, the limits it runs between, and the narrowest width
+ * this view is drawn at. See plotSize.ts. The floor is the width it was drawn
+ * for: the ladder panel puts two labelled columns side by side, and below this
+ * they run into each other rather than getting tight.
+ */
+const SHAPE = { floor: 680, ratio: 0.676, min: 380, max: 560 };
 const PAD = { top: 32, right: 24, bottom: 44, left: 64 };
 const L_CHOICES = [0, 1, 2, 3];
 const PRESETS: ForcePreset[] = [
@@ -80,6 +86,8 @@ export function ForceLawView() {
   const curveEv = forceLaw ? forceLaw.potential_curve.v_ev : [];
   const curveR = forceLaw ? forceLaw.potential_curve.r : [];
 
+  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const allEv = [...levelsEv, ...refEv, ...curveEv];
   const emin = allEv.length ? Math.min(...allEv) : -14;
   const emax = allEv.length ? Math.max(...allEv, 0.1) : 0;
@@ -152,7 +160,7 @@ export function ForceLawView() {
   const shortfall = forceLaw !== null && forceLaw.bound_count < forceLaw.requested_count;
 
   return (
-    <div className="forcelaw view-wrap">
+    <div className="forcelaw view-wrap" ref={wrapRef}>
       <ViewIntro
         lead={VIEW_LEADS.forcelaw}
         badge={cfProv ? <Badge provenance={cfProv} /> : undefined}
@@ -300,7 +308,7 @@ export function ForceLawView() {
 
           {forceViz === "well" ? (
             <svg
-              viewBox={`0 0 ${W} ${H}`}
+              viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
               className={
                 `forcelaw-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`
               }
@@ -415,7 +423,7 @@ export function ForceLawView() {
             </svg>
           ) : (
             <svg
-              viewBox={`0 0 ${W} ${H}`}
+              viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
               className={
                 `forcelaw-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`
               }

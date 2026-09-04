@@ -26,13 +26,17 @@ import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
+import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
-const W = 720;
-const H = 480;
-/** Where the gross ladder is drawn, deepest rung to the ionization limit. */
-const LADDER_RANGE: [number, number] = [H - 40, 60];
+/**
+ * Height per unit width, the limits it runs between, and the narrowest width
+ * this view is drawn at. See plotSize.ts. The floor is the width it was drawn
+ * for: a gross ladder and a two-column fine-split panel share one frame, and
+ * there is no narrower arrangement of them that still fits their labels.
+ */
+const SHAPE = { floor: 720, ratio: 0.667, min: 400, max: 560 };
 const ZOOM_N = 2; // the textbook shell: the 2p3/2 - 2p1/2 split grows with alpha
 
 const REAL_ALL: ConstMultipliers = { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 };
@@ -47,19 +51,23 @@ export function WhatIfView() {
 
   /* Above the two early returns below, because it is a hook. While the lab is
      still loading there is no ladder and the window is a placeholder. */
+  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
+  /** Where the gross ladder is drawn, deepest rung to the ionization limit. */
+  const ladderRange: [number, number] = [H - 40, 60];
   const zoom = usePlotZoom({
     width: W,
     height: H,
     y: {
       domain: [whatif ? whatif.real.gross[0].energy.value : -0.5, 0],
-      range: LADDER_RANGE,
+      range: ladderRange,
     },
   });
 
   if (whatifStatus === "error") return <p className="error">{error}</p>;
   if (!whatif) {
     return (
-      <div className="view-wrap">
+      <div className="view-wrap" ref={wrapRef}>
         <ViewIntro lead={VIEW_LEADS.whatif} />
         <p className="hint-block">Loading the What-If lab…</p>
       </div>
@@ -95,9 +103,15 @@ export function WhatIfView() {
   // The gross ladder shows STRUCTURE only, in units of E_h (hartree). The
   // absolute scale stays in the readouts above, which is the honest way to
   // split structure from scale.
-  const y = scaleLinear(zoom.y, LADDER_RANGE);
+  const y = scaleLinear(zoom.y, ladderRange);
+  // Fixed, because it reserves a column of end-anchored text; see the same
+  // decision in LevelsView.
   const rx1 = 70;
-  const rx2 = 300;
+  const rx2 = Math.round(0.417 * W);
+  // The fine-split panel's two columns, and the heading centred over both.
+  const fineX1 = Math.round(0.653 * W);
+  const fineX2 = Math.round(0.819 * W);
+  const fineMid = Math.round(0.736 * W);
   // Same crowding as the levels ladder, and the same fix: the rungs go as
   // -1/n^2, which printed the top three labels through one another. Zooming
   // narrows which rungs are on screen, and only those are spread.
@@ -114,8 +128,8 @@ export function WhatIfView() {
   const pad = (hi - lo || 1) * 0.2;
   const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 90]);
   const columns = [
-    { x: 470, rows: realFine, label: "real", cf: false },
-    { x: 590, rows: altFine, label: "altered", cf: true },
+    { x: fineX1, rows: realFine, label: "real", cf: false },
+    { x: fineX2, rows: altFine, label: "altered", cf: true },
   ];
 
   const errFrac = fineErrorFraction(altered?.fine ?? null);
@@ -145,7 +159,7 @@ export function WhatIfView() {
   const scenario = activeScenario(labConst as ScenarioMultipliers);
 
   return (
-    <div className="view-wrap">
+    <div className="view-wrap" ref={wrapRef}>
       <ViewIntro
         lead={VIEW_LEADS.whatif}
         badge={<Badge provenance={report.alpha.quantity.provenance} />}
@@ -218,7 +232,7 @@ export function WhatIfView() {
       </dl>
 
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
         role="img"
         className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
         ref={zoom.ref}
@@ -257,11 +271,11 @@ export function WhatIfView() {
           );
         })}
 
-        <text x={530} y={54} textAnchor="middle" className="tick">
+        <text x={fineMid} y={54} textAnchor="middle" className="tick">
           {mathTspans(`n=${ZOOM_N} fine split [µE_h], real vs altered`)}
         </text>
         {beyondValidity ? (
-          <text x={530} y={H / 2} textAnchor="middle" className="tick">
+          <text x={fineMid} y={H / 2} textAnchor="middle" className="tick">
             α &gt; 0.5, past where the perturbation can be trusted
           </text>
         ) : (
