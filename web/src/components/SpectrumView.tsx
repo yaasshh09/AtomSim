@@ -41,11 +41,8 @@ const SHAPE = {
 };
 const M = { left: 56, right: 16 };
 
+/** A fixed gutter above the bars, for the row of text that sits in it. */
 const TOP = 28;
-/** Where the bars stand, where the axis is drawn, where the NIST dots sit. */
-const BOTTOM = 160;
-const AXIS_Y = 166;
-const DOT_Y = 163;
 
 /** What drives a bar's height. */
 export type BarQuantity = "rate" | "emissivity";
@@ -423,6 +420,15 @@ export function SpectrumView() {
      on every render, loading included. */
   const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
   const LINES_H = plotHeight(W, SHAPE.lines.ratio, SHAPE.lines.min, SHAPE.lines.max);
+  /* Where the bars stand, where the axis is drawn, where the NIST dots sit.
+     Measured up from the bottom, not down from the top, because what is below
+     the axis is two rows of text: the tick labels and then the axis title.
+     Those are a fixed 40 units whatever the panel's height, and pinning them
+     to the top instead is how the title came to be printed through the ticks
+     the moment the panel was not exactly 206 tall. */
+  const BOTTOM = LINES_H - 46;
+  const AXIS_Y = LINES_H - 40;
+  const DOT_Y = LINES_H - 43;
   const RES_H = plotHeight(W, SHAPE.residual.ratio, SHAPE.residual.min, SHAPE.residual.max);
   const window_ = spectrum ? wavelengthWindow(spectrum.lines, fullRange) : null;
   const xRange: [number, number] = [M.left, W - M.right];
