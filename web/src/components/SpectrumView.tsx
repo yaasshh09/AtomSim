@@ -25,15 +25,19 @@ import { CurveOfGrowthView } from "./CurveOfGrowthView";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider, Toggle } from "./Field";
 import { HoverReadout, usePlotHover } from "./PlotHover";
+import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
-const LINES_H = 190;
-const RES_H = 150;
+const LINES_H = 206;
+const RES_H = 168;
 const M = { left: 56, right: 16 };
 
 const TOP = 28;
-const BOTTOM = LINES_H - 30;
+/** Where the bars stand, where the axis is drawn, where the NIST dots sit. */
+const BOTTOM = 160;
+const AXIS_Y = 166;
+const DOT_Y = 163;
 
 /** What drives a bar's height. */
 export type BarQuantity = "rate" | "emissivity";
@@ -214,6 +218,19 @@ const ZOOM_H = 210;
 const ZOOM_BASE = ZOOM_H - 40;
 
 /**
+ * The unit to print a residual axis in.
+ *
+ * The residuals are fractions, and a fraction of 2e-6 written as "2e-6" makes
+ * the reader do the arithmetic before they can compare two dots. Parts per
+ * million is the unit these actually live in, and a percentage is the unit a
+ * coarse comparison lives in; either way the axis says which.
+ */
+export function residualUnit(tol: number): { scale: number; label: string } {
+  if (tol < 1e-3) return { scale: 1e6, label: "parts per million" };
+  return { scale: 100, label: "percent" };
+}
+
+/**
  * One line, linear on both axes: the only place a profile's actual shape gets
  * shown rather than implied. The full-range trace has a log wavelength axis
  * and a log intensity axis, so a line there is a spike no matter what it
@@ -389,9 +406,22 @@ export function SpectrumView() {
   }, [absorption, thermal, logColumn, system, fineStructure, temperatureK,
       logNe, logResolvingPower, profileZoom, loadAbsorption]);
 
-  const hover = usePlotHover(W);
+  /* Computed above the early return because the zoom below it is a hook: the
+     window is what the zoom is a window into, so the two have to be reachable
+     on every render, loading included. */
+  const window_ = spectrum ? wavelengthWindow(spectrum.lines, fullRange) : null;
+  const xRange: [number, number] = [M.left, W - M.right];
+  const xFull: [number, number] = window_
+    ? [window_.lo * 0.9, window_.hi * 1.1]
+    : [1, 1000];
+  const zoom = usePlotZoom({
+    width: W,
+    height: LINES_H,
+    x: { domain: xFull, range: xRange, log: true },
+  });
+  const hover = usePlotHover(W, zoom.element);
 
-  if (!spectrum) {
+  if (!spectrum || !window_) {
     return (
       <div className="view-wrap">
         <ViewIntro lead={VIEW_LEADS.spectrum} />
@@ -400,17 +430,19 @@ export function SpectrumView() {
     );
   }
 
-  const window_ = wavelengthWindow(spectrum.lines, fullRange);
   const shown = spectrum.lines.filter(
     (ln) =>
       ln.wavelength_nm.value >= window_.lo && ln.wavelength_nm.value <= window_.hi,
   );
-  const x = scaleLog([window_.lo * 0.9, window_.hi * 1.1], [M.left, W - M.right]);
+  const x = scaleLog(zoom.x, xRange);
   const nLowers = [...new Set(shown.map((ln) => ln.n_lower))].sort((a, b) => a - b);
   const tol = spectrum.tolerance_relative;
   const comp = spectrum.comparison;
-  const yRes = tol ? scaleLinear([-3 * tol, 3 * tol], [RES_H - 30, 14]) : null;
-  const clampY = (v: number) => Math.min(Math.max(v, 14), RES_H - 30);
+  // Stops above the wavelength axis at RES_H - 42, not on it: a dot sitting on
+  // the axis line reads as a dot at zero residual rather than one clamped off
+  // the bottom of the scale.
+  const yRes = tol ? scaleLinear([-3 * tol, 3 * tol], [RES_H - 48, 14]) : null;
+  const clampY = (v: number) => Math.min(Math.max(v, 14), RES_H - 48);
   const nist = nistSummary(comp, tol);
 
   // The scale runs over the lines actually drawn. Letting a hidden microwave
@@ -453,7 +485,7 @@ export function SpectrumView() {
      different visual distance at each end of it, and the reader is aiming
      with their eyes. */
   let hoverLine: SpectralLineInfo | null = null;
-  if (hover.x !== null && withinPlot(hover.x, M.left, W - M.right)) {
+  if (hover.x !== null && !zoom.dragging && withinPlot(hover.x, M.left, W - M.right)) {
     let bestGap = 7;
     for (const ln of shown) {
       const gap = Math.abs(x(ln.wavelength_nm.value) - hover.x);
@@ -536,13 +568,36 @@ export function SpectrumView() {
         <svg
           viewBox={`0 0 ${W} ${LINES_H}`}
           role="img"
-          className={`levels-svg${prof ? " plot-hoverable" : ""}`}
-          ref={hover.ref}
-          onPointerMove={hover.onPointerMove}
+          className={
+            `levels-svg plot-zoomable${prof ? " plot-hoverable" : ""}` +
+            `${zoom.dragging ? " plot-panning" : ""}`
+          }
+          ref={zoom.ref}
+          onPointerDown={zoom.handlers.onPointerDown}
+          onPointerMove={(e) => {
+            zoom.handlers.onPointerMove(e);
+            hover.onPointerMove(e);
+          }}
+          onPointerUp={zoom.handlers.onPointerUp}
+          onPointerCancel={zoom.handlers.onPointerCancel}
+          onDoubleClick={zoom.handlers.onDoubleClick}
           onPointerLeave={hover.onPointerLeave}
         >
+          <defs>
+            {/* The bars and the NIST dots are the data and get clipped to the
+                window. The axis under them is furniture and stays. */}
+            <clipPath id="spectrum-clip">
+              <rect x={M.left} y={0} width={W - M.right - M.left} height={AXIS_Y} />
+            </clipPath>
+          </defs>
+          {thinTicks(x.ticks(8), x, 34).map((t) => (
+            <line
+              key={`g-${t}`} x1={x(t)} x2={x(t)} y1={TOP - 12} y2={AXIS_Y}
+              className="grid-line"
+            />
+          ))}
           <line
-            x1={M.left} x2={W - M.right} y1={LINES_H - 24} y2={LINES_H - 24}
+            x1={M.left} x2={W - M.right} y1={AXIS_Y} y2={AXIS_Y}
             className="axis"
           />
           {/* Thinned, because the axis is logarithmic: d3's tick set puts 5000
@@ -551,13 +606,14 @@ export function SpectrumView() {
               by drawn position rather than by value, so the rule holds
               whatever range the line list spans. */}
           {thinTicks(x.ticks(8), x, 34).map((t) => (
-            <g key={t} transform={`translate(${x(t)},${LINES_H - 24})`}>
+            <g key={t} transform={`translate(${x(t)},${AXIS_Y})`}>
               <line y2="5" className="axis" />
               <text y="17" textAnchor="middle" className="tick">
                 {t}
               </text>
             </g>
           ))}
+          <g clipPath="url(#spectrum-clip)">
           {shown.map((ln, i) => (
             <line
               key={i}
@@ -576,10 +632,17 @@ export function SpectrumView() {
           {tracePath && <path d={tracePath} className="profile-curve" />}
           {comp?.map((c, i) => (
             <circle
-              key={i} cx={x(c.reference_nm)} cy={LINES_H - 27} r={2.5}
+              key={i} cx={x(c.reference_nm)} cy={DOT_Y} r={2.5}
               className={c.within_tolerance ? "ref-ok" : "ref-bad"}
             />
           ))}
+          </g>
+          <text
+            x={(M.left + W - M.right) / 2} y={LINES_H - 3}
+            textAnchor="middle" className="axis-title"
+          >
+            wavelength [nm] (log)
+          </text>
           <text x={W - M.right} y={16} textAnchor="end" className="tick">
             bars: computed · dots on the axis: measured by NIST
           </text>
@@ -595,6 +658,7 @@ export function SpectrumView() {
             />
           )}
         </svg>
+        <ZoomControls zoom={zoom} what="wavelength" />
       </figure>
 
       {/* The view is called "vs NIST", so the answer to that comparison goes
@@ -610,24 +674,89 @@ export function SpectrumView() {
             <Notation>{nist.headline}</Notation>
           </p>
           {yRes && tol && (
-            <svg viewBox={`0 0 ${W} ${RES_H}`} role="img" className="levels-svg">
+            <>
+            {/* One wavelength axis, drawn twice: this panel follows the zoom
+                above rather than carrying a second window that could disagree
+                with it. Scrolling either one moves both. */}
+            <svg
+              viewBox={`0 0 ${W} ${RES_H}`}
+              role="img"
+              className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
+              ref={zoom.follower}
+              onPointerDown={zoom.handlers.onPointerDown}
+              onPointerMove={zoom.handlers.onPointerMove}
+              onPointerUp={zoom.handlers.onPointerUp}
+              onPointerCancel={zoom.handlers.onPointerCancel}
+              onDoubleClick={zoom.handlers.onDoubleClick}
+            >
+              <defs>
+                <clipPath id="residual-clip">
+                  <rect x={M.left} y={0} width={W - M.right - M.left} height={RES_H} />
+                </clipPath>
+              </defs>
+              {/* The residuals carry their own wavelength scale. Reading a dot
+                  off the plot above meant matching two panels by eye. */}
+              {thinTicks(x.ticks(8), x, 34).map((t) => (
+                <g key={`rg-${t}`}>
+                  <line
+                    x1={x(t)} x2={x(t)} y1={14} y2={RES_H - 42}
+                    className="grid-line"
+                  />
+                  <text
+                    x={x(t)} y={RES_H - 28} textAnchor="middle" className="tick"
+                  >
+                    {t}
+                  </text>
+                </g>
+              ))}
+              <line
+                x1={M.left} x2={W - M.right} y1={RES_H - 42} y2={RES_H - 42}
+                className="axis"
+              />
               <rect
                 x={M.left} width={W - M.left - M.right}
                 y={yRes(tol)} height={yRes(-tol) - yRes(tol)} className="tol-band"
               />
               <line x1={M.left} x2={W - M.right} y1={yRes(0)} y2={yRes(0)} className="zero" />
+              {/* The residual axis, in a unit a reader can hold in their head.
+                  Every dot was a bare fraction before, on a scale with two
+                  labelled points: the band edges. */}
+              {yRes.ticks(5).map((t) => (
+                <g key={`ry-${t}`} transform={`translate(${M.left},${yRes(t)})`}>
+                  <line x2="-4" className="axis" />
+                  <text x="-7" dy="0.32em" textAnchor="end" className="tick">
+                    {(t * residualUnit(tol).scale).toFixed(0)}
+                  </text>
+                </g>
+              ))}
+              <text
+                x={11} y={RES_H / 2} textAnchor="middle" className="axis-title"
+                transform={`rotate(-90 11 ${RES_H / 2})`}
+              >
+                {residualUnit(tol).label}
+              </text>
+              <g clipPath="url(#residual-clip)">
               {comp!.map((c, i) => (
                 <circle
                   key={i} cx={x(c.reference_nm)} cy={clampY(yRes(c.relative_error))} r={3}
                   className={c.within_tolerance ? "ref-ok" : "ref-bad"}
                 />
               ))}
+              </g>
               <text x={M.left} y={12} className="tick">
                 {mathTspans(
                   `(λ_computed − λ_NIST)/λ_NIST, shaded band = the stated tolerance, ±${tol.toExponential(0)}`,
                 )}
               </text>
+              <text
+                x={(M.left + W - M.right) / 2} y={RES_H - 6}
+                textAnchor="middle" className="axis-title"
+              >
+                wavelength [nm] (log)
+              </text>
             </svg>
+            <ZoomControls zoom={zoom} what="wavelength" />
+            </>
           )}
           <p className="caption">
             Each dot is one measured line. Inside the shaded band, the computed

@@ -1,15 +1,16 @@
 import { scaleLinear, scaleLog } from "d3-scale";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import type { FieldData, Quantity, ShellPeak } from "../api/types";
 import { VIEW_LEADS } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { formatHover, nearestIndex, withinPlot } from "../lib/hover";
-import { Notation } from "../lib/mathText";
+import { Notation, mathTspans } from "../lib/mathText";
 import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { HoverReadout, usePlotHover } from "./PlotHover";
+import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 const W = 640;
@@ -154,14 +155,16 @@ function FieldPlot({
   const didTrim = end < fullEnd;
 
   const rMax = grid[grid.length - 1];
-  const x = logX
-    ? scaleLog(
-        // Start at the first grid point, not zero: log has no zero, and the
-        // mesh starts where it does precisely so r = 0 is never needed.
-        [Math.max(grid[0], 1e-4), rMax],
-        [M.left, W - M.right],
-      )
-    : scaleLinear([0, rMax], [M.left, W - M.right]);
+  const xRange: [number, number] = [M.left, W - M.right];
+  // Start a log axis at the first grid point, not at zero: log has no zero,
+  // and the mesh starts where it does precisely so r = 0 is never needed.
+  const xFull: [number, number] = logX ? [Math.max(grid[0], 1e-4), rMax] : [0, rMax];
+  const zoom = usePlotZoom({
+    width: W,
+    height: H,
+    x: { domain: xFull, range: xRange, log: logX },
+  });
+  const x = logX ? scaleLog(zoom.x, xRange) : scaleLinear(zoom.x, xRange);
   // Decades only on a log axis. d3's own log ticks include every 2x, 3x and so
   // on inside each decade, and at this width they overprint into an unreadable
   // band.
@@ -169,18 +172,35 @@ function FieldPlot({
   // Both curves share one y domain, because two densities on separate scales
   // would show a disagreement neither model has.
   const overlayValues = overlay ? overlay.field.values.slice(0, end) : [];
-  const all = overlay ? [...values, ...overlayValues] : values;
+  /* The vertical scale follows the window. Zooming into a tail whose amplitude
+     is a thousandth of the peak would otherwise magnify a flat line: the point
+     of going in there is to see the shape, and the shape is only visible on a
+     scale that fits it. The axis is relabelled every time, so its numbers keep
+     up with what is drawn. */
+  const iLo = Math.max(0, nearestIndex(grid, zoom.x[0]) - 1);
+  const iHi = Math.min(values.length - 1, nearestIndex(grid, zoom.x[1]) + 1);
+  const all = overlay
+    ? [...values.slice(iLo, iHi + 1), ...overlayValues.slice(iLo, iHi + 1)]
+    : values.slice(iLo, iHi + 1);
   const lo = Math.min(0, ...all);
   const hi = Math.max(...all);
   const y = scaleLinear([lo, hi], [H - M.bottom, M.top]).nice();
   const nodes = showNodes ? zeroCrossings(grid, values) : [];
+  // A filled area, but only where the curve cannot go negative. Under a signed
+  // R(r) the fill would swap sides at every node and read as two quantities.
+  const area =
+    lo >= 0
+      ? `${linePath(grid, values, x, y)}L${x(grid[grid.length - 1]).toFixed(2)},` +
+        `${y(0).toFixed(2)}L${x(grid[0]).toFixed(2)},${y(0).toFixed(2)}Z`
+      : null;
+  const clipId = useId();
 
-  const hover = usePlotHover(W);
+  const hover = usePlotHover(W, zoom.element);
   // The crosshair snaps to a grid point, so the number in the box is the
   // engine's own sample and not an interpolation. See lib/hover.ts for why
   // that rule does not bend.
   const hoverIndex =
-    hover.x !== null && withinPlot(hover.x, M.left, W - M.right)
+    hover.x !== null && !zoom.dragging && withinPlot(hover.x, M.left, W - M.right)
       ? nearestIndex(grid, x.invert(hover.x))
       : -1;
   const hoverLines =
@@ -213,11 +233,42 @@ function FieldPlot({
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        className="plot-hoverable"
-        ref={hover.ref}
-        onPointerMove={hover.onPointerMove}
+        className={`plot-hoverable plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
+        ref={zoom.ref}
+        onPointerDown={zoom.handlers.onPointerDown}
+        onPointerMove={(e) => {
+          zoom.handlers.onPointerMove(e);
+          hover.onPointerMove(e);
+        }}
+        onPointerUp={zoom.handlers.onPointerUp}
+        onPointerCancel={zoom.handlers.onPointerCancel}
+        onDoubleClick={zoom.handlers.onDoubleClick}
         onPointerLeave={hover.onPointerLeave}
       >
+        <defs>
+          {/* Only the drawn data is clipped. The axis, its ticks and the
+              titles are furniture: they describe the window rather than living
+              inside it, so they stay put while the curve slides. */}
+          <clipPath id={clipId}>
+            <rect
+              x={M.left} y={M.top - 6}
+              width={W - M.right - M.left} height={H - M.bottom - M.top + 6}
+            />
+          </clipPath>
+        </defs>
+        {/* Gridlines first, so everything else sits on top of them. */}
+        {xTicks.map((t) => (
+          <line
+            key={`gx-${t}`} x1={x(t)} x2={x(t)} y1={M.top} y2={H - M.bottom}
+            className="grid-line"
+          />
+        ))}
+        {y.ticks(4).map((t) => (
+          <line
+            key={`gy-${t}`} x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)}
+            className="grid-line"
+          />
+        ))}
         <line
           x1={M.left} y1={H - M.bottom} x2={W - M.right} y2={H - M.bottom}
           className="axis"
@@ -242,13 +293,15 @@ function FieldPlot({
         {lo < 0 && (
           <line x1={M.left} x2={W - M.right} y1={y(0)} y2={y(0)} className="zero" />
         )}
-        <path d={linePath(grid, values, x, y)} className="curve" />
-        {overlay && (
-          <path
-            d={linePath(overlay.field.grid.slice(0, end), overlayValues, x, y)}
-            className="curve curve-overlay"
-          />
-        )}
+        <g clipPath={`url(#${clipId})`}>
+          {area && <path d={area} className="curve-area" />}
+          <path d={linePath(grid, values, x, y)} className="curve" />
+          {overlay && (
+            <path
+              d={linePath(overlay.field.grid.slice(0, end), overlayValues, x, y)}
+              className="curve curve-overlay"
+            />
+          )}
         {/* Nodes go on the axis rather than through the curve: the mark points
             at a place on r, and a full-height rule there would read as another
             quantity being plotted. */}
@@ -269,10 +322,21 @@ function FieldPlot({
             </text>
           </g>
         )}
+        </g>
         <text
-          x={(M.left + W - M.right) / 2} y={H - 4} textAnchor="middle" className="tick"
+          x={(M.left + W - M.right) / 2} y={H - 4} textAnchor="middle"
+          className="axis-title"
         >
           r [{field.grid_unit}]{logX ? " (log)" : ""}
+        </text>
+        {/* The vertical axis names itself too. It was the one scale on these
+            plots whose unit lived only in the caption. */}
+        <text
+          x={13} y={(M.top + H - M.bottom) / 2} textAnchor="middle"
+          className="axis-title"
+          transform={`rotate(-90 13 ${(M.top + H - M.bottom) / 2})`}
+        >
+          {mathTspans(field.unit)}
         </text>
         {hoverIndex >= 0 && (
           <HoverReadout
@@ -286,6 +350,7 @@ function FieldPlot({
           />
         )}
       </svg>
+      <ZoomControls zoom={zoom} what="r" />
       {(nodes.length > 0 || didTrim) && (
         <p className="plot-foot">
           {nodes.length > 0 && (
@@ -301,9 +366,9 @@ function FieldPlot({
                   end of the payload, not the wall of the solve box. Saying
                   otherwise would assert a number nobody ever supplied. The
                   badge carries both radii. */}
-              The axis stops at {formatHover(rMax)} {field.grid_unit}, past which
-              the curve is under a thousandth of its peak. The data sent here
-              runs to {formatHover(field.grid[field.grid.length - 1])}.
+              The curve is drawn out to {formatHover(rMax)} {field.grid_unit},
+              past which it is under a thousandth of its peak. The data sent
+              here runs to {formatHover(field.grid[field.grid.length - 1])}.
             </>
           )}
         </p>

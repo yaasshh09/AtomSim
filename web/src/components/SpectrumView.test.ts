@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Quantity, SpectralLineInfo } from "../api/types";
-import { intensityScale, wavelengthWindow } from "./SpectrumView";
+import { intensityScale, residualUnit, wavelengthWindow } from "./SpectrumView";
 
 const q = (value: number, unit: string): Quantity =>
   ({ value, unit, label: "", provenance: {} }) as never;
@@ -136,5 +136,19 @@ describe("wavelengthWindow", () => {
     // decides what the user sees.
     const w = wavelengthWindow([...optical, within(500)], false);
     expect(w.hidden).toBe(0);
+  });
+});
+
+describe("residualUnit", () => {
+  it("puts a hydrogen-scale tolerance in parts per million", () => {
+    // The vendored comparison runs at 1e-5, so the dots sit at a few ppm and
+    // a bare fraction would read as noise.
+    expect(residualUnit(1e-5).label).toContain("million");
+    expect(residualUnit(1e-5).scale).toBe(1e6);
+  });
+
+  it("switches to percent once the tolerance is coarse", () => {
+    expect(residualUnit(0.02).label).toBe("percent");
+    expect(residualUnit(0.02).scale).toBe(100);
   });
 });

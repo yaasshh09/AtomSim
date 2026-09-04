@@ -14,6 +14,7 @@ import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
+import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
@@ -74,6 +75,50 @@ export function ForceLawView() {
     if (draftError === null && trimmed !== forceExpr) setForceExpr(trimmed);
   };
 
+  const levelsEv = forceLaw ? forceLaw.counterfactual.map((c) => c.energy_ev.value) : [];
+  const refEv = forceLaw ? forceLaw.reference.items.map((i) => i.energy_ev.value) : [];
+  const curveEv = forceLaw ? forceLaw.potential_curve.v_ev : [];
+  const curveR = forceLaw ? forceLaw.potential_curve.r : [];
+
+  const allEv = [...levelsEv, ...refEv, ...curveEv];
+  const emin = allEv.length ? Math.min(...allEv) : -14;
+  const emax = allEv.length ? Math.max(...allEv, 0.1) : 0;
+  const rmax = curveR.length ? curveR[curveR.length - 1] : 1;
+  const yRange: [number, number] = [H - PAD.bottom, PAD.top];
+  const xRange: [number, number] = [PAD.left, W - PAD.right];
+  /* The well zooms on r, and the energy scale follows the window rather than
+     being a second thing to drive. A screened solve runs its box out to
+     hundreds of bohr while every bound state sits inside the first twenty, so
+     r is the axis that hides the physics; and zooming both at once lets the
+     view wander into a corner with nothing in it. The ladder has no r axis at
+     all, so there the energy is the one that zooms.
+
+     Computed above the early return below, since a hook cannot be. */
+  const well = forceViz === "well";
+  const zoom = usePlotZoom({
+    width: W,
+    height: H,
+    x: well ? { domain: [0, rmax], range: xRange } : undefined,
+    y: well ? undefined : { domain: [emin, emax], range: yRange },
+  });
+  const x = scaleLinear(zoom.x, xRange);
+  // Every level stays in the vertical scale, drawn as it is across the whole
+  // width; only the curve is windowed. A level that dropped out of the scale
+  // when it left the window would take its own rung off the picture.
+  const windowEv = well
+    ? curveEv.filter((_, i) => curveR[i] >= zoom.x[0] && curveR[i] <= zoom.x[1])
+    : [];
+  const wellEv = [...levelsEv, ...refEv, ...windowEv];
+  const y = well
+    ? scaleLinear(
+        [
+          wellEv.length ? Math.min(...wellEv) : emin,
+          wellEv.length ? Math.max(...wellEv, 0.1) : emax,
+        ],
+        yRange,
+      )
+    : scaleLinear(zoom.y, yRange);
+
   // This view stays on the menu on purpose. Which view is open is a separate
   // axis from which system is picked, so making the entry vanish when a
   // screened atom is selected would leave someone hunting for a lab that was
@@ -103,18 +148,6 @@ export function ForceLawView() {
 
   const cfProv = forceLaw?.counterfactual[0]?.energy.provenance ?? null;
   const refProv = forceLaw?.reference.items[0]?.energy.provenance ?? null;
-
-  const levelsEv = forceLaw ? forceLaw.counterfactual.map((c) => c.energy_ev.value) : [];
-  const refEv = forceLaw ? forceLaw.reference.items.map((i) => i.energy_ev.value) : [];
-  const curveEv = forceLaw ? forceLaw.potential_curve.v_ev : [];
-  const curveR = forceLaw ? forceLaw.potential_curve.r : [];
-
-  const allEv = [...levelsEv, ...refEv, ...curveEv];
-  const emin = allEv.length ? Math.min(...allEv) : -14;
-  const emax = allEv.length ? Math.max(...allEv, 0.1) : 0;
-  const y = scaleLinear([emin, emax], [H - PAD.bottom, PAD.top]);
-  const rmax = curveR.length ? curveR[curveR.length - 1] : 1;
-  const x = scaleLinear([0, rmax], [PAD.left, W - PAD.right]);
 
   const shortfall = forceLaw !== null && forceLaw.bound_count < forceLaw.requested_count;
 
@@ -268,10 +301,71 @@ export function ForceLawView() {
           {forceViz === "well" ? (
             <svg
               viewBox={`0 0 ${W} ${H}`}
-              className="forcelaw-svg"
+              className={
+                `forcelaw-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`
+              }
               role="img"
               aria-label="potential energy curve with bound levels and reference"
+              ref={zoom.ref}
+              {...zoom.handlers}
             >
+              <defs>
+                <clipPath id="forcelaw-clip">
+                  <rect
+                    x={PAD.left} y={PAD.top - 8}
+                    width={W - PAD.right - PAD.left}
+                    height={H - PAD.bottom - PAD.top + 8}
+                  />
+                </clipPath>
+              </defs>
+              {x.ticks(6).map((t) => (
+                <g key={`vx-${t}`}>
+                  <line
+                    x1={x(t)} x2={x(t)} y1={PAD.top} y2={H - PAD.bottom}
+                    className="grid-line"
+                  />
+                  <text
+                    x={x(t)} y={H - PAD.bottom + 14} textAnchor="middle" className="tick"
+                  >
+                    {Number(t.toPrecision(3))}
+                  </text>
+                </g>
+              ))}
+              {y.ticks(5).map((t) => (
+                <g key={`vy-${t}`}>
+                  <line
+                    x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)}
+                    className="grid-line"
+                  />
+                  <text
+                    x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick"
+                  >
+                    {Number(t.toPrecision(3))}
+                  </text>
+                </g>
+              ))}
+              <line
+                x1={PAD.left} x2={W - PAD.right} y1={H - PAD.bottom} y2={H - PAD.bottom}
+                className="axis"
+              />
+              <line
+                x1={PAD.left} x2={PAD.left} y1={PAD.top} y2={H - PAD.bottom}
+                className="axis"
+              />
+              <text
+                x={(PAD.left + W - PAD.right) / 2} y={H - 8}
+                textAnchor="middle" className="axis-title"
+              >
+                r [bohr]
+              </text>
+              <text
+                x={16} y={(PAD.top + H - PAD.bottom) / 2}
+                textAnchor="middle" className="axis-title"
+                transform={`rotate(-90 16 ${(PAD.top + H - PAD.bottom) / 2})`}
+              >
+                energy [eV]
+              </text>
+              <g clipPath="url(#forcelaw-clip)">
               <path
                 className="forcelaw-curve"
                 d={curveR
@@ -303,12 +397,18 @@ export function ForceLawView() {
                       y2={y(c.energy_ev.value)}
                       style={c.trusted ? undefined : { opacity: 0.5, strokeDasharray: "5 3" }}
                     />
-                    <text x={x2 + 4} y={y(c.energy_ev.value) - 4} className="forcelaw-label">
-                      {c.energy_ev.value.toFixed(2)} eV{c.trusted ? "" : " ⚠"}
-                    </text>
+                    {/* Only where the rung it belongs to is on screen. Zoomed
+                        past a level's turning point the line is clipped away,
+                        and its label was left hanging half-cut on the frame. */}
+                    {x2 >= PAD.left && x2 <= W - PAD.right - 60 && (
+                      <text x={x2 + 4} y={y(c.energy_ev.value) - 4} className="forcelaw-label">
+                        {c.energy_ev.value.toFixed(2)} eV{c.trusted ? "" : " ⚠"}
+                      </text>
+                    )}
                   </g>
                 );
               })}
+              </g>
               <text x={PAD.left} y={PAD.top - 12} className="forcelaw-col">
                 {mathTspans(`V(r) and bound levels: ${potLabel}`)}
               </text>
@@ -316,10 +416,34 @@ export function ForceLawView() {
           ) : (
             <svg
               viewBox={`0 0 ${W} ${H}`}
-              className="forcelaw-svg"
+              className={
+                `forcelaw-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`
+              }
               role="img"
               aria-label="energy levels versus reference"
+              ref={zoom.ref}
+              {...zoom.handlers}
             >
+              {y.ticks(5).map((t) => (
+                <g key={`ly-${t}`}>
+                  <line
+                    x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)}
+                    className="grid-line"
+                  />
+                  <text
+                    x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick"
+                  >
+                    {Number(t.toPrecision(3))}
+                  </text>
+                </g>
+              ))}
+              <text
+                x={16} y={(PAD.top + H - PAD.bottom) / 2}
+                textAnchor="middle" className="axis-title"
+                transform={`rotate(-90 16 ${(PAD.top + H - PAD.bottom) / 2})`}
+              >
+                energy [eV]
+              </text>
               {forceLaw.reference.items.map((item, i) => (
                 <g key={`ref-${i}`}>
                   <line
@@ -362,6 +486,8 @@ export function ForceLawView() {
               </text>
             </svg>
           )}
+
+          <ZoomControls zoom={zoom} what={well ? "r" : "the energy axis"} />
 
           <Disclosure summary="What the two sets of rungs are">
             <p className="hint-block">

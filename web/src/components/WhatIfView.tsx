@@ -22,13 +22,17 @@ import {
 } from "../lib/whatif";
 import { Notation, mathTspans } from "../lib/mathText";
 import { useAppStore } from "../state/store";
+import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
+import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 const W = 720;
 const H = 480;
+/** Where the gross ladder is drawn, deepest rung to the ionization limit. */
+const LADDER_RANGE: [number, number] = [H - 40, 60];
 const ZOOM_N = 2; // the textbook shell: the 2p3/2 - 2p1/2 split grows with alpha
 
 const REAL_ALL: ConstMultipliers = { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 };
@@ -40,6 +44,17 @@ export function WhatIfView() {
   useEffect(() => {
     if (whatif === null && whatifStatus === "idle") void loadWhatIf();
   }, [whatif, whatifStatus, loadWhatIf]);
+
+  /* Above the two early returns below, because it is a hook. While the lab is
+     still loading there is no ladder and the window is a placeholder. */
+  const zoom = usePlotZoom({
+    width: W,
+    height: H,
+    y: {
+      domain: [whatif ? whatif.real.gross[0].energy.value : -0.5, 0],
+      range: LADDER_RANGE,
+    },
+  });
 
   if (whatifStatus === "error") return <p className="error">{error}</p>;
   if (!whatif) {
@@ -80,13 +95,14 @@ export function WhatIfView() {
   // The gross ladder shows STRUCTURE only, in units of E_h (hartree). The
   // absolute scale stays in the readouts above, which is the honest way to
   // split structure from scale.
-  const eMin = real.gross[0].energy.value;
-  const y = scaleLinear([eMin, 0], [H - 40, 60]);
+  const y = scaleLinear(zoom.y, LADDER_RANGE);
   const rx1 = 70;
   const rx2 = 300;
   // Same crowding as the levels ladder, and the same fix: the rungs go as
-  // -1/n^2, which printed the top three labels through one another.
-  const grossY = real.gross.map((g) => y(g.energy.value));
+  // -1/n^2, which printed the top three labels through one another. Zooming
+  // narrows which rungs are on screen, and only those are spread.
+  const gross = withinView(real.gross, (g) => g.energy.value, zoom.y);
+  const grossY = gross.map((g) => y(g.energy.value));
   const grossLabelY = spreadLabels(grossY, 13, 46, H - 28);
 
   // The n=2 fine split, in µE_h (hartree * 1e6). Normalized, so not real eV.
@@ -201,13 +217,24 @@ export function WhatIfView() {
         ))}
       </dl>
 
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
+        ref={zoom.ref}
+        {...zoom.handlers}
+      >
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
           {mathTspans(
             `gross levels (Z=${real.system.z}): structure in units of E_h, α-independent`,
           )}
         </text>
-        {real.gross.map((g, i) => {
+        <OffWindowMarks
+          above={real.gross.filter((g) => g.energy.value > Math.max(...zoom.y)).length}
+          below={real.gross.filter((g) => g.energy.value < Math.min(...zoom.y)).length}
+          x={rx1} top={46} bottom={H - 14} noun="shell"
+        />
+        {gross.map((g, i) => {
           const yr = grossY[i];
           const yl = grossLabelY[i];
           const nudged = Math.abs(yl - yr) > 1;
@@ -261,6 +288,7 @@ export function WhatIfView() {
           ))
         )}
       </svg>
+      <ZoomControls zoom={zoom} what="the ladder's energy axis" />
 
       <p className={beyondValidity ? "error" : "caption"}>{caption}</p>
 

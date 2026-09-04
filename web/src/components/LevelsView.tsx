@@ -13,20 +13,35 @@ import {
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { Notation, mathTspans } from "../lib/mathText";
 import { useAppStore } from "../state/store";
+import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
+import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 const W = 680;
 const H = 460;
+/** Where the hydrogen ladder's energy axis is drawn, top rung to bottom. */
+const LADDER_RANGE: [number, number] = [H - 40, 24];
 
 function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
-  const orbitals = levels.orbitals;
-  const es = orbitals.map((o) => o.energy_ev.value);
+  const all = levels.orbitals;
+  const es = all.map((o) => o.energy_ev.value);
   const eMin = Math.min(...es);
   const eMax = Math.max(...es, 0); // the ionization threshold at 0 belongs on the scale
-  const y = scaleLinear([eMin, eMax], [H - 40, 24]);
+  const yRange: [number, number] = [H - 40, 24];
+  const zoom = usePlotZoom({
+    width: W,
+    height: H,
+    y: { domain: [eMin, eMax], range: yRange },
+  });
+  const y = scaleLinear(zoom.y, yRange);
+  /* Only the rungs inside the window get their labels spread. Spreading a
+     label for a subshell three screens above the frame would push every
+     visible one aside to make room for something nobody can see, which is the
+     opposite of what zooming into a crowded ladder is for. */
+  const orbitals = withinView(all, (o) => o.energy_ev.value, zoom.y);
   const rungX1 = 90;
   const rungX2 = 340;
   /* Neon's virtual orbitals sit within a couple of eV of the ionization limit,
@@ -34,9 +49,14 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
      own label. The ionization line goes into the spread rather than staying
      out of it, because it is the row everything else crowds against: holding
      it fixed would have fixed the rungs and kept the collision that matters. */
-  const rowY = [y(0), ...orbitals.map((o) => y(o.energy_ev.value))];
+  const limitShown = 0 >= Math.min(...zoom.y) && 0 <= Math.max(...zoom.y);
+  const rowY = [
+    ...(limitShown ? [y(0)] : []),
+    ...orbitals.map((o) => y(o.energy_ev.value)),
+  ];
   const labelY = spreadLabels(rowY, 13, 18, H - 26);
-  const limitLabelY = labelY[0];
+  const limitLabelY = limitShown ? labelY[0] : 0;
+  const rungLabelY = limitShown ? labelY.slice(1) : labelY;
   return (
     <div className="view-wrap">
       <ViewIntro
@@ -50,29 +70,44 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
             "Watch s sit below p below d at the same n. Hydrogen stacks those " +
             "on top of each other; screening is what pulls them apart.",
         }}
-        badge={<Badge provenance={orbitals[0].energy.provenance} />}
+        badge={<Badge provenance={all[0].energy.provenance} />}
       >
         <p className="view-intro-config">
           {levels.config}
           {levels.is_ground ? " · ground configuration" : " · excited, not the ground state"}
         </p>
       </ViewIntro>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
+        ref={zoom.ref}
+        {...zoom.handlers}
+      >
+        <OffWindowMarks
+          above={all.filter((o) => o.energy_ev.value > Math.max(...zoom.y)).length}
+          below={all.filter((o) => o.energy_ev.value < Math.min(...zoom.y)).length}
+          x={rungX1} top={18} bottom={H - 14} noun="subshell"
+        />
         {/* the ionization threshold */}
-        <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
-        {Math.abs(limitLabelY - y(0)) > 1 && (
-          <line
-            x1={rungX2 + 4} x2={rungX2 + 26} y1={y(0)} y2={limitLabelY}
-            className="leader"
-          />
+        {limitShown && (
+          <>
+            <line x1={rungX1} x2={rungX2} y1={y(0)} y2={y(0)} className="zero" />
+            {Math.abs(limitLabelY - y(0)) > 1 && (
+              <line
+                x1={rungX2 + 4} x2={rungX2 + 26} y1={y(0)} y2={limitLabelY}
+                className="leader"
+              />
+            )}
+            <text x={rungX2 + 30} y={limitLabelY} dy="0.32em" className="tick">
+              0: ionization limit
+            </text>
+          </>
         )}
-        <text x={rungX2 + 30} y={limitLabelY} dy="0.32em" className="tick">
-          0: ionization limit
-        </text>
         {orbitals.map((o, i) => {
           const filled = o.occupancy > 0;
           const yr = y(o.energy_ev.value);
-          const yl = labelY[i + 1];
+          const yl = rungLabelY[i];
           const nudged = Math.abs(yl - yr) > 1;
           return (
             <g key={`${o.n}-${o.l}`}>
@@ -104,6 +139,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
           );
         })}
       </svg>
+      <ZoomControls zoom={zoom} what="the energy axis" />
       <p className="caption">
         Total energy {levels.total_energy_ev.value.toFixed(2)} eV.
       </p>
@@ -207,10 +243,15 @@ function HFLadder({ levels }: { levels: HFLevels }) {
   // welded to the frame edge, and deliberately no more. A generous gap above
   // the topmost level reads as "this one is far from ionization" when on a log
   // axis it is the one CLOSEST to it, and the empty band means nothing.
-  const y = scaleLinear(
-    [Math.log10(shallowest) - 0.25, Math.log10(deepest)],
-    [40, H - 40],
-  );
+  /* Zoomed in log-binding-energy space, which is the space the axis is drawn
+     in: one wheel notch then covers the same fraction of the picture wherever
+     it lands, rather than a hundredth of a decade at the top and a whole one
+     at the bottom. */
+  const yRange: [number, number] = [40, H - 40];
+  const yFull: [number, number] = [Math.log10(shallowest) - 0.25, Math.log10(deepest)];
+  const zoom = usePlotZoom({ width: W, height: H, y: { domain: yFull, range: yRange } });
+  const y = scaleLinear(zoom.y, yRange);
+  const shown = withinView(orbitals, (o) => Math.log10(Math.abs(o.energy_ev.value)), zoom.y);
   const rungX1 = 100;
   const rungX2 = 360;
   const virial = levels.virial_ratio.value;
@@ -243,12 +284,27 @@ function HFLadder({ levels }: { levels: HFLevels }) {
             : " · excited, not the ground state"}
         </p>
       </ViewIntro>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        className={`levels-svg plot-zoomable${zoom.dragging ? " plot-panning" : ""}`}
+        ref={zoom.ref}
+        {...zoom.handlers}
+      >
         {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
         <text x={rungX1} y={16} className="tick" opacity={0.7}>
           ↑ 0 eV (ionization limit), off the top of a log axis
         </text>
-        {orbitals.map((o) => {
+        <OffWindowMarks
+          above={orbitals.filter(
+            (o) => Math.log10(Math.abs(o.energy_ev.value)) < Math.min(...zoom.y),
+          ).length}
+          below={orbitals.filter(
+            (o) => Math.log10(Math.abs(o.energy_ev.value)) > Math.max(...zoom.y),
+          ).length}
+          x={rungX1} top={30} bottom={H - 14} noun="subshell"
+        />
+        {shown.map((o) => {
           const e = o.energy_ev.value;
           const yr = y(Math.log10(Math.abs(e)));
           return (
@@ -269,6 +325,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           );
         })}
       </svg>
+      <ZoomControls zoom={zoom} what="the binding-energy axis" />
       <p className="caption">
         Total energy {levels.total_energy_ev.value.toFixed(2)} eV
         {levels.exchange
@@ -346,6 +403,21 @@ export function LevelsView() {
     if (wantHF && hf === null && hfStatus === "idle") void loadHF();
   }, [wantHF, hf, hfStatus, system, config, exchange, pauli, loadHF]);
 
+  /* Above the returns below, because it is a hook and they are conditional.
+     The ladder it zooms exists only on the hydrogenic branch, so on every
+     other one it holds a placeholder window that nothing draws. */
+  const ladderZoom = usePlotZoom({
+    width: W,
+    height: H,
+    y: {
+      domain:
+        levels && !isScreenedLevels(levels)
+          ? [levels.gross[0].energy_ev.value, 0]
+          : [-13.6, 0],
+      range: LADDER_RANGE,
+    },
+  });
+
   if (wantHF) {
     if (hfStatus === "error") {
       return (
@@ -361,8 +433,7 @@ export function LevelsView() {
   if (!levels) return <p className="hint-block">Loading the levels…</p>;
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
-  const eMin = levels.gross[0].energy_ev.value;
-  const y = scaleLinear([eMin, 0], [H - 40, 24]);
+  const y = scaleLinear(ladderZoom.y, LADDER_RANGE);
   const rungX1 = 70;
   const rungX2 = 320;
   /* Only transitions that actually cross a shell can be drawn on this ladder.
@@ -381,7 +452,11 @@ export function LevelsView() {
      -1/n², and past n = 4 the labels printed through one another. The rungs
      stay where the physics puts them; only the text gets nudged apart, with a
      leader line back to the rung each label belongs to. */
-  const rungY = levels.gross.map((g) => y(g.energy_ev.value));
+  /* The window decides which rungs are on screen, and only those get spread.
+     Zoomed into the top of the ladder, that is what turns six labels printed
+     through one another into six readable rows. */
+  const gross = withinView(levels.gross, (g) => g.energy_ev.value, ladderZoom.y);
+  const rungY = gross.map((g) => y(g.energy_ev.value));
   const labelY = spreadLabels(rungY, 13, 20, H - 28);
   const fineForN = levels.fine?.filter((f) => f.n === n) ?? [];
   // The hyperfine shell for the selected n. When it is unavailable the server
@@ -521,8 +596,23 @@ export function LevelsView() {
           : ""}
       </p>
 
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
-        {levels.gross.map((g, i) => {
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        className={`levels-svg plot-zoomable${ladderZoom.dragging ? " plot-panning" : ""}`}
+        ref={ladderZoom.ref}
+        {...ladderZoom.handlers}
+      >
+        <OffWindowMarks
+          above={levels.gross.filter(
+            (g) => g.energy_ev.value > Math.max(...ladderZoom.y),
+          ).length}
+          below={levels.gross.filter(
+            (g) => g.energy_ev.value < Math.min(...ladderZoom.y),
+          ).length}
+          x={rungX1} top={18} bottom={H - 14} noun="shell"
+        />
+        {gross.map((g, i) => {
           const yr = rungY[i];
           const yl = labelY[i];
           const nudged = Math.abs(yl - yr) > 1;
@@ -574,6 +664,16 @@ export function LevelsView() {
             </g>
           );
         })}
+        {/* Clipped, because an arrow can outlive its rung: zoom in on the top
+            of the ladder and a Lyman transition still starts inside the window
+            and ends far below it. The arrow is real and stays drawn; what it
+            must not do is run out through the frame. */}
+        <defs>
+          <clipPath id="ladder-clip">
+            <rect x={0} y={16} width={W} height={H - 46} />
+          </clipPath>
+        </defs>
+        <g clipPath="url(#ladder-clip)">
         {arrows.map((a, i) => {
           if (!grossE.has(a.n_upper) || !grossE.has(a.n_lower)) return null;
           const ax = rungX1 + 30 + i * 26;
@@ -597,6 +697,7 @@ export function LevelsView() {
             </g>
           );
         })}
+        </g>
         {mode === "fine" || mode === "zeeman"
           ? fineForN.length > 0 &&
             (() => {
@@ -774,6 +875,13 @@ export function LevelsView() {
             );
           })()}
       </svg>
+      <ZoomControls zoom={ladderZoom} what="the energy axis" />
+      {gross.length < levels.gross.length && (
+        <p className="caption">
+          The right-hand magnifier keeps its own scale, which this zoom does not
+          touch.
+        </p>
+      )}
 
       {/* One sentence on whatever the magnifier is showing. The full account
           stays in the disclosure underneath, unchanged. */}
