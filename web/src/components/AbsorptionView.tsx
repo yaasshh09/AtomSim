@@ -1,6 +1,7 @@
 import { scaleLinear, scaleLog } from "d3-scale";
 import type { AbsorptionInfo, AbsorbingLineInfo } from "../api/types";
 import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
+import { Notation } from "../lib/mathText";
 import { Badge } from "./Badge";
 import { REGIME_COLOR, REGIME_LABEL } from "./CurveOfGrowthView";
 
@@ -337,9 +338,9 @@ export function AbsorptionView({
 
       <p className="caption">
         <strong>
-          Equivalent width {abs.equivalent_width_nm.toExponential(3)} nm
+          Equivalent width <Notation>{abs.equivalent_width_nm.toExponential(3)}</Notation> nm
         </strong>{" "}
-        against {abs.thin_limit_width_nm.toExponential(3)} nm if nothing
+        against <Notation>{abs.thin_limit_width_nm.toExponential(3)}</Notation> nm if nothing
         saturated or overlapped. That is{" "}
         <strong>{(100 * abs.saturation).toFixed(1)}%</strong> of what a naive
         sum predicts. Put plainly: {saturationVerdict(abs.saturation)}.
@@ -364,7 +365,7 @@ export function AbsorptionView({
 
       <p className="caption">
         One column density covers the whole element,{" "}
-        {abs.column_density_m2.toExponential(2)} m⁻², but each line absorbs
+        <Notation>{abs.column_density_m2.toExponential(2)}</Notation> m⁻², but each line absorbs
         using only the atoms in <em>its own</em> lower level. That is the whole
         reason the Lyman lines come out black while the Balmer lines are
         invisible in the same gas, and it is the one thing an emission spectrum
@@ -385,11 +386,19 @@ export function AbsorptionView({
         <tbody>
           {strongest.slice(0, 12).map((d: AbsorbingLineInfo, i) => (
             <tr key={`${d.label}-${d.wavelength_nm}-${i}`}>
-              <td>{d.label}</td>
+              <td>
+                <Notation>{d.label}</Notation>
+              </td>
               <td>{d.wavelength_nm.toFixed(3)}</td>
-              <td>{d.oscillator_strength.toExponential(2)}</td>
-              <td>{d.lower_column_m2.toExponential(2)}</td>
-              <td>{d.tau_centre.toExponential(2)}</td>
+              <td>
+                <Notation>{d.oscillator_strength.toExponential(2)}</Notation>
+              </td>
+              <td>
+                <Notation>{d.lower_column_m2.toExponential(2)}</Notation>
+              </td>
+              <td>
+                <Notation>{d.tau_centre.toExponential(2)}</Notation>
+              </td>
               <td style={{ color: REGIME_COLOR[d.regime] }}>{d.regime}</td>
             </tr>
           ))}

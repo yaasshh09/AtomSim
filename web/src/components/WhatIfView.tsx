@@ -20,6 +20,7 @@ import {
   formatRatio,
   shellSplitting,
 } from "../lib/whatif";
+import { Notation, mathTspans } from "../lib/mathText";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
@@ -187,10 +188,11 @@ export function WhatIfView() {
         {readouts.map((r) => (
           <div key={r.key} className="readout-row">
             <dt>
-              {r.label} <Badge provenance={r.obs.quantity.provenance} />
+              <Notation>{r.label}</Notation>{" "}
+              <Badge provenance={r.obs.quantity.provenance} />
             </dt>
             <dd>
-              {r.text}{" "}
+              <Notation>{r.text}</Notation>{" "}
               <span className={r.obs.changed ? "readout-ratio changed" : "readout-ratio"}>
                 {formatRatio(r.obs.ratio)}
               </span>
@@ -201,7 +203,9 @@ export function WhatIfView() {
 
       <svg viewBox={`0 0 ${W} ${H}`} role="img" className="levels-svg">
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
-          gross levels (Z={real.system.z}): structure in units of E_h, α-independent
+          {mathTspans(
+            `gross levels (Z=${real.system.z}): structure in units of E_h, α-independent`,
+          )}
         </text>
         {real.gross.map((g, i) => {
           const yr = grossY[i];
@@ -227,7 +231,7 @@ export function WhatIfView() {
         })}
 
         <text x={530} y={54} textAnchor="middle" className="tick">
-          n={ZOOM_N} fine split [µE_h], real vs altered
+          {mathTspans(`n=${ZOOM_N} fine split [µE_h], real vs altered`)}
         </text>
         {beyondValidity ? (
           <text x={530} y={H / 2} textAnchor="middle" className="tick">

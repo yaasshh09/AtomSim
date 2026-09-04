@@ -17,6 +17,7 @@ import {
   RENDER_LIBERTIES,
   formatErrorScale,
 } from "../lib/liberties";
+import { Notation } from "../lib/mathText";
 import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
@@ -255,11 +256,11 @@ export function CloudView() {
               <Badge provenance={iso.meta.enclosed_fraction.provenance} />
             </div>
             <div className="ghost-readout">
-              |psi|^2 = {iso.meta.level.value.toExponential(3)} bohr^-3 on the{" "}
-              {iso.meta.resolution}^3 grid, {componentsCaption(iso.meta)}
+              <Notation>{`|psi|^2 = ${iso.meta.level.value.toExponential(3)} bohr^-3 on the ${iso.meta.resolution}^3 grid`}</Notation>
+              , {componentsCaption(iso.meta)}
             </div>
             <div className="ghost-readout">
-              {iso.meta.escaped_fraction.value.toExponential(1)} of the electron sits
+              <Notation>{iso.meta.escaped_fraction.value.toExponential(1)}</Notation> of the electron sits
               outside the box entirely
             </div>
             {/* Both error bars show, because they measure different claims and
@@ -270,7 +271,7 @@ export function CloudView() {
             {iso.meta.provenance.error_estimate !== null && (
               <div className="ghost-readout">
                 halving the grid moves the enclosed fraction by{" "}
-                {formatErrorScale(iso.meta.provenance.error_estimate)}
+                <Notation>{formatErrorScale(iso.meta.provenance.error_estimate)}</Notation>
                 {iso.meta.mesh_volume.provenance.error_estimate !== null && (
                   <>
                     {" "}
@@ -325,7 +326,8 @@ export function CloudView() {
               collapse <Badge provenance={classicalGhost.orbit_count.provenance} />
             </div>
             <div className="ghost-readout">
-              playing at about {slowMotionFactor(classicalGhost.collapse_time_s.value).toExponential(1)}×
+              playing at about{" "}
+              <Notation>{slowMotionFactor(classicalGhost.collapse_time_s.value).toExponential(1)}</Notation>×
               slow motion <Badge provenance={CLASSICAL_SLOWMO} />
             </div>
           </div>

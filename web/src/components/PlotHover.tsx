@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { viewBoxX } from "../lib/hover";
+import { mathTspans } from "../lib/mathText";
 
 /**
  * Pointer tracking on an SVG plot, in the plot's own coordinates.
@@ -67,7 +68,7 @@ export function HoverReadout({
       <rect x={bx} y={by} width={boxW} height={boxH} rx={2} className="hover-box" />
       {lines.map((text, i) => (
         <text key={text} x={bx + 6} y={by + 13 + i * 12} className="tick hover-text">
-          {text}
+          {mathTspans(text)}
         </text>
       ))}
     </g>

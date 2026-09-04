@@ -11,6 +11,7 @@ import {
   type DetailMode,
 } from "../lib/levels";
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
+import { Notation, mathTspans } from "../lib/mathText";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
@@ -662,7 +663,7 @@ export function LevelsView() {
                             />
                             {extreme && (
                               <text x={sx2 + 6} y={yS} dy="0.32em" className="tick">
-                                m_j={s.m_j}
+                                {mathTspans(`m_j = ${s.m_j}`)}
                               </text>
                             )}
                           </g>
@@ -806,7 +807,7 @@ export function LevelsView() {
             : "States with equal j coincide at this order. 2s₁/₂ and 2p₁/₂, for instance: the Lamb shift is beyond α², so it is honestly absent rather than quietly folded in."}
           {mode === "zeeman" && (
             <>
-              {" "}A magnetic field splits each j-level into 2j+1 m_j sublevels:
+              {" "}A magnetic field splits each j-level into 2j+1 <Notation>{"m_j"}</Notation> sublevels:
               the anomalous Zeeman effect, spaced by g_J·µ_B·B. Push B higher
               and they reorganize toward the Paschen-Back pattern, where
               (m_l, m_s) become the good labels. The model here is linear, and

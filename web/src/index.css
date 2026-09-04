@@ -1668,13 +1668,40 @@ input[type="radio"] {
   letter-spacing: 0.02em;
 }
 
-/* Decade exponents on a log tick. The mono gives a Unicode superscript the same
-   advance as a full-size digit, which is what made "10²³" read as three
+/* Raised and dropped runs inside SVG text: decade exponents on a log tick, and
+   everything lib/mathText.tsx sets. The mono gives a Unicode superscript the
+   same advance as a full-size digit, which is what made "10²³" read as three
    separated characters; a raised tspan sets its own size and drops the tracking
-   the mantissa keeps. */
-.tick .exponent {
+   the mantissa keeps. Not scoped to .tick, because plot titles and the
+   force-law rungs are drawn in their own classes and carry the same notation. */
+svg text .exponent {
   font-size: 0.72em;
   letter-spacing: 0;
+}
+
+/* The same notation in HTML.
+
+   A browser's own sub and sup are sized in `smaller` and aligned with
+   `vertical-align`, which lifts the line box: a provenance panel full of them
+   grew a ragged gap between every pair of lines. Zero line-height with a
+   relative offset puts the glyph where it belongs and leaves the line where it
+   was. The offsets are em, so a subscript in a 10px caption and one in a
+   heading are each the right size for the text around them. */
+.math-inline sub,
+.math-inline sup {
+  font-size: 0.72em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+  letter-spacing: 0;
+}
+
+.math-inline sup {
+  bottom: 0.42em;
+}
+
+.math-inline sub {
+  top: 0.22em;
 }
 
 /* Axis rules pick up the shell's mint edge rather than staying neutral grey,

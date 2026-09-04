@@ -9,6 +9,7 @@ import {
   type ForcePreset,
 } from "../lib/forceLaw";
 import { systemKind } from "../lib/systemKind";
+import { mathTspans } from "../lib/mathText";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
@@ -309,7 +310,7 @@ export function ForceLawView() {
                 );
               })}
               <text x={PAD.left} y={PAD.top - 12} className="forcelaw-col">
-                V(r) and bound levels: {potLabel}
+                {mathTspans(`V(r) and bound levels: ${potLabel}`)}
               </text>
             </svg>
           ) : (
@@ -329,7 +330,7 @@ export function ForceLawView() {
                     y2={y(item.energy_ev.value)}
                   />
                   <text x={PAD.left} y={y(item.energy_ev.value) - 4} className="forcelaw-label">
-                    {item.label}
+                    {mathTspans(item.label)}
                   </text>
                 </g>
               ))}
@@ -357,7 +358,7 @@ export function ForceLawView() {
                 reference
               </text>
               <text x={(3 * W) / 4} y={PAD.top - 12} textAnchor="middle" className="forcelaw-col">
-                {forcePreset === "custom" ? "custom V(r)" : forcePreset}
+                {mathTspans(forcePreset === "custom" ? "custom V(r)" : forcePreset)}
               </text>
             </svg>
           )}

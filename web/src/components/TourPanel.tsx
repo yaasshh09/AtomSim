@@ -1,3 +1,4 @@
+import { Notation } from "../lib/mathText";
 import { useAppStore } from "../state/store";
 import { tourById } from "../tours/registry";
 
@@ -20,14 +21,16 @@ export function TourPanel() {
         <span className="tour-count">
           {stepIndex + 1} / {tour.steps.length}
         </span>
-        <span className="tour-title">{step.title}</span>
+        <span className="tour-title">
+          <Notation>{step.title}</Notation>
+        </span>
         <button className="tour-close" type="button" onClick={exitTour} aria-label="leave the tour">
           ✕
         </button>
       </div>
       {step.body.map((p, i) => (
         <p key={i} className="tour-body">
-          {p}
+          <Notation>{p}</Notation>
         </p>
       ))}
       <div className="tour-nav">

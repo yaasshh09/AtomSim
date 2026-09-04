@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import type { Provenance } from "../api/types";
 import { formatErrorScale } from "../lib/liberties";
+import { Notation } from "../lib/mathText";
 
 /* Tuned to the instrument palette: EXACT gets the shell's own mint, so the
    best tier is the colour the whole UI was built around. Counterfactual pink
@@ -144,23 +145,26 @@ export function Badge({ provenance }: { provenance: Provenance }) {
             }}
           >
             <p>
-              <strong>Method:</strong> {provenance.method}
+              <strong>Method:</strong> <Notation>{provenance.method}</Notation>
             </p>
             {provenance.assumptions.length > 0 && (
               <ul>
                 {provenance.assumptions.map((a) => (
-                  <li key={a}>{a}</li>
+                  <li key={a}>
+                    <Notation>{a}</Notation>
+                  </li>
                 ))}
               </ul>
             )}
             {provenance.error_estimate !== null && (
               <p>
-                <strong>Error scale:</strong> {formatErrorScale(provenance.error_estimate)}
+                <strong>Error scale:</strong>{" "}
+                <Notation>{formatErrorScale(provenance.error_estimate)}</Notation>
               </p>
             )}
             {provenance.refinement && (
               <p>
-                <strong>To improve:</strong> {provenance.refinement}
+                <strong>To improve:</strong> <Notation>{provenance.refinement}</Notation>
               </p>
             )}
           </div>,

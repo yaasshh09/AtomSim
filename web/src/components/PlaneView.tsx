@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
+import { Notation } from "../lib/mathText";
 import { rasterize } from "../lib/rasterize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -34,7 +35,11 @@ export function PlaneView() {
     <div className="view-wrap">
       <div className="view-header">
         <span className="plot-title">
-          {plane ? `${plane.meta.label} [${plane.meta.unit}]` : "2D cross-section (y = 0 plane)"}
+          {plane ? (
+            <Notation>{`${plane.meta.label} [${plane.meta.unit}]`}</Notation>
+          ) : (
+            "2D cross-section (y = 0 plane)"
+          )}
         </span>
         {plane && <Badge provenance={plane.meta.provenance} />}
         <div className="seg">
@@ -67,7 +72,7 @@ export function PlaneView() {
           {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
           {plane.meta.quantity === "density"
             ? "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
-            : "A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
+            : <Notation>{"A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}</Notation>}
         </p>
       )}
       {plane?.meta.model === "hf" && <p className="caption">{HF_ORBITAL_CAPTION}</p>}

@@ -4,6 +4,7 @@ import type { FieldData, Quantity, ShellPeak } from "../api/types";
 import { VIEW_LEADS } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { formatHover, nearestIndex, withinPlot } from "../lib/hover";
+import { Notation } from "../lib/mathText";
 import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -199,7 +200,8 @@ function FieldPlot({
         <span className="plot-lead">{title}</span>
         <span className="plot-blurb">{blurb}</span>
         <span className="plot-provenance">
-          {field.label} [{field.unit}] <Badge provenance={field.provenance} />
+          <Notation>{`${field.label} [${field.unit}]`}</Notation>{" "}
+          <Badge provenance={field.provenance} />
           {overlay && (
             <span className="legend-inline">
               <span className="swatch-line" /> {overlay.selfLabel}

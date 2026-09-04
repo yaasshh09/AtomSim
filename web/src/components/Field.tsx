@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Notation } from "../lib/mathText";
 
 /**
  * The control vocabulary shared across the instrument views.
@@ -75,8 +76,12 @@ export function Slider({
   return (
     <label className="ctl-slider" data-tour={tourId} data-rest={atRest || undefined}>
       <span className="ctl-slider-head">
-        <span className="ctl-slider-label">{label}</span>
-        <span className="ctl-slider-readout">{readout}</span>
+        <span className="ctl-slider-label">
+          <Notation>{label}</Notation>
+        </span>
+        <span className="ctl-slider-readout">
+          <Notation>{readout}</Notation>
+        </span>
       </span>
       <input
         type="range"
@@ -87,7 +92,11 @@ export function Slider({
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      {anchor && <span className="ctl-slider-anchor">{anchor}</span>}
+      {anchor && (
+        <span className="ctl-slider-anchor">
+          <Notation>{anchor}</Notation>
+        </span>
+      )}
     </label>
   );
 }
@@ -127,7 +136,9 @@ export function Toggle({
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <span>{label}</span>
+        <span>
+          <Notation>{label}</Notation>
+        </span>
       </label>
       {note && <p className="ctl-toggle-why">{note}</p>}
     </div>
@@ -184,11 +195,15 @@ export function Choice<T extends string>({
             title={o.disabled ? o.disabledReason : undefined}
             onClick={() => onChange(o.value)}
           >
-            {o.label}
+            <Notation>{o.label}</Notation>
           </button>
         ))}
       </div>
-      {live?.hint && <p className="ctl-choice-hint">{live.hint}</p>}
+      {live?.hint && (
+        <p className="ctl-choice-hint">
+          <Notation>{live.hint}</Notation>
+        </p>
+      )}
       {live?.disabled && live.disabledReason && (
         <p className="ctl-choice-hint ctl-choice-blocked">{live.disabledReason}</p>
       )}

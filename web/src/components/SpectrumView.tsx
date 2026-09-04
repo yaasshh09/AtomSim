@@ -18,6 +18,7 @@ import {
 } from "../lib/liberties";
 import { seriesColor, seriesName } from "../lib/spectrum";
 import { useAppStore } from "../state/store";
+import { Notation, mathTspans } from "../lib/mathText";
 import { Badge } from "./Badge";
 import { AbsorptionView } from "./AbsorptionView";
 import { CurveOfGrowthView } from "./CurveOfGrowthView";
@@ -244,7 +245,7 @@ function ZoomPanel({
     <div className="zoom-panel">
       <div className="view-header">
         <span className="plot-lead">
-          {w ? `One line, up close: ${w.label}` : "One line, up close"}
+          <Notation>{w ? `One line, up close: ${w.label}` : "One line, up close"}</Notation>
         </span>
         <button className="link-button" onClick={onClear} type="button">
           ← back to the full range
@@ -291,7 +292,7 @@ function ZoomPanel({
               x={x(w.wavelength_nm)} y={y(max / 2) - 6}
               textAnchor="middle" className="tick"
             >
-              FWHM {w.fwhm_nm.toExponential(2)} nm
+              {mathTspans(`FWHM ${w.fwhm_nm.toExponential(2)} nm`)}
             </text>
           </>
         )}
@@ -304,9 +305,9 @@ function ZoomPanel({
           </p>
           <Disclosure summary="The two widths, and why they do not add">
             <p className="caption">
-              Gaussian σ = {w.sigma_nm.toExponential(2)} nm (
+              Gaussian σ = <Notation>{w.sigma_nm.toExponential(2)}</Notation> nm (
               {w.terms.filter((t) => t !== "natural").join(" + ") || "none"}
-              ), Lorentzian γ = {w.gamma_nm.toExponential(2)} nm (natural).
+              ), Lorentzian γ = <Notation>{w.gamma_nm.toExponential(2)}</Notation> nm (natural).
               These do not add. The shape is their convolution, a Voigt, with a
               Gaussian core and Lorentzian wings, and that is why the far wings
               sit above where a Gaussian would put them.
@@ -606,7 +607,7 @@ export function SpectrumView() {
             <span className="nist-mark" aria-hidden="true">
               {nist.allWithin ? "✓" : "!"}
             </span>
-            {nist.headline}
+            <Notation>{nist.headline}</Notation>
           </p>
           {yRes && tol && (
             <svg viewBox={`0 0 ${W} ${RES_H}`} role="img" className="levels-svg">
@@ -622,7 +623,9 @@ export function SpectrumView() {
                 />
               ))}
               <text x={M.left} y={12} className="tick">
-                (λ_computed − λ_NIST)/λ_NIST, shaded band = the stated tolerance, ±{tol.toExponential(0)}
+                {mathTspans(
+                  `(λ_computed − λ_NIST)/λ_NIST, shaded band = the stated tolerance, ±${tol.toExponential(0)}`,
+                )}
               </text>
             </svg>
           )}
@@ -865,14 +868,14 @@ export function SpectrumView() {
             <p className="caption">
               Collisional broadening is not in this curve. At this density its
               linear Stark span would be{" "}
-              {prof.stark_span_nm.value.toExponential(2)} nm, comfortably under
+              <Notation>{prof.stark_span_nm.value.toExponential(2)}</Notation> nm, comfortably under
               the widths that are modelled, so the shape stands.
             </p>
           )}
           {strength && !isThermal && (
             <p className="caption">
               Bar height and opacity go as log₁₀ A over{" "}
-              {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`}. That
+              <Notation>{`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)} s⁻¹`}</Notation>. That
               is the spontaneous emission <em>rate</em>, not a prediction of
               observed brightness. No level populations are modelled here: turn
               on LTE weighting for those.
@@ -881,9 +884,9 @@ export function SpectrumView() {
           {strength && isThermal && spectrum.thermal && (
             <p className="caption">
               Bar height and opacity go as log₁₀ ε over{" "}
-              {`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)}`} eV/s per atom,
-              at T = {spectrum.thermal.temperature_k.toFixed(0)} K and n_e ={" "}
-              {spectrum.thermal.electron_density_cm3.toExponential(0)} cm⁻³. That is an LTE
+              <Notation>{`10^${strength.lo.toFixed(1)} to 10^${strength.hi.toFixed(1)}`}</Notation> eV/s per
+              atom, at T = {spectrum.thermal.temperature_k.toFixed(0)} K and{" "}
+              <Notation>{`n_e = ${spectrum.thermal.electron_density_cm3.toExponential(0)} cm⁻³`}</Notation>. That is an LTE
               emissivity: level populations from Boltzmann, ionization from Saha, and the gas
               taken as <em>optically thin</em>. A real medium reabsorbs its own strong lines,
               which is why Lyman-α does not dominate an observed nebula the way it dominates

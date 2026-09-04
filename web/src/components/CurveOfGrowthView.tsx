@@ -1,5 +1,6 @@
 import { scaleLinear } from "d3-scale";
 import type { CurveOfGrowthInfo, GrowthRegime } from "../api/types";
+import { Notation } from "../lib/mathText";
 import { Badge } from "./Badge";
 
 const W = 680;
@@ -108,7 +109,8 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
     <>
       <div className="view-header">
         <span className="plot-title">
-          Curve of growth: {cog.label} at {cog.wavelength_nm.toFixed(2)} nm{" "}
+          Curve of growth: <Notation>{cog.label}</Notation> at{" "}
+          {cog.wavelength_nm.toFixed(2)} nm{" "}
           <Badge provenance={cog.provenance} />
         </span>
         <span className="legend-inline">
@@ -175,10 +177,10 @@ export function CurveOfGrowthView({ cog }: { cog: CurveOfGrowthInfo }) {
       </p>
       <p className="caption">
         Every other view assumes the gas is optically thin, which is only the
-        first branch here. f = {cog.oscillator_strength.toExponential(3)},
-        Gaussian σ = {cog.sigma_nm.toExponential(2)} nm, Lorentzian γ ={" "}
-        {cog.gamma_nm.toExponential(2)} nm, damping parameter a ={" "}
-        {cog.damping_parameter.toExponential(2)}. The knees sit where τ at line
+        first branch here. f = <Notation>{cog.oscillator_strength.toExponential(3)}</Notation>,
+        Gaussian σ = <Notation>{cog.sigma_nm.toExponential(2)}</Notation> nm, Lorentzian γ ={" "}
+        <Notation>{cog.gamma_nm.toExponential(2)}</Notation> nm, damping parameter a ={" "}
+        <Notation>{cog.damping_parameter.toExponential(2)}</Notation>. The knees sit where τ at line
         centre reaches 1 and where a·τ reaches 1, so heating the gas widens the
         line and pushes the first knee to a higher column. That is exactly how
         a real curve-of-growth fit measures a temperature.

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { ViewLead } from "../lib/explain";
+import { Notation } from "../lib/mathText";
 
 /**
  * The card every instrument view now opens with.
@@ -25,16 +26,18 @@ export function ViewIntro({
   return (
     <section className="view-intro">
       <h2 className="view-intro-title">
-        {lead.title}
+        <Notation>{lead.title}</Notation>
         {badge ? <span className="view-intro-badge">{badge}</span> : null}
       </h2>
-      <p className="view-intro-lead">{lead.lead}</p>
+      <p className="view-intro-lead">
+        <Notation>{lead.lead}</Notation>
+      </p>
       {lead.notice && (
         <p className="view-intro-notice">
           <span className="view-intro-notice-mark" aria-hidden="true">
             ◇
           </span>
-          {lead.notice}
+          <Notation>{lead.notice}</Notation>
         </p>
       )}
       {children}
