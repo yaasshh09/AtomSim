@@ -8,10 +8,10 @@ Design: `docs/specs/2026-08-07-web-hosting-design.md`.
 
 ## One machine, always
 
-`JobStore` and `TokenBucket` are per-process in-memory state. A second machine
-would hand clients job ids that do not exist on the instance they reach next,
-and would give every client a second full rate-limit bucket. `ratelimit.py`
-says it outright: counting per process is "wrong the moment there are two".
+`JobStore` and `TokenBucket` are per-process in-memory state. Add a second
+machine and clients get handed job ids that don't exist on whichever instance
+they reach next, plus a second full rate-limit bucket each. `ratelimit.py` says
+it outright: counting per process is "wrong the moment there are two".
 
 Deploys pass `--ha=false`. **`fly status` showing two machines is a correctness
 bug, not a cost inefficiency.** Fix it with `fly scale count 1` immediately.
@@ -31,16 +31,15 @@ living in host configuration that a rebuild elsewhere would lose.
 
 ## Region: why not Mumbai
 
-`bom` was the first choice, being nearest the author. It ran out of capacity
-mid-deploy on 2026-08-07: the deploy destroyed the running machine, could not
-create its replacement, and **the app was down until the region changed**.
-Retrying did not help.
+`bom` was the first choice, being nearest the author. On 2026-08-07 it ran out
+of capacity mid-deploy. The deploy destroyed the running machine, couldn't
+create the replacement, and **the app stayed down until the region changed**.
+Retrying got nowhere.
 
-The lesson is that a deploy is exactly the moment capacity is needed, so a
-constrained region is an availability risk and not only a latency choice. `fra`
-is the next closest with room. If it is ever worth moving back, change
-`primary_region` in `fly.toml` and deploy, but treat capacity as the deciding
-factor rather than distance.
+The lesson: a deploy is exactly the moment you need capacity, so a tight region
+is an availability risk, not just a latency choice. `fra` is the next closest
+with room. Moving back means changing `primary_region` in `fly.toml` and
+deploying, but decide on capacity, not distance.
 
 ## Measured, 2026-08-07
 
@@ -64,16 +63,15 @@ and returns the expected total energy of -526.815 hartree at tier
 
 ### No waiting page, and why
 
-The spec deferred that decision to these numbers. A resume costs 1.57 s
-including the round trip, roughly 1.2 s of actual wake, which is an ordinary
-page load rather than a wait that needs explaining. A splash screen at that
-duration would flash and distract rather than reassure.
+The spec left that decision to these numbers. A resume costs 1.57 s including
+the round trip, so about 1.2 s of actual wake. That's an ordinary page load, not
+a wait anyone needs talked through. A splash screen would flash past and
+distract rather than reassure.
 
-`suspend` is what buys this. A plain `stop` would pay the 22.49 s cold start on
+`suspend` is what buys this. A plain `stop` pays the 22.49 s cold start on
 every first visit, because it re-imports numpy, scipy and matplotlib from
-nothing; `cli.py` measures that import at 5.4 s on a 14-core laptop and this
-machine has one shared core. The snapshot already contains the imported
-process.
+nothing. `cli.py` clocks that import at 5.4 s on a 14-core laptop, and this
+machine has one shared core. The snapshot already holds the imported process.
 
 The 22.49 s path still exists in two cases: when Fly discards the snapshot
 (host migration or capacity pressure), and on the first visit after a deploy.
@@ -151,12 +149,12 @@ at the old origin.
 
 ## Counting visitors
 
-Fly cannot answer "how many people used this". It counts requests, and one
-visit is 20 to 40 of them once the bundle, the fonts, the websocket and a job
-POST are counted. Its Prometheus also retains **about 15 days**, so a question
-asked two months from now has nothing behind it. That is the whole reason
-something else does the counting, and the reason it had to start before the
-data was wanted rather than when it was.
+Fly can't answer "how many people used this". It counts requests, and a single
+visit is 20 to 40 of them once you add up the bundle, the fonts, the websocket
+and a job POST. Its Prometheus keeps **about 15 days**, so a question asked two
+months from now has nothing behind it. Hence something else does the counting,
+and hence it had to start before anyone wanted the data rather than the day
+they did.
 
 GoatCounter does it. Set up once:
 
@@ -202,12 +200,12 @@ Because the beacon is sent by JavaScript, **the deployed HTML contains no trace
 of it**. Grepping the page source for "goatcounter" returns nothing however
 well it is working; verifying it needs a browser.
 
-**How to read the number.** The dashboard's unique-visitor count over a date
-range is the figure to quote. Two limits belong on it in both directions: a
-shared network makes many people look like one, and a phone moving between wifi
-and cellular makes one person look like several. So it is an estimate, and
-"roughly N people" is the honest form. Traffic in the first days is mostly this
-project's own deploy verification and smoke tests rather than visitors.
+**How to read the number.** Quote the dashboard's unique-visitor count over a
+date range, and attach two caveats that pull in opposite directions. A shared
+network makes many people look like one. A phone hopping between wifi and
+cellular makes one person look like several. It's an estimate, so "roughly N
+people" is the honest form. Traffic in the first few days is mostly this
+project's own deploy verification and smoke tests, not visitors.
 
 ## Costs
 

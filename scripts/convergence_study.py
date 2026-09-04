@@ -37,12 +37,12 @@ def main() -> None:
             prev = err
         lines.append("")
     lines += [
-        "**Reading the results:** all three cases show clean O(h^2) convergence,"
-        " including the Coulomb s state. The scheme solves for u = r R(r), which is"
-        " smooth at the origin for the Coulomb potential, so second order is expected"
-        " here rather than fortunate; cusp-related order reduction was not observed at"
-        " these resolutions. Every solver energy can carry a grid-halving error estimate"
-        " via `solve_radial_with_error`.",
+        "**Reading the results:** all three cases converge cleanly at O(h^2), the"
+        " Coulomb s state included. That is expected rather than lucky. The scheme"
+        " solves for u = r R(r), which stays smooth at the origin under a Coulomb"
+        " potential, and no cusp-related order reduction turned up at these"
+        " resolutions. Any solver energy can carry a grid-halving error estimate"
+        " through `solve_radial_with_error`.",
         "",
     ]
     out = Path(__file__).resolve().parents[1] / "docs" / "notes" / "phase0-convergence.md"

@@ -37,7 +37,8 @@ the census is being lost.
 **Blending.** Where profiles overlap the transmissions multiply,
 `exp(-tau_1 - tau_2)`, rather than the absorptions adding. Two lines each
 removing 60 percent of the light remove 84 percent together, not 120. The naive
-sum is not merely inaccurate; it is impossible.
+sum is not just inaccurate. It is impossible: it would remove more light than
+arrived.
 
 `saturation = W_measured / sum_i W_thin,i` reports both together. They are
 deliberately not separated, because on a single grid they are not separable:

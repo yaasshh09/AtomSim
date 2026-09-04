@@ -157,8 +157,8 @@ trusted.
 `docs/plans/2026-07-27-phase21-hartree-fock.md` under "The derived
 equations", where it is checked four independent ways: hydrogen, helium,
 agreement with a separate closed-shell derivation on full shells, and
-beryllium's textbook `4J - 2K`. This section stands as the record of why it was
-not written from memory, which remains the right call.
+beryllium's textbook `4J - 2K`. This section is kept as the record of why it was not
+written from memory, which remains the right call.
 
 `analytic/wigner.py` currently exports `triangular` and `wigner_6j` only. This
 phase adds `wigner_3j` to that module, following the same conventions already
