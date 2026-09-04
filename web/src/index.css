@@ -59,6 +59,10 @@ body {
 #root,
 .app-shell {
   height: 100vh;
+  /* The shell is the viewport, and every pane inside it scrolls itself. A
+     document-level scrollbar here is always a bug in one of them, and on a
+     phone it is a bug that steals 15px from the height as well as showing. */
+  overflow: hidden;
   /* Dynamic viewport units, where they exist. On a phone `100vh` is the
      viewport with the browser's own bars hidden, which they are not on first
      paint, so a 100vh shell starts taller than the screen and puts the sheet's
@@ -679,6 +683,11 @@ button.ghost:hover {
 
 .canvas-wrap {
   min-height: 0;
+  /* The axis tips are HTML projected out of the 3-D scene, so they land
+     wherever the camera puts them, which is sometimes past the edge of the
+     canvas. Clipped here rather than left to push the page sideways: an axis
+     label outside its own stage is not pointing at anything. */
+  overflow: hidden;
 }
 
 .system-desc {
@@ -1447,6 +1456,19 @@ button.ghost:hover {
   align-items: center;
   gap: 0.9rem;
   min-width: 0;
+}
+
+/* The right group never shrinks, the crumb on the left does. At 390px both
+   were shrinking, so the tours button ran past the edge of the screen and the
+   page grew a horizontal scrollbar to reach it. The crumb already ellipses,
+   which is what a breadcrumb is for; a button clipped down the middle is not
+   a button. */
+.topbar-right {
+  flex: none;
+}
+
+.topbar-left {
+  flex: 1 1 auto;
 }
 
 .topbar-brand {

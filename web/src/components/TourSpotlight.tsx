@@ -39,19 +39,51 @@ function same(a: Ring, b: Ring): boolean {
  * a fresh object.
  */
 export function TourSpotlight() {
-  const { tourId, stepIndex } = useAppStore();
+  const { tourId, stepIndex, sheet, setSheet } = useAppStore();
   const [box, setBox] = useState<Ring>(null);
   const boxRef = useRef<Ring>(null);
   const tour = tourId ? tourById(tourId) : null;
   const anchor = tour?.steps[stepIndex]?.spotlight ?? null;
+  /** The last anchor the sheet was opened for. See the block that sets it. */
+  const openedFor = useRef<string | null>(null);
 
   const sync = useCallback(() => {
     const el = anchor ? document.querySelector(`[data-tour="${anchor}"]`) : null;
-    const next = el ? spotlightBox(el.getBoundingClientRect(), PAD) : null;
+    /* Thirteen of the sixteen anchors live in Controls or InfoPanel, and on the
+       stacked shell both of those are inside the sheet, so most steps of most
+       tours point at something the sheet is sitting on. Landing on one of them
+       opens the sheet far enough to show it and scrolls the panel to it.
+
+       Once per step, which is what the ref is for, and not once per render. A
+       rule that reopened the sheet whenever it found it closed would take it
+       back off anyone who closed it mid-step to look at the picture, which is
+       a reasonable thing to want during a tour about the picture. The step is
+       only counted as handled once the element has actually been found, since
+       some anchors (the Dirac toggle) do not exist until their payload has
+       arrived. */
+    if (el && openedFor.current !== anchor) {
+      openedFor.current = anchor;
+      if (el.closest(".mobile-sheet")) {
+        if (useAppStore.getState().sheet === "collapsed") setSheet("half");
+        // Instant, not smooth: the sheet runs a height transition at the same
+        // time, and a smooth scroll inside a box that is still growing lands
+        // short of where it was aimed.
+        el.scrollIntoView({ block: "center" });
+      }
+    }
+    /* A collapsed sheet clips its body rather than unmounting it, so an anchor
+       inside it still reports a real size, positioned under the bottom edge of
+       the screen. Structural rather than measured for exactly that reason: a
+       size check would pass and the ring would be drawn off the bottom of the
+       page. No ring, and the card downstairs carries the step, which is what
+       already happens for any anchor that is not on screen. */
+    const buried =
+      el !== null && sheet === "collapsed" && el.closest(".mobile-sheet") !== null;
+    const next = el && !buried ? spotlightBox(el.getBoundingClientRect(), PAD) : null;
     if (same(boxRef.current, next)) return;
     boxRef.current = next;
     setBox(next);
-  }, [anchor]);
+  }, [anchor, sheet, setSheet]);
 
   // No dependency array: sync after every render, which is after every store
   // change.
