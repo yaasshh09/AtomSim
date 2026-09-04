@@ -1,6 +1,6 @@
 # Phase 32: Mobile
 
-Status: designed, not implemented.
+Status: implemented. See section 11 for where the build differed.
 Predecessors: Phase 30 (the instrument frontend) built the three-column layout
 this reshapes, and Phase 31 (the guided tour) added the sixteen `data-tour`
 anchors that a collapsed sheet would otherwise hide.
@@ -228,3 +228,53 @@ shippable and independently revertible.
 - Native wrappers.
 - Rewriting `InfoPanel` or `Controls` internals. They are reparented, not
   redesigned.
+
+## 11. What the build found
+
+Landed in five commits, in the order section 9 sets out. Six things the design
+got wrong or did not know:
+
+- **Section 4's "no absolute position assumes 640" is false.** Three views
+  carry columns of text at fixed x, and each of them only ever fitted at its
+  own design width. The hydrogen ladder's fine-structure labels were already
+  running off the right edge at any column wider than 680, which is most
+  desktops; the same ladder's energy labels ran into the panel below 680. It
+  now reserves the four columns of text in pixels, because text does not get
+  narrower when a plot does, and gives the bars what is left. `SpectrumView`
+  had the same bug vertically: the axis title is a fixed distance below the
+  ticks and both were pinned to the top of the panel, so a shorter panel
+  printed one through the other. Those y positions are measured up from the
+  bottom now.
+
+- **One 320px floor does not hold.** A curve against an axis fits in 320; a
+  ladder with three columns of text does not, at any fraction of it. `plotWidth`
+  takes a per-view minimum, and under it the frame keeps its size while the
+  wrapper scrolls sideways, which `.view-wrap` was already able to do because
+  `overflow-y: auto` computes `overflow-x` to `auto`. That is now stated rather
+  than inherited.
+
+- **`usePlotWidth` returns a callback ref** instead of taking a `RefObject`.
+  Several views return a different wrapper element while their data loads, and
+  a ref object would go on reporting the unmounted one's last width.
+
+- **Controls sit above the readouts in the sheet.** Section 3 did not order
+  them. At half there is one screenful, and spending it on a summary of the
+  picture already drawn behind it is not what that snap is for.
+
+- **Section 7's rule fires once per step, not once per render.** As written it
+  would reopen the sheet on anyone who closed it mid-step to look at the
+  picture. The check is also structural rather than measured: a collapsed sheet
+  clips its body instead of unmounting it, so an anchor inside it reports a real
+  size, positioned under the bottom edge of the screen, and a size check would
+  ring it there.
+
+- **Two overflows only visible at 390px.** The top bar let its right group
+  shrink alongside the crumb, so the tours button ran off the edge and the page
+  grew a horizontal scrollbar that took 15px of height with it. And the axis
+  tips are HTML projected out of the 3-D scene, so they land wherever the camera
+  puts them, sometimes outside the canvas. Both are clipped now, and the shell
+  says outright that a document-level scrollbar is a bug in one of the panes.
+
+The suite is 519 tests across 49 files: 498 that survived `NarrowNotice`, plus
+21 for `plotWidth`, `plotHeight`, `nextSnap`, `snapHeight`, `isNarrow` and the
+touch guard. No Python changed.
