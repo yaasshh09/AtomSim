@@ -1391,7 +1391,10 @@ button.ghost:hover {
   padding: 0.15rem 0.3rem;
   font-size: 0.75rem;
 }
-.forcelaw-svg { width: 100%; max-width: 680px; height: auto; }
+/* flex-shrink: 0 for the reason .levels-svg carries it: .view-wrap is a flex
+   column, so height:auto on a flex item resolved to 0 and the well plot was
+   drawing into no pixels at all. */
+.forcelaw-svg { width: 100%; max-width: 680px; height: auto; flex-shrink: 0; }
 .forcelaw-ref { stroke: #4ade80; stroke-width: 2; stroke-dasharray: 4 3; opacity: 0.55; }
 .forcelaw-cf { stroke: #60a5fa; stroke-width: 2.5; }
 .forcelaw-curve { stroke: #94a3b8; stroke-width: 1.5; }
@@ -3001,4 +3004,134 @@ input[type="range"]:disabled {
    also set its own padding on top of it. */
 .forcelaw.view-wrap {
   padding: 1.25rem 1.5rem;
+}
+
+/* ── Zoomable plots ─────────────────────────────────────────────────────────
+   Every analytic plot in the app reads the same way: scroll to magnify, drag
+   to pan, double-click to come back out. The bar under each one says which
+   axis it acts on and, once magnified, by how much, because a scrolled-into
+   plot showing a slice of its data must never look like a plot whose data is
+   simply that narrow. */
+.zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.35rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--label);
+}
+
+.zoom-buttons {
+  display: flex;
+  border: 1px solid var(--edge-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.zoom-buttons button {
+  appearance: none;
+  min-width: 26px;
+  padding: 0.2rem 0.5rem;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--edge);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.zoom-buttons button:first-child {
+  border-left: none;
+}
+
+.zoom-buttons button:hover:not(:disabled) {
+  background: var(--edge-faint);
+  color: var(--accent);
+}
+
+.zoom-buttons button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.zoom-state strong {
+  color: var(--accent);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grab, not crosshair: the plot moves under the pointer, and the cursor is
+   the only thing that says so before someone tries it. */
+.plot-zoomable {
+  cursor: grab;
+  /* pan-y, not none: a plot can be 460 px tall, and taking the vertical
+     gesture would leave a touch user unable to scroll past one. */
+  touch-action: pan-y;
+}
+
+.plot-zoomable.plot-panning {
+  cursor: grabbing;
+}
+
+/* ── Plot furniture ─────────────────────────────────────────────────────────
+   Gridlines sit behind everything at a tenth of the axis's weight. They are
+   there to let a value be read off a curve without tracing a finger to the
+   axis, and at any heavier stroke they start competing with the data. */
+.grid-line {
+  stroke: rgb(52 224 161 / 0.14);
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--edge-strong);
+}
+
+.tick {
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* The axis title: what the numbers are, and in what unit. Dimmer than the
+   ticks on purpose, since it is read once and the ticks are read repeatedly. */
+.axis-title {
+  fill: var(--label);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.curve {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The area under a non-negative curve, which is the quantity the curve is
+   about: P(r) integrates to a probability and D(r) to an electron count. It is
+   a fill under the same accent rather than a second colour, so it reads as the
+   curve's own shading and not as a second series. */
+.curve-area {
+  fill: var(--accent);
+  opacity: 0.09;
+  stroke: none;
+}
+
+/* An energy axis on the level ladders. The rungs were labelled individually
+   and had no scale beside them, so "how far apart" was a thing you could see
+   and not a thing you could measure. */
+.ladder-axis {
+  stroke: var(--edge-strong);
+}
+
+/* Dimmer than a tick: it names something that is not on the plot. */
+.off-window {
+  fill: var(--label);
+  font-style: italic;
 }

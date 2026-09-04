@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { viewBoxX } from "../lib/hover";
 import { mathTspans } from "../lib/mathText";
 
@@ -12,8 +12,13 @@ import { mathTspans } from "../lib/mathText";
  * Keeping the lookup here would quietly pick a nearest-point rule for curves
  * this file has never seen.
  */
-export function usePlotHover(viewBoxWidth: number) {
-  const ref = useRef<SVGSVGElement | null>(null);
+export function usePlotHover(
+  viewBoxWidth: number,
+  /** The plot's element, when something else already owns the ref (the zoom). */
+  shared?: RefObject<SVGSVGElement | null>,
+) {
+  const own = useRef<SVGSVGElement | null>(null);
+  const ref = shared ?? own;
   const [x, setX] = useState<number | null>(null);
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<SVGSVGElement>) => {
