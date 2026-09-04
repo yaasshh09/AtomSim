@@ -2371,6 +2371,17 @@ input[type="range"]:disabled {
   border-top: 1px solid var(--edge-faint);
 }
 
+/* On a touch screen the zoom buttons are the whole zoom interface, so they
+   become real targets. 44px is the smallest square a thumb hits reliably; at
+   26px they were built for a cursor. */
+@media (pointer: coarse) {
+  .zoom-buttons button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 0.8rem;
+  }
+}
+
 /* A short viewport is a phone on its side, and there the thumbnail rail costs
    more than it gives: at 390px of height it leaves the plot about sixty
    pixels. The strip is a shortcut between states, not a reading of any of
@@ -2402,6 +2413,20 @@ input[type="range"]:disabled {
    though the physics were slow, when what is loading is a graphics library. */
 .canvas-wrap-loading {
   background: var(--stage);
+}
+
+/* No renderer, so no stage: a black rectangle here would read as a solve that
+   came back empty rather than as a browser that cannot draw it. */
+.canvas-wrap-nogl {
+  background: var(--stage);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+}
+
+.canvas-wrap-nogl .hint {
+  max-width: 42ch;
+  text-align: center;
 }
 
 /* ============================================================
@@ -3168,9 +3193,11 @@ input[type="range"]:disabled {
    the only thing that says so before someone tries it. */
 .plot-zoomable {
   cursor: grab;
-  /* pan-y, not none: a plot can be 460 px tall, and taking the vertical
-     gesture would leave a touch user unable to scroll past one. */
-  touch-action: pan-y;
+  /* Both axes go to the browser, because the plot takes neither: a press from
+     a finger never starts a pan (see startsPan in PlotZoom.tsx). `pan-y` so
+     the page still scrolls past a plot 460px tall, and `pan-x` because a plot
+     wider than the screen sits in a wrapper that scrolls sideways. */
+  touch-action: pan-x pan-y;
 }
 
 .plot-zoomable.plot-panning {

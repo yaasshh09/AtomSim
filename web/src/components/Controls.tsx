@@ -3,12 +3,15 @@ import { isScreenedLevels } from "../api/client";
 import { compareAvailable, gszAvailable, subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
+import { isNarrow, useViewport } from "../lib/viewport";
 import { useAppStore } from "../state/store";
 import type { ColorMode, ViewMode } from "../state/store";
 import { ShowPhysics } from "./ShowPhysics";
 
 const N_CHOICES = [1, 2, 3, 4, 5, 6];
-const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];
+/** Exported so main.tsx can open a phone on the smallest of them rather than
+ *  on a number that is not in the list. */
+export const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];
 
 // One entry per view, appended as each one lands.
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
@@ -30,6 +33,7 @@ export function Controls() {
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
     setExchange, setPauli, setCompare, loadSystems, ensureHF,
   } = useAppStore();
+  const narrow = isNarrow(useViewport().width);
   useEffect(() => {
     if (systems.length === 0) void loadSystems();
   }, [systems.length, loadSystems]);
@@ -320,6 +324,18 @@ export function Controls() {
           ))}
         </select>
       </label>
+      {/* A smaller opening number on a phone, and every choice still offered.
+          A cap would change the picture from the one that was asked for, which
+          is a visual liberty and would have to be disclosed as one; a default
+          claims nothing, because it is only where the session starts. */}
+      {narrow && (
+        <p className="panel-hint">
+          A phone opens at {COUNT_CHOICES[0].toLocaleString()} draws. The larger
+          counts still work here and will be slower to draw, not less accurate:
+          the sampler is the same one either way, and more draws is a finer
+          picture of the same |ψ|².
+        </p>
+      )}
       <label>
         colour
         <select

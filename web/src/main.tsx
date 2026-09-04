@@ -1,9 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { COUNT_CHOICES } from "./components/Controls";
 import { installAnalytics } from "./lib/analytics";
 import { shouldAutoSample } from "./lib/startup";
 import { currentUrlState, parseAppUrl, serializeAppUrl } from "./lib/urlState";
+import { isNarrow } from "./lib/viewport";
 import { useAppStore } from "./state/store";
 // Bundled rather than fetched from a CDN: `atomsim serve` runs locally, and
 // the typography is part of the instrument, so it has to survive being
@@ -18,6 +20,12 @@ import "./index.css";
 // set at build time, which the dev server and a plain `npm run build` never
 // do.
 installAnalytics(import.meta.env.VITE_GOATCOUNTER, document);
+
+// A phone opens on the smallest sample rather than on 100,000 points, which a
+// mid-range mobile GPU will not enjoy. A starting value only: every count stays
+// selectable, and Controls says so. Read once, because a default that followed
+// the viewport would silently change the picture when a tablet was turned.
+if (isNarrow(window.innerWidth)) useAppStore.setState({ count: COUNT_CHOICES[0] });
 
 // Deep links (the demo-script hooks): the URL is applied before the first
 // render, and then kept describing the live state, so any moment of a session

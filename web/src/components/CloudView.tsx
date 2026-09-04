@@ -29,6 +29,25 @@ import { IsoSurface } from "./IsoSurface";
 import { Legend } from "./Legend";
 import { PointCloud } from "./PointCloud";
 
+/**
+ * Whether this browser can draw anything at all here.
+ *
+ * Asked once, at module load. Until now the desktop gate meant this branch was
+ * effectively unreachable: the devices most likely to be missing WebGL, or to
+ * have it switched off, are the ones that were being turned away at the door.
+ * A stage that stays black with no explanation is the one failure mode this
+ * app should never have, since it looks exactly like a solve that returned
+ * nothing.
+ */
+const WEBGL = (() => {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+  } catch {
+    return false;
+  }
+})();
+
 /** The axis arm length, printed at a precision the number can support. */
 function formatArm(length: number): string {
   return length.toFixed(length >= 100 ? 0 : length >= 10 ? 1 : 2);
@@ -144,9 +163,26 @@ export function CloudView() {
     distance,
   );
   const caption = nucleusCaption(nucleusMode, sysInfo, nucleus);
+  if (!WEBGL) {
+    return (
+      <div className="canvas-wrap canvas-wrap-nogl">
+        <p className="hint">
+          This browser has no WebGL, so there is no 3-D point cloud to draw. The
+          other six views are all 2-D and work here: the cross-section shows the
+          same orbital, and the radial plots show where the electron is without
+          needing a renderer at all.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="canvas-wrap">
-      <Canvas camera={{ fov: 50 }}>
+      {/* Capped at 2. A phone reporting a device pixel ratio of 3 would
+          otherwise be asked for nine times the fragments of a 1x screen to
+          draw a cloud of round points, and the difference between 2x and 3x on
+          a point sprite is not visible. */}
+      <Canvas camera={{ fov: 50 }} dpr={[1, 2]}>
         {/* This matches --stage in index.css. The 3-D canvas paints its own
             opaque background, so it is the one place the stage colour is not
             read from the stylesheet, and the two have to be kept in step by

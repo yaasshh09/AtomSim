@@ -45,6 +45,24 @@ const DRAG_SLOP = 3;
 const FULL: [number, number] = [0, 1];
 
 /**
+ * Whether a press should begin a pan.
+ *
+ * Mouse and pen only. On a touch screen the same press is how the page is
+ * scrolled, and a plot that grabbed it would eat every upward swipe over it:
+ * the finger would drag the wavelength axis sideways and the page would sit
+ * still. That is worse than an unreadable plot, because it is a plot that
+ * fights back. The buttons in `ZoomControls` are the touch interface, and they
+ * cover the same operation.
+ *
+ * Pinch and two-finger pan are deliberately absent. The buttons already do the
+ * job, and a gesture engine is worth writing when they prove annoying against
+ * a real device rather than in anticipation of it.
+ */
+export function startsPan(e: { button: number; pointerType: string }): boolean {
+  return e.button === 0 && e.pointerType !== "touch";
+}
+
+/**
  * Wheel-to-zoom and drag-to-pan over one or two axes of an SVG plot.
  *
  * The hook owns a window per axis and nothing else. It does not build scales,
@@ -158,7 +176,7 @@ export function usePlotZoom(spec: {
   const drag = useRef<{ id: number; cx: number; cy: number; moved: boolean } | null>(null);
 
   const onPointerDown = useCallback((e: ReactPointerEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return;
+    if (!startsPan(e)) return;
     drag.current = { id: e.pointerId, cx: e.clientX, cy: e.clientY, moved: false };
   }, []);
 
