@@ -28,6 +28,7 @@ import {
 import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
+import type { Snap } from "../lib/sheet";
 import { currentUrlState, type UrlState } from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
 import { tourReset } from "../tours/apply";
@@ -137,6 +138,14 @@ interface AppState {
   absorptionData: AbsorptionInfo | null;
   nucleusMode: NucleusMode;
   count: number;
+  /** Where the mobile shell's bottom sheet is resting.
+   *
+   *  Presentational, and deliberately not in INVALIDATED. Opening a drawer
+   *  changes no physics, and spreading the invalidation block on it would
+   *  throw away a solve because someone reached for a control. It lives here
+   *  rather than inside MobileSheet because the tour opens the sheet to reach
+   *  the anchor a step is pointing at. */
+  sheet: Snap;
   systems: SystemInfo[];
   stateInfo: StateResponse | null;
   positions: Float32Array | null;
@@ -309,6 +318,7 @@ interface AppState {
   loadAbsorption: () => Promise<void>;
   setNucleusMode: (nucleusMode: NucleusMode) => void;
   setCount: (count: number) => void;
+  setSheet: (sheet: Snap) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
   setSurfaceMode: (surfaceMode: SurfaceMode) => void;
   setIsoFraction: (isoFraction: number) => void;
@@ -393,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // profileZoom's default lives in INVALIDATED, spread below.
   nucleusMode: "marker",
   count: 100_000,
+  sheet: "collapsed",
   systems: [],
   fps: 0,
   planeQuantity: "density",
@@ -601,6 +612,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // a pure render choice: there is nothing physical to invalidate
   setNucleusMode: (nucleusMode) => set({ nucleusMode }),
   setCount: (count) => set({ count }),
+  setSheet: (sheet) => set({ sheet }),
   setPlaneQuantity: (planeQuantity) =>
     set({ planeQuantity, plane: null, planeStatus: "idle", planeProgress: 0 }),
   setFps: (fps) => set({ fps }),

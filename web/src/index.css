@@ -19,6 +19,11 @@
   --accent: #34e0a1;
   --accent-dim: #2bcf92;
   --accent-deep: #04140e;
+  /* The collapsed sheet's peek bar. Named because three things measure
+     against it: the sheet itself, the stage's bottom padding, and the tour
+     card that docks above it. */
+  --peek-h: 56px;
+  --sheet-h: 56px;
   --sans: "Space Grotesk Variable", system-ui, sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", monospace;
   /* The one surface the page does not paint itself. An open <select> popup is
@@ -54,6 +59,11 @@ body {
 #root,
 .app-shell {
   height: 100vh;
+  /* Dynamic viewport units, where they exist. On a phone `100vh` is the
+     viewport with the browser's own bars hidden, which they are not on first
+     paint, so a 100vh shell starts taller than the screen and puts the sheet's
+     peek bar below the fold. `100dvh` is the height that is actually there. */
+  height: 100dvh;
 }
 
 /* The shell is the top bar plus the three columns under it. The bar is a fixed
@@ -2237,78 +2247,152 @@ input[type="range"]:disabled {
 }
 
 /* ---------------------------------------------------------------------------
-   Narrow screens
+   The stacked shell
 
-   Not a responsive layout. The app is replaced by a notice below MIN_WIDTH
-   (see NarrowNotice.tsx), so nothing here has to fight the three-column grid.
-   The one rule that matters: this is the only screen some visitors will ever
-   see, so it carries the brand, the reason, and what the thing is.
+   Below MIN_WIDTH the app used to be replaced by a notice asking for a wider
+   screen. What replaces the notice is this: the same seven views, the same
+   controls, with the two rails folded into one sheet that drags up from the
+   bottom edge. Nothing here restyles a view. The plots became honest at any
+   width when their geometry started being measured (lib/plotSize.ts), and this
+   is only the chrome around them.
    --------------------------------------------------------------------------- */
-.narrow-notice {
-  min-height: 100vh;
+
+/* The stage takes the screen, less the peek bar it must not draw underneath.
+   Rows match the desktop shell's, so the top bar and the first-visit
+   invitation land in the same places. */
+.mobile-stage {
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--peek-h);
+}
+
+.app-shell-mobile .view-wrap {
+  /* Half the desktop gutter. At 390px the desktop padding was 48px of the
+     342px a plot had to live in, which is a seventh of the screen spent on
+     margin. */
+  padding: 0.85rem 0.75rem;
+}
+
+.mobile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+  border-top: 1px solid var(--edge-strong);
+  box-shadow: 0 -12px 32px rgb(0 0 0 / 0.45);
+  transition: height 0.22s ease;
+}
+
+/* No transition while a finger is on it. An eased height during a drag lags
+   the pointer by exactly the easing duration, which reads as the sheet being
+   stuck to the screen rather than to the finger. */
+.mobile-sheet-dragging {
+  transition: none;
+}
+
+.mobile-sheet-handle {
+  flex: none;
+  height: var(--peek-h);
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgb(52 224 161 / 0.07), transparent 60%),
-    var(--bg);
+  gap: 0.7rem;
+  padding: 0 0.9rem;
+  cursor: grab;
+  /* The drag belongs to this element, so the browser must not also read it as
+     a page scroll. Only on the handle: the body below scrolls normally. */
+  touch-action: none;
+  user-select: none;
+  border-bottom: 1px solid var(--edge-faint);
 }
 
-.narrow-notice-inner {
-  max-width: 34rem;
+.mobile-sheet-grip {
+  flex: none;
+  width: 30px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--edge-strong);
 }
 
-.narrow-notice .brand {
-  margin: 0 0 2rem;
-}
-
-.narrow-notice h1 {
-  margin: 0 0 1.25rem;
-  font-size: 1.5rem;
-  font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.narrow-notice p {
-  margin: 0 0 1.25rem;
+.mobile-sheet-peek {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   color: var(--muted);
-  line-height: 1.6;
-  font-size: 0.9375rem;
-}
-
-/* The measurement is the actionable part, so it reads as a readout rather than
-   as more prose: mono, boxed, and the two numbers are the only bright text. */
-.narrow-notice-measure {
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
-  background: var(--panel);
-}
-
-.narrow-notice-measure strong {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.narrow-notice-what {
-  font-size: 0.875rem;
-  border-top: 1px solid var(--edge-faint);
-  padding-top: 1.25rem;
-  margin-bottom: 0;
-}
-
-/* Named tiers, not badges. A real Badge carries a provenance it was computed
-   with; these are the vocabulary being introduced, and dressing them as the
-   real thing would be the first quiet lie on the page. */
-.narrow-notice-what .tier {
-  font-family: var(--mono);
-  font-size: 0.8125em;
-  color: var(--accent-dim);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-sheet-toggle {
+  flex: none;
+  /* 44px, because it is a touch target and that is the smallest one a thumb
+     hits reliably. */
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.7rem;
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.mobile-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The two rails, reparented. They keep their own markup and their own
+   controls; what they lose is the border that made them columns and the
+   scroller that made each of them scroll separately inside a sheet that is
+   already one scroller. */
+.mobile-sheet .panel {
+  border-inline: 0;
+  overflow: visible;
+  padding: 0.9rem 1rem;
+}
+
+.mobile-sheet .panel + .panel {
+  border-top: 1px solid var(--edge-faint);
+}
+
+/* A short viewport is a phone on its side, and there the thumbnail rail costs
+   more than it gives: at 390px of height it leaves the plot about sixty
+   pixels. The strip is a shortcut between states, not a reading of any of
+   them, so it is the thing that goes. */
+@media (max-height: 500px) {
+  .app-shell-mobile .gallery {
+    display: none;
+  }
+}
+
+/* Docked above the peek bar rather than under the stage. On a phone the
+   control a step is ringing is usually inside the sheet, and narration printed
+   underneath the sheet would be narration nobody can read while following it. */
+.app-shell-mobile .tour-panel {
+  position: fixed;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: calc(var(--sheet-h) + 0.5rem);
+  z-index: 45;
+  max-height: 38vh;
+  overflow-y: auto;
+  background: rgb(8 12 14 / 0.94);
 }
 
 /* Placeholder while the 3D renderer streams in. It reserves the stage and
@@ -3025,6 +3109,10 @@ input[type="range"]:disabled {
 .zoom-bar {
   display: flex;
   align-items: center;
+  /* Wraps, and the buttons never shrink. In a 375px column the hint sentence
+     beside them took the row's whole width and squeezed "reset" until the
+     word was clipped: a control cut in half by its own caption. */
+  flex-wrap: wrap;
   gap: 0.7rem;
   margin: 0.35rem 0 0;
   font-family: var(--mono);
@@ -3034,6 +3122,7 @@ input[type="range"]:disabled {
 
 .zoom-buttons {
   display: flex;
+  flex: none;
   border: 1px solid var(--edge-strong);
   border-radius: 3px;
   background: var(--panel);
