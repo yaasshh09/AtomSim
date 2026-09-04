@@ -291,13 +291,25 @@ export function WhatIfView() {
       <div className="whatif-controls">
         <div className="stepper">
           <span>nuclear charge Z</span>
-          <button type="button" onClick={() => setLabZ(Math.max(1, labZ - 1))} disabled={labZ <= 1}>
-            −
-          </button>
-          <span>{labZ}</span>
-          <button type="button" onClick={() => setLabZ(Math.min(10, labZ + 1))} disabled={labZ >= 10}>
-            +
-          </button>
+          <div className="stepper-ctl">
+            <button
+              type="button"
+              aria-label="decrease nuclear charge"
+              onClick={() => setLabZ(Math.max(1, labZ - 1))}
+              disabled={labZ <= 1}
+            >
+              −
+            </button>
+            <span className="stepper-value">{labZ}</span>
+            <button
+              type="button"
+              aria-label="increase nuclear charge"
+              onClick={() => setLabZ(Math.min(10, labZ + 1))}
+              disabled={labZ >= 10}
+            >
+              +
+            </button>
+          </div>
         </div>
         <button
           type="button"

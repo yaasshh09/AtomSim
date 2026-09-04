@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Notation } from "../lib/mathText";
 
 /**
@@ -90,6 +90,11 @@ export function Slider({
         step={step}
         value={value}
         disabled={disabled}
+        // The travelled fraction, handed to the stylesheet so the track can
+        // paint the part behind the thumb. Chrome has no progress
+        // pseudo-element, and a gradient stop is exact where a second element
+        // overlaid on the track would only be close.
+        style={{ "--fill": `${max > min ? ((value - min) / (max - min)) * 100 : 0}%` } as CSSProperties}
         onChange={(e) => onChange(Number(e.target.value))}
       />
       {anchor && (

@@ -1206,13 +1206,66 @@ button.ghost:hover {
   gap: 4px;
   min-width: 220px;
 }
+/* The Z stepper. The two buttons were bare <button>s, which meant the one
+   native widget left on the page: grey chrome bevels beside mint controls.
+   They are one bezelled unit now, with the count boxed between them so the
+   thing you are changing sits where the change lands. */
 .whatif-controls .stepper {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--label);
 }
-.whatif-controls .stepper button {
+
+.stepper-ctl {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--edge-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.stepper-ctl button {
+  appearance: none;
   width: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.stepper-ctl button:hover:not(:disabled) {
+  background: var(--edge-faint);
+  color: var(--accent);
+}
+
+.stepper-ctl button:disabled {
+  color: var(--label);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4ch;
+  padding: 0.35rem 0.5rem;
+  border-left: 1px solid var(--edge);
+  border-right: 1px solid var(--edge);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* What-If five-constant panel */
@@ -1794,10 +1847,118 @@ svg text .exponent {
   user-select: none;
 }
 
-/* Sliders take the accent too. Without this the range track stayed the
-   browser's default blue, the one control in the app that was not on palette. */
+/* Sliders are drawn rather than themed. `accent-color` alone left the browser
+   widget shape (a fat pill track, a chrome knob) sitting on an instrument
+   panel, so the track and thumb are ours: a hairline rail in the panel fill,
+   the travelled part in mint, and a small knob with a dark core so it reads as
+   a machined index mark rather than a bubble.
+
+   `--fill` is the travelled fraction as a percentage, set inline by the
+   Slider component. The filled track has no cross-browser pseudo-element
+   (`::-moz-range-progress` is Firefox only), and a gradient stop is both
+   exact and free, so the component hands the position to CSS instead. */
 input[type="range"] {
-  accent-color: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  /* Taller than the rail on purpose: the track is 5px but the pointer target
+     is the whole input, and a 5px grab strip is a miss most of the time. */
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--fill-color, var(--accent-dim)) 0 var(--fill, 0%),
+      var(--edge-fill) var(--fill, 0%) 100%
+    );
+  box-shadow: inset 0 0 0 1px var(--edge-faint);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--edge-fill);
+  box-shadow: inset 0 0 0 1px var(--edge-faint);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--fill-color, var(--accent-dim));
+}
+
+/* A slider sitting where nothing has been applied dims its travelled track,
+   the same move the readout makes. Six sliders all lit at full mint say six
+   things are switched on when none of them is. The thumb keeps its contrast:
+   it is the part you have to find and grab. */
+.ctl-slider[data-rest] input[type="range"] {
+  --fill-color: rgb(52 224 161 / 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  /* (track 5 - thumb 13) / 2. Chrome lays the thumb from the top of the
+     track box, so without this it rides above the rail instead of on it. */
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--accent-deep);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--accent-deep);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 5px rgb(52 224 161 / 0.16);
+}
+
+input[type="range"]:hover::-moz-range-thumb,
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 5px rgb(52 224 161 / 0.16);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 /* The What-If and force-law control clusters. These lay their own labels out
