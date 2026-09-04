@@ -418,7 +418,7 @@ export function SpectrumView() {
   /* Computed above the early return because the zoom below it is a hook: the
      window is what the zoom is a window into, so the two have to be reachable
      on every render, loading included. */
-  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const { width: W, compact, ref: wrapRef } = usePlotWidth(SHAPE.floor);
   const LINES_H = plotHeight(W, SHAPE.lines.ratio, SHAPE.lines.min, SHAPE.lines.max);
   /* Where the bars stand, where the axis is drawn, where the NIST dots sit.
      Measured up from the bottom, not down from the top, because what is below
@@ -765,8 +765,14 @@ export function SpectrumView() {
               ))}
               </g>
               <text x={M.left} y={12} className="tick">
+                {/* The long form does not fit a phone: it is 90 characters of
+                    12px mono, and an SVG text node does not wrap. What the
+                    band is stays in the paragraph under the panel either
+                    way. */}
                 {mathTspans(
-                  `(λ_computed − λ_NIST)/λ_NIST, shaded band = the stated tolerance, ±${tol.toExponential(0)}`,
+                  compact
+                    ? `(λ_computed − λ_NIST)/λ_NIST · band ±${tol.toExponential(0)}`
+                    : `(λ_computed − λ_NIST)/λ_NIST, shaded band = the stated tolerance, ±${tol.toExponential(0)}`,
                 )}
               </text>
               <text

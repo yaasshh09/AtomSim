@@ -775,11 +775,13 @@ button.ghost:hover {
      alone already computes overflow-x to `auto`, which is load-bearing here
      and much too quiet a way to depend on something.
 
-     A plot's viewBox is now its measured pixel width, floored at the narrowest
-     width that view's labels fit in (see lib/plotSize.ts). On a screen
-     narrower than that floor the SVG keeps its size and this scrolls to it,
-     rather than the SVG scaling down and taking every axis number with it. A
-     ladder you swipe across is readable; a ladder squeezed to 60% is not. */
+     A plot's viewBox is its measured pixel width, so in the ordinary case
+     there is nothing here to scroll. What is left is the last resort: under
+     `MIN_PLOT_WIDTH` the SVG stops shrinking and this scrolls to it, rather
+     than the SVG scaling down and taking every axis number with it. A plot you
+     swipe across is readable; a plot squeezed to 60% is not. Between that
+     floor and a view's own comfortable width the view lays itself out compact
+     instead, which is the case a phone is actually in (lib/plotSize.ts). */
   overflow-x: auto;
 }
 
@@ -2404,6 +2406,25 @@ input[type="range"]:disabled {
   }
 }
 
+/* The thumbnail rail, at a phone's step. It is a shortcut between states
+   rather than a reading of any of them, so it is the one thing on the stage
+   that can lose pixels without losing meaning: a 52px density still says which
+   orbital it is. Those pixels go to the plot, which is the thing on this
+   screen that has to be read. */
+.app-shell-mobile .gallery {
+  padding: 0.4rem 0.75rem;
+}
+
+.app-shell-mobile .gallery-head {
+  margin-bottom: 0.25rem;
+}
+
+.app-shell-mobile .thumb img,
+.app-shell-mobile .thumb-blank {
+  width: 52px;
+  height: 52px;
+}
+
 /* A short viewport is a phone on its side, and there the thumbnail rail costs
    more than it gives: at 390px of height it leaves the plot about sixty
    pixels. The strip is a shortcut between states, not a reading of any of
@@ -2477,6 +2498,10 @@ input[type="range"]:disabled {
   margin: 0 0 0.9rem;
 }
 
+.view-intro:not([open]) {
+  padding: 0.6rem 1rem;
+}
+
 /* Sans, and sentence case. This is the one string in a view meant to be read
    at a glance rather than decoded, so it does not take the rails' uppercase
    mono treatment, and it must not: `text-transform` here would turn "3d" into
@@ -2493,6 +2518,37 @@ input[type="range"]:disabled {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  cursor: pointer;
+  /* Same drawn marker as a disclosure, for the same reason: the platform
+     triangle is a different colour and size in every engine. */
+  list-style: none;
+}
+
+.view-intro > summary::-webkit-details-marker {
+  display: none;
+}
+
+.view-intro > summary::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: 0.75em;
+  transition: transform 0.12s ease;
+  display: inline-block;
+}
+
+.view-intro[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Closed, the card is one line, so the gap under the title would be a gap
+   under nothing. */
+.view-intro:not([open]) > summary {
+  margin: 0;
+}
+
+.view-intro > summary:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .view-intro-badge {
@@ -2987,6 +3043,18 @@ input[type="range"]:disabled {
   background: rgb(8 12 14 / 0.5);
   padding: 0.7rem 0.85rem 0.8rem;
   margin: 0 0 0.7rem;
+}
+
+/* The residual plot is measured against the view, not against this panel, and
+   it has to be: it shares its wavelength axis with the line panel outside, so
+   the two are drawn at one width or they do not line up. That width is 30px
+   wider than what is left inside this panel's padding and rules, which put a
+   scrollbar under the whole view for a plot that was only ever a few pixels
+   too wide. Full bleed to the panel's own edges instead: the padding still
+   holds the text, and the picture spans the box the text is in. */
+.nist-panel > svg {
+  margin-left: calc(-0.85rem - 2px);
+  margin-right: calc(-0.85rem - 1px);
 }
 
 .nist-off {

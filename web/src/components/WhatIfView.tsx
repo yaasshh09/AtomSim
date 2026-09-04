@@ -51,8 +51,9 @@ export function WhatIfView() {
 
   /* Above the two early returns below, because it is a hook. While the lab is
      still loading there is no ladder and the window is a placeholder. */
-  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
-  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
+  const { width: W, compact, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  // Two stacked frames on a phone, so each gets a shorter one. See LevelsView.
+  const H = plotHeight(W, SHAPE.ratio, compact ? 300 : SHAPE.min, SHAPE.max);
   /** Where the gross ladder is drawn, deepest rung to the ionization limit. */
   const ladderRange: [number, number] = [H - 40, 60];
   const zoom = usePlotZoom({
@@ -104,14 +105,16 @@ export function WhatIfView() {
   // absolute scale stays in the readouts above, which is the honest way to
   // split structure from scale.
   const y = scaleLinear(zoom.y, ladderRange);
-  // Fixed, because it reserves a column of end-anchored text; see the same
-  // decision in LevelsView.
-  const rx1 = 70;
-  const rx2 = Math.round(0.417 * W);
+  /* Fixed, because it reserves a column of end-anchored text; see the same
+     decision in LevelsView. Compact is the phone: the ladder takes the whole
+     frame and the fine panel gets a second one under it, so its two columns
+     are laid out from the left edge rather than in the right third. */
+  const rx1 = compact ? 58 : 70;
+  const rx2 = compact ? W - 84 : Math.round(0.417 * W);
   // The fine-split panel's two columns, and the heading centred over both.
-  const fineX1 = Math.round(0.653 * W);
-  const fineX2 = Math.round(0.819 * W);
-  const fineMid = Math.round(0.736 * W);
+  const fineX1 = compact ? 20 : Math.round(0.653 * W);
+  const fineX2 = compact ? Math.round(W * 0.52) : Math.round(0.819 * W);
+  const fineMid = compact ? Math.round(W / 2) : Math.round(0.736 * W);
   // Same crowding as the levels ladder, and the same fix: the rungs go as
   // -1/n^2, which printed the top three labels through one another. Zooming
   // narrows which rungs are on screen, and only those are spread.
@@ -157,6 +160,45 @@ export function WhatIfView() {
      Anyone who does not already know which combinations cancel has no way to
      find one by dragging, so the scenarios are the found ones. */
   const scenario = activeScenario(labConst as ScenarioMultipliers);
+
+  /* The fine-split panel. Beside the gross ladder when there is room for
+     two panels, in a frame of its own underneath when there is not: two
+     columns of "j=1.5 · -18.1" need about 280px between them, which a
+     390px phone does not have left over after a ladder. */
+  const finePanel = (
+    <>
+          <text x={fineMid} y={54} textAnchor="middle" className="tick">
+            {mathTspans(`n=${ZOOM_N} fine split [µE_h], real vs altered`)}
+          </text>
+          {beyondValidity ? (
+            <text x={fineMid} y={H / 2} textAnchor="middle" className="tick">
+              α &gt; 0.5, past where the perturbation can be trusted
+            </text>
+          ) : (
+            columns.map((col) => (
+              <g key={col.label}>
+                <text x={col.x + 20} y={78} textAnchor="middle" className="tick">
+                  {col.label}
+                </text>
+                {col.rows.map((f) => (
+                  <g key={`${col.label}-${f.l}-${f.j}`}>
+                    <line
+                      x1={col.x}
+                      x2={col.x + 40}
+                      y1={yz(f.shift.value * 1e6)}
+                      y2={yz(f.shift.value * 1e6)}
+                      className={col.cf && altOn ? "rung rung-counterfactual" : "rung"}
+                    />
+                    <text x={col.x + 46} y={yz(f.shift.value * 1e6)} dy="0.32em" className="tick">
+                      j={f.j} · {(f.shift.value * 1e6).toFixed(1)}
+                    </text>
+                  </g>
+                ))}
+              </g>
+            ))
+          )}
+    </>
+  );
 
   return (
     <div className="view-wrap" ref={wrapRef}>
@@ -240,7 +282,9 @@ export function WhatIfView() {
       >
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
           {mathTspans(
-            `gross levels (Z=${real.system.z}): structure in units of E_h, α-independent`,
+            compact
+              ? `gross levels (Z=${real.system.z}) [E_h], α-independent`
+              : `gross levels (Z=${real.system.z}): structure in units of E_h, α-independent`,
           )}
         </text>
         <OffWindowMarks
@@ -270,38 +314,18 @@ export function WhatIfView() {
             </g>
           );
         })}
-
-        <text x={fineMid} y={54} textAnchor="middle" className="tick">
-          {mathTspans(`n=${ZOOM_N} fine split [µE_h], real vs altered`)}
-        </text>
-        {beyondValidity ? (
-          <text x={fineMid} y={H / 2} textAnchor="middle" className="tick">
-            α &gt; 0.5, past where the perturbation can be trusted
-          </text>
-        ) : (
-          columns.map((col) => (
-            <g key={col.label}>
-              <text x={col.x + 20} y={78} textAnchor="middle" className="tick">
-                {col.label}
-              </text>
-              {col.rows.map((f) => (
-                <g key={`${col.label}-${f.l}-${f.j}`}>
-                  <line
-                    x1={col.x}
-                    x2={col.x + 40}
-                    y1={yz(f.shift.value * 1e6)}
-                    y2={yz(f.shift.value * 1e6)}
-                    className={col.cf && altOn ? "rung rung-counterfactual" : "rung"}
-                  />
-                  <text x={col.x + 46} y={yz(f.shift.value * 1e6)} dy="0.32em" className="tick">
-                    j={f.j} · {(f.shift.value * 1e6).toFixed(1)}
-                  </text>
-                </g>
-              ))}
-            </g>
-          ))
-        )}
+        {compact ? null : finePanel}
       </svg>
+      {compact && (
+        <svg
+          viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
+          role="img"
+          className="levels-svg"
+          aria-label={`the n=${ZOOM_N} fine split, real against altered`}
+        >
+          {finePanel}
+        </svg>
+      )}
       <ZoomControls zoom={zoom} what="the ladder's energy axis" />
 
       <p className={beyondValidity ? "error" : "caption"}>{caption}</p>

@@ -52,15 +52,36 @@ function columns(W: number) {
   };
 }
 
+/* The same four columns on a phone, where there are not four columns' worth of
+   screen. The magnifier moves into its own frame under the ladder (see
+   `LevelsView`), so both get the whole width, one after the other, and the
+   ladder's energy label loses its degeneracy and ground-state suffixes: at
+   366px "-13.60 eV · 2n²=2 · ground state" is wider than the bar it belongs
+   to. The degeneracy is still on the rung's own readout in the sheet. */
+const COMPACT = { gutter: 58, fanGutter: 66, energyLabel: 110, fanSplit: 0.52 };
+
 /**
  * The hydrogen ladder, which shares its frame with a magnified panel.
  *
  * Text first, bars with what is left, split three to two between the ladder
  * and the panel. The floor on the bars is what stops a very narrow frame from
- * producing rungs of negative length; below it the SVG scrolls instead, which
- * is what `SHAPE.floor` is for.
+ * producing rungs of negative length; under `SHAPE.floor` the two stop sharing
+ * a frame at all and stack instead.
  */
-function hydrogenColumns(W: number) {
+function hydrogenColumns(W: number, compact = false) {
+  if (compact) {
+    const fanX2 = Math.round(W * COMPACT.fanSplit);
+    return {
+      rungX1: COMPACT.gutter,
+      rungX2: W - COMPACT.energyLabel,
+      // Drawn in a frame of its own, so it starts from the left edge too. The
+      // wider gutter is for the hyperfine panel's end-anchored "centroid".
+      fanX1: COMPACT.fanGutter,
+      fanX2,
+      subX1: fanX2 + 18,
+      subX2: fanX2 + 58,
+    };
+  }
   const bars = Math.max(120, W - GUTTER - LEADER - ENERGY_LABEL - GAP - PANEL_LABEL);
   const rungBar = Math.round(bars * 0.6);
   const rungX2 = GUTTER + rungBar;
@@ -287,7 +308,7 @@ function PauliComparison({ collapse }: { collapse: PauliCollapse }) {
 }
 
 function HFLadder({ levels }: { levels: HFLevels }) {
-  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const { width: W, compact, ref: wrapRef } = usePlotWidth(SHAPE.floor);
   const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const orbitals = levels.orbitals;
   // Binding energy, so the log is of a positive number. Every occupied HF
@@ -348,8 +369,13 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         {...zoom.handlers}
       >
         {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
-        <text x={rungX1} y={16} className="tick" opacity={0.7}>
-          ↑ 0 eV (ionization limit), off the top of a log axis
+        {/* Aligned with the rungs where there is room for it, and against the
+            frame where there is not: this line is 50 characters of 12px mono,
+            and starting it at the gutter on a phone ran it off the right. */}
+        <text x={compact ? 6 : rungX1} y={16} className="tick" opacity={0.7}>
+          {compact
+            ? "↑ 0 eV (ionization limit) is off a log axis"
+            : "↑ 0 eV (ionization limit), off the top of a log axis"}
         </text>
         <OffWindowMarks
           above={orbitals.filter(
@@ -448,8 +474,11 @@ export function LevelsView() {
     loadLevels, loadSpectrum, model, config, hf, hfStatus, loadHF, error,
     exchange, pauli, setFineStructure, setQuantumNumbers,
   } = useAppStore();
-  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
-  const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
+  const { width: W, compact, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  /* Stacked, the ladder and the magnifier are two frames rather than one, so
+     the desktop height floor would spend 760px of a phone on two plots that
+     are mostly empty axis. Each gets a shorter frame instead. */
+  const H = plotHeight(W, SHAPE.ratio, compact ? 300 : SHAPE.min, SHAPE.max);
   /** Where the hydrogen ladder's energy axis is drawn, top rung to bottom. */
   const ladderRange: [number, number] = [H - 40, 24];
   const wantHF = model === "hf";
@@ -494,7 +523,11 @@ export function LevelsView() {
   if (isScreenedLevels(levels)) return <ScreenedLadder levels={levels} />;
 
   const y = scaleLinear(ladderZoom.y, ladderRange);
-  const { rungX1, rungX2, fanX1, fanX2, subX1, subX2 } = hydrogenColumns(W);
+  const { rungX1, rungX2, fanX1, fanX2, subX1, subX2 } = hydrogenColumns(W, compact);
+  /* The magnifier's headings, centred. Over its own two columns when it is
+     a column of the ladder; over the whole frame when it has one to itself,
+     because a heading centred on the bars would start left of the frame. */
+  const fanTitleX = compact ? Math.round(W / 2) : (fanX1 + fanX2) / 2;
   /* Only transitions that actually cross a shell can be drawn on this ladder.
      A within-n fine-structure component (3p→3s, out at 9 cm) has both ends on
      the same rung, and it once rendered as a zero-length arrow with a
@@ -540,6 +573,194 @@ export function LevelsView() {
     if (s.hyperfine !== hyperfine) setHyperfine(s.hyperfine);
   };
   const hyperfineBlocked = hfShell !== undefined && !hfShell.available;
+
+  /* The magnifier, which on a wide frame is the right-hand column of the
+     ladder's own SVG and on a narrow one is a second frame under it. Same
+     markup either way: it is written against `fanX1`/`fanX2`, and
+     `hydrogenColumns` is what knows whether those are a column beside the
+     rungs or the full width of a frame of its own. The two scales differ by a
+     factor of about 10^5 and are labelled separately, which is exactly as
+     true stacked as side by side. */
+  const magnifier = (
+    <>
+          {mode === "fine" || mode === "zeeman"
+            ? fineForN.length > 0 &&
+              (() => {
+              const bohrN = grossE.get(n) ?? 0;
+              const shifts = fineForN.map((f) => f.shift_ev.value);
+              const subShifts = bField > 0
+                ? fineForN.flatMap((f) =>
+                    (f.sublevels ?? []).map((s) => s.energy_ev.value - bohrN),
+                  )
+                : [];
+              const allValues = [...shifts, ...subShifts];
+              const lo = Math.min(...allValues);
+              const hi = Math.max(...allValues);
+              const pad = (hi - lo || 1e-9) * 0.15;
+              const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
+              const zx1 = fanX1;
+              const zx2 = fanX2;
+              const sx1 = subX1;
+              const sx2 = subX2;
+              return (
+                <g>
+                  <text x={fanTitleX} y={26} textAnchor="middle" className="tick">
+                    {bField > 0
+                      ? `n=${n} Zeeman split [µeV]: APPROXIMATION`
+                      : `n=${n} shifts [µeV], zoomed, ${dirac ? "EXACT" : "APPROXIMATION"}`}
+                  </text>
+                  {fineForN.map((f, idx) => {
+                    const subs = bField > 0 ? f.sublevels ?? [] : [];
+                    const maxAbsMj = subs.length > 0
+                      ? Math.max(...subs.map((s) => Math.abs(s.m_j)))
+                      : 0;
+                    return (
+                      <g key={`${f.l}-${f.j}`}>
+                        <line
+                          x1={zx1} x2={zx2}
+                          y1={yz(f.shift_ev.value)} y2={yz(f.shift_ev.value)}
+                          className={f.l === l ? "rung rung-active" : "rung"}
+                          opacity={bField > 0 ? 0.35 : 1}
+                        />
+                        {bField === 0 && (
+                          <text
+                            x={zx2 + 6}
+                            y={yz(f.shift_ev.value) + (idx % 2 ? 12 : 0)}
+                            dy="0.32em" className="tick"
+                          >
+                            l={f.l}, j={f.j} · {(f.shift_ev.value * 1e6).toFixed(1)}
+                          </text>
+                        )}
+                        {subs.map((s) => {
+                          const yS = yz(s.energy_ev.value - bohrN);
+                          const extreme = Math.abs(s.m_j) === maxAbsMj;
+                          return (
+                            <g key={`${f.l}-${f.j}-${s.m_j}-${s.branch}`}>
+                              <line
+                                x1={zx2} x2={sx1}
+                                y1={yz(f.shift_ev.value)} y2={yS}
+                                className="rung"
+                                opacity={0.25}
+                              />
+                              <line
+                                x1={sx1} x2={sx2}
+                                y1={yS} y2={yS}
+                                className={f.l === l ? "rung-active" : "rung"}
+                              />
+                              {extreme && (
+                                <text x={sx2 + 6} y={yS} dy="0.32em" className="tick">
+                                  {mathTspans(`m_j = ${s.m_j}`)}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })()
+            : null}
+          {mode === "stark" &&
+            (() => {
+              const gsel = levels.gross.find((g) => g.n === n);
+              const subs = gsel?.sublevels ?? [];
+              if (subs.length === 0) return null;
+              const bohrN = gsel!.energy_ev.value;
+              const shifts = subs.map((s) => s.energy_ev.value - bohrN);
+              const lo = Math.min(...shifts);
+              const hi = Math.max(...shifts);
+              const pad = (hi - lo || 1e-9) * 0.15;
+              const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
+              const zx1 = fanX1;
+              const zx2 = fanX2;
+              const kMax = Math.max(...subs.map((s) => Math.abs(s.k)));
+              return (
+                <g>
+                  <text x={fanTitleX} y={26} textAnchor="middle" className="tick">
+                    n={n} Stark manifold [meV] (APPROXIMATION)
+                  </text>
+                  <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
+                  {subs.map((s) => {
+                    const yS = yz(s.energy_ev.value - bohrN);
+                    const label = Math.abs(s.k) === kMax && s.m === 0;
+                    return (
+                      <g key={`${s.n1}-${s.n2}-${s.m}`}>
+                        <line
+                          x1={zx1} x2={zx2} y1={yS} y2={yS}
+                          className={s.k === 0 ? "rung" : "rung rung-active"}
+                          opacity={0.8}
+                        />
+                        {label && (
+                          <text x={zx2 + 6} y={yS} dy="0.32em" className="tick">
+                            k={s.k}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })()}
+          {mode === "hyperfine" && hfShell &&
+            (() => {
+              const zx1 = fanX1;
+              const zx2 = fanX2;
+              const titleY = 26;
+              if (!hfShell.available) {
+                return (
+                  <text x={fanTitleX} y={titleY} textAnchor="middle" className="tick">
+                    n={n}: no hyperfine (see caption)
+                  </text>
+                );
+              }
+              const lv = hfShell.levels;
+              if (lv.length < 2) {
+                return (
+                  <text x={fanTitleX} y={titleY} textAnchor="middle" className="tick">
+                    {hfShell.nucleus}: I=0, no splitting
+                  </text>
+                );
+              }
+              const shifts = lv.map((x) => x.shift_ev.value);
+              const lo = Math.min(...shifts);
+              const hi = Math.max(...shifts);
+              const pad = (hi - lo || 1e-9) * 0.25;
+              const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 60]);
+              const dnuMHz = (hi - lo) / EV_PER_MHZ;
+              const is21cm = hfShell.nucleus === "proton" && n === 1;
+              return (
+                <g>
+                  <text x={fanTitleX} y={titleY} textAnchor="middle" className="tick">
+                    n={n}s hyperfine ({hfShell.nucleus}): APPROXIMATION
+                  </text>
+                  <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
+                  <text x={zx1 - 6} y={yz(0)} dy="0.32em" textAnchor="end" className="tick">
+                    centroid
+                  </text>
+                  {lv.map((x) => {
+                    const yS = yz(x.shift_ev.value);
+                    return (
+                      <g key={x.F}>
+                        <line
+                          x1={zx1} x2={zx2} y1={yS} y2={yS}
+                          className="rung rung-active"
+                        />
+                        <text x={zx2 + 6} y={yS} dy="0.32em" className="tick">
+                          F={x.F}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  <text x={fanTitleX} y={H - 40} textAnchor="middle" className="tick">
+                    Δν = {dnuMHz.toFixed(1)} MHz{is21cm ? " · 21 cm line" : ""}
+                  </text>
+                </g>
+              );
+            })()}
+    </>
+  );
 
   return (
     <div className="view-wrap" ref={wrapRef}>
@@ -717,8 +938,9 @@ export function LevelsView() {
                 n={g.n}
               </text>
               <text x={rungX2 + 30} y={yl} dy="0.32em" className="tick">
-                {g.energy_ev.value.toFixed(2)} eV · 2n²={g.degeneracy}
-                {g.n === 1 ? " · ground state" : ""}
+                {g.energy_ev.value.toFixed(2)} eV
+                {compact ? "" : ` · 2n²=${g.degeneracy}`}
+                {!compact && g.n === 1 ? " · ground state" : ""}
               </text>
             </g>
           );
@@ -757,188 +979,23 @@ export function LevelsView() {
           );
         })}
         </g>
-        {mode === "fine" || mode === "zeeman"
-          ? fineForN.length > 0 &&
-            (() => {
-            const bohrN = grossE.get(n) ?? 0;
-            const shifts = fineForN.map((f) => f.shift_ev.value);
-            const subShifts = bField > 0
-              ? fineForN.flatMap((f) =>
-                  (f.sublevels ?? []).map((s) => s.energy_ev.value - bohrN),
-                )
-              : [];
-            const allValues = [...shifts, ...subShifts];
-            const lo = Math.min(...allValues);
-            const hi = Math.max(...allValues);
-            const pad = (hi - lo || 1e-9) * 0.15;
-            const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
-            const zx1 = fanX1;
-            const zx2 = fanX2;
-            const sx1 = subX1;
-            const sx2 = subX2;
-            return (
-              <g>
-                <text x={(zx1 + zx2) / 2} y={26} textAnchor="middle" className="tick">
-                  {bField > 0
-                    ? `n=${n} Zeeman split [µeV]: APPROXIMATION`
-                    : `n=${n} shifts [µeV], zoomed, ${dirac ? "EXACT" : "APPROXIMATION"}`}
-                </text>
-                {fineForN.map((f, idx) => {
-                  const subs = bField > 0 ? f.sublevels ?? [] : [];
-                  const maxAbsMj = subs.length > 0
-                    ? Math.max(...subs.map((s) => Math.abs(s.m_j)))
-                    : 0;
-                  return (
-                    <g key={`${f.l}-${f.j}`}>
-                      <line
-                        x1={zx1} x2={zx2}
-                        y1={yz(f.shift_ev.value)} y2={yz(f.shift_ev.value)}
-                        className={f.l === l ? "rung rung-active" : "rung"}
-                        opacity={bField > 0 ? 0.35 : 1}
-                      />
-                      {bField === 0 && (
-                        <text
-                          x={zx2 + 6}
-                          y={yz(f.shift_ev.value) + (idx % 2 ? 12 : 0)}
-                          dy="0.32em" className="tick"
-                        >
-                          l={f.l}, j={f.j} · {(f.shift_ev.value * 1e6).toFixed(1)}
-                        </text>
-                      )}
-                      {subs.map((s) => {
-                        const yS = yz(s.energy_ev.value - bohrN);
-                        const extreme = Math.abs(s.m_j) === maxAbsMj;
-                        return (
-                          <g key={`${f.l}-${f.j}-${s.m_j}-${s.branch}`}>
-                            <line
-                              x1={zx2} x2={sx1}
-                              y1={yz(f.shift_ev.value)} y2={yS}
-                              className="rung"
-                              opacity={0.25}
-                            />
-                            <line
-                              x1={sx1} x2={sx2}
-                              y1={yS} y2={yS}
-                              className={f.l === l ? "rung-active" : "rung"}
-                            />
-                            {extreme && (
-                              <text x={sx2 + 6} y={yS} dy="0.32em" className="tick">
-                                {mathTspans(`m_j = ${s.m_j}`)}
-                              </text>
-                            )}
-                          </g>
-                        );
-                      })}
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })()
-          : null}
-        {mode === "stark" &&
-          (() => {
-            const gsel = levels.gross.find((g) => g.n === n);
-            const subs = gsel?.sublevels ?? [];
-            if (subs.length === 0) return null;
-            const bohrN = gsel!.energy_ev.value;
-            const shifts = subs.map((s) => s.energy_ev.value - bohrN);
-            const lo = Math.min(...shifts);
-            const hi = Math.max(...shifts);
-            const pad = (hi - lo || 1e-9) * 0.15;
-            const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 48]);
-            const zx1 = fanX1;
-            const zx2 = fanX2;
-            const kMax = Math.max(...subs.map((s) => Math.abs(s.k)));
-            return (
-              <g>
-                <text x={(zx1 + zx2) / 2} y={26} textAnchor="middle" className="tick">
-                  n={n} Stark manifold [meV] (APPROXIMATION)
-                </text>
-                <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
-                {subs.map((s) => {
-                  const yS = yz(s.energy_ev.value - bohrN);
-                  const label = Math.abs(s.k) === kMax && s.m === 0;
-                  return (
-                    <g key={`${s.n1}-${s.n2}-${s.m}`}>
-                      <line
-                        x1={zx1} x2={zx2} y1={yS} y2={yS}
-                        className={s.k === 0 ? "rung" : "rung rung-active"}
-                        opacity={0.8}
-                      />
-                      {label && (
-                        <text x={zx2 + 6} y={yS} dy="0.32em" className="tick">
-                          k={s.k}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })()}
-        {mode === "hyperfine" && hfShell &&
-          (() => {
-            const zx1 = fanX1;
-            const zx2 = fanX2;
-            const titleY = 26;
-            if (!hfShell.available) {
-              return (
-                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
-                  n={n}: no hyperfine (see caption)
-                </text>
-              );
-            }
-            const lv = hfShell.levels;
-            if (lv.length < 2) {
-              return (
-                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
-                  {hfShell.nucleus}: I=0, no splitting
-                </text>
-              );
-            }
-            const shifts = lv.map((x) => x.shift_ev.value);
-            const lo = Math.min(...shifts);
-            const hi = Math.max(...shifts);
-            const pad = (hi - lo || 1e-9) * 0.25;
-            const yz = scaleLinear([lo - pad, hi + pad], [H - 60, 60]);
-            const dnuMHz = (hi - lo) / EV_PER_MHZ;
-            const is21cm = hfShell.nucleus === "proton" && n === 1;
-            return (
-              <g>
-                <text x={(zx1 + zx2) / 2} y={titleY} textAnchor="middle" className="tick">
-                  n={n}s hyperfine ({hfShell.nucleus}): APPROXIMATION
-                </text>
-                <line x1={zx1} x2={zx2} y1={yz(0)} y2={yz(0)} className="zero" opacity={0.5} />
-                <text x={zx1 - 6} y={yz(0)} dy="0.32em" textAnchor="end" className="tick">
-                  centroid
-                </text>
-                {lv.map((x) => {
-                  const yS = yz(x.shift_ev.value);
-                  return (
-                    <g key={x.F}>
-                      <line
-                        x1={zx1} x2={zx2} y1={yS} y2={yS}
-                        className="rung rung-active"
-                      />
-                      <text x={zx2 + 6} y={yS} dy="0.32em" className="tick">
-                        F={x.F}
-                      </text>
-                    </g>
-                  );
-                })}
-                <text x={(zx1 + zx2) / 2} y={H - 40} textAnchor="middle" className="tick">
-                  Δν = {dnuMHz.toFixed(1)} MHz{is21cm ? " · 21 cm line" : ""}
-                </text>
-              </g>
-            );
-          })()}
+        {compact ? null : magnifier}
       </svg>
+      {compact && mode !== "none" && (
+        <svg
+          viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }}
+          role="img"
+          className="levels-svg"
+          aria-label="the selected shell, magnified"
+        >
+          {magnifier}
+        </svg>
+      )}
       <ZoomControls zoom={ladderZoom} what="the energy axis" />
       {gross.length < levels.gross.length && (
         <p className="caption">
-          The right-hand magnifier keeps its own scale, which this zoom does not
-          touch.
+          The magnifier {compact ? "below" : "on the right"} keeps its own
+          scale, which this zoom does not touch.
         </p>
       )}
 

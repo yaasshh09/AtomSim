@@ -42,6 +42,31 @@ export function plotWidth(measured: number, min: number = MIN_PLOT_WIDTH): numbe
 }
 
 /**
+ * The width a plot is drawn at, and whether that is under the width its
+ * furniture was designed for.
+ *
+ * A view's floor used to be enforced by widening the viewBox past the
+ * container, which pushed the difference into a horizontal scrollbar. On a
+ * desktop that is a scrollbar nobody meets, because the centre column is wider
+ * than every floor. On a 390px phone the ladder views were 200px wider than
+ * the screen, and a plot you have to drag sideways to finish reading is a plot
+ * with half of itself hidden.
+ *
+ * So the floor stops being a width and becomes a question: is there room for
+ * the furniture this view carries side by side? Under it the view is told
+ * `compact` and lays its panels out one above the other instead, on the width
+ * that is actually there. The absolute floor stays, because a zero-width
+ * measurement is still NaN in every coordinate.
+ */
+export function plotFit(
+  measured: number,
+  min: number = MIN_PLOT_WIDTH,
+): { width: number; compact: boolean } {
+  const width = plotWidth(measured);
+  return { width, compact: width < min };
+}
+
+/**
  * A plot's height, following its width between two limits.
  *
  * With a fixed viewBox the rendered height was always `width * ratio`, so a
@@ -70,24 +95,22 @@ export function plotHeight(
  */
 export function usePlotWidth(min: number = MIN_PLOT_WIDTH): {
   width: number;
+  compact: boolean;
   ref: (el: HTMLElement | null) => void;
 } {
-  const [width, setWidth] = useState(min);
-  const ref = useCallback(
-    (el: HTMLElement | null) => {
-      if (!el) return;
-      const observer = new ResizeObserver(([entry]) => {
-        // The content box, so the wrapper's own padding is not counted as room
-        // to draw in.
-        setWidth(plotWidth(entry.contentRect.width, min));
-      });
-      observer.observe(el);
-      setWidth(plotWidth(el.clientWidth - paddingX(el), min));
-      return () => observer.disconnect();
-    },
-    [min],
-  );
-  return { width, ref };
+  const [measured, setMeasured] = useState(min);
+  const ref = useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      // The content box, so the wrapper's own padding is not counted as room
+      // to draw in.
+      setMeasured(entry.contentRect.width);
+    });
+    observer.observe(el);
+    setMeasured(el.clientWidth - paddingX(el));
+    return () => observer.disconnect();
+  }, []);
+  return { ...plotFit(measured, min), ref };
 }
 
 function paddingX(el: HTMLElement): number {

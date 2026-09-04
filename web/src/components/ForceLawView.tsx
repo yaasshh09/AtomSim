@@ -86,7 +86,7 @@ export function ForceLawView() {
   const curveEv = forceLaw ? forceLaw.potential_curve.v_ev : [];
   const curveR = forceLaw ? forceLaw.potential_curve.r : [];
 
-  const { width: W, ref: wrapRef } = usePlotWidth(SHAPE.floor);
+  const { width: W, compact, ref: wrapRef } = usePlotWidth(SHAPE.floor);
   const H = plotHeight(W, SHAPE.ratio, SHAPE.min, SHAPE.max);
   const allEv = [...levelsEv, ...refEv, ...curveEv];
   const emin = allEv.length ? Math.min(...allEv) : -14;
@@ -418,7 +418,9 @@ export function ForceLawView() {
               })}
               </g>
               <text x={PAD.left} y={PAD.top - 12} className="forcelaw-col">
-                {mathTspans(`V(r) and bound levels: ${potLabel}`)}
+                {/* A phone has room for the label or the sentence, not both,
+                    and the label is the half that says which lab this is. */}
+                {mathTspans(compact ? potLabel : `V(r) and bound levels: ${potLabel}`)}
               </text>
             </svg>
           ) : (
