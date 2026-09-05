@@ -19,21 +19,24 @@ import { useCallback, useState } from "react";
 /**
  * The narrowest width a plot is built for, unless it asks for more.
  *
- * A floor rather than a target, and it does two jobs. A `ResizeObserver`
- * reports 0 for an element that has not been laid out yet, and a zero width
- * propagates into a d3 scale as a zero-span range and out of it as `NaN` in
- * every coordinate, which draws nothing and says nothing about why.
+ * One job, and only one: a `ResizeObserver` reports 0 for an element that has
+ * not been laid out yet, and a zero width propagates into a d3 scale as a
+ * zero-span range and out of it as `NaN` in every coordinate, which draws
+ * nothing and says nothing about why. This is the value that stands in until
+ * the first real measurement arrives.
  *
- * The second job is the reason `min` is a parameter. A curve against an axis
- * holds together at 320: the only furniture is a margin wide enough for a tick
- * label. An energy ladder does not, because it carries a column of rung labels
- * on the left, a column of energies on the right and, on hydrogen, a fine
- * structure fan beside both, and no fraction of 320 fits three columns of
- * text. Those views name a wider floor. Under it the SVG scales down as it
- * always did, which is the bounded fallback: the picture gets smaller rather
- * than getting its labels sliced off.
+ * It used to be 320, back when it was also a layout constant, and at 320 it
+ * was the last place a plot could still be wider than the screen. A 320px
+ * phone gives its view about 305px of container; the floor rounded that back
+ * up to 320 and the SVG's `min-width` pushed 15px of the picture off the right
+ * edge, which is the exact failure the measured geometry was written to end.
+ * The floor sits below every real container now, so a real measurement always
+ * wins, and a container narrower than this is a viewport no browser ships.
+ *
+ * The wider floors the ladder views name are a separate question, and it is
+ * not a width: see `plotFit`.
  */
-export const MIN_PLOT_WIDTH = 320;
+export const MIN_PLOT_WIDTH = 240;
 
 export function plotWidth(measured: number, min: number = MIN_PLOT_WIDTH): number {
   // Rounded because a fractional viewBox width puts every gridline on a half

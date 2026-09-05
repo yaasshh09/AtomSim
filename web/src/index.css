@@ -2492,6 +2492,17 @@ input[type="range"]:disabled {
   margin-bottom: 0.25rem;
 }
 
+/* The five Balmer-and-friends series names are one nowrap row pushed right by
+   `margin-left: auto`, which is 310px of legend. On a 320px phone that is the
+   last thing on the stage still wider than the screen, and one legend hanging
+   over the edge drags every view sideways with it. It wraps here and stays a
+   single row everywhere it fits. */
+.app-shell-mobile .legend-inline {
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  margin-left: 0;
+}
+
 /* No scrollbar track under the thumbnails. A finger does not need one, and the
    16px it reserves is 16px off the plot on every view. */
 .app-shell-mobile .gallery-scroll {

@@ -665,7 +665,13 @@ export function SpectrumView() {
             wavelength [nm] (log)
           </text>
           <text x={W - M.right} y={16} textAnchor="end" className="tick">
-            bars: computed · dots on the axis: measured by NIST
+            {/* Fifty characters of 12px mono is 310px, and an SVG text node
+                neither wraps nor shrinks: end-anchored on a phone the sentence
+                ran off the left edge of its own panel and lost its first
+                words. The short form says the same two things. */}
+            {compact
+              ? "bars: computed · dots: NIST"
+              : "bars: computed · dots on the axis: measured by NIST"}
           </text>
           {hoverLine && (
             <HoverReadout

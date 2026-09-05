@@ -29,7 +29,14 @@ describe("plotWidth", () => {
     // coordinate the plot draws.
     expect(plotWidth(0)).toBe(MIN_PLOT_WIDTH);
     expect(plotWidth(-5)).toBe(MIN_PLOT_WIDTH);
-    expect(plotWidth(200)).toBe(MIN_PLOT_WIDTH);
+  });
+
+  it("sits below the narrowest container a phone can hand it", () => {
+    // A 320px viewport, the narrowest anything ships, leaves about 305px of
+    // view after the mobile gutter. Rounded up to a floor, that difference is
+    // the plot hanging off the right edge of the screen.
+    expect(plotWidth(305)).toBe(305);
+    expect(MIN_PLOT_WIDTH).toBeLessThan(305);
   });
 
   it("takes a wider floor from a view that needs one", () => {
