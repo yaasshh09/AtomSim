@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
+import { isTouch } from "../lib/viewport";
 import { isZoomed, panView, zoomFactor, zoomView, type Domain } from "../lib/zoom";
 
 /** One axis of a zoomable plot: what it covers, where it is drawn, how it maps. */
@@ -314,6 +315,14 @@ export function ZoomControls({
           <>
             <strong>{zoom.factor.toFixed(1)}×</strong> on {what}
           </>
+        ) : isTouch() ? (
+          /* Every gesture the other branch names is one a touch screen does
+             not have here: the wheel, the drag and the double-click are mouse
+             and pen only, on purpose, so that a swipe over a plot scrolls the
+             page instead of being eaten by it (see `startsPan`). Printing them
+             to a phone was an instrument describing controls it does not
+             offer. The buttons beside this line are the touch interface. */
+          <>use + and − to zoom {what}</>
         ) : (
           <>scroll to zoom {what}, drag to pan, double-click to reset</>
         )}

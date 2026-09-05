@@ -23,6 +23,18 @@ export function isNarrow(width: number): boolean {
   return width < MIN_WIDTH;
 }
 
+/**
+ * Whether the primary pointer is a finger.
+ *
+ * Separate from `isNarrow`, and deliberately: a narrow window on a desktop
+ * still has a wheel and a mouse, and a tablet in landscape is wide and has
+ * neither. What reads this is prose describing an interaction, and prose that
+ * offers a gesture the device cannot make is worse than no prose.
+ */
+export function isTouch(): boolean {
+  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
+}
+
 /** Tracks the viewport, which the shell picks on and the sheet snaps to. */
 export function useViewport(): { width: number; height: number } {
   const [size, setSize] = useState(() => ({

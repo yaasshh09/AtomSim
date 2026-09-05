@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Notation } from "../lib/mathText";
+import { isNarrow } from "../lib/viewport";
 
 /**
  * The control vocabulary shared across the instrument views.
@@ -30,12 +31,23 @@ export function ControlGroup({
   /** `active` tints the rail when this group is doing something. */
   tone?: "plain" | "active";
 }) {
+  /* A disclosure rather than a section, and closed on a phone, for the reason
+     the view card is (see ViewIntro). These groups sit above the plot in the
+     views that carry them, and three of them stacked -- a title, a purpose, a
+     picker and its hint each -- pushed the picture off a 844px screen
+     entirely: Levels, What-If and Force law all opened on a page of controls
+     for a plot nobody had seen. Closed, the group is one titled row, the plot
+     is on screen, and the controls are one tap away rather than one scroll.
+     On a desktop nothing changes: there is room for both, so it renders open.
+
+     Read rather than subscribed to, like ViewIntro: crossing MIN_WIDTH swaps
+     the whole shell and remounts this. */
   return (
-    <section className={`ctl-group ctl-group-${tone}`}>
-      <h3 className="ctl-group-title">{title}</h3>
+    <details className={`ctl-group ctl-group-${tone}`} open={!isNarrow(window.innerWidth)}>
+      <summary className="ctl-group-title">{title}</summary>
       {hint && <p className="ctl-group-hint">{hint}</p>}
       <div className="ctl-group-body">{children}</div>
-    </section>
+    </details>
   );
 }
 

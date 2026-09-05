@@ -13,8 +13,9 @@ const N_CHOICES = [1, 2, 3, 4, 5, 6];
  *  on a number that is not in the list. */
 export const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];
 
-// One entry per view, appended as each one lands.
-const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+// One entry per view, appended as each one lands. Exported for the mobile tab
+// strip, which draws the same seven in the same order with shorter labels.
+export const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "cloud", label: "3D point cloud" },
   { value: "plane", label: "2D cross-section" },
   { value: "radial", label: "Radial R(r), P(r)" },
@@ -212,23 +213,32 @@ export function Controls() {
           )}
         </div>
       )}
-      <h2>View mode</h2>
       {/* A list, not a dropdown: these seven views are the whole instrument,
           and a closed <select> would hide six of them behind a click. It still
-          behaves as one radio group, and `aria-pressed` says which is live. */}
-      <div className="view-list" data-tour="view-list">
-        {VIEW_OPTIONS.map((v) => (
-          <button
-            key={v.value}
-            type="button"
-            className={`view-option${view === v.value ? " view-option-on" : ""}`}
-            aria-pressed={view === v.value}
-            onClick={() => setView(v.value)}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+          behaves as one radio group, and `aria-pressed` says which is live.
+
+          Not drawn at all on a phone, where the same seven are a tab strip
+          above the stage (ViewTabs). Two live copies would be two things
+          claiming to be the view switcher, and the tour ring anchors to
+          whichever one is on screen. */}
+      {!narrow && (
+        <>
+          <h2>View mode</h2>
+          <div className="view-list" data-tour="view-list">
+            {VIEW_OPTIONS.map((v) => (
+              <button
+                key={v.value}
+                type="button"
+                className={`view-option${view === v.value ? " view-option-on" : ""}`}
+                aria-pressed={view === v.value}
+                onClick={() => setView(v.value)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <h2>Quantum no.</h2>
       <div className="qn-tiles">
         <label className="qn-tile" data-tour="n-picker">

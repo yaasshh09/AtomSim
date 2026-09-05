@@ -13,6 +13,7 @@ import { TopBar } from "./components/TopBar";
 import { TourInvite } from "./components/TourInvite";
 import { TourPanel } from "./components/TourPanel";
 import { TourSpotlight } from "./components/TourSpotlight";
+import { ViewTabs } from "./components/ViewTabs";
 import { WhatIfView } from "./components/WhatIfView";
 import { snapHeight } from "./lib/sheet";
 import { isNarrow, useViewport } from "./lib/viewport";
@@ -88,6 +89,7 @@ function MobileShell({ height }: { height: number }) {
       style={{ "--sheet-h": `${snapHeight(sheet, height)}px` } as CSSProperties}
     >
       <TopBar />
+      <ViewTabs />
       <TourInvite />
       <main className="mobile-stage">
         <Stage />

@@ -2284,8 +2284,81 @@ input[type="range"]:disabled {
 /* The stage takes the screen, less the peek bar it must not draw underneath.
    Rows match the desktop shell's, so the top bar and the first-visit
    invitation land in the same places. */
-.mobile-stage {
+/* A fourth row for the tab strip, between the bar and the stage. The desktop
+   shell has three: bar, first-visit invitation, columns. */
+.app-shell-mobile {
+  grid-template-rows: 48px auto auto minmax(0, 1fr);
+}
+
+.app-shell-mobile .view-tabs {
+  grid-row: 2;
+}
+
+/* The crumb goes. It reads "Hydrogen · 3p (m = 0) · complex Ylm", and in the
+   space a 390px bar has left after the brand, the tier badge and the tours
+   button it rendered as "Hyd…": a field whose entire content is an ellipsis. The
+   sheet's peek bar carries the same sentence along the bottom edge with room
+   to print it, so this one is a duplicate as well as an unreadable one. */
+.app-shell-mobile .topbar-crumb,
+.app-shell-mobile .topbar-rule {
+  display: none;
+}
+
+/* Closed, a control group is a titled row and nothing else, so the padding
+   that frames a stack of controls would be framing the title. */
+.app-shell-mobile .ctl-group:not([open]) {
+  padding: 0.5rem 0.75rem;
+}
+
+.app-shell-mobile .tour-invite {
   grid-row: 3;
+}
+
+/* The seven views, permanently on screen. Scrolls sideways rather than
+   wrapping: the labels do not fit a 390px row and two rows of tabs cost as
+   much height as the plot gains. This is the one horizontal scroll on this
+   shell that is meant to be one. */
+.view-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--edge);
+  background: var(--panel);
+  scrollbar-width: none;
+  /* One tab per stop, so a flick never leaves half a label under the edge. */
+  scroll-snap-type: x proximity;
+}
+
+.view-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.view-tab {
+  flex: none;
+  scroll-snap-align: center;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  /* 40px tall with the padding, which is the smallest target worth shipping
+     for the control people press most often here. */
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--edge-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.view-tab-on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgb(52 224 161 / 0.08);
+}
+
+.mobile-stage {
+  grid-row: 4;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
@@ -2419,6 +2492,37 @@ input[type="range"]:disabled {
   margin-bottom: 0.25rem;
 }
 
+/* No scrollbar track under the thumbnails. A finger does not need one, and the
+   16px it reserves is 16px off the plot on every view. */
+.app-shell-mobile .gallery-scroll {
+  padding-bottom: 0;
+  scrollbar-width: none;
+}
+
+.app-shell-mobile .gallery-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Label over value rather than beside it. Side by side, "a_0: Bohr radius
+   (atom size)" and its badge take the row, and the number they exist to carry
+   wrapped under itself with "unchanged" adrift below it. Stacked, each
+   constant is a label line and a number line, and only the dd keeps the rule
+   so a row still ends in one dash and not two. */
+.app-shell-mobile .readout-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.1rem;
+}
+
+.app-shell-mobile .readout-row dt {
+  border-bottom: 0;
+  padding: 0.5rem 0 0;
+}
+
+.app-shell-mobile .readout-row dd {
+  padding: 0 0 0.5rem;
+}
+
 .app-shell-mobile .thumb img,
 .app-shell-mobile .thumb-blank {
   width: 52px;
@@ -2514,10 +2618,13 @@ input[type="range"]:disabled {
   letter-spacing: 0.01em;
   color: var(--text);
   margin: 0 0 0.35rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  /* Block, not flex. As a wrapping flex row the title text was one item whose
+     basis is its max-content width, so on a phone a title that did not fit
+     beside the marker wrapped past it and left the marker alone on a line of
+     its own: "What if the force law were different?" spent 110px of a 844px
+     screen saying it. Inline, the marker and the badge sit in the text flow
+     and the sentence wraps under itself. */
+  display: block;
   cursor: pointer;
   /* Same drawn marker as a disclosure, for the same reason: the platform
      triangle is a different colour and size in every engine. */
@@ -2534,6 +2641,8 @@ input[type="range"]:disabled {
   font-size: 0.75em;
   transition: transform 0.12s ease;
   display: inline-block;
+  margin-right: 0.5rem;
+  vertical-align: 0.1em;
 }
 
 .view-intro[open] > summary::before {
@@ -2553,6 +2662,8 @@ input[type="range"]:disabled {
 
 .view-intro-badge {
   display: inline-flex;
+  margin-left: 0.5rem;
+  vertical-align: 0.15em;
 }
 
 /* The lead is sans on purpose while every caption stays mono. The mono is the
@@ -2686,6 +2797,9 @@ input[type="range"]:disabled {
   background: rgb(52 224 161 / 0.035);
 }
 
+/* A summary, not a heading: the group is a disclosure now (see Field.tsx), so
+   the title carries the same drawn marker the view card and the disclosures
+   use rather than whichever triangle the engine ships. */
 .ctl-group-title {
   font-family: var(--mono);
   font-size: 0.63rem;
@@ -2694,6 +2808,39 @@ input[type="range"]:disabled {
   letter-spacing: 0.14em;
   color: var(--label);
   margin: 0 0 0.3rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ctl-group-title::-webkit-details-marker {
+  display: none;
+}
+
+.ctl-group-title::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: 1em;
+  letter-spacing: 0;
+  transition: transform 0.12s ease;
+  display: inline-block;
+  flex: none;
+}
+
+.ctl-group[open] > .ctl-group-title::before {
+  transform: rotate(90deg);
+}
+
+/* Closed, there is nothing under the title for the gap to separate it from. */
+.ctl-group:not([open]) > .ctl-group-title {
+  margin: 0;
+}
+
+.ctl-group-title:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .ctl-group-active .ctl-group-title {
