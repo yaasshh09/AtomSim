@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultParams } from "./forceLaw";
-import { URL_DEFAULTS, parseAppUrl, serializeAppUrl } from "./urlState";
+import { URL_DEFAULTS, isNewPlace, parseAppUrl, serializeAppUrl } from "./urlState";
 
 describe("parseAppUrl", () => {
   it("empty search yields no overrides", () => {
@@ -525,5 +525,44 @@ describe("tour deep links", () => {
   it("round-trips", () => {
     const want = { ...URL_DEFAULTS, tour: "hydrogen-honestly", step: 3 };
     expect({ ...want, ...parseAppUrl(serializeAppUrl(want)) }).toEqual(want);
+  });
+});
+
+describe("what earns a history entry", () => {
+  it("counts a different state, atom, model, view or tour step as a place", () => {
+    for (const move of [
+      { n: 2, l: 1, m: 0 },
+      { system: "he+" },
+      { view: "spectrum" as const },
+      { model: "hf" as const },
+      { config: "1s2 2s1" },
+      { tour: "hydrogen-honestly" },
+      { step: 2 },
+    ]) {
+      expect(isNewPlace(URL_DEFAULTS, { ...URL_DEFAULTS, ...move })).toBe(true);
+    }
+  });
+
+  it("counts a setting on the place you are already in as no move at all", () => {
+    // These are dragged, and one drag is a hundred store writes. A history
+    // entry each would bury the previous orbital and make Back useless.
+    for (const tweak of [
+      { bField: 3 },
+      { eField: 2 },
+      { temperatureK: 12000 },
+      { logNe: 15 },
+      { logColumn: 22 },
+      { isoFraction: 0.5 },
+      { colorMode: "density" as const },
+      { nucleusMode: "hidden" as const },
+      { fineStructure: true },
+      { ghost: true },
+    ]) {
+      expect(isNewPlace(URL_DEFAULTS, { ...URL_DEFAULTS, ...tweak })).toBe(false);
+    }
+  });
+
+  it("is not a move when nothing moved", () => {
+    expect(isNewPlace(URL_DEFAULTS, { ...URL_DEFAULTS })).toBe(false);
   });
 });

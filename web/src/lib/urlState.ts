@@ -12,7 +12,7 @@ import {
   validateExprClient,
   type ForcePreset,
 } from "./forceLaw";
-import { clampState } from "./quantum";
+import { N_MAX, clampState } from "./quantum";
 import { CONST_MAX, CONST_MIN, CONSTANT_KEYS, type ConstantKey } from "./whatif";
 
 export interface UrlState {
@@ -179,9 +179,6 @@ export const URL_DEFAULTS: UrlState = {
 // A config string reads as compact subshell tokens: "1s2 2s2 2p6 3p1"
 const CONFIG_RE = /^(\d[spdfgh]\d+)( \d[spdfgh]\d+)*$/;
 
-// Mirrors the n select in Controls (N_CHOICES max)
-const N_MAX_UI = 6;
-
 const VIEWS: ViewMode[] = ["cloud", "plane", "radial", "levels", "spectrum", "whatif", "forcelaw"];
 const COLORS: ColorMode[] = ["solid", "density", "phase"];
 const BASES: Basis[] = ["complex", "real"];
@@ -292,7 +289,7 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   const m = pickInt(q.get("m"));
   if (n !== undefined || l !== undefined || m !== undefined) {
     const clamped = clampState(
-      Math.min(n ?? URL_DEFAULTS.n, N_MAX_UI),
+      Math.min(n ?? URL_DEFAULTS.n, N_MAX),
       l ?? URL_DEFAULTS.l,
       m ?? URL_DEFAULTS.m,
     );
@@ -533,4 +530,36 @@ export function serializeAppUrl(state: UrlState): string {
   // string reads back as a space, which would break the he+ round-trip
   const s = q.toString();
   return s ? `?${s}` : "";
+}
+
+/**
+ * The parameters that name a different place rather than a different setting.
+ *
+ * The URL describes the live state, so it is rewritten on every store change,
+ * a slider dragged from 3000 K to 12000 K included. Pushing a history entry
+ * for each of those would bury the previous orbital under two hundred
+ * indistinguishable ones and make Back useless, which is what it was: the
+ * whole session was a single `replaceState` entry, so Back left the app.
+ *
+ * So a change to one of these pushes and everything else replaces. The rule is
+ * what a reader would call navigation: the state, the atom, the model it is
+ * solved with, the view it is drawn in, and where a tour has reached. A field
+ * strength or a colour mode is a setting on the place you are already in, and
+ * it still travels in the link, it just does not get its own entry.
+ */
+const NAV_KEYS = [
+  "n",
+  "l",
+  "m",
+  "system",
+  "view",
+  "model",
+  "config",
+  "tour",
+  "step",
+] as const satisfies readonly (keyof UrlState)[];
+
+/** Whether moving from `a` to `b` is a navigation, and so deserves a history entry. */
+export function isNewPlace(a: UrlState, b: UrlState): boolean {
+  return NAV_KEYS.some((k) => a[k] !== b[k]);
 }

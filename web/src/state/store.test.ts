@@ -488,3 +488,41 @@ describe("finishTour", () => {
     expect(useAppStore.getState().completedTours).toEqual([]);
   });
 });
+
+describe("the Back button's landing pad", () => {
+  it("applies a URL as a whole state, not as a patch", () => {
+    // The point of the test: a history entry that says nothing about the
+    // magnetic field says it is off. Reading it as a patch would leave the
+    // field raised after stepping back to before it was raised, which is the
+    // one thing Back must never do.
+    useAppStore.setState({ bField: 4, fineStructure: true, colorMode: "density" });
+    useAppStore.getState().applyUrl({ n: 3, l: 1, m: 0 });
+    const s = useAppStore.getState();
+    expect([s.n, s.l, s.m]).toEqual([3, 1, 0]);
+    expect(s.bField).toBe(0);
+    expect(s.fineStructure).toBe(false);
+    expect(s.colorMode).toBe("solid");
+  });
+
+  it("clears everything the previous place derived", () => {
+    pretendLoaded();
+    useAppStore.getState().applyUrl({ system: "mu-h" });
+    const s = useAppStore.getState();
+    expect(s.positions).toBeNull();
+    expect(s.plane).toBeNull();
+    expect(s.levels).toBeNull();
+    expect(s.spectrum).toBeNull();
+    expect(s.status).toBe("idle");
+  });
+
+  it("steps back into a tour, and out of one", () => {
+    useAppStore.getState().applyUrl({ tour: FLAGSHIP_TOUR_ID, step: 2 });
+    expect(useAppStore.getState().tourId).toBe(FLAGSHIP_TOUR_ID);
+    expect(useAppStore.getState().stepIndex).toBe(2);
+    // The state to come back to is kept on the way in and spent on the way out.
+    expect(useAppStore.getState().savedState).not.toBeNull();
+    useAppStore.getState().applyUrl({});
+    expect(useAppStore.getState().tourId).toBeNull();
+    expect(useAppStore.getState().savedState).toBeNull();
+  });
+});

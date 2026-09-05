@@ -29,7 +29,7 @@ import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
 import type { Snap } from "../lib/sheet";
-import { currentUrlState, type UrlState } from "../lib/urlState";
+import { URL_DEFAULTS, currentUrlState, type UrlState } from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
 import { tourReset } from "../tours/apply";
 import { tourById } from "../tours/registry";
@@ -271,6 +271,8 @@ interface AppState {
   tourId: string | null;
   stepIndex: number;
   savedState: UrlState | null;
+  /** Land the whole app in the state a query string names. See the action. */
+  applyUrl: (patch: Partial<UrlState>) => void;
   startTour: (id: string, step?: number) => void;
   exitTour: () => void;
   /** Leave the tour, recording that it was read to the end. */
@@ -527,6 +529,38 @@ export const useAppStore = create<AppState>((set, get) => ({
   // the atom changed, so the solve, cloud, plane and surface all stand. Only
   // the radial response goes, because only it is missing a field.
   setCompare: (compare) => set({ compare, radial: null }),
+  /**
+   * Land the whole app in the state a query string names.
+   *
+   * This is the Back button's landing pad. A history entry holds a URL, and a
+   * URL is a complete state rather than a patch: what it leaves out it means
+   * to be the default, so the parsed params go on top of URL_DEFAULTS and not
+   * on top of whatever is loaded. Applying it as a patch would leave a Zeeman
+   * field switched on after stepping back to before it was raised, which is
+   * the one thing a Back button must not do.
+   *
+   * It goes through tourReset for the reason that helper exists: this changes
+   * n, l, m, system, config and model in one move, so it has to clear the
+   * union of what each of those actions clears, or the previous place's cloud
+   * and levels render under this one's labels.
+   *
+   * The cloud is left empty rather than resampled, which is the same thing
+   * that happens when the state is changed by hand. Every other view fetches
+   * what it needs.
+   */
+  applyUrl: (patch) =>
+    set((s) => {
+      const next: UrlState = { ...URL_DEFAULTS, ...patch };
+      return {
+        ...tourReset(next, s.systems),
+        tourId: next.tour,
+        stepIndex: next.step,
+        // Stepping back into a tour keeps the reader's own state to return to,
+        // exactly as startTour does; stepping out of one spends it, exactly as
+        // exitTour does.
+        savedState: next.tour ? (s.savedState ?? currentUrlState(s)) : null,
+      };
+    }),
   // A tour step is a whole state, not a patch, so it goes through tourReset
   // rather than a raw setState: see the comment on tourReset for what would
   // otherwise render under the new labels.

@@ -4,7 +4,7 @@ import App from "./App";
 import { COUNT_CHOICES } from "./components/Controls";
 import { installAnalytics } from "./lib/analytics";
 import { shouldAutoSample } from "./lib/startup";
-import { currentUrlState, parseAppUrl, serializeAppUrl } from "./lib/urlState";
+import { currentUrlState, isNewPlace, parseAppUrl, serializeAppUrl } from "./lib/urlState";
 import { isNarrow } from "./lib/viewport";
 import { useAppStore } from "./state/store";
 // Bundled rather than fetched from a CDN: `atomsim serve` runs locally, and
@@ -59,12 +59,34 @@ if (opening.tour) {
   }
 }
 
+// The URL keeps describing the live state, and now it also keeps a history
+// worth walking: a change of state, atom, model, view or tour step pushes an
+// entry, and every setting under those replaces the one it is on. See
+// isNewPlace for why the two are told apart, and popstate below for the walk
+// back.
+let lastUrl = {
+  ...currentUrlState(useAppStore.getState()),
+  tour: opening.tour ?? null,
+  step: opening.step ?? 0,
+};
+
 useAppStore.subscribe((s) => {
-  const qs = serializeAppUrl({ ...currentUrlState(s), tour: s.tourId, step: s.stepIndex });
-  const next = window.location.pathname + qs;
+  const now = { ...currentUrlState(s), tour: s.tourId, step: s.stepIndex };
+  const next = window.location.pathname + serializeAppUrl(now);
   if (next !== window.location.pathname + window.location.search) {
-    window.history.replaceState(null, "", next);
+    if (isNewPlace(lastUrl, now)) window.history.pushState(null, "", next);
+    else window.history.replaceState(null, "", next);
   }
+  lastUrl = now;
+});
+
+// Back and Forward. The entries this walks were written by the subscriber
+// above, so they are canonical query strings, and applying one re-serializes
+// to the URL already showing: the subscriber sees no change and writes nothing
+// back, so there is no loop. A hand-typed link that was not canonical gets
+// tidied by a replaceState on the way past, which spends no history entry.
+window.addEventListener("popstate", () => {
+  useAppStore.getState().applyUrl(parseAppUrl(window.location.search));
 });
 
 createRoot(document.getElementById("root")!).render(
