@@ -79,7 +79,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <span className="topbar-brand">atomsim</span>
+        <span className="topbar-brand">AtomSim</span>
         <span className="topbar-rule" />
         <span className="topbar-crumb">
           {sys ? sys.name : system} · {stateLabel(n, l, m)} · {method}

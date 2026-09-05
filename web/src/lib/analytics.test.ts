@@ -5,7 +5,7 @@ const ENDPOINT = "https://atomsim.goatcounter.com/count";
 
 const visit = (over: Partial<VisitFacts> = {}): VisitFacts => ({
   pathname: "/",
-  title: "atomsim",
+  title: "AtomSim",
   referrer: "",
   screenWidth: 1920,
   automated: false,
@@ -94,7 +94,7 @@ describe("beaconUrl", () => {
     const url = new URL(beaconUrl(ENDPOINT, visit()));
     expect(url.origin + url.pathname).toBe(ENDPOINT);
     expect(url.searchParams.get("p")).toBe("/");
-    expect(url.searchParams.get("t")).toBe("atomsim");
+    expect(url.searchParams.get("t")).toBe("AtomSim");
     expect(url.searchParams.get("s")).toBe("1920");
     expect(url.searchParams.get("b")).toBe("0");
     expect(url.searchParams.get("rnd")).toBe("abc123");

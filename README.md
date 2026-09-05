@@ -1,4 +1,4 @@
-# atomsim
+# AtomSim
 
 **A quantum-mechanical atom model that never quietly lies about its physics.**
 
@@ -11,7 +11,7 @@ hydrogen in closed form, run self-consistent Hartree-Fock on real atoms,
 compare the resulting spectrum against NIST, then break the rules on purpose
 and watch what the altered physics actually does.
 
-![The atomsim instrument showing a 4f hydrogen orbital as a Monte-Carlo point cloud](docs/images/instrument.png)
+![The AtomSim instrument showing a 4f hydrogen orbital as a Monte-Carlo point cloud](docs/images/instrument.png)
 
 ## The prime directive
 
