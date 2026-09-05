@@ -2132,7 +2132,11 @@ input[type="range"]:disabled {
   position: relative;
 }
 
-.tour-entry {
+/* The small top-bar buttons: tours, the link copier and the key list. One
+   declaration, because they sit in a row and a row of three shapes is not a
+   row. */
+.tour-entry,
+.topbar-btn {
   background: transparent;
   border: 1px solid var(--edge-strong);
   border-radius: 3px;
@@ -2141,6 +2145,43 @@ input[type="range"]:disabled {
   font-size: 0.68rem;
   padding: 0.2rem 0.55rem;
   cursor: pointer;
+}
+
+.shortcut-card {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 60;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  width: 15rem;
+  max-width: 90vw;
+  background: var(--panel);
+  border: 1px solid var(--edge-strong);
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.15rem 0;
+}
+
+.shortcut-card dt {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.shortcut-card dd {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
 }
 
 .tour-menu {
@@ -2298,10 +2339,29 @@ input[type="range"]:disabled {
    space a 390px bar has left after the brand, the tier badge and the tours
    button it rendered as "Hyd…": a field whose entire content is an ellipsis. The
    sheet's peek bar carries the same sentence along the bottom edge with room
-   to print it, so this one is a duplicate as well as an unreadable one. */
+   to print it, so this one is a duplicate as well as an unreadable one.
+
+   The key list goes with it, and not for room: a phone has no keyboard, so a
+   card describing one is a card about nothing. */
+.app-shell-mobile .shortcuts-wrap,
 .app-shell-mobile .topbar-crumb,
 .app-shell-mobile .topbar-rule {
   display: none;
+}
+
+/* And on a phone the wordmark goes with them. The right group does not shrink,
+   by the rule above it, so at 320px the frame rate, the tier badge and the two
+   buttons fill the bar on their own and the next thing added is clipped rather
+   than fitted. Of everything in that bar the app's own name is the one item
+   that measures nothing and does nothing when tapped, and the browser tab is
+   already carrying it. The gap closes up by the same argument: 0.6rem still
+   reads as separate buttons and buys back most of a label. */
+.app-shell-mobile .topbar-brand {
+  display: none;
+}
+
+.app-shell-mobile .topbar-right {
+  gap: 0.6rem;
 }
 
 /* Closed, a control group is a titled row and nothing else, so the padding

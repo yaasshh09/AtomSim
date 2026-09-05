@@ -3,12 +3,12 @@ import { isScreenedLevels } from "../api/client";
 import { compareAvailable, gszAvailable, subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
+import { N_CHOICES } from "../lib/quantum";
 import { isNarrow, useViewport } from "../lib/viewport";
 import { useAppStore } from "../state/store";
 import type { ColorMode, ViewMode } from "../state/store";
 import { ShowPhysics } from "./ShowPhysics";
 
-const N_CHOICES = [1, 2, 3, 4, 5, 6];
 /** Exported so main.tsx can open a phone on the smallest of them rather than
  *  on a number that is not in the list. */
 export const COUNT_CHOICES = [10_000, 50_000, 100_000, 250_000];

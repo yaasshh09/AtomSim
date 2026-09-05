@@ -1,5 +1,16 @@
 const L_LETTERS = "spdfghik";
 
+/**
+ * The shells the app offers.
+ *
+ * Nothing in the physics stops at 6; the select does, and so the URL parser
+ * and the keyboard have to stop at the same place or a link or a keystroke
+ * lands somewhere the rail cannot show. It lives here rather than in the
+ * select because three callers now need it and two of them are not React.
+ */
+export const N_CHOICES = [1, 2, 3, 4, 5, 6];
+export const N_MAX = N_CHOICES[N_CHOICES.length - 1];
+
 export function isValidState(n: number, l: number, m: number): boolean {
   return (
     Number.isInteger(n) &&
