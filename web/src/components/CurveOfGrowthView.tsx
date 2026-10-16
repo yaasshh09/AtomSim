@@ -9,13 +9,12 @@ const SHAPE = { ratio: 0.382, min: 220, max: 310 };
 const M = { left: 62, right: 16, top: 20, bottom: 34 };
 
 /** Each branch gets its own colour, so the regimes read off the plot without a
- *  legend lookup. The amber is deliberately the same amber as the Stark
- *  warning: it marks the branch where a line's strength stops measuring
- *  anything. */
+ *  legend lookup. Amber marks the branch where a line's strength stops
+ *  measuring anything. Mid-luminance hues, so they read in either theme. */
 export const REGIME_COLOR: Record<GrowthRegime, string> = {
-  linear: "#4ade80",
-  saturated: "#fbbf24",
-  damping: "#7dd3fc",
+  linear: "#22a35a",
+  saturated: "#d4900a",
+  damping: "#2f8fd8",
 };
 
 export const REGIME_LABEL: Record<GrowthRegime, string> = {

@@ -34,7 +34,7 @@ export function PointCloud({ positions, pointSize, colors }: Props) {
         key={useVertexColors ? "vertex-colors" : "solid"}
         size={pointSize}
         sizeAttenuation
-        color={useVertexColors ? "#ffffff" : "#7cffb2"}
+        color={useVertexColors ? "#ffffff" : "#ededed"}
         vertexColors={useVertexColors}
         transparent
         opacity={useVertexColors ? 0.55 : 0.35}

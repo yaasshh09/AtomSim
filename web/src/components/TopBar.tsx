@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { stateLabel } from "../lib/quantum";
+import { currentTheme, setTheme, type Theme } from "../lib/theme";
 import { isNarrow, useViewport } from "../lib/viewport";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -51,6 +52,29 @@ function CopyLink({ narrow }: { narrow: boolean }) {
 }
 
 /**
+ * Light or dark. The label names the theme a click switches to. Hidden on the
+ * phone shell (no room in the bar there), where the OS preference decides.
+ */
+function ThemeToggle() {
+  const [theme, setLocal] = useState<Theme>(currentTheme);
+  const next: Theme = theme === "dark" ? "light" : "dark";
+  return (
+    <button
+      className="topbar-btn theme-toggle"
+      type="button"
+      title={`Switch to the ${next} theme`}
+      aria-label={`Switch to the ${next} theme`}
+      onClick={() => {
+        setTheme(next);
+        setLocal(next);
+      }}
+    >
+      {next}
+    </button>
+  );
+}
+
+/**
  * The session header: what is loaded, and what tier its energy came out of.
  *
  * Everything here is measured, or it is left out. The design this was built
@@ -91,6 +115,7 @@ export function TopBar() {
         )}
         {stateInfo && <Badge provenance={stateInfo.energy.provenance} />}
         <CopyLink narrow={isNarrow(width)} />
+        <ThemeToggle />
         <Shortcuts />
         <TourMenu />
       </div>

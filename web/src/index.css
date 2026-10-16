@@ -1,24 +1,40 @@
-/* The instrument palette. Every border in the shell is a translucent mint
-   rather than a neutral grey: that one decision is what makes the chrome read
-   as an instrument bezel instead of a dashboard, so `--edge` is a colour with
-   alpha and is never used as a fill. Anything that needs a fill uses
-   `--edge-fill`, which is opaque. */
+/* The palette: plain greys, black on white by default and white on black in
+   dark mode, the way most lab software and textbook simulators look. Each
+   token is one light-dark() pair, so the scheme alone picks the side: the OS
+   preference by default, or the data-theme attribute lib/theme.ts sets when
+   someone uses the toggle. The coloured tokens are semantic only (warnings,
+   the counterfactual tier, the fidelity badges), never decoration.
+
+   Because unregistered custom properties resolve light-dark() where they are
+   used, any subtree can flip side with color-scheme alone. The 3-D stage does
+   exactly that (see .canvas-wrap): its colour maps start at black, so it stays
+   a dark stage in both themes. */
 :root {
-  --bg: #050708;
-  --stage: #080c0e;
-  --panel: #090f0d;
-  --panel-glass: rgb(9 15 13 / 0.7);
-  --edge: rgb(52 224 161 / 0.16);
-  --edge-strong: rgb(52 224 161 / 0.25);
-  --edge-faint: rgb(52 224 161 / 0.12);
-  --edge-fill: #16241d;
-  --grid-line: rgb(52 224 161 / 0.035);
-  --text: #e9f2ef;
-  --muted: #869b94;
-  --label: #5c8a76;
-  --accent: #34e0a1;
-  --accent-dim: #2bcf92;
-  --accent-deep: #04140e;
+  --bg: light-dark(#ffffff, #0a0a0a);
+  --stage: light-dark(#ffffff, #000000);
+  --panel: light-dark(#f6f6f6, #111111);
+  --panel-glass: light-dark(rgb(246 246 246 / 0.88), rgb(17 17 17 / 0.8));
+  --edge: light-dark(#d9d9d9, #2b2b2b);
+  --edge-strong: light-dark(#a6a6a6, #4d4d4d);
+  --edge-faint: light-dark(#e8e8e8, #1f1f1f);
+  --edge-fill: light-dark(#e6e6e6, #262626);
+  --grid-line: light-dark(rgb(0 0 0 / 0.035), rgb(255 255 255 / 0.035));
+  --text: light-dark(#111111, #f2f2f2);
+  --muted: light-dark(#555555, #a3a3a3);
+  --label: light-dark(#6b6b6b, #8c8c8c);
+  --accent: light-dark(#111111, #f2f2f2);
+  --accent-dim: light-dark(#3d3d3d, #cfcfcf);
+  --accent-deep: light-dark(#ffffff, #0a0a0a);
+  --warn: light-dark(#a15c00, #fbbf24);
+  --danger: light-dark(#c62828, #f87171);
+  --ok: light-dark(#1b7f3b, #4ade80);
+  --info: light-dark(#0b62a4, #7dd3fc);
+  --cf: light-dark(#b0186a, #f472b6);
+  --fid-exact: light-dark(#1b7f3b, #4ade80);
+  --fid-numerical: light-dark(#1f4fd1, #6cb7ff);
+  --fid-approximation: light-dark(#a15c00, #fbbf24);
+  --fid-counterfactual: light-dark(#b0186a, #f472b6);
+  --fid-visual-liberty: light-dark(#6d28b8, #b48bd9);
   /* The collapsed sheet's peek bar. Named because three things measure
      against it: the sheet itself, the stage's bottom padding, and the tour
      card that docks above it. */
@@ -26,11 +42,16 @@
   --sheet-h: 56px;
   --sans: "Poppins", system-ui, sans-serif;
   --mono: "Poppins", system-ui, sans-serif;
-  /* The one surface the page does not paint itself. An open <select> popup is
-     drawn by the platform, and on a dark page it still came up white with dark
-     text: the closed control is ours, the list is the OS's. Declaring the
-     scheme is what lets the browser pick its dark widget palette, for the
-     option list, the focus ring and the scrollbars alike. */
+  /* Also what the platform reads for the parts the page does not paint: the
+     open <select> list, focus rings and scrollbars. */
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
 }
 
@@ -124,10 +145,6 @@ body {
   margin: 1.15rem 0 0.5rem;
 }
 
-.panel h2::before {
-  content: "◇ ";
-}
-
 .state-label {
   font-family: var(--sans);
   font-size: 1.6rem;
@@ -187,28 +204,12 @@ body {
   border-bottom: 0;
 }
 
-/* The bracketed card at the top of the left rail.
-
-   Eight background bars, a horizontal and a vertical stub at each corner, 
-   rather than positioned pseudo-elements. Two pseudo-elements can only carry
-   two corners between them, and the bracket only reads as an instrument frame
-   when all four are there. Doing it in `background` keeps it to one rule and
-   leaves ::before/::after free. */
+/* The card at the top of the left rail: a plain bordered box. */
 .state-card {
   position: relative;
   border: 1px solid var(--edge-strong);
   padding: 0.8rem 0.85rem;
   margin-bottom: 0.9rem;
-  background-image: linear-gradient(var(--accent) 0 0),
-    linear-gradient(var(--accent) 0 0), linear-gradient(var(--accent) 0 0),
-    linear-gradient(var(--accent) 0 0), linear-gradient(var(--accent) 0 0),
-    linear-gradient(var(--accent) 0 0), linear-gradient(var(--accent) 0 0),
-    linear-gradient(var(--accent) 0 0);
-  background-repeat: no-repeat;
-  background-size: 9px 2px, 2px 9px, 9px 2px, 2px 9px, 9px 2px, 2px 9px,
-    9px 2px, 2px 9px;
-  background-position: left top, left top, right top, right top, left bottom,
-    left bottom, right bottom, right bottom;
 }
 
 .state-card-eyebrow {
@@ -490,7 +491,7 @@ option:checked {
      widgets was never a decision anyone made. */
   option:checked {
     border-color: var(--edge-strong);
-    background: rgb(52 224 161 / 0.09);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
     color: var(--accent);
   }
 
@@ -567,7 +568,7 @@ button.primary {
   font-size: 0.76rem;
   letter-spacing: 0.08em;
   cursor: pointer;
-  box-shadow: 0 8px 20px -8px rgb(43 224 154 / 0.55);
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 button.primary:disabled {
@@ -592,7 +593,7 @@ button.ghost:hover {
 }
 
 .error {
-  color: #f87171;
+  color: var(--danger);
   font-size: 0.85rem;
 }
 
@@ -683,6 +684,11 @@ button.ghost:hover {
 
 .canvas-wrap {
   min-height: 0;
+  /* Always a dark stage: the cloud colour maps start at black, and on a white
+     stage the faint outer points would vanish. Everything drawn over the
+     canvas flips with it, see the palette note at the top. */
+  color-scheme: dark;
+  background: var(--stage);
   /* The axis tips are HTML projected out of the 3-D scene, so they land
      wherever the camera puts them, which is sometimes past the edge of the
      canvas. Clipped here rather than left to push the page sideways: an axis
@@ -743,7 +749,7 @@ button.ghost:hover {
    beside it, leaving the row visibly ragged. The cap still exists so a narrow
    stage wraps the caption rather than pushing the row off the canvas. */
 .nucleus-caption {
-  color: var(--muted, #8fa3ad);
+  color: var(--muted);
   font-size: 0.72rem;
   max-width: 42ch;
   line-height: 1.25;
@@ -959,7 +965,7 @@ button.ghost:hover {
 }
 
 .marker {
-  stroke: #fbbf24;
+  stroke: var(--warn);
   stroke-dasharray: 4 4;
 }
 
@@ -987,15 +993,15 @@ button.ghost:hover {
 }
 
 .arrow line {
-  stroke: #fbbf24;
+  stroke: var(--warn);
 }
 
 .arrow path {
-  fill: #fbbf24;
+  fill: var(--warn);
 }
 
 .arrow text {
-  fill: #fbbf24;
+  fill: var(--warn);
   font-size: 10px;
 }
 
@@ -1007,22 +1013,22 @@ button.ghost:hover {
 }
 
 .ref-ok {
-  fill: #4ade80;
+  fill: var(--ok);
 }
 
 .ref-bad {
-  fill: #f87171;
+  fill: var(--danger);
 }
 
 .tol-band {
-  fill: rgb(124 255 178 / 0.08);
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 /* The synthesized spectrum trace. Drawn as a stroke over the bars rather than
    a filled area: the bars are the engine's line list and stay readable. */
 .profile-curve {
   fill: none;
-  stroke: #7dd3fc;
+  stroke: var(--info);
   stroke-width: 1.2;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -1033,7 +1039,7 @@ button.ghost:hover {
    area says that where a line does not. */
 .transmission-curve {
   fill: none;
-  stroke: #7dd3fc;
+  stroke: var(--info);
   stroke-width: 1.2;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -1068,7 +1074,7 @@ button.ghost:hover {
 
 /* Where the FWHM is defined: across the profile at half its peak. */
 .fwhm-bar {
-  stroke: #fbbf24;
+  stroke: var(--warn);
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
@@ -1082,13 +1088,13 @@ button.ghost:hover {
 }
 
 .warn-note {
-  color: #fbbf24;
+  color: var(--warn);
 }
 
 .link-button {
   background: none;
   border: none;
-  color: var(--accent, #7dd3fc);
+  color: var(--accent, var(--info));
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -1214,15 +1220,15 @@ button.ghost:hover {
 .counterfactual-banner {
   margin: 4px 0 8px;
   padding: 6px 10px;
-  border: 1px solid #f472b6;
+  border: 1px solid var(--cf);
   border-radius: 6px;
-  color: #f472b6;
+  color: var(--cf);
   font-weight: 600;
   letter-spacing: 0.04em;
   font-size: 0.85rem;
 }
 .rung-counterfactual {
-  stroke: #f472b6;
+  stroke: var(--cf);
 }
 .whatif-controls {
   display: flex;
@@ -1320,11 +1326,11 @@ button.ghost:hover {
   gap: 12px;
 }
 .readout-ratio {
-  color: #7c8798;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .readout-ratio.changed {
-  color: #f472b6;
+  color: var(--cf);
   font-weight: 600;
 }
 
@@ -1333,7 +1339,7 @@ button.ghost:hover {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted, #8fa3ad);
+  color: var(--muted);
   font-size: 0.75rem;
   white-space: nowrap;
   cursor: pointer;
@@ -1344,14 +1350,14 @@ button.ghost:hover {
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.5rem 0.7rem;
-  border: 1px solid #f472b6; /* counterfactual pink, mirrors .counterfactual-banner */
+  border: 1px solid var(--cf); /* counterfactual pink, mirrors .counterfactual-banner */
   border-radius: 6px;
-  background: rgba(10, 14, 18, 0.85);
+  background: color-mix(in srgb, var(--stage) 85%, transparent);
   font-size: 0.72rem;
   max-width: 36ch;
 }
 .ghost-banner {
-  color: #f472b6;
+  color: var(--cf);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1359,7 +1365,7 @@ button.ghost:hover {
   line-height: 1.3;
 }
 .ghost-clock {
-  color: #8be9fd;
+  color: var(--info);
   font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   font-weight: 600;
@@ -1374,7 +1380,7 @@ button.ghost:hover {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--muted, #8fa3ad);
+  color: var(--muted);
   font-size: 0.72rem;
 }
 /* The orbital-is-not-an-observable claim, over the 3-D canvas.
@@ -1384,7 +1390,7 @@ button.ghost:hover {
 .orbital-claim {
   display: block;
   max-width: 44ch;
-  color: var(--muted, #8fa3ad);
+  color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.45;
 }
@@ -1396,9 +1402,9 @@ button.ghost:hover {
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.5rem 0.7rem;
-  border: 1px solid #334155;
+  border: 1px solid var(--edge-strong);
   border-radius: 6px;
-  background: rgba(10, 14, 18, 0.85);
+  background: color-mix(in srgb, var(--stage) 85%, transparent);
   font-size: 0.72rem;
   max-width: 40ch;
 }
@@ -1406,7 +1412,7 @@ button.ghost:hover {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  color: var(--muted, #8fa3ad);
+  color: var(--muted);
   font-size: 0.75rem;
 }
 .surface-controls label {
@@ -1415,9 +1421,9 @@ button.ghost:hover {
   gap: 0.35rem;
 }
 .surface-controls select {
-  background: #10161c;
-  color: #e2e8f0;
-  border: 1px solid #334155;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--edge-strong);
   border-radius: 4px;
   padding: 0.15rem 0.3rem;
   font-size: 0.75rem;
@@ -1426,11 +1432,11 @@ button.ghost:hover {
    column, so height:auto on a flex item resolved to 0 and the well plot was
    drawing into no pixels at all. */
 .forcelaw-svg { width: 100%; height: auto; flex-shrink: 0; }
-.forcelaw-ref { stroke: #4ade80; stroke-width: 2; stroke-dasharray: 4 3; opacity: 0.55; }
-.forcelaw-cf { stroke: #60a5fa; stroke-width: 2.5; }
-.forcelaw-curve { stroke: #94a3b8; stroke-width: 1.5; }
-.forcelaw-label { fill: #cbd5e1; font-size: 12px; }
-.forcelaw-col { fill: #e2e8f0; font-size: 13px; font-weight: 600; }
+.forcelaw-ref { stroke: var(--ok); stroke-width: 2; stroke-dasharray: 4 3; opacity: 0.55; }
+.forcelaw-cf { stroke: var(--info); stroke-width: 2.5; }
+.forcelaw-curve { stroke: var(--muted); stroke-width: 1.5; }
+.forcelaw-label { fill: var(--muted); font-size: 12px; }
+.forcelaw-col { fill: var(--text); font-size: 13px; font-weight: 600; }
 .forcelaw-legend { display: flex; gap: 1.5rem; margin: 0.5rem 0; align-items: center; }
 
 /* ============================================================
@@ -1508,50 +1514,11 @@ button.ghost:hover {
   white-space: nowrap;
 }
 
-/* The stage. The 30px mint rule grid is the instrument's backdrop: it sits
-   under every view, so a plot and a point cloud share one surface. */
+/* The stage: one plain surface under every view. */
 .center-col {
   background-color: var(--stage);
-  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 30px 30px;
 }
 
-/* Tick gutters along the top and left of the 3-D stage. Drawn with repeating
-   gradients rather than a row of divs: they are frame decoration, they carry
-   no scale, and they should cost no DOM. Alternating strong/faint mirrors the
-   mockup's every-other-tick emphasis. */
-.canvas-wrap::before,
-.canvas-wrap::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.canvas-wrap::before {
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 18px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--edge) 0 1px,
-    transparent 1px 12.5%
-  );
-}
-
-.canvas-wrap::after {
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 18px;
-  background: repeating-linear-gradient(
-    180deg,
-    var(--edge) 0 1px,
-    transparent 1px 16.6%
-  );
-}
 
 /* Top-left caption over the stage: what is being drawn and how much of it. */
 .stage-caption {
@@ -1599,7 +1566,7 @@ button.ghost:hover {
 
 .view-option-on {
   border-color: var(--edge-strong);
-  background: rgb(52 224 161 / 0.09);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
   color: var(--accent);
 }
 
@@ -1675,7 +1642,7 @@ button.ghost:hover {
    information about where the keyboard is. */
 .qn-tile:focus-within {
   border-color: var(--accent);
-  background: rgb(52 224 161 / 0.09);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
 .qn-tile:focus-within .qn-tile-name,
@@ -1724,7 +1691,7 @@ input[type="radio"] {
 }
 
 .term-err {
-  color: #f87171;
+  color: var(--danger);
 }
 
 /* Thumbnail strip, on the stage's own chrome. */
@@ -1746,7 +1713,7 @@ input[type="radio"] {
 }
 
 .thumb-active {
-  box-shadow: 0 0 0 3px rgb(52 224 161 / 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 /* ============================================================
@@ -1813,7 +1780,7 @@ svg text .exponent {
 .plot svg,
 .levels-svg,
 .forcelaw-svg {
-  background: rgb(8 12 14 / 0.55);
+  background: color-mix(in srgb, var(--stage) 55%, transparent);
   border-color: var(--edge);
 }
 
@@ -1877,7 +1844,7 @@ svg text .exponent {
 
 .surface-hud,
 .ghost-hud {
-  background: rgb(6 10 9 / 0.9);
+  background: color-mix(in srgb, var(--stage) 90%, transparent);
   border-radius: 3px;
 }
 
@@ -1945,7 +1912,7 @@ input[type="range"]::-moz-range-progress {
    things are switched on when none of them is. The thumb keeps its contrast:
    it is the part you have to find and grab. */
 .ctl-slider[data-rest] input[type="range"] {
-  --fill-color: rgb(52 224 161 / 0.3);
+  --fill-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1981,14 +1948,14 @@ input[type="range"]:hover::-webkit-slider-thumb,
 input[type="range"]:focus-visible::-webkit-slider-thumb {
   box-shadow:
     0 0 0 1px var(--accent),
-    0 0 0 5px rgb(52 224 161 / 0.16);
+    0 0 0 5px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 input[type="range"]:hover::-moz-range-thumb,
 input[type="range"]:focus-visible::-moz-range-thumb {
   box-shadow:
     0 0 0 1px var(--accent),
-    0 0 0 5px rgb(52 224 161 / 0.16);
+    0 0 0 5px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 input[type="range"]:active::-webkit-slider-thumb {
@@ -2053,7 +2020,7 @@ input[type="range"]:disabled {
 .tour-panel {
   border: 1px solid var(--edge-strong);
   border-radius: 3px;
-  background: rgb(8 12 14 / 0.75);
+  background: color-mix(in srgb, var(--stage) 75%, transparent);
   padding: 0.7rem 0.9rem;
   display: flex;
   flex-direction: column;
@@ -2116,7 +2083,7 @@ input[type="range"]:disabled {
   pointer-events: none;
   border: 1px solid var(--accent);
   border-radius: 4px;
-  box-shadow: 0 0 0 3px rgb(52 224 161 / 0.14);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
   transition:
     left 140ms ease,
     top 140ms ease,
@@ -2344,6 +2311,7 @@ input[type="range"]:disabled {
    The key list goes with it, and not for room: a phone has no keyboard, so a
    card describing one is a card about nothing. */
 .app-shell-mobile .shortcuts-wrap,
+.app-shell-mobile .theme-toggle,
 .app-shell-mobile .topbar-crumb,
 .app-shell-mobile .topbar-rule {
   display: none;
@@ -2414,7 +2382,7 @@ input[type="range"]:disabled {
 .view-tab-on {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgb(52 224 161 / 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .mobile-stage {
@@ -2621,7 +2589,7 @@ input[type="range"]:disabled {
   z-index: 45;
   max-height: 38vh;
   overflow-y: auto;
-  background: rgb(8 12 14 / 0.94);
+  background: color-mix(in srgb, var(--stage) 94%, transparent);
 }
 
 /* Placeholder while the 3D renderer streams in. It reserves the stage and
@@ -2664,7 +2632,7 @@ input[type="range"]:disabled {
   border: 1px solid var(--edge);
   border-left: 2px solid var(--accent);
   border-radius: 3px;
-  background: rgb(9 15 13 / 0.4);
+  background: color-mix(in srgb, var(--stage) 40%, transparent);
   padding: 0.85rem 1rem 0.9rem;
   margin: 0 0 0.9rem;
 }
@@ -2767,7 +2735,7 @@ input[type="range"]:disabled {
 .disclosure {
   border: 1px solid var(--edge-faint);
   border-radius: 3px;
-  background: rgb(8 12 14 / 0.5);
+  background: color-mix(in srgb, var(--stage) 50%, transparent);
   margin: 0.45rem 0 0;
 }
 
@@ -2808,7 +2776,7 @@ input[type="range"]:disabled {
 
 .disclosure > summary:hover {
   color: var(--text);
-  background: rgb(52 224 161 / 0.05);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
 .disclosure > summary:focus-visible {
@@ -2817,15 +2785,15 @@ input[type="range"]:disabled {
 }
 
 .disclosure-caveat {
-  border-color: rgb(251 191 36 / 0.28);
+  border-color: color-mix(in srgb, var(--warn) 28%, transparent);
 }
 
 .disclosure-caveat > summary {
-  color: #d9ab4a;
+  color: var(--warn);
 }
 
 .disclosure-caveat > summary::before {
-  color: #fbbf24;
+  color: var(--warn);
 }
 
 .disclosure-body {
@@ -2853,7 +2821,7 @@ input[type="range"]:disabled {
   border-radius: 3px;
   padding: 0.6rem 0.75rem 0.7rem;
   margin: 0 0 0.55rem;
-  background: rgb(8 12 14 / 0.4);
+  background: color-mix(in srgb, var(--stage) 40%, transparent);
 }
 
 /* A group that is currently changing the physics gets the accent rail, so the
@@ -2861,7 +2829,7 @@ input[type="range"]:disabled {
    every checkbox in the stack. */
 .ctl-group-active {
   border-left-color: var(--accent);
-  background: rgb(52 224 161 / 0.035);
+  background: color-mix(in srgb, var(--accent) 3.5%, transparent);
 }
 
 /* A summary, not a heading: the group is a disclosure now (see Field.tsx), so
@@ -3068,7 +3036,7 @@ input[type="range"]:disabled {
 }
 
 .ctl-choice-blocked {
-  color: #d9ab4a;
+  color: var(--warn);
 }
 
 /* ---- Hover readout on a plot ---- */
@@ -3096,7 +3064,7 @@ input[type="range"]:disabled {
 /* Opaque, not translucent. The box sits over the curve it is describing, and
    a curve showing through its own readout is how a digit becomes unreadable. */
 .hover-box {
-  fill: #06100c;
+  fill: var(--stage);
   stroke: var(--edge-strong);
   stroke-width: 1;
 }
@@ -3174,7 +3142,7 @@ input[type="range"]:disabled {
 .marker-text {
   fill: var(--text);
   paint-order: stroke;
-  stroke: #06100c;
+  stroke: var(--stage);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -3211,7 +3179,7 @@ input[type="range"]:disabled {
 }
 
 .rung-hit:hover .rung-hit-area {
-  fill: rgb(52 224 161 / 0.06);
+  fill: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .rung-hit:focus-visible {
@@ -3219,7 +3187,7 @@ input[type="range"]:disabled {
 }
 
 .rung-hit:focus-visible .rung-hit-area {
-  fill: rgb(52 224 161 / 0.1);
+  fill: color-mix(in srgb, var(--accent) 10%, transparent);
   stroke: var(--accent);
   stroke-width: 1;
 }
@@ -3239,7 +3207,7 @@ input[type="range"]:disabled {
    the mean-radius marker uses. */
 .arrow-label {
   paint-order: stroke;
-  stroke: #06100c;
+  stroke: var(--stage);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -3254,7 +3222,7 @@ input[type="range"]:disabled {
   border: 1px solid var(--edge);
   border-left: 2px solid var(--accent);
   border-radius: 3px;
-  background: rgb(8 12 14 / 0.5);
+  background: color-mix(in srgb, var(--stage) 50%, transparent);
   padding: 0.7rem 0.85rem 0.8rem;
   margin: 0 0 0.7rem;
 }
@@ -3272,7 +3240,7 @@ input[type="range"]:disabled {
 }
 
 .nist-off {
-  border-left-color: #fbbf24;
+  border-left-color: var(--warn);
 }
 
 .nist-headline {
@@ -3296,7 +3264,7 @@ input[type="range"]:disabled {
 }
 
 .nist-off .nist-mark {
-  color: #fbbf24;
+  color: var(--warn);
 }
 
 .nist-panel .caption {
@@ -3314,7 +3282,7 @@ input[type="range"]:disabled {
   border-radius: 3px;
   padding: 0.7rem 0.85rem 0.8rem;
   margin: 0 0 0.7rem;
-  background: rgb(8 12 14 / 0.4);
+  background: color-mix(in srgb, var(--stage) 40%, transparent);
 }
 
 .zoom-panel .view-header {
@@ -3487,6 +3455,29 @@ input[type="range"]:disabled {
   cursor: not-allowed;
 }
 
+/* The toolbar sits at the right end of the zoom row and wraps under it on a
+   narrow column. */
+.plot-tools {
+  margin-left: auto;
+}
+
+/* A plot shown full screen: the figure fills the screen on the stage colour
+   and the SVG scales up through its viewBox. */
+figure.plot:fullscreen {
+  background: var(--stage);
+  padding: 2rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+figure.plot:fullscreen > svg {
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+}
+
 .zoom-state strong {
   color: var(--accent);
   font-weight: 500;
@@ -3513,8 +3504,25 @@ input[type="range"]:disabled {
    there to let a value be read off a curve without tracing a finger to the
    axis, and at any heavier stroke they start competing with the data. */
 .grid-line {
-  stroke: rgb(52 224 161 / 0.14);
+  stroke: color-mix(in srgb, var(--text) 13%, transparent);
   stroke-width: 1;
+}
+
+/* Minor gridlines, between the labelled ticks. The plot toolbar's grid button
+   cycles fine -> major -> off through data-grid on <html>. */
+.grid-minor {
+  stroke: color-mix(in srgb, var(--text) 6%, transparent);
+  stroke-width: 1;
+}
+
+.tick-minor {
+  stroke: var(--edge-strong);
+}
+
+:root[data-grid="major"] .grid-minor,
+:root[data-grid="off"] .grid-minor,
+:root[data-grid="off"] .grid-line {
+  display: none;
 }
 
 .axis {

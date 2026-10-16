@@ -4,17 +4,16 @@ import type { Provenance } from "../api/types";
 import { formatErrorScale } from "../lib/liberties";
 import { Notation } from "../lib/mathText";
 
-/* Tuned to the instrument palette: EXACT gets the shell's own mint, so the
-   best tier is the colour the whole UI was built around. Counterfactual pink
-   stays exactly where it is, because index.css uses that same hue for the
-   ghost HUD, the counterfactual banner and the counterfactual rungs, and a
-   badge that drifted off it would stop matching the thing it labels. */
+/* One semantic colour per tier, from the --fid-* tokens in index.css. Each is
+   a light-dark() pair, so a badge stays readable in either theme.
+   Counterfactual matches --cf, which the banner and the counterfactual rungs
+   also use. */
 const COLORS: Record<string, string> = {
-  exact: "#34e0a1",
-  numerical: "#6cb7ff",
-  approximation: "#fbbf24",
-  counterfactual: "#f472b6",
-  visual_liberty: "#b48bd9",
+  exact: "var(--fid-exact)",
+  numerical: "var(--fid-numerical)",
+  approximation: "var(--fid-approximation)",
+  counterfactual: "var(--fid-counterfactual)",
+  visual_liberty: "var(--fid-visual-liberty)",
 };
 
 /** Clear space kept between the panel and every window edge, in px. */
@@ -48,7 +47,7 @@ export function Badge({ provenance }: { provenance: Provenance }) {
   const [pos, setPos] = useState<Point | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const color = COLORS[provenance.fidelity] ?? "#ffffff";
+  const color = COLORS[provenance.fidelity] ?? "var(--text)";
 
   const reposition = useCallback(() => {
     const button = buttonRef.current;

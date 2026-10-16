@@ -19,9 +19,9 @@ import { PHYSICS_TO_SCREEN } from "../lib/frame";
 const AXES: { key: "x" | "y" | "z"; dir: [number, number, number]; color: string }[] = [
   { key: "x", dir: [1, 0, 0], color: "#ff7a6b" },
   { key: "y", dir: [0, 1, 0], color: "#6cd98a" },
-  // The quantization axis, in the shell's own accent: it is the one of the
-  // three that the physics singles out.
-  { key: "z", dir: [0, 0, 1], color: "#34e0a1" },
+  // x red, y green, z blue, the convention every 3-D tool uses. z is also the
+  // quantization axis, the one the physics singles out.
+  { key: "z", dir: [0, 0, 1], color: "#6aa8ff" },
 ];
 
 /** The arm length, as a fraction of the camera framing distance. */

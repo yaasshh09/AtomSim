@@ -353,7 +353,7 @@ export function Controls() {
           value={colorMode}
           onChange={(e) => setColorMode(e.target.value as ColorMode)}
         >
-          <option value="solid">solid (accent)</option>
+          <option value="solid">solid (white)</option>
           <option value="density">density (inferno)</option>
           <option value="phase" disabled={basis === "real"}>
             phase as hue (complex only)

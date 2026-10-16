@@ -9,7 +9,18 @@
       name="description"
       content="An atomic-physics engine and instrument that never quietly lies about its physics. Hydrogen-like states in closed form, Hartree-Fock atoms, spectra against NIST, and a What-If Lab for altered rules. Every number carries the tier it was computed at."
     />
-    <meta name="theme-color" content="#050708" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
+    <!-- The saved theme and plot-grid density, applied before first paint so a
+         dark-mode reader never sees a white flash. lib/theme.ts owns the keys. -->
+    <script>
+      try {
+        var t = localStorage.getItem("atomsim-theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        var g = localStorage.getItem("atomsim-grid");
+        if (g === "fine" || g === "major" || g === "off") document.documentElement.dataset.grid = g;
+      } catch (e) {}
+    </script>
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 

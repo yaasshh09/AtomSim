@@ -187,7 +187,7 @@ export function CloudView() {
             opaque background, so it is the one place the stage colour is not
             read from the stylesheet, and the two have to be kept in step by
             hand. */}
-        <color attach="background" args={["#080c0e"]} />
+        <color attach="background" args={["#000000"]} />
         <CameraRig distance={distance} />
         <FpsMeter />
         <AxisTriad distance={distance} />

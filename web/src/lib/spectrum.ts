@@ -1,5 +1,6 @@
 const SERIES_NAMES = ["", "Lyman", "Balmer", "Paschen", "Brackett", "Pfund", "Humphreys"];
-const SERIES_COLORS = ["", "#a78bfa", "#7cffb2", "#fbbf24", "#60a5fa", "#f472b6", "#f87171"];
+// Mid-luminance hues, so each series reads on the white theme and the black one.
+const SERIES_COLORS = ["", "#8b5cf6", "#22a35a", "#d4900a", "#3b82f6", "#e0479e", "#e5484d"];
 
 export function seriesName(nLower: number): string {
   return SERIES_NAMES[nLower] ?? `to n'=${nLower}`;
