@@ -2,6 +2,7 @@ import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import { isScreenedLevels } from "../api/client";
 import type { HFLevels, PauliCollapse, ScreenedLevels } from "../api/types";
+import { toCsv } from "../lib/plotExport";
 import { describeEField, describeField, VIEW_LEADS } from "../lib/explain";
 import {
   arrowsFor,
@@ -215,7 +216,15 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
           );
         })}
       </svg>
-      <ZoomControls zoom={zoom} what="the energy axis" />
+      <ZoomControls
+        zoom={zoom}
+        what="the energy axis"
+        csv={() =>
+          toCsv(
+            ["subshell", "n", "l", "occupancy", "energy_eV", "energy_hartree"],
+            levels.orbitals.map((o) => [o.label, o.n, o.l, o.occupancy, o.energy_ev.value, o.energy.value]),
+          )}
+      />
       <p className="caption">
         Total energy {levels.total_energy_ev.value.toFixed(2)} eV.
       </p>
@@ -407,7 +416,15 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           );
         })}
       </svg>
-      <ZoomControls zoom={zoom} what="the binding-energy axis" />
+      <ZoomControls
+        zoom={zoom}
+        what="the binding-energy axis"
+        csv={() =>
+          toCsv(
+            ["subshell", "n", "l", "occupancy", "energy_eV", "energy_hartree"],
+            levels.orbitals.map((o) => [o.label, o.n, o.l, o.occupancy, o.energy_ev.value, o.energy.value]),
+          )}
+      />
       <p className="caption">
         Total energy {levels.total_energy_ev.value.toFixed(2)} eV
         {levels.exchange
@@ -991,7 +1008,19 @@ export function LevelsView() {
           {magnifier}
         </svg>
       )}
-      <ZoomControls zoom={ladderZoom} what="the energy axis" />
+      <ZoomControls
+        zoom={ladderZoom}
+        what="the energy axis"
+        csv={() =>
+          toCsv(
+            ["n", "l", "j", "degeneracy", "energy_eV", "energy_hartree"],
+            [
+              ...levels.gross.map((g) => [g.n, "", "", g.degeneracy, g.energy_ev.value, g.energy.value]),
+              ...(levels.fine ?? []).map((f) => [f.n, f.l, f.j, "", f.energy_ev.value, f.energy.value]),
+            ],
+          )
+        }
+      />
       {gross.length < levels.gross.length && (
         <p className="caption">
           The magnifier {compact ? "below" : "on the right"} keeps its own

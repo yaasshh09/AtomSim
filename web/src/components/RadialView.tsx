@@ -5,7 +5,9 @@ import { VIEW_LEADS } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { formatHover, nearestIndex, withinPlot } from "../lib/hover";
 import { Notation, mathTspans } from "../lib/mathText";
+import { minorTicks } from "../lib/axis";
 import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
+import { toCsv } from "../lib/plotExport";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -190,7 +192,19 @@ function FieldPlot({
   const lo = Math.min(0, ...all);
   const hi = Math.max(...all);
   const y = scaleLinear([lo, hi], [H - M.bottom, M.top]).nice();
+  const xMinor = minorTicks(xTicks, x.domain() as [number, number], logX);
+  const yMinor = minorTicks(y.ticks(4), y.domain() as [number, number]);
   const nodes = showNodes ? zeroCrossings(grid, values) : [];
+  // Every sample the server sent, not just the drawn window, unrounded.
+  const csv = () =>
+    toCsv(
+      [
+        `r [${field.grid_unit}]`,
+        `${overlay ? overlay.selfLabel : field.label} [${field.unit}]`,
+        ...(overlay ? [`${overlay.label} [${overlay.field.unit}]`] : []),
+      ],
+      field.grid.map((r, i) => [r, field.values[i], ...(overlay ? [overlay.field.values[i]] : [])]),
+    );
   // A filled area, but only where the curve cannot go negative. Under a signed
   // R(r) the fill would swap sides at every node and read as two quantities.
   const area =
@@ -261,7 +275,32 @@ function FieldPlot({
             />
           </clipPath>
         </defs>
-        {/* Gridlines first, so everything else sits on top of them. */}
+        {/* Gridlines first, so everything else sits on top of them. Minor
+            lines under the major ones, then the labelled ticks. */}
+        {xMinor.map((t) => (
+          <line
+            key={`mx-${t}`} x1={x(t)} x2={x(t)} y1={M.top} y2={H - M.bottom}
+            className="grid-minor"
+          />
+        ))}
+        {yMinor.map((t) => (
+          <line
+            key={`my-${t}`} x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)}
+            className="grid-minor"
+          />
+        ))}
+        {xMinor.map((t) => (
+          <line
+            key={`mtx-${t}`} x1={x(t)} x2={x(t)} y1={H - M.bottom} y2={H - M.bottom + 3}
+            className="tick-minor"
+          />
+        ))}
+        {yMinor.map((t) => (
+          <line
+            key={`mty-${t}`} x1={M.left - 3} x2={M.left} y1={y(t)} y2={y(t)}
+            className="tick-minor"
+          />
+        ))}
         {xTicks.map((t) => (
           <line
             key={`gx-${t}`} x1={x(t)} x2={x(t)} y1={M.top} y2={H - M.bottom}
@@ -355,7 +394,7 @@ function FieldPlot({
           />
         )}
       </svg>
-      <ZoomControls zoom={zoom} what="r" />
+      <ZoomControls zoom={zoom} what="r" csv={csv} />
       {(nodes.length > 0 || didTrim) && (
         <p className="plot-foot">
           {nodes.length > 0 && (

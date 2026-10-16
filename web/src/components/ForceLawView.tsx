@@ -1,5 +1,6 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect, useState } from "react";
+import { minorTicks } from "../lib/axis";
 import { PRESET_BLURBS, VIEW_LEADS } from "../lib/explain";
 import {
   allowedSpan,
@@ -326,6 +327,18 @@ export function ForceLawView() {
                   />
                 </clipPath>
               </defs>
+              {minorTicks(x.ticks(6), x.domain() as [number, number]).map((t) => (
+                <line
+                  key={`mx-${t}`} x1={x(t)} x2={x(t)} y1={PAD.top} y2={H - PAD.bottom}
+                  className="grid-minor"
+                />
+              ))}
+              {minorTicks(y.ticks(5), y.domain() as [number, number]).map((t) => (
+                <line
+                  key={`mvy-${t}`} x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)}
+                  className="grid-minor"
+                />
+              ))}
               {x.ticks(6).map((t) => (
                 <g key={`vx-${t}`}>
                   <line
@@ -434,6 +447,12 @@ export function ForceLawView() {
               ref={zoom.ref}
               {...zoom.handlers}
             >
+              {minorTicks(y.ticks(5), y.domain() as [number, number]).map((t) => (
+                <line
+                  key={`mly-${t}`} x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)}
+                  className="grid-minor"
+                />
+              ))}
               {y.ticks(5).map((t) => (
                 <g key={`ly-${t}`}>
                   <line

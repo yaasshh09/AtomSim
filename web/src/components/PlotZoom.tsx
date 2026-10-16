@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
+import { download, plotFileName, savePng, saveSvg } from "../lib/plotExport";
+import { currentGrid, nextGrid, setGrid, subscribeGrid } from "../lib/theme";
 import { isTouch } from "../lib/viewport";
 import { isZoomed, panView, zoomFactor, zoomView, type Domain } from "../lib/zoom";
 
@@ -276,10 +278,13 @@ export function usePlotZoom(spec: {
 export function ZoomControls({
   zoom,
   what = "the plot",
+  csv,
 }: {
   zoom: PlotZoom;
   /** What zooming acts on, for the hint line: "the wavelength axis". */
   what?: string;
+  /** The plotted numbers as CSV, for the data button. No button without it. */
+  csv?: () => string;
 }) {
   return (
     <div className="zoom-bar">
@@ -327,6 +332,74 @@ export function ZoomControls({
           <>scroll to zoom {what}, drag to pan, double-click to reset</>
         )}
       </span>
+      <PlotTools zoom={zoom} csv={csv} />
+    </div>
+  );
+}
+
+const GRID_LABEL = { fine: "grid: fine", major: "grid: major", off: "grid: off" };
+
+/**
+ * The plot toolbar: grid density, fullscreen, and export as PNG, SVG or CSV.
+ *
+ * Lives inside ZoomControls so every zoomable plot gets it without each view
+ * wiring it up. The exports read the live SVG, so they save the current
+ * window and theme. CSV is the engine's own samples, unrounded.
+ */
+function PlotTools({ zoom, csv }: { zoom: PlotZoom; csv?: () => string }) {
+  const grid = useSyncExternalStore(subscribeGrid, currentGrid);
+  const svg = () => zoom.element.current;
+  return (
+    <div className="zoom-buttons plot-tools" role="toolbar" aria-label="plot tools">
+      <button
+        type="button"
+        onClick={() => setGrid(nextGrid(grid))}
+        title="Cycle the gridlines: fine, major only, off"
+      >
+        {GRID_LABEL[grid]}
+      </button>
+      <button
+        type="button"
+        title="Show this plot full screen (Esc to leave)"
+        onClick={() => {
+          const fig = svg()?.closest("figure") ?? svg()?.parentElement;
+          if (document.fullscreenElement) void document.exitFullscreen();
+          else void fig?.requestFullscreen?.();
+        }}
+      >
+        full screen
+      </button>
+      <button
+        type="button"
+        title="Save the plot as a PNG image, as drawn"
+        onClick={() => {
+          const el = svg();
+          if (el) savePng(el, plotFileName(el));
+        }}
+      >
+        PNG
+      </button>
+      <button
+        type="button"
+        title="Save the plot as an SVG vector image, as drawn"
+        onClick={() => {
+          const el = svg();
+          if (el) saveSvg(el, plotFileName(el));
+        }}
+      >
+        SVG
+      </button>
+      {csv && (
+        <button
+          type="button"
+          title="Save the plotted numbers as a CSV table"
+          onClick={() =>
+            download(`${plotFileName(svg())}.csv`, new Blob([csv()], { type: "text/csv" }))
+          }
+        >
+          CSV
+        </button>
+      )}
     </div>
   );
 }

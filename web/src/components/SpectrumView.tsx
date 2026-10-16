@@ -6,7 +6,8 @@ import type {
   ProfileInfo,
   SpectralLineInfo,
 } from "../api/types";
-import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
+import { formatOffset, minorTicks, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
+import { toCsv } from "../lib/plotExport";
 import {
   describeDensity,
   describeResolvingPower,
@@ -471,6 +472,27 @@ export function SpectrumView() {
       ln.wavelength_nm.value >= window_.lo && ln.wavelength_nm.value <= window_.hi,
   );
   const x = scaleLog(zoom.x, xRange);
+  const xMajor = thinTicks(x.ticks(8), x, 34);
+  // Minor rulings. Across a decade or more, log paper's 2x..9x lines; zoomed
+  // inside one, d3's finer ticks. Labelled ticks are left out, and nothing is
+  // drawn closer than 4 px.
+  const [dLo, dHi] = x.domain();
+  const xMinor = thinTicks(
+    dHi / dLo >= 10 ? minorTicks(xMajor, [dLo, dHi], true) : x.ticks(60),
+    x,
+    4,
+  ).filter((t) => !xMajor.includes(t));
+  // The whole line list, not just the window: every transition with its numbers.
+  const csv = () =>
+    toCsv(
+      ["series", "n_upper", "l_upper", "n_lower", "l_lower", "wavelength_nm", "energy_eV",
+        "einstein_A_per_s", "oscillator_strength_f", "emissivity_eV_per_s_per_atom"],
+      spectrum.lines.map((ln) => [
+        seriesName(ln.n_lower), ln.n_upper, ln.l_upper, ln.n_lower, ln.l_lower,
+        ln.wavelength_nm.value, ln.energy_ev.value, ln.einstein_a_s?.value,
+        ln.oscillator_strength?.value, ln.emissivity?.value,
+      ]),
+    );
   const nLowers = [...new Set(shown.map((ln) => ln.n_lower))].sort((a, b) => a - b);
   const tol = spectrum.tolerance_relative;
   const comp = spectrum.comparison;
@@ -626,7 +648,13 @@ export function SpectrumView() {
               <rect x={M.left} y={0} width={W - M.right - M.left} height={AXIS_Y} />
             </clipPath>
           </defs>
-          {thinTicks(x.ticks(8), x, 34).map((t) => (
+          {xMinor.map((t) => (
+            <g key={`m-${t}`}>
+              <line x1={x(t)} x2={x(t)} y1={TOP - 12} y2={AXIS_Y} className="grid-minor" />
+              <line x1={x(t)} x2={x(t)} y1={AXIS_Y} y2={AXIS_Y + 3} className="tick-minor" />
+            </g>
+          ))}
+          {xMajor.map((t) => (
             <line
               key={`g-${t}`} x1={x(t)} x2={x(t)} y1={TOP - 12} y2={AXIS_Y}
               className="grid-line"
@@ -641,7 +669,7 @@ export function SpectrumView() {
               decades as one run of digits ("5006007008009001000"). Ticks drop
               by drawn position rather than by value, so the rule holds
               whatever range the line list spans. */}
-          {thinTicks(x.ticks(8), x, 34).map((t) => (
+          {xMajor.map((t) => (
             <g key={t} transform={`translate(${x(t)},${AXIS_Y})`}>
               <line y2="5" className="axis" />
               <text y="17" textAnchor="middle" className="tick">
@@ -700,7 +728,7 @@ export function SpectrumView() {
             />
           )}
         </svg>
-        <ZoomControls zoom={zoom} what="wavelength" />
+        <ZoomControls zoom={zoom} what="wavelength" csv={csv} />
       </figure>
 
       {/* The view is called "vs NIST", so the answer to that comparison goes
@@ -738,7 +766,7 @@ export function SpectrumView() {
               </defs>
               {/* The residuals carry their own wavelength scale. Reading a dot
                   off the plot above meant matching two panels by eye. */}
-              {thinTicks(x.ticks(8), x, 34).map((t) => (
+              {xMajor.map((t) => (
                 <g key={`rg-${t}`}>
                   <line
                     x1={x(t)} x2={x(t)} y1={14} y2={RES_H - 42}

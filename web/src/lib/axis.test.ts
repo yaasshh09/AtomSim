@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "./axis";
+import { formatOffset, minorTicks, offsetAxis, offsetTicks, thinTicks } from "./axis";
 
 describe("offsetTicks", () => {
   it("puts a tick at the line centre", () => {
@@ -114,5 +114,33 @@ describe("thinTicks", () => {
   it("keeps everything when there is room", () => {
     const ticks = [1, 10, 100, 1000];
     expect(thinTicks(ticks, logX, 10)).toEqual(ticks);
+  });
+});
+
+describe("minorTicks", () => {
+  it("splits a step of 1 into fifths, skipping the majors", () => {
+    const m = minorTicks([0, 1, 2], [0, 2]);
+    expect(m).toHaveLength(8);
+    expect(m[0]).toBeCloseTo(0.2);
+    expect(m.some((v) => Math.abs(v - 1) < 1e-9)).toBe(false);
+  });
+
+  it("splits a step of 2 into quarters, so minors stay on round values", () => {
+    expect(minorTicks([0, 2, 4], [0, 4])).toEqual([0.5, 1, 1.5, 2.5, 3, 3.5]);
+  });
+
+  it("rules 2x..9x inside each decade on a log axis", () => {
+    const m = minorTicks([1, 10, 100], [1, 100], true);
+    expect(m).toHaveLength(16);
+    expect(m).toContain(20);
+    expect(m).not.toContain(10);
+  });
+
+  it("stays inside the window, including the stretch before the first major", () => {
+    for (const v of minorTicks([0.5, 1], [0.32, 1.17])) {
+      expect(v).toBeGreaterThanOrEqual(0.32);
+      expect(v).toBeLessThanOrEqual(1.17);
+    }
+    expect(minorTicks([0.5, 1], [0.32, 1.17])[0]).toBeCloseTo(0.4);
   });
 });

@@ -118,3 +118,45 @@ export function thinTicks(
   kept.push(last);
   return kept;
 }
+
+/**
+ * Unlabelled ticks between the labelled ones, for the minor grid.
+ *
+ * Linear: each major interval split into the step's natural parts (a step of
+ * 1, 2 or 5 times a power of ten becomes 5, 4 or 5 parts), so minor lines land
+ * on round values. Log: the 2x..9x lines inside each decade, the ruling on
+ * printed log paper. Values on a major tick are left out, and so is anything
+ * outside [lo, hi].
+ */
+export function minorTicks(
+  major: readonly number[],
+  [lo, hi]: readonly [number, number],
+  log = false,
+): number[] {
+  const a = Math.min(lo, hi);
+  const b = Math.max(lo, hi);
+  const out: number[] = [];
+  if (log) {
+    if (!(a > 0)) return out;
+    for (let e = Math.floor(Math.log10(a)); e <= Math.ceil(Math.log10(b)); e++) {
+      for (let k = 2; k <= 9; k++) {
+        const v = k * 10 ** e;
+        if (v > a && v < b) out.push(v);
+      }
+    }
+    return out;
+  }
+  if (major.length < 2) return out;
+  const step = Math.abs(major[1] - major[0]);
+  if (!(step > 0)) return out;
+  const lead = Math.round(step / 10 ** Math.floor(Math.log10(step)));
+  const sub = step / (lead === 2 ? 4 : 5);
+  // Rounded to the step's own precision, so 0.1 + 0.2 never reads as a new tick.
+  const eps = sub * 1e-6;
+  for (let i = Math.ceil(a / sub); i * sub <= b + eps; i++) {
+    const v = i * sub;
+    if (major.some((m) => Math.abs(m - v) < eps)) continue;
+    if (v >= a - eps && v <= b + eps) out.push(v);
+  }
+  return out;
+}
