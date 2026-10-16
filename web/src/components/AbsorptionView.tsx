@@ -1,10 +1,13 @@
 import { scaleLinear, scaleLog } from "d3-scale";
+import { useRef } from "react";
 import type { AbsorptionInfo, AbsorbingLineInfo } from "../api/types";
-import { formatOffset, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
+import { formatOffset, minorTicks, offsetAxis, offsetTicks, thinTicks } from "../lib/axis";
 import { Notation } from "../lib/mathText";
+import { toCsv } from "../lib/plotExport";
 import { plotHeight } from "../lib/plotSize";
 import { Badge } from "./Badge";
 import { REGIME_COLOR, REGIME_LABEL } from "./CurveOfGrowthView";
+import { GridLines, PlotTools } from "./PlotZoom";
 
 /** Height per unit width, and the limits it runs between. See plotSize.ts. */
 const SHAPE = { ratio: 0.368, min: 220, max: 300 };
@@ -247,6 +250,14 @@ export function AbsorptionView({
           34,
         )
       : offsetTicks(offset, loNm, hiNm);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const xMinor = thinTicks(
+    minorTicks(xTicks, [loNm, hiNm], mode === "log"),
+    (v) => x(Math.log10(v)),
+    4,
+  ).filter((v) => !xTicks.includes(v));
+  const yMajor = [0, 0.25, 0.5, 0.75, 1];
+  const yMinor = minorTicks(yMajor, [0, 1]);
   const xLabel = (v: number) =>
     mode === "log" ? `${v}` : formatOffset(offset, v);
 
@@ -278,7 +289,17 @@ export function AbsorptionView({
         </span>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H + BAND_H}`} style={{ minWidth: W }} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${H + BAND_H}`} style={{ minWidth: W }} role="img"
+        className="levels-svg" ref={svgRef}
+      >
+        <GridLines
+          x1={M.left} x2={W - M.right} y1={M.top} y2={H - M.bottom}
+          xs={xTicks.map((v) => x(Math.log10(v)))}
+          xMinor={xMinor.map((v) => x(Math.log10(v)))}
+          ys={yMajor.map(y)}
+          yMinor={yMinor.map(y)}
+        />
         <line
           x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom}
           className="axis"
@@ -292,7 +313,7 @@ export function AbsorptionView({
             </text>
           </g>
         ))}
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+        {yMajor.map((t) => (
           <g key={t} transform={`translate(${M.left},${y(t)})`}>
             <line x2="-5" className="axis" />
             <text x="-9" dy="3" textAnchor="end" className="tick">
@@ -344,6 +365,18 @@ export function AbsorptionView({
           I / I₀
         </text>
       </svg>
+      <div className="zoom-bar">
+        <PlotTools
+          svg={() => svgRef.current}
+          name="atomsim-absorption"
+          csv={() =>
+            toCsv(
+              ["wavelength_nm", "transmission_I_over_I0", "optical_depth"],
+              abs.wavelength_nm.map((w, i) => [w, abs.transmission[i], abs.optical_depth[i]]),
+            )
+          }
+        />
+      </div>
 
       <p className="caption">
         <strong>

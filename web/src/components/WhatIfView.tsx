@@ -27,7 +27,7 @@ import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
-import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
+import { LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 /**
@@ -280,6 +280,7 @@ export function WhatIfView() {
         ref={zoom.ref}
         {...zoom.handlers}
       >
+        <LadderGrid y={y} x1={rx1} x2={rx2} unit="" />
         <text x={(rx1 + rx2) / 2} y={30} textAnchor="middle" className="tick">
           {mathTspans(
             compact

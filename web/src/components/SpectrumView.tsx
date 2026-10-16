@@ -1,5 +1,5 @@
 import { scaleLinear, scaleLog } from "d3-scale";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ComparisonInfo,
   LineWidthInfo,
@@ -32,7 +32,7 @@ import { CurveOfGrowthView } from "./CurveOfGrowthView";
 import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider, Toggle } from "./Field";
 import { HoverReadout, usePlotHover } from "./PlotHover";
-import { usePlotZoom, ZoomControls } from "./PlotZoom";
+import { GridLines, PlotTools, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 /**
@@ -283,6 +283,9 @@ function ZoomPanel({
   // to every decimal a label has room for, so the old axis printed "121.568"
   // six times.
   const axis = offsetAxis(window_[0], window_[1]);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const xMajor = offsetTicks(axis, window_[0], window_[1]);
+  const yMajor = y.ticks(4);
   return (
     <div className="zoom-panel">
       <div className="view-header">
@@ -299,12 +302,22 @@ function ZoomPanel({
         pixel on an axis covering hundreds of nanometres.{" "}
         <Badge provenance={prof.provenance} />
       </p>
-      <svg viewBox={`0 0 ${W} ${ZOOM_H}`} style={{ minWidth: W }} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${ZOOM_H}`} style={{ minWidth: W }} role="img"
+        className="levels-svg" ref={svgRef}
+      >
+        <GridLines
+          x1={M.left} x2={W - M.right} y1={16} y2={ZOOM_BASE}
+          xs={xMajor.map(x)}
+          xMinor={minorTicks(xMajor, window_).map(x)}
+          ys={yMajor.map(y)}
+          yMinor={minorTicks(yMajor, y.domain() as [number, number]).map(y)}
+        />
         <line
           x1={M.left} x2={W - M.right} y1={ZOOM_BASE} y2={ZOOM_BASE}
           className="axis"
         />
-        {offsetTicks(axis, window_[0], window_[1]).map((t) => (
+        {xMajor.map((t) => (
           <g key={t} transform={`translate(${x(t)},${ZOOM_BASE})`}>
             <line y2="5" className="axis" />
             <text y="17" textAnchor="middle" className="tick">
@@ -340,6 +353,18 @@ function ZoomPanel({
         )}
         <path d={path} className="profile-curve" />
       </svg>
+      <div className="zoom-bar">
+        <PlotTools
+          svg={() => svgRef.current}
+          name="atomsim-line-profile"
+          csv={() =>
+            toCsv(
+              ["wavelength_nm", "intensity"],
+              prof.wavelength_nm.map((wl, i) => [wl, prof.intensity[i]]),
+            )
+          }
+        />
+      </div>
       {w && (
         <>
           <p className="caption">

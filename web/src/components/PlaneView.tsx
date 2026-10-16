@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { Notation } from "../lib/mathText";
+import { toCsv } from "../lib/plotExport";
 import { rasterize } from "../lib/rasterize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { PlaneStack } from "./PlaneStack";
 
 export function PlaneView() {
   const {
@@ -59,13 +61,32 @@ export function PlaneView() {
           </button>
         </div>
       </div>
-      <div className="plane-frame">
-        <canvas ref={canvasRef} className="plane-canvas" />
+      <PlaneStack
+        canvasRef={canvasRef}
+        halfExtent={plane?.meta.half_extent ?? 0}
+        resolution={plane?.meta.resolution ?? 0}
+        name={`atomsim-plane-${planeQuantity}`}
+        csv={
+          plane
+            ? () => {
+                // Row i is z ascending, column j is x ascending, both on
+                // linspace(-h, h, resolution): the engine's own samples.
+                const { resolution: res, half_extent: h, unit, quantity } = plane.meta;
+                const at = (k: number) => -h + (2 * h * k) / (res - 1);
+                const rows: number[][] = [];
+                for (let i = 0; i < res; i++) {
+                  for (let j = 0; j < res; j++) rows.push([at(j), at(i), plane.values[i * res + j]]);
+                }
+                return toCsv(["x_bohr", "z_bohr", `${quantity} [${unit}]`], rows);
+              }
+            : undefined
+        }
+      >
         {planeStatus === "sampling" && (
           <p className="hint">computing… {(planeProgress * 100).toFixed(0)}%</p>
         )}
         {planeStatus === "error" && error && <p className="error">{error}</p>}
-      </div>
+      </PlaneStack>
       {plane && (
         <p className="caption">
           x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +

@@ -46,8 +46,12 @@ function backdrop(el: Element): string {
   return "white";
 }
 
-/** A standalone copy of the plot, with its styles inlined and a background. */
-export function serializePlot(svg: SVGSVGElement): { text: string; w: number; h: number } {
+/** A standalone copy of the plot, with its styles inlined and (unless it is an
+ *  overlay for a raster) an opaque background. */
+export function serializePlot(
+  svg: SVGSVGElement,
+  withBackground = true,
+): { text: string; w: number; h: number } {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   const src = [svg, ...svg.querySelectorAll("*")];
   const dst = [clone, ...clone.querySelectorAll("*")];
@@ -61,11 +65,13 @@ export function serializePlot(svg: SVGSVGElement): { text: string; w: number; h:
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("width", String(w));
   clone.setAttribute("height", String(h));
-  const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  bg.setAttribute("width", "100%");
-  bg.setAttribute("height", "100%");
-  bg.setAttribute("fill", backdrop(svg));
-  clone.insertBefore(bg, clone.firstChild);
+  if (withBackground) {
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("width", "100%");
+    bg.setAttribute("height", "100%");
+    bg.setAttribute("fill", backdrop(svg));
+    clone.insertBefore(bg, clone.firstChild);
+  }
   return { text: new XMLSerializer().serializeToString(clone), w, h };
 }
 
@@ -108,9 +114,43 @@ export function toCsv(header: readonly string[], rows: readonly (readonly unknow
   return [header, ...rows].map((r) => r.map(cell).join(",")).join("\n") + "\n";
 }
 
+/**
+ * A raster plot as a PNG: the image scaled up to a usable size, with the grid
+ * overlay (if any) drawn on top. Smoothing matches the on-screen picture.
+ */
+export function saveCanvasPng(
+  canvas: HTMLCanvasElement,
+  overlay: SVGSVGElement | null,
+  name: string,
+  size = 1024,
+) {
+  // The longer side gets `size`; the 3-D stage is not square.
+  const k = size / Math.max(canvas.width, canvas.height, 1);
+  const w = Math.round(canvas.width * k);
+  const h = Math.round(canvas.height * k);
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const ctx = out.getContext("2d");
+  if (!ctx) return;
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const finish = () => out.toBlob((b) => b && download(`${name}.png`, b), "image/png");
+  if (!overlay) return finish();
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, w, h);
+    finish();
+  };
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+    serializePlot(overlay, false).text,
+  )}`;
+}
+
 /** A file name from the plot's own title: "R(r), the radial..." -> "r-r-the-radial". */
 export function plotFileName(svg: SVGSVGElement | null): string {
-  const lead = svg?.closest("figure")?.querySelector(".plot-lead")?.textContent ?? "";
+  const lead =
+    svg?.closest("figure, .zoom-panel, .view-wrap")?.querySelector(".plot-lead, .plot-title")
+      ?.textContent ?? "";
   const slug = lead
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")

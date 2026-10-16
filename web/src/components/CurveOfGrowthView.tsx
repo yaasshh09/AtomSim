@@ -1,8 +1,12 @@
 import { scaleLinear } from "d3-scale";
+import { useRef } from "react";
 import type { CurveOfGrowthInfo, GrowthRegime } from "../api/types";
+import { minorTicks } from "../lib/axis";
 import { Notation } from "../lib/mathText";
+import { toCsv } from "../lib/plotExport";
 import { plotHeight } from "../lib/plotSize";
 import { Badge } from "./Badge";
+import { GridLines, PlotTools } from "./PlotZoom";
 
 /** Height per unit width, and the limits it runs between. See plotSize.ts. */
 const SHAPE = { ratio: 0.382, min: 220, max: 310 };
@@ -108,6 +112,14 @@ export function CurveOfGrowthView({
   const x = scaleLinear(logN, [M.left, W - M.right]);
   const y = scaleLinear(logW, [H - M.bottom, M.top]);
   const segments = regimeSegments(cog.regime);
+  const svgRef = useRef<SVGSVGElement>(null);
+  // Both axes are log10 of the quantity, so the minor lines are log10 of the
+  // 2x..9x values inside each decade, plus the decades the labels skip (the
+  // labelled ticks run every other decade on a wide axis).
+  const logMinor = ([a, b]: number[]) => [
+    ...minorTicks([], [10 ** a, 10 ** b], true).map(Math.log10),
+    ...Array.from({ length: Math.floor(b) - Math.ceil(a) + 1 }, (_, i) => Math.ceil(a) + i),
+  ];
   const present = [...new Set(cog.regime)];
 
   return (
@@ -129,7 +141,17 @@ export function CurveOfGrowthView({
           ))}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }} role="img" className="levels-svg">
+      <svg
+        viewBox={`0 0 ${W} ${H}`} style={{ minWidth: W }} role="img" className="levels-svg"
+        ref={svgRef}
+      >
+        <GridLines
+          x1={M.left} x2={W - M.right} y1={M.top} y2={H - M.bottom}
+          xs={decadeTicks(x.domain()[0], x.domain()[1]).map(x)}
+          xMinor={logMinor(x.domain()).map(x)}
+          ys={decadeTicks(y.domain()[0], y.domain()[1], 6).map(y)}
+          yMinor={logMinor(y.domain()).map(y)}
+        />
         <line
           x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom}
           className="axis"
@@ -172,6 +194,20 @@ export function CurveOfGrowthView({
           equivalent width [nm]
         </text>
       </svg>
+      <div className="zoom-bar">
+        <PlotTools
+          svg={() => svgRef.current}
+          name="atomsim-curve-of-growth"
+          csv={() =>
+            toCsv(
+              ["column_density_m2", "equivalent_width_nm", "regime", "slope", "tau_centre"],
+              cog.column_density_m2.map((n, i) => [
+                n, cog.equivalent_width_nm[i], cog.regime[i], cog.slope[i], cog.tau_centre[i],
+              ]),
+            )
+          }
+        />
+      </div>
       <p className="caption">
         How much light the line removes, against how much gas sits in the way.
         The three branches are the whole point. While the core is still

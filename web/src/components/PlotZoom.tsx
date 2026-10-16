@@ -1,6 +1,8 @@
+import type { ScaleLinear } from "d3-scale";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
-import { download, plotFileName, savePng, saveSvg } from "../lib/plotExport";
+import { minorTicks } from "../lib/axis";
+import { download, plotFileName, saveCanvasPng, savePng, saveSvg } from "../lib/plotExport";
 import { currentGrid, nextGrid, setGrid, subscribeGrid } from "../lib/theme";
 import { isTouch } from "../lib/viewport";
 import { isZoomed, panView, zoomFactor, zoomView, type Domain } from "../lib/zoom";
@@ -332,7 +334,7 @@ export function ZoomControls({
           <>scroll to zoom {what}, drag to pan, double-click to reset</>
         )}
       </span>
-      <PlotTools zoom={zoom} csv={csv} />
+      <PlotTools svg={() => zoom.element.current} csv={csv} />
     </div>
   );
 }
@@ -340,21 +342,43 @@ export function ZoomControls({
 const GRID_LABEL = { fine: "grid: fine", major: "grid: major", off: "grid: off" };
 
 /**
- * The plot toolbar: grid density, fullscreen, and export as PNG, SVG or CSV.
+ * The plot toolbar: grid density, full screen, and export.
  *
- * Lives inside ZoomControls so every zoomable plot gets it without each view
- * wiring it up. The exports read the live SVG, so they save the current
- * window and theme. CSV is the engine's own samples, unrounded.
+ * Every plot carries one. ZoomControls includes it, and a plot without zoom
+ * puts it in a `.zoom-bar` row of its own. The exports read the live picture,
+ * so they save the current window and theme; CSV is the engine's own
+ * samples, unrounded.
+ *
+ * A raster view (the 2-D planes) passes `canvas`: its PNG is the image plus
+ * the grid overlay in `svg`, and there is no SVG export, because a vector
+ * file wrapped around a bitmap would only pretend to be one.
  */
-function PlotTools({ zoom, csv }: { zoom: PlotZoom; csv?: () => string }) {
+export function PlotTools({
+  svg,
+  csv,
+  canvas,
+  frame,
+  name,
+}: {
+  svg: () => SVGSVGElement | null;
+  csv?: () => string;
+  canvas?: () => HTMLCanvasElement | null;
+  /** What goes full screen. Defaults to the plot's figure. */
+  frame?: () => Element | null;
+  /** The download file name, without extension. Defaults to the plot title. */
+  name?: string;
+}) {
   const grid = useSyncExternalStore(subscribeGrid, currentGrid);
-  const svg = () => zoom.element.current;
+  const fileName = () => name ?? plotFileName(svg());
   return (
     <div className="zoom-buttons plot-tools" role="toolbar" aria-label="plot tools">
       <button
         type="button"
-        onClick={() => setGrid(nextGrid(grid))}
-        title="Cycle the gridlines: fine, major only, off"
+        // The live value, not the rendered one: two clicks inside one frame
+        // must step twice.
+        onClick={() => setGrid(nextGrid(currentGrid()))}
+        title="Cycle the gridlines on every plot: fine, major only, off"
+        aria-label={`gridlines: ${grid}. Change`}
       >
         {GRID_LABEL[grid]}
       </button>
@@ -362,9 +386,9 @@ function PlotTools({ zoom, csv }: { zoom: PlotZoom; csv?: () => string }) {
         type="button"
         title="Show this plot full screen (Esc to leave)"
         onClick={() => {
-          const fig = svg()?.closest("figure") ?? svg()?.parentElement;
+          const target = frame?.() ?? svg()?.closest("figure") ?? svg()?.parentElement;
           if (document.fullscreenElement) void document.exitFullscreen();
-          else void fig?.requestFullscreen?.();
+          else void target?.requestFullscreen?.();
         }}
       >
         full screen
@@ -373,34 +397,119 @@ function PlotTools({ zoom, csv }: { zoom: PlotZoom; csv?: () => string }) {
         type="button"
         title="Save the plot as a PNG image, as drawn"
         onClick={() => {
+          const c = canvas?.();
           const el = svg();
-          if (el) savePng(el, plotFileName(el));
+          if (c) saveCanvasPng(c, el, fileName());
+          else if (el) savePng(el, fileName());
         }}
       >
         PNG
       </button>
-      <button
-        type="button"
-        title="Save the plot as an SVG vector image, as drawn"
-        onClick={() => {
-          const el = svg();
-          if (el) saveSvg(el, plotFileName(el));
-        }}
-      >
-        SVG
-      </button>
+      {!canvas && (
+        <button
+          type="button"
+          title="Save the plot as an SVG vector image, as drawn"
+          onClick={() => {
+            const el = svg();
+            if (el) saveSvg(el, fileName());
+          }}
+        >
+          SVG
+        </button>
+      )}
       {csv && (
         <button
           type="button"
           title="Save the plotted numbers as a CSV table"
-          onClick={() =>
-            download(`${plotFileName(svg())}.csv`, new Blob([csv()], { type: "text/csv" }))
-          }
+          onClick={() => download(`${fileName()}.csv`, new Blob([csv()], { type: "text/csv" }))}
         >
           CSV
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Gridlines for a plot, in pixel positions the caller has already mapped.
+ *
+ * Minor lines first, then major, then the optional value labels, so all of
+ * it sits under whatever the plot draws next. The labels are for plots with
+ * no separate value axis (the energy ladders): they hide with the grid.
+ */
+export function GridLines({
+  x1,
+  x2,
+  y1,
+  y2,
+  xs = [],
+  xMinor = [],
+  ys = [],
+  yMinor = [],
+  yLabels = [],
+}: {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+  xs?: readonly number[];
+  xMinor?: readonly number[];
+  ys?: readonly number[];
+  yMinor?: readonly number[];
+  yLabels?: readonly { y: number; text: string }[];
+}) {
+  return (
+    <g className="grid-group" aria-hidden="true">
+      {xMinor.map((x) => (
+        <line key={`xm${x}`} x1={x} x2={x} y1={y1} y2={y2} className="grid-minor" />
+      ))}
+      {yMinor.map((y) => (
+        <line key={`ym${y}`} x1={x1} x2={x2} y1={y} y2={y} className="grid-minor" />
+      ))}
+      {xs.map((x) => (
+        <line key={`x${x}`} x1={x} x2={x} y1={y1} y2={y2} className="grid-line" />
+      ))}
+      {ys.map((y) => (
+        <line key={`y${y}`} x1={x1} x2={x2} y1={y} y2={y} className="grid-line" />
+      ))}
+      {yLabels.map((l) => (
+        <text key={`l${l.y}`} x={x1 + 3} y={l.y - 3} className="tick grid-label">
+          {l.text}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+/**
+ * Horizontal energy gridlines across a ladder's rung column, each major line
+ * labelled with its value. Follows the ladder's zoom, since it reads the
+ * same scale the rungs are placed with.
+ */
+export function LadderGrid({
+  y,
+  x1,
+  x2,
+  unit,
+}: {
+  y: ScaleLinear<number, number>;
+  x1: number;
+  x2: number;
+  unit: string;
+}) {
+  const [a, b] = y.range();
+  const major = y.ticks(6);
+  return (
+    <GridLines
+      x1={x1} x2={x2} y1={Math.min(a, b)} y2={Math.max(a, b)}
+      ys={major.map(y)}
+      yMinor={minorTicks(major, y.domain() as [number, number]).map(y)}
+      yLabels={major.map((t) => {
+        // U+2212, the minus every other axis label here is set with.
+        const v = String(t).replace("-", "−");
+        return { y: y(t), text: unit ? `${v} ${unit}` : v };
+      })}
+    />
   );
 }
 

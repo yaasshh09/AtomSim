@@ -11,6 +11,7 @@ import {
   spreadLabels,
   type DetailMode,
 } from "../lib/levels";
+import { minorTicks } from "../lib/axis";
 import { HF_LADDER_AXIS_LIBERTY } from "../lib/liberties";
 import { Notation, mathTspans } from "../lib/mathText";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
@@ -19,7 +20,7 @@ import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
-import { OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
+import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
 
 /**
@@ -161,6 +162,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
         ref={zoom.ref}
         {...zoom.handlers}
       >
+        <LadderGrid y={y} x1={rungX1} x2={rungX2} unit="eV" />
         <OffWindowMarks
           above={all.filter((o) => o.energy_ev.value > Math.max(...zoom.y)).length}
           below={all.filter((o) => o.energy_ev.value < Math.min(...zoom.y)).length}
@@ -340,6 +342,22 @@ function HFLadder({ levels }: { levels: HFLevels }) {
   const y = scaleLinear(zoom.y, yRange);
   const shown = withinView(orbitals, (o) => Math.log10(Math.abs(o.energy_ev.value)), zoom.y);
   const { rungX1, rungX2 } = columns(W);
+  const decades: number[] = [];
+  for (let e = Math.ceil(Math.min(...zoom.y)); e <= Math.floor(Math.max(...zoom.y)); e++) {
+    decades.push(e);
+  }
+  // Under two decades in the window, the 2x and 5x lines get labels too, or
+  // the grid would carry one number.
+  const labelled = decades.length >= 2 ? decades : [];
+  if (decades.length < 2) {
+    const [lo, hi] = [Math.min(...zoom.y), Math.max(...zoom.y)];
+    for (let e = Math.floor(lo); e <= Math.ceil(hi); e++) {
+      for (const k of [1, 2, 5]) {
+        const v = e + Math.log10(k);
+        if (v >= lo && v <= hi) labelled.push(v);
+      }
+    }
+  }
   const virial = levels.virial_ratio.value;
   const modelName = !levels.pauli
     ? "No Pauli exclusion (1s^N)"
@@ -377,6 +395,14 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         ref={zoom.ref}
         {...zoom.handlers}
       >
+        {/* Decades of binding energy, labelled as the energies they are. */}
+        <GridLines
+          x1={rungX1} x2={rungX2} y1={Math.min(...yRange)} y2={Math.max(...yRange)}
+          ys={labelled.map(y)}
+          yMinor={minorTicks([], [10 ** Math.min(...zoom.y), 10 ** Math.max(...zoom.y)], true)
+            .map((v) => y(Math.log10(v)))}
+          yLabels={labelled.map((e) => ({ y: y(e), text: `−${Number((10 ** e).toPrecision(3))} eV` }))}
+        />
         {/* The ionization limit cannot be a rung here, see HF_LADDER_AXIS_LIBERTY. */}
         {/* Aligned with the rungs where there is room for it, and against the
             frame where there is not: this line is 50 characters of 12px mono,
@@ -900,6 +926,7 @@ export function LevelsView() {
         ref={ladderZoom.ref}
         {...ladderZoom.handlers}
       >
+        <LadderGrid y={y} x1={rungX1} x2={rungX2} unit="eV" />
         <OffWindowMarks
           above={levels.gross.filter(
             (g) => g.energy_ev.value > Math.max(...ladderZoom.y),

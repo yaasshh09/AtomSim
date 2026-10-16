@@ -17,6 +17,7 @@ import { isHydrogenic, isScreened } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { ControlGroup, Slider } from "./Field";
+import { PlaneStack } from "./PlaneStack";
 import { ViewIntro } from "./ViewIntro";
 
 /** Wall-clock seconds the slowest beat takes at 1x. Slow enough to follow one slosh. */
@@ -285,13 +286,17 @@ export function EvolveView() {
               ))}
             </div>
           </div>
-          <div className="plane-frame">
-            <canvas ref={canvasRef} className="plane-canvas" />
+          <PlaneStack
+            canvasRef={canvasRef}
+            halfExtent={evolve?.meta.half_extent ?? 0}
+            resolution={evolve?.meta.resolution ?? 0}
+            name="atomsim-time-evolution"
+          >
             {evolveStatus === "sampling" && (
               <p className="hint">computing… {(evolveProgress * 100).toFixed(0)}%</p>
             )}
             {evolveStatus === "error" && error && <p className="error">{error}</p>}
-          </div>
+          </PlaneStack>
           {evolve && (
             <>
               <p className="caption">

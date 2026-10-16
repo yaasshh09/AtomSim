@@ -22,11 +22,12 @@ import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { ISO_FRACTIONS, useAppStore } from "../state/store";
-import { AxisTriad, axisArmLength } from "./AxisTriad";
+import { AxisTriad, CloudGrid, axisArmLength, gridStep } from "./AxisTriad";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
 import { IsoSurface } from "./IsoSurface";
 import { Legend } from "./Legend";
+import { PlotTools } from "./PlotZoom";
 import { PointCloud } from "./PointCloud";
 
 /**
@@ -163,6 +164,7 @@ export function CloudView() {
     distance,
   );
   const caption = nucleusCaption(nucleusMode, sysInfo, nucleus);
+  const wrapRef = useRef<HTMLDivElement>(null);
   if (!WEBGL) {
     return (
       <div className="canvas-wrap canvas-wrap-nogl">
@@ -177,12 +179,13 @@ export function CloudView() {
   }
 
   return (
-    <div className="canvas-wrap">
+    <div className="canvas-wrap" ref={wrapRef}>
       {/* Capped at 2. A phone reporting a device pixel ratio of 3 would
           otherwise be asked for nine times the fragments of a 1x screen to
           draw a cloud of round points, and the difference between 2x and 3x on
           a point sprite is not visible. */}
-      <Canvas camera={{ fov: 50 }} dpr={[1, 2]}>
+      {/* preserveDrawingBuffer so the toolbar's PNG button can read the frame. */}
+      <Canvas camera={{ fov: 50 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
         {/* This matches --stage in index.css. The 3-D canvas paints its own
             opaque background, so it is the one place the stage colour is not
             read from the stylesheet, and the two have to be kept in step by
@@ -190,6 +193,7 @@ export function CloudView() {
         <color attach="background" args={["#000000"]} />
         <CameraRig distance={distance} />
         <FpsMeter />
+        <CloudGrid distance={distance} />
         <AxisTriad distance={distance} />
         {showCloud && positions && (
           <PointCloud
@@ -245,9 +249,16 @@ export function CloudView() {
             own units next to the rest of the disclosures. */}
         <span className="ghost-readout">
           axes ±{formatArm(axisArmLength(distance))} a{"₀"} · z is the
-          quantization axis
+          quantization axis · grid squares {formatArm(gridStep(axisArmLength(distance)))} a{"₀"} in
+          the z = 0 plane
         </span>
         <Legend mode={colorMode} />
+        <PlotTools
+          svg={() => null}
+          canvas={() => wrapRef.current?.querySelector("canvas") ?? null}
+          frame={() => wrapRef.current}
+          name="atomsim-point-cloud"
+        />
         <div className="surface-controls" data-tour="surface-controls">
           <label>
             Draw

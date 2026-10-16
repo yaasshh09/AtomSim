@@ -1,5 +1,8 @@
 import { Html, Line } from "@react-three/drei";
+import { scaleLinear } from "d3-scale";
+import { useSyncExternalStore } from "react";
 import { PHYSICS_TO_SCREEN } from "../lib/frame";
+import { currentGrid, subscribeGrid } from "../lib/theme";
 
 /**
  * The coordinate frame the cloud is drawn in: x, y and z through the origin.
@@ -74,6 +77,40 @@ export function AxisTriad({ distance }: { distance: number }) {
           </span>
         </Html>
       ))}
+    </group>
+  );
+}
+
+/** The grid's square size in bohr: a round step giving about six squares
+ *  across the triad's arms. */
+export function gridStep(arm: number): number {
+  const t = scaleLinear([-arm, arm], [0, 1]).ticks(6);
+  return t.length > 1 ? t[1] - t[0] : arm;
+}
+
+/**
+ * A bohr grid in the equatorial plane (z = 0), the 3-D cloud's answer to the
+ * plot toolbar's grid button. Major squares of `gridStep`, minor ones a fifth
+ * of that in fine mode, and nothing when the grid is off. The step is printed
+ * in the canvas caption, so the squares carry a scale.
+ */
+export function CloudGrid({ distance }: { distance: number }) {
+  const density = useSyncExternalStore(subscribeGrid, currentGrid);
+  const arm = axisArmLength(distance);
+  const step = gridStep(arm);
+  const cells = 2 * Math.ceil(arm / step);
+  const size = cells * step;
+  if (density === "off") return null;
+  return (
+    // gridHelper lies in its local XZ plane; a quarter turn about x puts it in
+    // the engine's XY plane, inside the same frame rotation as the triad.
+    <group rotation={PHYSICS_TO_SCREEN}>
+      <group rotation={[Math.PI / 2, 0, 0]}>
+        {density === "fine" && (
+          <gridHelper args={[size, cells * 5, "#1c1c1c", "#1c1c1c"]} position={[0, -1e-3, 0]} />
+        )}
+        <gridHelper args={[size, cells, "#3a3a3a", "#3a3a3a"]} />
+      </group>
     </group>
   );
 }

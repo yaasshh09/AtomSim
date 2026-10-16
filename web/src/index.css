@@ -825,6 +825,61 @@ button.ghost:hover {
   background: #000;
 }
 
+/* The raster and its bohr grid, stacked. The grid is white on the always-dark
+   image, so the stack is a dark-scheme subtree like the 3-D stage. */
+.plane-stack {
+  position: relative;
+  overflow: hidden;
+  color-scheme: dark;
+}
+
+.plane-raster {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.plane-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.plane-grid line {
+  vector-effect: non-scaling-stroke;
+}
+
+.plane-grid .grid-line {
+  stroke: rgb(255 255 255 / 0.28);
+}
+
+.plane-grid .grid-minor {
+  stroke: rgb(255 255 255 / 0.11);
+}
+
+.plane-grid-label {
+  font-family: var(--mono);
+  font-size: 21px;
+  fill: rgb(255 255 255 / 0.85);
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 0.7);
+  stroke-width: 5px;
+}
+
+:root[data-grid="off"] .plane-grid-label {
+  display: none;
+}
+
+.plane-frame:fullscreen {
+  background: var(--stage);
+}
+
+.plane-frame:fullscreen .plane-canvas {
+  max-width: min(100%, 94vh);
+}
+
 .caption {
   color: var(--muted);
   font-size: 0.75rem;
@@ -3521,8 +3576,19 @@ figure.plot:fullscreen > svg {
 
 :root[data-grid="major"] .grid-minor,
 :root[data-grid="off"] .grid-minor,
-:root[data-grid="off"] .grid-line {
+:root[data-grid="off"] .grid-line,
+:root[data-grid="off"] .grid-label {
   display: none;
+}
+
+/* Value labels on the grid of a plot with no separate value axis (the energy
+   ladders). Haloed, because rungs and arrows cross them. */
+.grid-label {
+  font-size: 9px;
+  opacity: 0.75;
+  paint-order: stroke;
+  stroke: var(--stage);
+  stroke-width: 3px;
 }
 
 .axis {
