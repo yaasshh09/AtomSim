@@ -8,14 +8,15 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Literal
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query, WebSocket
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, model_validator
 from pydantic import Field as PydanticField
@@ -115,7 +116,13 @@ from atomsim.server.schemas import (
     SystemModel,
     ThermalModel,
 )
-from atomsim.server.thumbnails import render_thumbnail
+from atomsim.server.thumbnails import (
+    OG_HEIGHT,
+    OG_WIDTH,
+    render_og_card,
+    render_thumbnail,
+    state_title,
+)
 from atomsim.spectra import (
     compare_lines,
     load_reference,
@@ -857,6 +864,70 @@ def _validate_state(n: int, l: int, m: int) -> None:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if abs(m) > l:
         raise HTTPException(status_code=422, detail=f"|m| must be <= l, got m={m}, l={l}")
+
+
+#: The app's n select stops at 6 and its URL parser clamps there, so a card for
+#: n = 7 would preview a state the link does not open.
+_OG_CARD_N_MAX = 6
+
+#: The URL keys that name a state; a link carrying none of them is the bare
+#: front page, which keeps its designed og.png.
+_STATE_KEYS = ("n", "l", "m", "system", "basis")
+
+
+def _og_card_state(n: str, l: str, m: str, system: str, basis: str):
+    """(n, l, m, system, basis) if a preview card can be drawn for it, else None.
+
+    Only the named hydrogen-like presets: a many-electron atom's orbital is not
+    the closed-form density the card is labelled with.
+    """
+    try:
+        n_, l_, m_ = int(n), int(l), int(m)
+        validate_quantum_numbers(n_, l_)
+        get_system(system)
+    except (ValueError, KeyError):
+        return None
+    if n_ > _OG_CARD_N_MAX or abs(m_) > l_ or basis not in ("complex", "real"):
+        return None
+    return n_, l_, m_, system, basis
+
+
+def _set_meta(html: str, key: str, value: str) -> str:
+    """Replace the content of the <meta> whose property or name is `key`."""
+    value = escape(value, quote=True)
+    return re.sub(
+        rf'((?:property|name)="{re.escape(key)}"\s+content=")[^"]*',
+        lambda mt: mt.group(1) + value, html,
+    )
+
+
+def _with_state_preview(html: str, query) -> str:
+    """index.html with its link-preview tags pointed at the state the URL opens.
+
+    Scrapers never run the app's JavaScript, so this is the only place a shared
+    deep link can say which orbital it is. Anything that is not a drawable state
+    leaves the page exactly as built.
+    """
+    if not any(k in query for k in _STATE_KEYS):
+        return html
+    state = _og_card_state(
+        query.get("n", "1"), query.get("l", "0"), query.get("m", "0"),
+        query.get("system", "h"), query.get("basis", "complex"),
+    )
+    found = re.search(r'property="og:image"\s+content="([^"]*)/og\.png"', html)
+    if state is None or found is None:
+        return html
+    n, l, m, system, basis = state
+    image = f"{found.group(1)}/api/og/{n}/{l}/{m}?system={system}&basis={basis}"
+    label = f"{get_system(system).name} {state_title(n, l, m, basis)}"
+    alt = f"The {label} orbital's probability density on the y = 0 plane."
+    for key, value in (
+        ("og:title", f"{label} | AtomSim"), ("twitter:title", f"{label} | AtomSim"),
+        ("og:image", image), ("twitter:image", image), ("og:image:alt", alt),
+        ("og:image:width", str(OG_WIDTH)), ("og:image:height", str(OG_HEIGHT)),
+    ):
+        html = _set_meta(html, key, value)
+    return html
 
 
 def _to_ev(q: Quantity) -> Quantity:
@@ -1928,6 +1999,19 @@ def create_app() -> FastAPI:
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
+    @app.get("/api/og/{n}/{l}/{m}")
+    def og_card(n: int, l: int, m: int, system: str = "h", basis: str = "complex") -> Response:
+        if _og_card_state(str(n), str(l), str(m), system, basis) is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"no preview card for that state; n <= {_OG_CARD_N_MAX}, "
+                "named hydrogen-like systems only",
+            )
+        return Response(
+            content=render_og_card(n, l, m, system, basis), media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
     @app.post("/api/jobs/sample", response_model=JobModel)
     async def create_sample_job(req: SampleRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
@@ -2407,6 +2491,11 @@ def create_app() -> FastAPI:
 
     web_dist = _web_dist()
     if web_dist.is_dir():
+        @app.get("/", include_in_schema=False)
+        def index(request: Request) -> HTMLResponse:
+            html = (web_dist / "index.html").read_text(encoding="utf-8")
+            return HTMLResponse(_with_state_preview(html, request.query_params))
+
         app.mount("/", StaticFiles(directory=str(web_dist), html=True), name="web")
         logger.info("Mounted the UI from %s", web_dist)
     else:

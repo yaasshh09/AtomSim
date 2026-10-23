@@ -27,7 +27,10 @@
     <!-- Social previews. VITE_SITE_URL is substituted at build time; left
          empty the paths stay root-relative, which most scrapers resolve but
          none are obliged to. Set it to the deployed origin so they come out
-         absolute, which is what the Open Graph spec actually asks for. -->
+         absolute, which is what the Open Graph spec actually asks for.
+         The server rewrites the title and image tags for deep links to a
+         state (_with_state_preview in server/app.py), finding them by their
+         property/name attribute, so keep that attribute ahead of content. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="AtomSim" />
     <meta property="og:title" content="AtomSim" />
