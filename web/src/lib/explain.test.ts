@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeScenario,
   CONSTANT_BLURBS,
+  currentCaption,
   describeDensity,
   describeEField,
   describeField,
@@ -167,5 +168,16 @@ describe("constant blurbs", () => {
       expect(CONSTANT_BLURBS[key], key).toBeDefined();
       expect(CONSTANT_BLURBS[key].length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("currentCaption", () => {
+  it("explains both exact zeros instead of leaving a blank plane", () => {
+    expect(currentCaption("real", 1)).toContain("real function");
+    expect(currentCaption("complex", 0)).toContain("m = 0");
+  });
+  it("says which way +y points, since the screen has no y axis", () => {
+    expect(currentCaption("complex", 2)).toContain("into the screen (+y");
+    expect(currentCaption("complex", 2)).toContain("circles the z axis");
   });
 });

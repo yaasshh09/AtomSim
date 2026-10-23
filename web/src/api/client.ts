@@ -24,7 +24,7 @@ export function isScreenedLevels(
 }
 
 export type Basis = "complex" | "real";
-export type PlaneQuantity = "density" | "psi";
+export type PlaneQuantity = "density" | "psi" | "current";
 
 /**
  * A number that is safe to drop into a query string.

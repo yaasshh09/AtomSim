@@ -325,3 +325,26 @@ export const CONSTANT_BLURBS: Record<string, string> = {
   eps0: "the vacuum's permittivity: how much empty space weakens the pull between charges",
   c: "the speed of light: where relativity starts to matter",
 };
+
+/**
+ * What the current panel shows, including the two cases where it is exactly
+ * zero: a blank plane with no explanation reads as a bug, and here it is the
+ * physics.
+ */
+export function currentCaption(basis: string, m: number): string {
+  const what =
+    "Probability current j_y = ħm|ψ|²/(μx) through this plane, RdBu linear: red flows " +
+    "into the screen (+y, with x right and z up), blue out toward you. ";
+  if (basis === "real") {
+    return what + "This plane is exactly zero: a real orbital is a real function, so " +
+      "Im(ψ*∇ψ) vanishes. A standing wave carries no current; switch to the complex basis " +
+      "to see the m ≠ 0 states circulate.";
+  }
+  if (m === 0) {
+    return what + "This plane is exactly zero: an m = 0 state has no angular momentum " +
+      "about z, so nothing circulates.";
+  }
+  return what + "The current circles the z axis, so it crosses the plane one way on the " +
+    "right and the other way on the left; flip the sign of m and it reverses. A stationary " +
+    "state has no current within the plane, so nothing here flows, it only circulates.";
+}

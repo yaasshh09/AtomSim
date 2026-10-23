@@ -8,6 +8,7 @@ exactly which quantity is shown (spec 7.2, the honesty fix over the poster's
 contradictory -/+ "probability density" colorbar).
 """
 
+import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -269,4 +270,50 @@ def hf_plane_grid(
     return PlaneGrid(
         values=values, axis=axis, quantity=quantity, unit=unit, label=label,
         n=n, l=l, m=m, Z=z, mu_ratio=1.0, basis=basis, provenance=provenance,
+    )
+
+
+def current_through_plane(pg: PlaneGrid) -> PlaneGrid:
+    """j_y, the probability current through the y=0 plane, from a density grid.
+
+    A stationary psi = R(r) Y_lm(theta, phi) e^{-iEt} has one current component,
+    j_phi = hbar m |psi|^2 / (mu r sin theta), circling the z axis. On y=0 the
+    azimuthal direction is +y at x > 0 and -y at x < 0 while r sin theta = |x|,
+    so both halves give j_y = m |psi|^2 / (mu x) in atomic units: the flow goes in
+    through one side of the axis and out through the other. A real orbital is a
+    real function, so its current is identically zero, and so is any m = 0 state.
+
+    The tier is the density's own: this is a closed-form identity applied to it,
+    so it adds no error of its own.
+    """
+    if pg.quantity != "density":
+        raise ValueError(f"need a density grid, got {pg.quantity!r}")
+    values = np.zeros_like(pg.values)
+    if pg.basis == "complex" and pg.m != 0:
+        x = pg.axis[np.newaxis, :]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            values = np.where(x != 0.0, pg.m * pg.values / (pg.mu_ratio * x), 0.0)
+    why_zero = (
+        ("a real orbital is a real function, so Im(psi* grad psi) = 0 everywhere",)
+        if pg.basis == "real" else
+        (("m = 0: nothing circulates about z",) if pg.m == 0 else ())
+    )
+    provenance = Provenance(
+        fidelity=pg.provenance.fidelity,
+        method=(
+            pg.provenance.method
+            + "; then j_y = hbar m |psi|^2 / (mu x), the azimuthal current "
+            "j_phi = hbar m |psi|^2 / (mu r sin theta) seen through y=0"
+        ),
+        assumptions=pg.provenance.assumptions + (
+            "a stationary state: its current is purely azimuthal",
+            "the in-plane components j_x and j_z are zero; only flow through the plane is drawn",
+        ) + why_zero,
+        error_estimate=pg.provenance.error_estimate,
+        refinement=pg.provenance.refinement,
+    )
+    return dataclasses.replace(
+        pg, values=values, quantity="current", unit="hbar/(m_e bohr^4)",
+        label=f"j_y of psi_{pg.n},{pg.l},{pg.m} through the y=0 plane",
+        provenance=provenance,
     )

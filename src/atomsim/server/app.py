@@ -73,7 +73,13 @@ from atomsim.isosurface import (
 )
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
-from atomsim.plane import PlaneGrid, hf_plane_grid, plane_grid, screened_plane_grid
+from atomsim.plane import (
+    PlaneGrid,
+    current_through_plane,
+    hf_plane_grid,
+    plane_grid,
+    screened_plane_grid,
+)
 from atomsim.populations import ThermalConditions
 from atomsim.provenance import Field, Quantity
 from atomsim.sampling import (
@@ -485,7 +491,7 @@ class PlaneRequest(ManyElectronRequest):
     n: int
     l: int
     m: int
-    quantity: Literal["density", "psi"] = "density"
+    quantity: Literal["density", "psi", "current"] = "density"
     basis: Literal["complex", "real"] = "complex"
     system: str = "h"
     resolution: int = PydanticField(default=512, ge=32, le=1024)
@@ -2083,6 +2089,14 @@ def create_app() -> FastAPI:
         job = jobs.create()
         app.state.job_systems[job.id] = req.system
         app.state.job_models[job.id] = req.model
+        # The current is a closed-form identity on the density, so every model
+        # draws it from its own density grid and keeps that grid's tier.
+        quantity = "density" if req.quantity == "current" else req.quantity
+
+        def _dispatch_plane(job, work):
+            if req.quantity != "current":
+                return _dispatch(job, work)
+            return _dispatch(job, lambda progress: current_through_plane(work(progress)))
 
         if hf_target is not None:
             hf_z, hf_n, hf_config = hf_target
@@ -2090,12 +2104,12 @@ def create_app() -> FastAPI:
             def work(progress):
                 return hf_plane_grid(
                     hf_z, hf_n, req.n, req.l, req.m,
-                    quantity=req.quantity, basis=req.basis,
+                    quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
                     config=hf_config, exchange=req.exchange, pauli=req.pauli,
                 )
 
-            return _dispatch(job, work)
+            return _dispatch_plane(job, work)
 
         if _is_screened(req.system):
             element = _gsz_element(req.system)
@@ -2103,22 +2117,22 @@ def create_app() -> FastAPI:
             def work(progress):
                 return screened_plane_grid(
                     element.z, element.z, req.n, req.l, req.m,
-                    quantity=req.quantity, basis=req.basis,
+                    quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
                 )
 
-            return _dispatch(job, work)
+            return _dispatch_plane(job, work)
 
         sys_ = _resolve_system(req.system)
 
         def work(progress):
             return plane_grid(
-                req.n, req.l, req.m, quantity=req.quantity, basis=req.basis,
+                req.n, req.l, req.m, quantity=quantity, basis=req.basis,
                 Z=sys_.Z, mu_ratio=sys_.mu_ratio.value,
                 resolution=req.resolution, progress=progress,
             )
 
-        return _dispatch(job, work)
+        return _dispatch_plane(job, work)
 
     @app.post("/api/jobs/superposition", response_model=JobModel)
     async def create_superposition_job(req: SuperpositionRequest) -> JobModel:

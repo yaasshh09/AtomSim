@@ -388,6 +388,31 @@ def test_plane_job_psi_quantity_and_validation(client):
     ).status_code == 422
 
 
+@pytest.mark.parametrize(
+    "body,fidelity",
+    [
+        ({"n": 2, "l": 1, "m": 1}, "exact"),
+        ({"n": 3, "l": 1, "m": -1, "system": "na"}, "approximation"),
+    ],
+)
+def test_plane_job_current_through_the_plane(client, body, fidelity):
+    r = client.post(
+        "/api/jobs/plane", json={**body, "quantity": "current", "resolution": 32}
+    )
+    assert r.status_code == 200
+    job_id = r.json()["id"]
+    assert _wait_done(client, job_id, deadline_s=120.0)["status"] == "done"
+    meta = client.get(f"/api/jobs/{job_id}/meta").json()
+    assert meta["quantity"] == "current"
+    assert meta["unit"] == "hbar/(m_e bohr^4)"
+    # the tier is the density's own, whichever model drew it
+    assert meta["provenance"]["fidelity"] == fidelity
+    values = np.frombuffer(client.get(f"/api/jobs/{job_id}/data").content, np.float32)
+    values = values.reshape(32, 32)
+    # circulation about z: opposite signs either side of the axis
+    assert np.sign(values[20, 25]) == -np.sign(values[20, 6]) != 0
+
+
 def test_systems_carry_nuclear_radius(client):
     systems = {s["key"]: s for s in client.get("/api/systems").json()["systems"]}
     r_bohr = systems["h"]["nuclear_radius"]

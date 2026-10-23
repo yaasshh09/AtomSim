@@ -5,14 +5,14 @@ import { INFERNO, RDBU_R } from "./luts";
  * Turns PlaneGrid float32 values (row i = z ascending) into RGBA pixels
  * (row 0 = top).
  * Density gets inferno with the disclosed gamma compression (VISUAL LIBERTY).
- * psi gets diverging RdBu_r, LINEAR in psi with zero at the midpoint. The
- * signed structure is the honest point of that mode, so no gamma is applied to
- * it.
+ * psi and the current get diverging RdBu_r, LINEAR with zero at the midpoint.
+ * The signed structure is the honest point of those modes, so no gamma is
+ * applied to them.
  */
 export function rasterize(
   values: Float32Array,
   resolution: number,
-  quantity: "density" | "psi",
+  quantity: "density" | "psi" | "current",
   /** A fixed colour scale. Omitted, the frame's own maximum. */
   scale?: number,
 ): Uint8ClampedArray<ArrayBuffer> {

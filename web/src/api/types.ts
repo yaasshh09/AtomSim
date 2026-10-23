@@ -505,7 +505,7 @@ export interface PlaneMeta {
   resolution: number;
   dtype: string;
   layout: string;
-  quantity: "density" | "psi";
+  quantity: "density" | "psi" | "current";
   unit: string;
   label: string;
   half_extent: number;

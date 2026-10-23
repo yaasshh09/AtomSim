@@ -90,3 +90,48 @@ def test_hydrogen_plane_unchanged_exact():
     pg = plane_grid(2, 1, 0, quantity="psi", resolution=32)
     assert pg.provenance.fidelity is Fidelity.EXACT
     assert pg.values.shape == (32, 32)
+
+
+def _exact_j_y(n, l, m, x, z, Z=1, mu_ratio=1.0, h=1e-5):
+    """Im(psi* d psi/dy) / mu at (x, 0, z), straight from the complex psi."""
+    pos = np.array([[x, -h, z], [x, 0.0, z], [x, h, z]])
+    psi = evaluate_state(n, l, m, pos, Z=Z, mu_ratio=mu_ratio).values
+    dpsi = (psi[2] - psi[0]) / (2 * h)
+    return float(np.imag(np.conj(psi[1]) * dpsi)) / mu_ratio
+
+
+@pytest.mark.parametrize(
+    "n,l,m,Z,mu",
+    [(2, 1, 1, 1, 1.0), (3, 2, -2, 1, 1.0), (4, 3, 3, 2, 0.99986), (2, 1, -1, 1, 0.5)],
+)
+def test_current_through_plane_is_im_psi_star_grad_psi(n, l, m, Z, mu):
+    from atomsim.plane import current_through_plane
+
+    pg = current_through_plane(
+        plane_grid(n, l, m, quantity="density", Z=Z, mu_ratio=mu, resolution=21)
+    )
+    assert pg.quantity == "current"
+    assert pg.provenance.fidelity is Fidelity.EXACT
+    for i, j in [(3, 4), (10, 15), (17, 2), (12, 19)]:
+        exact = _exact_j_y(n, l, m, pg.axis[j], pg.axis[i], Z, mu)
+        assert pg.values[i, j] == pytest.approx(exact, rel=1e-6, abs=1e-14)
+
+
+def test_real_orbitals_and_m0_carry_no_current():
+    from atomsim.plane import current_through_plane
+
+    real = current_through_plane(plane_grid(2, 1, 1, basis="real", resolution=17))
+    m0 = current_through_plane(plane_grid(3, 1, 0, resolution=17))
+    assert not real.values.any() and not m0.values.any()
+    assert any("real function" in a for a in real.provenance.assumptions)
+
+
+def test_current_flows_in_one_side_and_out_the_other():
+    from atomsim.plane import current_through_plane
+
+    pg = current_through_plane(plane_grid(2, 1, 1, resolution=33))
+    mid = 16
+    # Circulation about z: through the plane one way at x > 0, back at x < 0.
+    assert pg.values[mid + 3, mid + 5] > 0 > pg.values[mid + 3, mid - 5]
+    assert pg.values[mid + 3, mid + 5] == pytest.approx(-pg.values[mid + 3, mid - 5])
+    assert pg.values[:, mid].tolist() == [0.0] * 33  # the axis itself

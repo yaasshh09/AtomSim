@@ -195,7 +195,7 @@ const BASES: Basis[] = ["complex", "real"];
 /** Which many-electron model an atom's levels come from. See UrlState.model. */
 const MODELS: AtomModel[] = ["gsz", "hf"];
 const NUCLEUS: NucleusMode[] = ["hidden", "true-scale", "marker"];
-const PLANES: PlaneQuantity[] = ["density", "psi"];
+const PLANES: PlaneQuantity[] = ["density", "psi", "current"];
 const SURFACES: SurfaceMode[] = ["cloud", "surface", "both"];
 const FORCE_PRESETS: ForcePreset[] = [
   "powerlaw",

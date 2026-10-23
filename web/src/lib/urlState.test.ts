@@ -26,6 +26,13 @@ describe("parseAppUrl", () => {
     });
   });
 
+  it("reads the probability-current plane", () => {
+    expect(parseAppUrl("?n=2&l=1&m=1&plane=current").planeQuantity).toBe("current");
+    expect(serializeAppUrl({ ...URL_DEFAULTS, planeQuantity: "current" })).toContain(
+      "plane=current",
+    );
+  });
+
   it("clamps quantum numbers as a triple and caps n at the UI maximum", () => {
     expect(parseAppUrl("?n=99&l=50&m=-50")).toEqual({ n: 6, l: 5, m: -5 });
     expect(parseAppUrl("?n=2&l=5&m=3")).toEqual({ n: 2, l: 1, m: 1 });

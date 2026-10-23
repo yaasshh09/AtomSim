@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { currentCaption } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { Notation } from "../lib/mathText";
 import { toCsv } from "../lib/plotExport";
@@ -59,6 +60,14 @@ export function PlaneView() {
           >
             ψ (signed)
           </button>
+          <button
+            type="button"
+            className={planeQuantity === "current" ? "seg-on" : ""}
+            onClick={() => setPlaneQuantity("current")}
+            title="The probability current through this plane"
+          >
+            current j
+          </button>
         </div>
       </div>
       <PlaneStack
@@ -91,9 +100,13 @@ export function PlaneView() {
         <p className="caption">
           x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
           {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
-          {plane.meta.quantity === "density"
-            ? "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
-            : <Notation>{"A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}</Notation>}
+          {plane.meta.quantity === "density" ? (
+            "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
+          ) : plane.meta.quantity === "psi" ? (
+            <Notation>{"A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}</Notation>
+          ) : (
+            <Notation>{currentCaption(basis, plane.meta.m)}</Notation>
+          )}
         </p>
       )}
       {plane?.meta.model === "hf" && <p className="caption">{HF_ORBITAL_CAPTION}</p>}
