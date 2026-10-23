@@ -54,6 +54,7 @@ from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
 from atomsim.density_compare import compare_total_densities
+from atomsim.expectations import hydrogen_expectations, hydrogen_virial
 from atomsim.hf_atom import (
     HFResult,
     PauliCollapse,
@@ -121,6 +122,7 @@ from atomsim.server.schemas import (
     ScreenedOrbitalModel,
     SystemModel,
     ThermalModel,
+    VirialModel,
 )
 from atomsim.server.thumbnails import (
     OG_HEIGHT,
@@ -355,6 +357,10 @@ class StateResponse(BaseModel):
     radial_nodes: int
     angular_nodes: int
     levels: list[LevelModel]
+    #: Closed-form moments and <T>, <V> (EXACT), then the same <T>, <V> integrated
+    #: from the wavefunction as a live virial check (NUMERICAL).
+    expectations: list[QuantityModel] = []
+    virial: VirialModel | None = None
 
 
 class SystemsResponse(BaseModel):
@@ -1306,6 +1312,11 @@ def create_app() -> FastAPI:
             radial_nodes=n - l - 1,
             angular_nodes=l,
             levels=levels,
+            expectations=[
+                QuantityModel.from_quantity(q)
+                for q in hydrogen_expectations(n, l, Z=sys_.Z, mu_ratio=mu)
+            ],
+            virial=VirialModel.from_check(hydrogen_virial(n, l, Z=sys_.Z, mu_ratio=mu)),
         )
 
     @app.get("/api/levels", response_model=LevelsResponse | ScreenedLevelsModel)
@@ -1522,6 +1533,7 @@ def create_app() -> FastAPI:
                     energy=QuantityModel.from_quantity(c.energy),
                     energy_ev=QuantityModel.from_quantity(_to_ev(c.energy)),
                     trusted=c.trusted,
+                    virial=VirialModel.from_check(c.virial) if c.virial else None,
                 )
                 for c in result.counterfactual
             ],

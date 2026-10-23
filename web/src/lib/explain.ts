@@ -348,3 +348,19 @@ export function currentCaption(basis: string, m: number): string {
     "right and the other way on the left; flip the sign of m and it reverses. A stationary " +
     "state has no current within the plane, so nothing here flows, it only circulates.";
 }
+
+/**
+ * How far 2<T> misses <r dV/dr>, said in words. Below 1% the state is a
+ * converged eigenstate to the solver's own accuracy (its grid sets the floor,
+ * about 1e-3 for a ground state on the coarse grid); above it, something the
+ * theorem does not know about is acting, which in this lab means the box.
+ */
+export function virialVerdict(residual: number): string {
+  if (!Number.isFinite(residual)) return "no kinetic energy to compare";
+  const pct = Math.abs(residual) * 100;
+  const shown = pct < 0.01 ? `${Math.abs(residual).toExponential(1)}` : `${pct.toFixed(2)}%`;
+  return Math.abs(residual) < 0.01
+    ? `${shown}, holds`
+    : `${shown}, fails: not a converged eigenstate (squeezed by the box or under-resolved)`;
+}
+

@@ -1,7 +1,7 @@
 import { scaleLinear } from "d3-scale";
 import { useEffect, useState } from "react";
 import { minorTicks } from "../lib/axis";
-import { PRESET_BLURBS, VIEW_LEADS } from "../lib/explain";
+import { PRESET_BLURBS, VIEW_LEADS, virialVerdict } from "../lib/explain";
 import {
   allowedSpan,
   PRESET_LABELS,
@@ -517,6 +517,44 @@ export function ForceLawView() {
           )}
 
           <ZoomControls zoom={zoom} what={well ? "r" : "the energy axis"} />
+
+          {forceLaw.counterfactual.some((c) => c.virial) && (
+            <table className="line-table virial-table">
+              <caption>
+                Virial check per level: every bound eigenstate of a central potential has
+                2⟨T⟩ = ⟨r dV/dr⟩, so the two columns below, both integrated from the solver's
+                own wavefunction, must agree.{" "}
+                {forceLaw.counterfactual[0].virial && (
+                  <Badge provenance={forceLaw.counterfactual[0].virial.residual.provenance} />
+                )}
+              </caption>
+              <thead>
+                <tr>
+                  <th>level</th>
+                  <th>E [eV]</th>
+                  <th>2⟨T⟩ [hartree]</th>
+                  <th>⟨r dV/dr⟩ [hartree]</th>
+                  <th>mismatch</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forceLaw.counterfactual.map((c) =>
+                  c.virial ? (
+                    <tr key={c.radial_index}>
+                      <td>
+                        {c.radial_index}
+                        {c.trusted ? "" : " (?)"}
+                      </td>
+                      <td>{c.energy_ev.value.toFixed(4)}</td>
+                      <td>{(2 * c.virial.kinetic.value).toPrecision(5)}</td>
+                      <td>{c.virial.r_dv_dr.value.toPrecision(5)}</td>
+                      <td>{virialVerdict(c.virial.residual.value)}</td>
+                    </tr>
+                  ) : null,
+                )}
+              </tbody>
+            </table>
+          )}
 
           <Disclosure summary="What the two sets of rungs are">
             <p className="hint-block">

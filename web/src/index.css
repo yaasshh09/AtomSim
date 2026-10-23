@@ -204,6 +204,32 @@ body {
   border-bottom: 0;
 }
 
+/* The left rail's expectation values: folded by default, so the rail keeps
+   its short summary and the moments are one click away. */
+.expectations {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.7rem;
+}
+
+.expectations summary {
+  cursor: pointer;
+  color: var(--label);
+  letter-spacing: 0.06em;
+  padding: 0.4rem 0;
+}
+
+.virial-check {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.virial-head {
+  display: block;
+  color: var(--label);
+  margin-bottom: 0.2rem;
+}
+
 /* The card at the top of the left rail: a plain bordered box. */
 .state-card {
   position: relative;
@@ -3721,4 +3747,15 @@ figure.plot:fullscreen > svg {
 
 .evolve-clock {
   font-variant-numeric: tabular-nums;
+}
+
+.virial-table {
+  margin: 0.75rem 0 1rem;
+}
+
+.virial-table caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 0.4rem;
+  line-height: 1.5;
 }

@@ -3,6 +3,7 @@ import {
   activeScenario,
   CONSTANT_BLURBS,
   currentCaption,
+  virialVerdict,
   describeDensity,
   describeEField,
   describeField,
@@ -179,5 +180,14 @@ describe("currentCaption", () => {
   it("says which way +y points, since the screen has no y axis", () => {
     expect(currentCaption("complex", 2)).toContain("into the screen (+y");
     expect(currentCaption("complex", 2)).toContain("circles the z axis");
+  });
+});
+
+describe("virialVerdict", () => {
+  it("passes a converged state and fails a squeezed one, with the number either way", () => {
+    expect(virialVerdict(2e-6)).toBe("2.0e-6, holds");
+    expect(virialVerdict(-0.0017)).toBe("0.17%, holds");
+    expect(virialVerdict(0.3)).toMatch(/^30\.00%, fails/);
+    expect(virialVerdict(Number.NaN)).toContain("no kinetic");
   });
 });

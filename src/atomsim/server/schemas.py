@@ -390,11 +390,30 @@ class HFResultModel(BaseModel):
     channels: list[ChannelModel]
 
 
+class VirialModel(BaseModel):
+    """2<T> against <r dV/dr>, integrated from a wavefunction (see expectations.py)."""
+
+    kinetic: QuantityModel
+    potential: QuantityModel
+    r_dv_dr: QuantityModel
+    residual: QuantityModel
+
+    @classmethod
+    def from_check(cls, v) -> "VirialModel":
+        return cls(
+            kinetic=QuantityModel.from_quantity(v.kinetic),
+            potential=QuantityModel.from_quantity(v.potential),
+            r_dv_dr=QuantityModel.from_quantity(v.r_dv_dr),
+            residual=QuantityModel.from_quantity(v.residual),
+        )
+
+
 class ForceLawLevelModel(BaseModel):
     radial_index: int
     energy: QuantityModel
     energy_ev: QuantityModel
     trusted: bool = True
+    virial: VirialModel | None = None
 
 
 class ReferenceItemModel(BaseModel):

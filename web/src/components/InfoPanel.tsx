@@ -1,9 +1,15 @@
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
+import { Notation } from "../lib/mathText";
 import { realOrbitalLabel, stateLabel } from "../lib/quantum";
 import { informativeEnd, sparkBars } from "../lib/spark";
 import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+
+/** Engine labels write expectation brackets as < >; the panel shows ⟨ ⟩. */
+export function bracketed(label: string): string {
+  return label.replace(/</g, "⟨").replace(/>/g, "⟩");
+}
 
 /** Bars in the P(r) summary card, sized so each one stays above a pixel wide. */
 const SPARK_BARS = 22;
@@ -155,6 +161,35 @@ export function InfoPanel() {
             </>
           )}
         </dl>
+      )}
+      {stateInfo && stateInfo.expectations.length > 0 && (
+        <details className="expectations" data-tour="expectations">
+          <summary>Expectation values</summary>
+          <dl className="readouts state-readouts">
+            {stateInfo.expectations.map((q) => (
+              <Fragment key={q.label}>
+                <dt>
+                  <Notation>{bracketed(q.label)}</Notation> <Badge provenance={q.provenance} />
+                </dt>
+                <dd>
+                  {q.value.toPrecision(6)} <Notation>{q.unit}</Notation>
+                </dd>
+              </Fragment>
+            ))}
+          </dl>
+          {stateInfo.virial && (
+            <p className="virial-check">
+              <span className="virial-head">
+                Virial check, from ψ itself <Badge provenance={stateInfo.virial.residual.provenance} />
+              </span>
+              ⟨T⟩ = {stateInfo.virial.kinetic.value.toPrecision(6)} and ⟨V⟩ ={" "}
+              {stateInfo.virial.potential.value.toPrecision(6)} hartree, integrated from the
+              wavefunction's shape without using its energy. The virial theorem for 1/r says
+              −⟨V⟩/⟨T⟩ = 2; here it is{" "}
+              {(-stateInfo.virial.potential.value / stateInfo.virial.kinetic.value).toFixed(6)}.
+            </p>
+          )}
+        </details>
       )}
       {bars.length > 0 && pr && (
         <figure className="spark-card">

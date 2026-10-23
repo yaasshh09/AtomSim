@@ -79,6 +79,18 @@ export interface StateResponse {
   radial_nodes: number;
   angular_nodes: number;
   levels: LevelInfo[];
+  /** Closed-form moments, then <T> and <V> (EXACT). */
+  expectations: Quantity[];
+  /** The same <T>, <V> integrated from the wavefunction itself (NUMERICAL). */
+  virial: VirialCheck | null;
+}
+
+/** 2<T> against <r dV/dr>, integrated from a wavefunction; residual 0 for an eigenstate. */
+export interface VirialCheck {
+  kinetic: Quantity;
+  potential: Quantity;
+  r_dv_dr: Quantity;
+  residual: Quantity;
 }
 
 export interface SystemsResponse {
@@ -413,6 +425,7 @@ export interface ForceLawLevel {
   energy: Quantity;
   energy_ev: Quantity;
   trusted: boolean;
+  virial: VirialCheck | null;
 }
 
 export interface ReferenceItem {

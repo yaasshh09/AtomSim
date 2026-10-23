@@ -15,6 +15,7 @@ import numpy as np
 
 from atomsim.analytic.hydrogen import energy as hydrogen_energy
 from atomsim.analytic.oscillator import oscillator_energy
+from atomsim.expectations import VirialCheck, virial_check
 from atomsim.numerics.expression import compile_potential
 from atomsim.numerics.radial_solver import solve_radial_with_error
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
@@ -54,6 +55,7 @@ class ForceLawLevel:
     radial_index: int
     energy: Quantity  # NUMERICAL, hartree, carrying its grid-halving error
     trusted: bool = True  # False when the free-form trust gate flags the level
+    virial: VirialCheck | None = None  # 2<T> against <r dV/dr>, from the eigenvector
 
 
 @dataclass(frozen=True)
@@ -271,6 +273,13 @@ def _validate(preset: ForcePreset, params: Params, l: int, n_states: int) -> Non
             )
 
 
+def _virial(sol, k: int, potential: PotentialFn) -> VirialCheck:
+    return virial_check(
+        sol.r, sol.u[k], potential, sol.l, sol.mu_ratio,
+        source=f"the solver's eigenvector for E[{k}]",
+    )
+
+
 def _bound(preset: ForcePreset, energy: Quantity) -> bool:
     return preset.binding == "confining" or energy.value < 0.0
 
@@ -323,7 +332,10 @@ def force_law_levels(
     for k in range(n_states):
         e = sol.energies[k]
         if _bound(spec, e):
-            bound.append(ForceLawLevel(radial_index=len(bound), energy=_tag(e, note)))
+            bound.append(ForceLawLevel(
+                radial_index=len(bound), energy=_tag(e, note),
+                virial=_virial(sol, k, potential),
+            ))
 
     reference = spec.reference(params, z, mu, l, n_states)
     curve = _sample_curve(potential, r_max, note)
@@ -413,6 +425,7 @@ def free_form_levels(
                 radial_index=len(levels),
                 energy=_tag(e, note + reason),
                 trusted=trusted,
+                virial=_virial(small, k, potential),
             )
         )
 

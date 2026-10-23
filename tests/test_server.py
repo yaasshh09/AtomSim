@@ -883,3 +883,24 @@ def test_hydrogenic_only_endpoints_answer_for_hydrogen(client, url):
     # The negative above is only worth something if the same request succeeds
     # for a hydrogenic system: otherwise a typo in the URL would pass it.
     assert client.get(url.format(sys="h")).status_code == 200
+
+
+def test_state_carries_expectations_and_a_live_virial_check(client):
+    body = client.get("/api/state/3/1/0?system=he%2B").json()
+    labels = [q["label"] for q in body["expectations"]]
+    assert labels[:5] == ["<r>", "Delta r", "<r^2>", "<1/r>", "<1/r^2>"]
+    assert "<1/r^3>" in labels  # l = 1, so it converges
+    assert all(q["provenance"]["fidelity"] == "exact" for q in body["expectations"])
+    v = body["virial"]
+    assert v["residual"]["provenance"]["fidelity"] == "numerical"
+    assert abs(v["residual"]["value"]) < 1e-5
+    assert -v["potential"]["value"] / v["kinetic"]["value"] == pytest.approx(2.0, abs=1e-4)
+
+
+def test_every_force_law_level_has_a_virial_check(client):
+    body = client.get("/api/forcelaw?preset=harmonic&l=0&n_states=3").json()
+    for level in body["counterfactual"]:
+        v = level["virial"]
+        # V ~ r^2: 2<T> = <r dV/dr> = 2<V>
+        assert v["r_dv_dr"]["value"] == pytest.approx(2 * v["potential"]["value"], rel=1e-6)
+        assert abs(v["residual"]["value"]) < 1e-3
