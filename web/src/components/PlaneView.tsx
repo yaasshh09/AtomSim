@@ -75,6 +75,7 @@ export function PlaneView() {
         halfExtent={plane?.meta.half_extent ?? 0}
         resolution={plane?.meta.resolution ?? 0}
         name={`atomsim-plane-${planeQuantity}`}
+        light={plane ? plane.meta.quantity !== "density" : false}
         csv={
           plane
             ? () => {

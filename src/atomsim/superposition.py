@@ -158,3 +158,36 @@ def evolve_density(sg: SuperpositionGrid, t: float) -> np.ndarray:
     amp = sg.coefficients * np.exp(-1j * e * t)
     psi_t = np.tensordot(amp, sg.psi, axes=1)
     return np.abs(psi_t) ** 2
+
+
+def plane_gradients(sg: SuperpositionGrid) -> tuple[np.ndarray, np.ndarray]:
+    """(d psi_k/dx, d psi_k/dz) on the grid by central differences (one-sided at the edges).
+
+    Second order in the grid step, except across the nuclear cusp of an s state,
+    where psi has a kink and no difference scheme converges at the cell holding
+    r = 0. The browser takes the same differences on the same grids.
+    """
+    h = float(sg.axis[1] - sg.axis[0])
+    dz, dx = np.gradient(sg.psi, h, axis=(1, 2))
+    return dx, dz
+
+
+def evolve_current(sg: SuperpositionGrid, t: float) -> tuple[np.ndarray, np.ndarray]:
+    """(j_x, j_z) on y=0 at time t: Im(Psi* grad Psi) / mu, atomic units.
+
+    With a_k = c_k e^{-i E_k t} and every psi_k real here,
+        j = (1/mu) sum_{j,k} Im(a_j* a_k) psi_j grad psi_k,
+    so a single stationary state (one k) carries no in-plane current at all;
+    whatever flows in this picture is the beating. The out-of-plane j_y of the
+    m != 0 components is not part of it.
+    """
+    e = np.array([q.value for q in sg.energies])
+    amp = sg.coefficients * np.exp(-1j * e * t)
+    # w[j, k] = Im(a_j* a_k), written out so the diagonal is exactly zero: a
+    # complex product leaves ~1e-26 there, a current that is not in the physics.
+    re, im = amp.real, amp.imag
+    w = re[:, None] * im[None, :] - im[:, None] * re[None, :]
+    dx, dz = plane_gradients(sg)
+    jx = np.einsum("jk,jab,kab->ab", w, sg.psi, dx) / sg.mu_ratio
+    jz = np.einsum("jk,jab,kab->ab", w, sg.psi, dz) / sg.mu_ratio
+    return jx, jz

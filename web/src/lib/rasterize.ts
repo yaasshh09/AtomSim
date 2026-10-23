@@ -1,4 +1,4 @@
-import { densityT, lutColor, maxAbs, maxOf, signedT } from "./colormap";
+import { densityT, lutColor, maxAbs, maxOf, phaseColor, signedT } from "./colormap";
 import { INFERNO, RDBU_R } from "./luts";
 
 /**
@@ -30,6 +30,35 @@ export function rasterize(
       out[o] = r;
       out[o + 1] = g;
       out[o + 2] = b;
+      out[o + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/**
+ * A complex field as hue and brightness: hue is arg Psi on the same wheel as
+ * the point cloud's phase colouring, brightness is |Psi|^2 through the same
+ * gamma-compressed scale the density mode uses, so a lobe is as bright in
+ * either mode and only its colour says more.
+ */
+export function rasterizePhase(
+  re: Float32Array,
+  im: Float32Array,
+  resolution: number,
+  scale: number,
+): Uint8ClampedArray<ArrayBuffer> {
+  const out = new Uint8ClampedArray(resolution * resolution * 4);
+  for (let row = 0; row < resolution; row++) {
+    const src = resolution - 1 - row;
+    for (let col = 0; col < resolution; col++) {
+      const k = src * resolution + col;
+      const v = densityT(re[k] * re[k] + im[k] * im[k], scale);
+      const [r, g, b] = phaseColor(Math.atan2(im[k], re[k]));
+      const o = 4 * (row * resolution + col);
+      out[o] = r * v;
+      out[o + 1] = g * v;
+      out[o + 2] = b * v;
       out[o + 3] = 255;
     }
   }

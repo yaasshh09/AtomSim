@@ -5,6 +5,7 @@ from atomsim.analytic.wavefunction import evaluate_state
 from atomsim.provenance import Fidelity
 from atomsim.superposition import (
     Component,
+    evolve_current,
     evolve_density,
     normalized_coefficients,
     superposition_grid,
@@ -126,3 +127,58 @@ def test_provenance_is_exact_and_names_what_it_leaves_out():
 def test_bad_mixes_are_refused(comps):
     with pytest.raises(ValueError):
         superposition_grid(comps, resolution=9)
+
+
+def _exact_inplane_j(comps, Z, mu, t, x, z, h=1e-5):
+    """Im(Psi* grad Psi)/mu at (x, 0, z), from the complex psi_k off the grid."""
+    sg = superposition_grid(comps, Z=Z, mu_ratio=mu, resolution=2)
+    e = np.array([q.value for q in sg.energies])
+    amp = sg.coefficients * np.exp(-1j * e * t)
+    pos = np.array([[x, 0, z], [x + h, 0, z], [x - h, 0, z], [x, 0, z + h], [x, 0, z - h]])
+    psi = sum(
+        a * evaluate_state(c.n, c.l, c.m, pos, Z=Z, mu_ratio=mu).values
+        for a, c in zip(amp, comps)
+    )
+    gx = (psi[1] - psi[2]) / (2 * h)
+    gz = (psi[3] - psi[4]) / (2 * h)
+    return np.imag(np.conj(psi[0]) * gx) / mu, np.imag(np.conj(psi[0]) * gz) / mu
+
+
+def test_current_converges_at_second_order_to_im_psi_star_grad_psi():
+    comps = [Component(1, 0, 0, 1.0), Component(2, 1, 0, 1.0, 0.3), Component(3, 2, 1, 0.5)]
+    pts = [(1.5, 2.0), (-2.5, 1.0), (3.0, -2.0), (0.5, -3.5)]
+    errs = []
+    for res in (33, 65):  # steps 0.5 and 0.25 bohr; both grids hold every point
+        sg = superposition_grid(comps, resolution=res, half_extent=8.0)
+        jx, jz = evolve_current(sg, 3.0)
+        err = 0.0
+        for x, z in pts:
+            i, j = int(np.argmin(abs(sg.axis - z))), int(np.argmin(abs(sg.axis - x)))
+            ex, ez = _exact_inplane_j(comps, 1, 1.0, 3.0, x, z)
+            err = max(err, abs(jx[i, j] - ex), abs(jz[i, j] - ez))
+        errs.append(err)
+    assert errs[1] < 1e-3
+    assert 3.0 < errs[0] / errs[1] < 5.0  # second order: halve h, quarter the error
+
+
+def test_a_single_stationary_state_has_no_inplane_current():
+    sg = superposition_grid([Component(3, 2, 1, 1.0)], resolution=33)
+    jx, jz = evolve_current(sg, 7.0)
+    assert not jx.any() and not jz.any()
+
+
+def test_current_obeys_continuity_at_reduced_mass():
+    # Axisymmetric (all m = 0), so on y=0 at x > 0: div j = d(jx)/dx + jx/x + d(jz)/dz.
+    # mu = 0.5 is the check on the 1/mu: the clock runs at mu too, and a
+    # mismatch between the two would break d(rho)/dt + div j = 0 by a factor of 2.
+    comps = [Component(1, 0, 0, 1.0), Component(2, 1, 0, 1.0)]
+    sg = superposition_grid(comps, mu_ratio=0.5, resolution=401, half_extent=10.0)
+    t, dt = 2.0, 1e-4
+    drho = (evolve_density(sg, t + dt) - evolve_density(sg, t - dt)) / (2 * dt)
+    jx, jz = evolve_current(sg, t)
+    h = sg.axis[1] - sg.axis[0]
+    div = np.gradient(jx, h, axis=1) + jx / np.where(sg.axis == 0, np.inf, sg.axis) \
+        + np.gradient(jz, h, axis=0)
+    for x, z in [(2.0, 1.0), (3.0, -2.0), (1.0, 3.0), (4.0, 0.5)]:
+        i, j = int(np.argmin(abs(sg.axis - z))), int(np.argmin(abs(sg.axis - x)))
+        assert div[i, j] == pytest.approx(-drho[i, j], rel=0.02)

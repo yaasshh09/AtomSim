@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SUP,
+  arrowLattice,
+  currentBound,
+  evolveCurrent,
+  evolveField,
+  planeGradients,
   beatPeriods,
   coefficients,
   sameStates,
@@ -132,5 +137,54 @@ describe("live coefficients and beats", () => {
     const a = [{ n: 2, l: 1, m: 1, weight: 1, phasePi: 0 }];
     expect(sameStates(a, [{ ...a[0], weight: 0.2, phasePi: 1 }])).toBe(true);
     expect(sameStates(a, [{ ...a[0], m: -1 }])).toBe(false);
+  });
+});
+
+describe("the in-plane current", () => {
+  // f(x, z) = x^2 + 3z on a 5x5 grid of step 0.5: central differences are exact
+  // inside for a quadratic, and the edges are one-sided as in np.gradient.
+  const res = 5;
+  const h = 0.5;
+  const ax = (k: number) => -1 + h * k;
+  const f = new Float32Array(res * res);
+  for (let i = 0; i < res; i++) for (let j = 0; j < res; j++) f[i * res + j] = ax(j) ** 2 + 3 * ax(i);
+
+  it("differences like np.gradient", () => {
+    const { dx, dz } = planeGradients([f], res, h);
+    expect(dx[0][2 * res + 1]).toBeCloseTo(2 * ax(1), 6); // interior: exact
+    expect(dz[0][2 * res + 3]).toBeCloseTo(3, 6);
+    expect(dx[0][2 * res]).toBeCloseTo((ax(1) ** 2 - ax(0) ** 2) / h, 6); // edge: one-sided
+  });
+
+  it("is exactly zero for one stationary state", () => {
+    const { dx, dz } = planeGradients([f], res, h);
+    const { jx, jz } = evolveCurrent([f], dx, dz, [{ re: 0.6, im: 0.8 }], [-0.5], 3.7, [6, 12]);
+    expect([...jx, ...jz]).toEqual([0, 0, 0, 0]);
+  });
+
+  it("is Im(a1* a2)(psi1 grad psi2 - psi2 grad psi1) for two states", () => {
+    const g = new Float32Array(res * res).fill(2); // constant psi_2: no gradient
+    const { dx, dz } = planeGradients([f, g], res, h);
+    const c = [{ re: Math.SQRT1_2, im: 0 }, { re: 0, im: Math.SQRT1_2 }]; // relative phase pi/2
+    const idx = 2 * res + 3;
+    const { jx, jz } = evolveCurrent([f, g], dx, dz, c, [0, 0], 0, [idx]);
+    // w12 = Im(a1* a2) = 1/2, w21 = -1/2; only psi_1 has a gradient
+    expect(jx[0]).toBeCloseTo(-0.5 * 2 * dx[0][idx], 6);
+    expect(jz[0]).toBeCloseTo(-0.5 * 2 * 3, 6);
+    expect(Math.hypot(jx[0], jz[0])).toBeLessThanOrEqual(currentBound([f, g], dx, dz, c, [idx]));
+  });
+
+  it("builds a field whose |Psi|^2 is the density", () => {
+    const re = new Float32Array(3);
+    const im = new Float32Array(3);
+    const c = [HALF, { re: 0, im: Math.SQRT1_2 }];
+    evolveField(PSI, c, E, 1.3, re, im);
+    const rho = evolveDensity(PSI, c, E, 1.3, new Float32Array(3));
+    for (let i = 0; i < 3; i++) expect(re[i] ** 2 + im[i] ** 2).toBeCloseTo(rho[i], 6);
+  });
+
+  it("centres the arrow lattice", () => {
+    expect(arrowLattice(7, 3)).toEqual([0, 3, 6, 21, 24, 27, 42, 45, 48]);
+    expect(arrowLattice(6, 2)).toEqual([0, 2, 4, 12, 14, 16, 24, 26, 28]);
   });
 });

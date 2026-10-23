@@ -22,6 +22,7 @@ export function PlaneStack({
   resolution,
   csv,
   name,
+  light = false,
   children,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -30,6 +31,8 @@ export function PlaneStack({
   resolution: number;
   csv?: () => string;
   name: string;
+  /** The raster is mostly near-white (the diverging maps), so draw the grid dark. */
+  light?: boolean;
   /** Status lines drawn over the frame (computing..., errors). */
   children?: ReactNode;
 }) {
@@ -42,11 +45,11 @@ export function PlaneStack({
   const minor = minorTicks(major, [-h, h]);
   // Labels stay off the frame edge, where they would print over the axis
   // names and over each other in the corner. The caption states the extent.
-  const labelled = major.filter((t) => Math.abs(t) < 0.9 * h);
+  const labelled = major.filter((t) => Math.abs(t) < 0.85 * h);
   return (
     <>
       <div className="plane-frame" ref={frameRef}>
-        <div className="plane-canvas plane-stack">
+        <div className={light ? "plane-canvas plane-stack on-light" : "plane-canvas plane-stack"}>
           <canvas ref={canvasRef} className="plane-raster" />
           {h > 0 && (
             <svg

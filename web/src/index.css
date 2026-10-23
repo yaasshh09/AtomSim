@@ -868,6 +868,21 @@ button.ghost:hover {
   stroke-width: 5px;
 }
 
+/* The diverging maps are near-white at zero, so on them the grid and labels go
+   dark with a light halo instead. */
+.plane-stack.on-light .grid-line {
+  stroke: rgb(0 0 0 / 0.22);
+}
+
+.plane-stack.on-light .grid-minor {
+  stroke: rgb(0 0 0 / 0.08);
+}
+
+.plane-stack.on-light .plane-grid-label {
+  fill: rgb(0 0 0 / 0.8);
+  stroke: rgb(255 255 255 / 0.85);
+}
+
 :root[data-grid="off"] .plane-grid-label {
   display: none;
 }

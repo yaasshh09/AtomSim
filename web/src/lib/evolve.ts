@@ -171,3 +171,139 @@ export function beatPeriods(energies: number[], comps: SupComponent[]): number[]
   }
   return gaps.sort((a, b) => a - b).map((d) => (2 * Math.PI) / d);
 }
+
+/**
+ * d psi_k/dx and d psi_k/dz on the grid, as numpy's np.gradient takes them:
+ * central differences inside, one-sided at the edges. Row i is z, column j is x.
+ * `plane_gradients` in superposition.py is the reference, held to the exact
+ * Im(Psi* grad Psi) at second order.
+ */
+export function planeGradients(
+  psi: Float32Array[],
+  res: number,
+  step: number,
+): { dx: Float32Array[]; dz: Float32Array[] } {
+  const diff = (g: Float32Array, stride: number, along: (i: number) => number) => {
+    const out = new Float32Array(g.length);
+    for (let i = 0; i < g.length; i++) {
+      const p = along(i);
+      if (p === 0) out[i] = (g[i + stride] - g[i]) / step;
+      else if (p === res - 1) out[i] = (g[i] - g[i - stride]) / step;
+      else out[i] = (g[i + stride] - g[i - stride]) / (2 * step);
+    }
+    return out;
+  };
+  return {
+    dx: psi.map((g) => diff(g, 1, (i) => i % res)),
+    dz: psi.map((g) => diff(g, res, (i) => Math.floor(i / res))),
+  };
+}
+
+/** a_k = c_k e^{-i E_k t}, as (re, im) arrays. */
+function amplitudes(coeffs: Coefficient[], energies: number[], t: number) {
+  const K = coeffs.length;
+  const ar = new Float64Array(K);
+  const ai = new Float64Array(K);
+  for (let k = 0; k < K; k++) {
+    const cs = Math.cos(energies[k] * t);
+    const sn = Math.sin(energies[k] * t);
+    ar[k] = coeffs[k].re * cs + coeffs[k].im * sn;
+    ai[k] = coeffs[k].im * cs - coeffs[k].re * sn;
+  }
+  return { ar, ai };
+}
+
+/**
+ * mu (j_x, j_z) at the grid indices `at`: sum_{j,k} Im(a_j* a_k) psi_j grad psi_k.
+ *
+ * Left multiplied by mu on purpose. The arrows are drawn against a scale fixed
+ * by `currentBound`, which carries the same mu, so it cancels; the picture is
+ * the same for every reduced mass and only the clock (the energies) knows it.
+ */
+export function evolveCurrent(
+  psi: Float32Array[],
+  dx: Float32Array[],
+  dz: Float32Array[],
+  coeffs: Coefficient[],
+  energies: number[],
+  t: number,
+  at: number[],
+): { jx: Float64Array; jz: Float64Array } {
+  const { ar, ai } = amplitudes(coeffs, energies, t);
+  const K = psi.length;
+  const jx = new Float64Array(at.length);
+  const jz = new Float64Array(at.length);
+  at.forEach((idx, p) => {
+    let sx = 0;
+    let sz = 0;
+    for (let j = 0; j < K; j++) {
+      for (let k = 0; k < K; k++) {
+        if (j === k) continue; // Im(a_k* a_k) = 0 exactly
+        const w = ar[j] * ai[k] - ai[j] * ar[k];
+        sx += w * psi[j][idx] * dx[k][idx];
+        sz += w * psi[j][idx] * dz[k][idx];
+      }
+    }
+    jx[p] = sx;
+    jz[p] = sz;
+  });
+  return { jx, jz };
+}
+
+/** max over `at` of sum_{j != k} |c_j||c_k| |psi_j| |grad psi_k|, which no frame can exceed. */
+export function currentBound(
+  psi: Float32Array[],
+  dx: Float32Array[],
+  dz: Float32Array[],
+  coeffs: Coefficient[],
+  at: number[],
+): number {
+  const mags = coeffs.map((c) => Math.hypot(c.re, c.im));
+  let best = 0;
+  for (const idx of at) {
+    let s = 0;
+    for (let j = 0; j < psi.length; j++) {
+      for (let k = 0; k < psi.length; k++) {
+        if (j !== k) s += mags[j] * mags[k] * Math.abs(psi[j][idx]) * Math.hypot(dx[k][idx], dz[k][idx]);
+      }
+    }
+    best = Math.max(best, s);
+  }
+  return best;
+}
+
+/**
+ * Psi(x, 0, z, t) itself into (re, im). Feed it energies shifted by one state's
+ * E and the hue shows phases relative to that state's clock: the global phase
+ * e^{-iEt} is not observable, and left in it would spin every hue at once.
+ */
+export function evolveField(
+  psi: Float32Array[],
+  coeffs: Coefficient[],
+  energies: number[],
+  t: number,
+  re: Float32Array,
+  im: Float32Array,
+): void {
+  const { ar, ai } = amplitudes(coeffs, energies, t);
+  for (let i = 0; i < re.length; i++) {
+    let r = 0;
+    let m = 0;
+    for (let k = 0; k < psi.length; k++) {
+      r += ar[k] * psi[k][i];
+      m += ai[k] * psi[k][i];
+    }
+    re[i] = r;
+    im[i] = m;
+  }
+}
+
+/** Every `every`-th grid point in both directions, centred: where the arrows go. */
+export function arrowLattice(res: number, every: number): number[] {
+  const start = Math.floor(((res - 1) % every) / 2);
+  const out: number[] = [];
+  for (let i = start; i < res; i += every) {
+    for (let j = start; j < res; j += every) out.push(i * res + j);
+  }
+  return out;
+}

@@ -219,3 +219,25 @@ export const EVOLVE_PLAYBACK_LIBERTY: Provenance = {
   error_estimate: null,
   refinement: "the printed t and the beat periods are exact; set the speed to taste",
 };
+
+/**
+ * The Time evolution view's current arrows. The phase sum is exact, but the
+ * gradients are central differences on the shipped grid, so this is NUMERICAL:
+ * the engine test holds the same differences to the exact Im(Psi* grad Psi) at
+ * second order in the grid step.
+ */
+export const EVOLVE_CURRENT_PROVENANCE: Provenance = {
+  fidelity: "numerical",
+  method:
+    "j = (1/mu) sum_{j,k} Im(a_j* a_k) psi_j grad psi_k on y=0, with grad psi_k by " +
+    "central differences on the plane grid (one-sided at its edges)",
+  assumptions: [
+    "only the in-plane components j_x, j_z are drawn; j_y through the plane is not",
+    "second order in the grid step, except in the cell holding an s state's nuclear cusp",
+    "arrow length goes as (|j|/scale)^0.5 (VISUAL LIBERTY, as the brightness), on a " +
+      "scale fixed for the whole movie at the largest value the triangle inequality allows",
+    "arrows below 0.1% of that scale are not drawn",
+  ],
+  error_estimate: null,
+  refinement: "a finer plane grid halves the step and quarters the difference error",
+};
