@@ -3759,3 +3759,13 @@ figure.plot:fullscreen > svg {
   padding-bottom: 0.4rem;
   line-height: 1.5;
 }
+
+.config-race {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--edge);
+  padding-top: 1rem;
+}
+
+.race-table {
+  margin: 0.75rem 0;
+}

@@ -18,6 +18,7 @@ import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
 import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
+import { ConfigRace } from "./ConfigRace";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -501,6 +502,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           grid, not the element.
         </p>
       </Disclosure>
+      <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
     </div>
   );
 }
@@ -526,9 +528,13 @@ export function LevelsView() {
   const ladderRange: [number, number] = [H - 40, 24];
   const wantHF = model === "hf";
   useEffect(() => {
+    // Under Hartree-Fock this view draws the HF ladder and nothing else, so the
+    // screened levels and spectrum would be fetched only to be thrown away, and
+    // for an atom with no GSZ fit (S, Cl, K, Ca) refused with a 400 as well.
+    if (wantHF) return;
     void loadLevels();
     void loadSpectrum();
-  }, [system, fineStructure, dirac, bField, eField, hyperfine, loadLevels, loadSpectrum]);
+  }, [wantHF, system, fineStructure, dirac, bField, eField, hyperfine, loadLevels, loadSpectrum]);
   useEffect(() => {
     // Only under the HF model, and only once per (system, config): the solve
     // costs seconds, so it never fires on the chance it is wanted.
