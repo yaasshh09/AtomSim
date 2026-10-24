@@ -19,6 +19,7 @@ import { useAppStore } from "../state/store";
 import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { ConfigRace } from "./ConfigRace";
+import { DecayCascade } from "./DecayCascade";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
@@ -1129,6 +1130,7 @@ export function LevelsView() {
           )}
         </p>
       </Disclosure>
+      <DecayCascade n={n} l={l} system={system} />
     </div>
   );
 }

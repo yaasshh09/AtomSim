@@ -1,5 +1,6 @@
 import type {
   AbsorptionInfo,
+  Cascade,
   ClassicalGhost,
   ConstantsReport,
   ForceLawResult,
@@ -141,6 +142,10 @@ export function getNodes(
   basis: Basis,
 ): Promise<NodeSet> {
   return getJson(`/api/nodes/${n}/${l}/${m}?system=${key(system)}&basis=${basis}`);
+}
+
+export function getCascade(n: number, l: number, system: string): Promise<Cascade> {
+  return getJson(`/api/cascade/${n}/${l}?system=${key(system)}`);
 }
 
 export function getRadial(

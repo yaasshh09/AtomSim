@@ -241,3 +241,22 @@ export const EVOLVE_CURRENT_PROVENANCE: Provenance = {
   error_estimate: null,
   refinement: "a finer plane grid halves the step and quarters the difference error",
 };
+
+/**
+ * The decay cascade's Grotrian diagram spaces its rows evenly by n. On the true
+ * -1/n^2 energy scale everything above n = 3 would crowd into the top tenth of
+ * the frame, and the arrows that matter would be drawn on top of each other.
+ * Arrow thickness is the expected photon count, which is the engine's number,
+ * but how thick "one photon" looks is a drawing choice.
+ */
+export const CASCADE_GROTRIAN_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "Grotrian diagram: one column per l, rows evenly spaced by n",
+  assumptions: [
+    "rows are spaced by n, not by energy: the true -1/n^2 gaps shrink going up",
+    "arrow thickness grows linearly with the expected photons on that line; the scale is a drawing choice",
+    "every arrow goes down in n because every E1 decay lowers the energy",
+  ],
+  error_estimate: null,
+  refinement: "the table below gives each line's photons per atom and wavelength as numbers",
+};

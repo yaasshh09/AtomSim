@@ -731,3 +731,32 @@ export interface SuperpositionMeta {
 }
 
 export type JobMeta = SampleMeta | PlaneMeta | IsoMeta | HFLevels | SuperpositionMeta;
+
+/** One level the decay cascade passes through. Terminal levels (1s, 2s) have no E1 channel. */
+export interface CascadeLevel {
+  n: number;
+  l: number;
+  visit_probability: Quantity;
+  /** Null for a terminal level, whose E1 lifetime is infinite. */
+  lifetime: Quantity | null;
+  terminal: boolean;
+}
+
+export interface CascadeBranch {
+  upper: [number, number];
+  lower: [number, number];
+  einstein_A: Quantity;
+  branching_ratio: Quantity;
+  /** Expected photons on this line per excited atom. */
+  photons: Quantity;
+  wavelength: Quantity;
+}
+
+export interface Cascade {
+  start: [number, number];
+  levels: CascadeLevel[];
+  branches: CascadeBranch[];
+  mean_settle_time: Quantity;
+  /** One per level, in the same order, on a shared log-spaced time grid in s. */
+  populations: FieldData[];
+}
