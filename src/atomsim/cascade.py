@@ -29,7 +29,7 @@ from scipy.linalg import expm
 from atomsim.analytic.hydrogen import energy, validate_quantum_numbers
 from atomsim.analytic.transitions import einstein_A
 from atomsim.constants import HARTREE_EV
-from atomsim.provenance import Field, Fidelity, Provenance, Quantity
+from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.spectra import _EV_NM, orbital_label
 
 _ASSUMPTIONS = (
