@@ -67,6 +67,7 @@ from atomsim.hf_atom import (
     pauli_collapse,
     solve_hartree_fock,
 )
+from atomsim.hybrids import HYBRIDS, evaluate_hybrid, hybrid_plane_grid, sample_hybrid
 from atomsim.isosurface import (
     GRID_SIZES,
     Isosurface,
@@ -477,6 +478,8 @@ class SampleRequest(ManyElectronRequest):
     seed: int = 0
     basis: Literal["complex", "real"] = "complex"
     system: str = "h"
+    #: An sp/sp2/sp3 hybrid key ("sp3-1"); when set it replaces (n, l, m).
+    hybrid: str | None = None
 
 
 class JobModel(BaseModel):
@@ -502,6 +505,8 @@ class SampleMetaModel(BaseModel):
     #: provenance prose, which is a thing a view that has to parse prose
     #: eventually gets wrong.
     model: str = "gsz"
+    #: The hybrid drawn instead of (n, l, m), if one was asked for.
+    hybrid: str | None = None
     provenance: ProvenanceModel
     channels: list[ChannelModel]
 
@@ -522,6 +527,8 @@ class PlaneRequest(ManyElectronRequest):
     basis: Literal["complex", "real"] = "complex"
     system: str = "h"
     resolution: int = PydanticField(default=512, ge=32, le=1024)
+    #: As on SampleRequest.
+    hybrid: str | None = None
 
 
 class PlaneMetaModel(BaseModel):
@@ -544,6 +551,8 @@ class PlaneMetaModel(BaseModel):
     system: str
     #: Which many-electron model drew this; see SampleMetaModel.model.
     model: str = "gsz"
+    #: The hybrid drawn instead of (n, l, m), if one was asked for.
+    hybrid: str | None = None
     provenance: ProvenanceModel
 
 
@@ -1037,11 +1046,14 @@ def create_app() -> FastAPI:
     # only the finished result object, and a SampleCloud does not know which
     # model produced it.
     app.state.job_models = {}
+    #: Hybrid keys per job, for the same reason as job_models.
+    app.state.job_hybrids = {}
 
     def _forget_job(job_id: str) -> None:
         """Keep the side tables in step with the store they are keyed against."""
         app.state.job_systems.pop(job_id, None)
         app.state.job_models.pop(job_id, None)
+        app.state.job_hybrids.pop(job_id, None)
 
     jobs = JobStore(on_evict=_forget_job)
     app.state.jobs = jobs
@@ -2101,9 +2113,55 @@ def create_app() -> FastAPI:
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
+    def _hybrid_system(req):
+        """The system a hybrid request names, or a refusal before any job exists."""
+        if req.hybrid not in HYBRIDS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"unknown hybrid {req.hybrid!r}; known: {sorted(HYBRIDS)}",
+            )
+        if _is_screened(req.system) or req.model == "hf":
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "hybrids are built from hydrogen's degenerate 2s and 2p, so they are "
+                    "exact stationary states only for the hydrogen-like systems; in a "
+                    "many-electron atom 2s and 2p are not degenerate"
+                ),
+            )
+        return _resolve_system(req.system)
+
+    def _new_job(req) -> Job:
+        job = jobs.create()
+        app.state.job_systems[job.id] = req.system
+        app.state.job_models[job.id] = req.model
+        if req.hybrid is not None:
+            app.state.job_hybrids[job.id] = req.hybrid
+        return job
+
     @app.post("/api/jobs/sample", response_model=JobModel)
     async def create_sample_job(req: SampleRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
+        if req.hybrid is not None:
+            sys_ = _hybrid_system(req)
+            mu = sys_.mu_ratio.value
+            job = _new_job(req)
+
+            def work(progress):
+                cloud = sample_hybrid(
+                    req.hybrid, req.count, Z=sys_.Z, mu_ratio=mu, seed=req.seed,
+                    progress=lambda f: progress(0.9 * f),
+                )
+                pos = cloud.positions.astype(np.float64)
+                psi = WavefunctionValues(
+                    values=evaluate_hybrid(req.hybrid, pos, sys_.Z, mu), positions=pos,
+                    n=2, l=1, m=0, Z=sys_.Z, mu_ratio=mu, basis="real",
+                    provenance=cloud.provenance,
+                )
+                progress(1.0)
+                return SampleJobResult(cloud=cloud, psi=psi)
+
+            return _dispatch(job, work, req)
         # Resolved before the job exists, so a refusal does not
         # leave an orphan job in the store for a client that never got an id.
         hf_target = _hf_view_target(req) if req.model == "hf" else None
@@ -2168,6 +2226,21 @@ def create_app() -> FastAPI:
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
+        if req.hybrid is not None:
+            sys_ = _hybrid_system(req)
+            job = _new_job(req)
+
+            def work(progress):
+                pg = hybrid_plane_grid(
+                    req.hybrid, "density" if req.quantity == "current" else req.quantity,
+                    Z=sys_.Z, mu_ratio=sys_.mu_ratio.value, resolution=req.resolution,
+                    progress=progress,
+                )
+                # A hybrid is a real function, so its current is identically zero,
+                # and current_through_plane says so in its provenance.
+                return current_through_plane(pg) if req.quantity == "current" else pg
+
+            return _dispatch(job, work, req)
         hf_target = _hf_view_target(req) if req.model == "hf" else None
         job = jobs.create()
         app.state.job_systems[job.id] = req.system
@@ -2494,8 +2567,11 @@ def create_app() -> FastAPI:
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
         model_key = app.state.job_models.get(job_id, "gsz")
+        hybrid_key = app.state.job_hybrids.get(job_id)
         if isinstance(res, PlaneGrid):
-            return _plane_meta(res, system_key, model_key)
+            return _plane_meta(res, system_key, model_key).model_copy(
+                update={"hybrid": hybrid_key}
+            )
         if isinstance(res, SuperpositionGrid):
             return _superposition_meta(res, system_key)
         if isinstance(res, Isosurface):
@@ -2505,7 +2581,9 @@ def create_app() -> FastAPI:
             # the energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
-        return _sample_meta(res, system_key, model_key)
+        return _sample_meta(res, system_key, model_key).model_copy(
+            update={"hybrid": hybrid_key}
+        )
 
     def _iso_channel_payload(surf: Isosurface, channel: str | None) -> np.ndarray:
         """Three channels, because a mesh is three arrays of different shapes.
