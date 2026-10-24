@@ -1,4 +1,4 @@
-import type { Lut } from "./luts";
+import { PHASE, type Lut } from "./luts";
 
 /** Clamped LUT lookup: t in [0, 1] -> [r, g, b] bytes. */
 export function lutColor(lut: Lut, t: number): readonly [number, number, number] {
@@ -37,31 +37,15 @@ export function maxAbs(values: Float32Array): number {
   return m;
 }
 
-/** The cyclic colour for arg(psi) in [-pi, pi]: the full HSL hue wheel. */
+/**
+ * The cyclic colour for arg(psi), any real phase (wrapped to [0, 2 pi)).
+ *
+ * The PHASE table rather than an HSL hue wheel: for red-green colour-blind
+ * readers the wheel collapsed phases a third of a turn apart into one colour.
+ * See phase_rows() in scripts/gen_luts.py and tests/test_lut_cvd.py.
+ */
 export function phaseColor(phase: number): readonly [number, number, number] {
-  const h = (phase + Math.PI) / (2 * Math.PI);
-  return hslToRgb(h - Math.floor(h), 1, 0.55);
-}
-
-export function hslToRgb(
-  h: number,
-  s: number,
-  l: number,
-): readonly [number, number, number] {
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-  const f = (t: number): number => {
-    let x = t;
-    if (x < 0) x += 1;
-    if (x > 1) x -= 1;
-    if (x < 1 / 6) return p + (q - p) * 6 * x;
-    if (x < 1 / 2) return q;
-    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
-    return p;
-  };
-  return [
-    Math.round(f(h + 1 / 3) * 255),
-    Math.round(f(h) * 255),
-    Math.round(f(h - 1 / 3) * 255),
-  ];
+  const turn = phase / (2 * Math.PI);
+  const t = turn - Math.floor(turn);
+  return PHASE[Math.min(Math.floor(t * PHASE.length), PHASE.length - 1)];
 }

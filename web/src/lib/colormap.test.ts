@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   DENSITY_GAMMA,
   densityT,
-  hslToRgb,
   lutColor,
   maxAbs,
   maxOf,
   phaseColor,
   signedT,
 } from "./colormap";
+import { PHASE } from "./luts";
 import { INFERNO, RDBU_R } from "./luts";
 
 describe("luts", () => {
@@ -72,9 +72,9 @@ describe("phaseColor", () => {
   it("is cyclic across the -pi/+pi seam", () => {
     expect(phaseColor(-Math.PI)).toEqual(phaseColor(Math.PI));
   });
-  it("hslToRgb hits primary hues", () => {
-    expect(hslToRgb(0, 1, 0.5)).toEqual([255, 0, 0]);
-    expect(hslToRgb(1 / 3, 1, 0.5)).toEqual([0, 255, 0]);
-    expect(hslToRgb(2 / 3, 1, 0.5)).toEqual([0, 0, 255]);
+  it("reads the colour-blind-safe PHASE table, phase 0 at its start", () => {
+    expect(phaseColor(0)).toEqual(PHASE[0]);
+    expect(phaseColor(2 * Math.PI)).toEqual(PHASE[0]);
+    expect(phaseColor(Math.PI)).toEqual(PHASE[128]);
   });
 });

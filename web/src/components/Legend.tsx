@@ -1,4 +1,4 @@
-import { DENSITY_GAMMA } from "../lib/colormap";
+import { DENSITY_GAMMA, phaseColor } from "../lib/colormap";
 import { INFERNO } from "../lib/luts";
 import type { ColorMode } from "../state/store";
 
@@ -22,9 +22,12 @@ export function Legend({ mode }: { mode: ColorMode }) {
     );
   }
   if (mode === "phase") {
-    const stops = [0, 60, 120, 180, 240, 300, 360]
-      .map((deg) => `hsl(${deg}, 100%, 55%)`)
-      .join(", ");
+    // The same table the points are coloured from, sampled -pi to +pi, so the
+    // key can never disagree with the picture it explains.
+    const stops = Array.from({ length: 13 }, (_, i) => {
+      const [r, g, b] = phaseColor(-Math.PI + (i / 12) * 2 * Math.PI);
+      return `rgb(${r},${g},${b}) ${((i / 12) * 100).toFixed(1)}%`;
+    }).join(", ");
     return (
       <div className="legend">
         <div
