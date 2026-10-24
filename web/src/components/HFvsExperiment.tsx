@@ -6,6 +6,7 @@ import {
   type IonizationReference,
   type KoopmansRow,
 } from "../lib/hfVsExperiment";
+import { fixed } from "../lib/format";
 
 /**
  * Every atom from helium to calcium, Hartree-Fock against the laboratory.
@@ -92,8 +93,8 @@ export function HFvsExperiment() {
                   <td>{r.symbol}</td>
                   <td>{r.orbital}</td>
                   <td>{r.nist.toFixed(3)}</td>
-                  <td>{r.koopmans.toFixed(3)}</td>
-                  <td>{`${r.error > 0 ? "+" : ""}${r.error.toFixed(2)}`}</td>
+                  <td>{fixed(r.koopmans, 3)}</td>
+                  <td>{`${r.error > 0 ? "+" : ""}${fixed(r.error, 2)}`}</td>
                 </tr>
               ))}
             </tbody>

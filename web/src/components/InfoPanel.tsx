@@ -6,6 +6,7 @@ import { informativeEnd, sparkBars } from "../lib/spark";
 import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { fixed } from "../lib/format";
 
 /** Engine labels write expectation brackets as < >; the panel shows ⟨ ⟩. */
 export function bracketed(label: string): string {
@@ -115,9 +116,9 @@ export function InfoPanel() {
             Energy <Badge provenance={stateInfo.energy.provenance} />
           </dt>
           <dd>
-            {stateInfo.energy.value.toFixed(6)} hartree
+            {fixed(stateInfo.energy.value, 6)} hartree
             <br />
-            {stateInfo.energy_ev.value.toFixed(4)} eV
+            {fixed(stateInfo.energy_ev.value, 4)} eV
           </dd>
           {fineStructure && stateInfo.levels.length > 0 && (
             <>

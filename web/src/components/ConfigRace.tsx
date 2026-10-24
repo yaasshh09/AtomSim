@@ -10,6 +10,7 @@ import {
   type RaceCase,
 } from "../lib/orderingPuzzle";
 import { Badge } from "./Badge";
+import { fixed } from "../lib/format";
 
 type Solved = { tail: string; levels: HFLevels }[];
 
@@ -108,8 +109,8 @@ export function ConfigRace({ initial }: { initial: string }) {
                   <td>
                     {r.gapEv === 0 ? "0 (ground)" : `+${r.gapEv.toFixed(2)} ± ${r.gapErrEv.toFixed(2)}`}
                   </td>
-                  <td>{r.eps4s === null ? "empty" : r.eps4s.toFixed(2)}</td>
-                  <td>{r.eps3d === null ? "empty" : r.eps3d.toFixed(2)}</td>
+                  <td>{r.eps4s === null ? "empty" : fixed(r.eps4s, 2)}</td>
+                  <td>{r.eps3d === null ? "empty" : fixed(r.eps3d, 2)}</td>
                 </tr>
               ))}
             </tbody>

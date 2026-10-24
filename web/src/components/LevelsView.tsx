@@ -24,6 +24,7 @@ import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
+import { fixed } from "../lib/format";
 
 /**
  * Height per unit width, the two limits it runs between, and the narrowest
@@ -213,7 +214,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
                 {filled ? <tspan dy="-0.5em">{o.occupancy}</tspan> : ""}
               </text>
               <text x={rungX2 + 30} y={yl} dy="0.32em" className="tick">
-                {o.energy_ev.value.toFixed(2)} eV
+                {fixed(o.energy_ev.value, 2)} eV
                 {filled ? "" : " · virtual"}
               </text>
             </g>
@@ -230,7 +231,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
           )}
       />
       <p className="caption">
-        Total energy {levels.total_energy_ev.value.toFixed(2)} eV.
+        Total energy {fixed(levels.total_energy_ev.value, 2)} eV.
       </p>
       <Disclosure summary="What this model is doing, and what it is not">
         <p className="caption">
@@ -239,7 +240,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
           lifts the hydrogenic l-degeneracy, which is why s sits below p sits
           below d at the same n. Filled subshells are solid and carry their
           occupancy; virtual ones are dashed. The total above,{" "}
-          {levels.total_energy_ev.value.toFixed(2)} eV, is a sum of
+          {fixed(levels.total_energy_ev.value, 2)} eV, is a sum of
           occupancy-weighted orbital energies, not a variational total. The
           badge says the rest.
         </p>
@@ -454,7 +455,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           )}
       />
       <p className="caption">
-        Total energy {levels.total_energy_ev.value.toFixed(2)} eV
+        Total energy {fixed(levels.total_energy_ev.value, 2)} eV
         {levels.exchange
           ? ", and it is variational: the real atom sits at or below it."
           : ", stationary for this model, but not a bound on the real atom."}{" "}
@@ -485,7 +486,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
           ). The energy axis is logarithmic in binding energy{" "}
           <Badge provenance={HF_LADDER_AXIS_LIBERTY} /> because the 1s and the
           valence shell differ by more than two decades. The total above,{" "}
-          {levels.total_energy_ev.value.toFixed(2)} eV,
+          {fixed(levels.total_energy_ev.value, 2)} eV,
           {levels.exchange
             ? " is variational, unlike the screened model's sum of orbital energies."
             : " is stationary for this model, but it is not a variational bound on the real atom: a product wavefunction is not antisymmetric, so it is not an admissible trial function for electrons, and the theorem simply does not apply to it."}
@@ -990,7 +991,7 @@ export function LevelsView() {
                 n={g.n}
               </text>
               <text x={rungX2 + 30} y={yl} dy="0.32em" className="tick">
-                {g.energy_ev.value.toFixed(2)} eV
+                {fixed(g.energy_ev.value, 2)} eV
                 {compact ? "" : ` · 2n²=${g.degeneracy}`}
                 {!compact && g.n === 1 ? " · ground state" : ""}
               </text>

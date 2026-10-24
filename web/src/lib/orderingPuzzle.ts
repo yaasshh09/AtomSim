@@ -1,4 +1,5 @@
 import type { HFLevels } from "../api/types";
+import { fixed } from "./format";
 
 /** The argon core every configuration below shares. */
 export const ARGON_CORE = "1s2 2s2 2p6 3s2 3p6";
@@ -82,8 +83,8 @@ export function raceVerdict(rows: RaceRow[]): string {
     const lead2 = `${lead}, ${next.gapEv.toFixed(2)} eV below ${shortConfig(next.tail)}.`;
     if (win.eps3d !== null && win.eps4s !== null && win.eps3d < win.eps4s) {
       return (
-        `${lead2} Yet in that winner the 3d orbital (ε = ${win.eps3d.toFixed(2)} eV) lies ` +
-        `below the 4s (ε = ${win.eps4s.toFixed(2)} eV). Filling the deeper orbital does not ` +
+        `${lead2} Yet in that winner the 3d orbital (ε = ${fixed(win.eps3d, 2)} eV) lies ` +
+        `below the 4s (ε = ${fixed(win.eps4s, 2)} eV). Filling the deeper orbital does not ` +
         "win, because putting a second electron into the compact 3d costs more repulsion " +
         "than the orbital energy gains: the total energy decides, not one orbital's ε."
       );

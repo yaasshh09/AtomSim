@@ -18,6 +18,7 @@ import { ControlGroup, Slider } from "./Field";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { usePlotZoom, ZoomControls } from "./PlotZoom";
 import { ViewIntro } from "./ViewIntro";
+import { fixed } from "../lib/format";
 
 /**
  * Height per unit width, the limits it runs between, and the narrowest width
@@ -423,7 +424,7 @@ export function ForceLawView() {
                         and its label was left hanging half-cut on the frame. */}
                     {x2 >= PAD.left && x2 <= W - PAD.right - 60 && (
                       <text x={x2 + 4} y={y(c.energy_ev.value) - 4} className="forcelaw-label">
-                        {c.energy_ev.value.toFixed(2)} eV{c.trusted ? "" : " (?)"}
+                        {fixed(c.energy_ev.value, 2)} eV{c.trusted ? "" : " (?)"}
                       </text>
                     )}
                   </g>
@@ -503,7 +504,7 @@ export function ForceLawView() {
                     textAnchor="end"
                     className="forcelaw-label"
                   >
-                    {c.energy_ev.value.toFixed(2)} eV{c.trusted ? "" : " (?)"}
+                    {fixed(c.energy_ev.value, 2)} eV{c.trusted ? "" : " (?)"}
                   </text>
                 </g>
               ))}
@@ -545,7 +546,7 @@ export function ForceLawView() {
                         {c.radial_index}
                         {c.trusted ? "" : " (?)"}
                       </td>
-                      <td>{c.energy_ev.value.toFixed(4)}</td>
+                      <td>{fixed(c.energy_ev.value, 4)}</td>
                       <td>{(2 * c.virial.kinetic.value).toPrecision(5)}</td>
                       <td>{c.virial.r_dv_dr.value.toPrecision(5)}</td>
                       <td>{virialVerdict(c.virial.residual.value)}</td>
