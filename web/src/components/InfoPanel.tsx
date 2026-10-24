@@ -229,6 +229,7 @@ export function InfoPanel() {
       <nav className="legal-links" aria-label="site policies">
         <a href="/terms.html">Terms</a>
         <a href="/privacy.html">Privacy</a>
+        <a href="/api.html">API</a>
       </nav>
     </aside>
   );

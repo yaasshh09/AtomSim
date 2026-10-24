@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API · AtomSim</title>
+    <meta name="theme-color" content="#050708" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/legal.css" />
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">Back to AtomSim</a>
+      <h1>The AtomSim API</h1>
+      <p class="updated">Last updated 24 October 2026</p>
+
+      <p>
+        Everything the app draws comes from a public HTTP API, and you can call it
+        yourself. This page is the guide. The generated reference, with every field
+        of every response, lives at <a href="/docs">/docs</a>, and the raw schema at
+        <a href="/openapi.json">/openapi.json</a>.
+      </p>
+
+      <h2>The one rule: every number says what it is</h2>
+      <p>
+        Every physical value in a response comes with a <code>provenance</code>
+        object, and its <code>fidelity</code> field is one of
+        <code>exact</code> (closed form), <code>numerical</code> (converged, with
+        an error estimate where one exists), <code>approximation</code> (an honest
+        simplified model, assumptions listed), <code>counterfactual</code>
+        (physics deliberately changed, then solved properly) or
+        <code>visual_liberty</code> (a presentational choice). The
+        <code>method</code>, <code>assumptions</code>, <code>error_estimate</code>
+        and <code>refinement</code> fields say how the value was made and what would
+        make it better. If you pass a value on, pass its fidelity with it.
+      </p>
+      <p>
+        Internally everything is in Hartree atomic units: lengths in bohr,
+        energies in hartree. Conversions to eV or picometres are made at the API
+        boundary, and the provenance says so.
+      </p>
+
+      <h2>Quick answers: plain GET requests</h2>
+      <ul>
+        <li>
+          <code>/api/systems</code>: every system you can ask about (hydrogen-like
+          presets and atoms from He to Ca) and which models can speak for each.
+        </li>
+        <li>
+          <code>/api/state/{n}/{l}/{m}?system=h</code>: the energy, ⟨r⟩, |L|,
+          closed-form expectation values and a live virial check for one state.
+        </li>
+        <li>
+          <code>/api/levels?system=h</code> and <code>/api/spectrum?system=h</code>:
+          the level ladder and the emission lines, the latter beside vendored NIST
+          data where it exists.
+        </li>
+        <li><code>/api/radial/{n}/{l}?system=h</code>: R(r) and P(r) on a grid.</li>
+        <li>
+          <code>/api/nodes/{n}/{l}/{m}?basis=real</code>: where ψ is exactly zero.
+        </li>
+        <li>
+          <code>/api/forcelaw?preset=powerlaw&amp;p=1.3</code>: levels under a changed
+          force law, each with a virial check of its eigenvector.
+        </li>
+        <li>
+          <code>/api/snippet?view=plane&amp;n=3&amp;l=1&amp;m=1</code>: the Python
+          that reproduces a view with this package.
+        </li>
+        <li>
+          <code>/api/reference/ionization</code>: NIST's measured ionization
+          energies, He to Ca, with their citation and retrieval date.
+        </li>
+      </ul>
+      <pre><code>curl "https://atomsim.fly.dev/api/state/2/1/0?system=h"</code></pre>
+
+      <h2>Heavy work: jobs</h2>
+      <p>
+        Sampling a cloud, slicing a plane, meshing an isosurface, evolving a
+        superposition and solving Hartree-Fock all take long enough to run as
+        jobs. The protocol is the same for all of them:
+      </p>
+      <ol>
+        <li>
+          <code>POST</code> a JSON body to one of <code>/api/jobs/sample</code>,
+          <code>/api/jobs/plane</code>, <code>/api/jobs/iso</code>,
+          <code>/api/jobs/superposition</code> or <code>/api/jobs/hf</code>. You get
+          back <code>{"id": ..., "status": "pending"}</code>.
+        </li>
+        <li>
+          Watch <code>/ws/jobs/{id}</code> on a websocket for progress, or poll
+          <code>/api/jobs/{id}</code> until <code>status</code> is
+          <code>done</code> or <code>error</code>.
+        </li>
+        <li>
+          Fetch <code>/api/jobs/{id}/meta</code> for the description of the result,
+          provenance included.
+        </li>
+        <li>
+          Fetch <code>/api/jobs/{id}/data</code> (add <code>?channel=</code> where the
+          meta lists more than one) for the arrays, as raw little-endian
+          <code>float32</code>. The meta's <code>layout</code> field says how to
+          read them: a cloud is <code>x, y, z</code> interleaved; a plane is row-major
+          with row <i>i</i> at z = axis[i] ascending.
+        </li>
+      </ol>
+      <p>
+        Every job is a pure function of its request (sampling is seeded), so
+        identical requests are answered from a cache, and the server keeps the most
+        popular states precomputed. Finished jobs are kept for a short while only:
+        fetch the data as soon as the job is done.
+      </p>
+      <pre><code>import json, time, urllib.request
+import numpy as np
+
+base = "https://atomsim.fly.dev"
+req = urllib.request.Request(
+    base + "/api/jobs/sample",
+    data=json.dumps({"n": 3, "l": 2, "m": 0, "count": 10000}).encode(),
+    headers={"Content-Type": "application/json"},
+)
+job = json.load(urllib.request.urlopen(req))
+while True:
+    status = json.load(urllib.request.urlopen(f"{base}/api/jobs/{job['id']}"))
+    if status["status"] in ("done", "error"):
+        break
+    time.sleep(0.2)
+if status["status"] == "error":
+    raise RuntimeError(status["error"])
+meta = json.load(urllib.request.urlopen(f"{base}/api/jobs/{job['id']}/meta"))
+raw = urllib.request.urlopen(f"{base}/api/jobs/{job['id']}/data?channel=positions").read()
+points = np.frombuffer(raw, dtype="&lt;f4").reshape(-1, 3)
+print(points.shape, meta["provenance"]["fidelity"])</code></pre>
+
+      <h2>Limits</h2>
+      <p>
+        Job creation is rate limited per client: a burst of 80, refilling at one
+        job every three seconds. A refused request gets a <code>429</code> with a
+        <code>Retry-After</code> header. The plain GET endpoints are not limited.
+        It is one small shared machine, so please be kind to it, and if you need
+        a lot of results, run the package locally: it is the same engine.
+      </p>
+
+      <h2>Running it yourself</h2>
+      <p>
+        The engine is a Python package, and every endpoint here is a thin wrapper
+        around a function you can call directly. Each view in the app has a
+        "Reproduce in Python" fold with the exact call. The source and setup
+        instructions are on
+        <a href="https://github.com/yaasshh09/AtomSim">GitHub</a>.
+      </p>
+    </main>
+  </body>
+</html>

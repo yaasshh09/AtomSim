@@ -15,6 +15,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         terms: resolve(__dirname, "terms.html"),
         privacy: resolve(__dirname, "privacy.html"),
+        api: resolve(__dirname, "api.html"),
       },
     },
     // No manualChunks. There used to be one naming three/fiber/drei and katex
