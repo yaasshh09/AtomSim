@@ -33,6 +33,17 @@ primary_region = "ams"
     # started 2026-08-08. See docs/DEPLOY.md.
     VITE_GOATCOUNTER = "https://atomsim.goatcounter.com/count"
 
+[env]
+  # Compute the popular states once at startup (server/app.py, _popular_requests)
+  # so a first visitor gets them from the result cache. "suspend" below
+  # snapshots the whole VM, so the warm cache survives every suspend and resume
+  # and is paid for once per deploy, not once per visit.
+  ATOMSIM_WARM = "1"
+  # The result cache's budget. Its entries are the same objects the job store
+  # holds, not copies, so the worst case is the job store's ~320MB plus this
+  # plus ~250MB of Python, inside the 1GB below.
+  ATOMSIM_CACHE_MB = "192"
+
 [http_service]
   internal_port = 8080
   force_https = true

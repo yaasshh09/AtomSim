@@ -90,6 +90,16 @@ class JobStore:
             evicted.append(oldest)
         return evicted
 
+    def discard(self, job_id: str) -> None:
+        """Drop one finished job now, as eviction would later. A running one stays."""
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None or job.status not in _FINISHED:
+                return
+            del self._jobs[job_id]
+        if self._on_evict is not None:
+            self._on_evict(job_id)
+
     def get(self, job_id: str) -> Job | None:
         with self._lock:
             return self._jobs.get(job_id)

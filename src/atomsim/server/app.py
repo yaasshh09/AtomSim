@@ -98,6 +98,7 @@ from atomsim.screened_atom import (
 )
 from atomsim.server.jobs import Job, JobStatus, JobStore
 from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD, TokenBucket
+from atomsim.server.result_cache import DEFAULT_MAX_BYTES, ResultCache
 from atomsim.server.schemas import (
     AbsorptionSpectrumModel,
     ChannelModel,
@@ -213,9 +214,26 @@ def _job_worker_count() -> int:
     return max(2, min(4, os.cpu_count() or 2))
 
 
+def _warm_enabled() -> bool:
+    """Precompute the popular states at startup? Off unless asked for (see fly.toml).
+
+    Off by default because a laptop session and the test suite have no first
+    visitor to save a wait for, and the warm-up would only take CPU from them.
+    """
+    return os.environ.get("ATOMSIM_WARM", "").lower() in ("1", "on", "true")
+
+
+def _cache_bytes() -> int:
+    override = os.environ.get("ATOMSIM_CACHE_MB")
+    return int(float(override) * 1024 * 1024) if override else DEFAULT_MAX_BYTES
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    warm = asyncio.create_task(app.state.warm()) if _warm_enabled() else None
     yield
+    if warm is not None:
+        warm.cancel()
     app.state.executor.shutdown(wait=False, cancel_futures=True)
 
 
@@ -1020,6 +1038,8 @@ def create_app() -> FastAPI:
 
     jobs = JobStore(on_evict=_forget_job)
     app.state.jobs = jobs
+    results = ResultCache(_cache_bytes())
+    app.state.results = results
     app.state.executor = ThreadPoolExecutor(
         max_workers=_job_worker_count(), thread_name_prefix="atomsim-job"
     )
@@ -1066,16 +1086,31 @@ def create_app() -> FastAPI:
                 )
         return await call_next(request)
 
-    def _dispatch(job, work) -> JobModel:
+    def _dispatch(job, work, req: BaseModel) -> JobModel:
         """Hand a job to the bounded pool and answer with its id immediately.
 
         Every job endpoint ends this way. Routing them all through one
         function is what keeps the pool bounded: a new endpoint that reached for
         `run_in_executor(None, ...)` would silently opt back into the 32-thread
         default, and nothing would look wrong until the host fell over.
+
+        It is also where the result cache sits, keyed on the validated request,
+        so no endpoint can forget it or key it differently. A hit still runs as
+        a job and reports through the same websocket; it only finishes at once.
         """
+        key = f"{type(req).__name__}:{req.model_dump_json()}"
+
+        def cached(progress):
+            hit = results.get(key)
+            if hit is not None:
+                progress(1.0)
+                return hit
+            out = work(progress)
+            results.put(key, out)
+            return out
+
         loop = asyncio.get_running_loop()
-        loop.run_in_executor(app.state.executor, jobs.run, job.id, work)
+        loop.run_in_executor(app.state.executor, jobs.run, job.id, cached)
         return _job_model(job)
 
     _Z_KEY = re.compile(r"^z(\d+)$")
@@ -2063,7 +2098,7 @@ def create_app() -> FastAPI:
                 progress(1.0)
                 return SampleJobResult(cloud=cloud, psi=psi)
 
-            return _dispatch(job, work)
+            return _dispatch(job, work, req)
 
         if _is_screened(req.system):
             element = _gsz_element(req.system)
@@ -2080,7 +2115,7 @@ def create_app() -> FastAPI:
                 progress(1.0)
                 return SampleJobResult(cloud=cloud, psi=psi)
 
-            return _dispatch(job, work)
+            return _dispatch(job, work, req)
 
         sys_ = _resolve_system(req.system)
 
@@ -2097,7 +2132,7 @@ def create_app() -> FastAPI:
             progress(1.0)
             return SampleJobResult(cloud=cloud, psi=psi)
 
-        return _dispatch(job, work)
+        return _dispatch(job, work, req)
 
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
@@ -2112,8 +2147,10 @@ def create_app() -> FastAPI:
 
         def _dispatch_plane(job, work):
             if req.quantity != "current":
-                return _dispatch(job, work)
-            return _dispatch(job, lambda progress: current_through_plane(work(progress)))
+                return _dispatch(job, work, req)
+            return _dispatch(
+                job, lambda progress: current_through_plane(work(progress)), req
+            )
 
         if hf_target is not None:
             hf_z, hf_n, hf_config = hf_target
@@ -2187,7 +2224,7 @@ def create_app() -> FastAPI:
                 resolution=req.resolution, progress=progress,
             )
 
-        return _dispatch(job, work)
+        return _dispatch(job, work, req)
 
     @app.post("/api/jobs/isosurface", response_model=JobModel)
     async def create_iso_job(req: IsoRequest) -> JobModel:
@@ -2235,7 +2272,7 @@ def create_app() -> FastAPI:
                     resolution=req.resolution, progress=progress,
                 )
 
-        return _dispatch(job, work)
+        return _dispatch(job, work, req)
 
     @app.post("/api/jobs/hf", response_model=JobModel)
     async def create_hf_job(req: HFRequest) -> JobModel:
@@ -2285,7 +2322,7 @@ def create_app() -> FastAPI:
             progress(1.0)
             return HFJobResult(result, delta, collapse)
 
-        return _dispatch(job, work)
+        return _dispatch(job, work, req)
 
     @app.get("/api/jobs/{job_id}", response_model=JobModel)
     def job_status(job_id: str) -> JobModel:
@@ -2519,6 +2556,50 @@ def create_app() -> FastAPI:
                 break
             await asyncio.sleep(0.1)
         await ws.close()
+
+    def _popular_requests() -> list[tuple[str, BaseModel]]:
+        """What a first visit, the tours and the atom picker open.
+
+        Built as the client builds them (the HF request names n_electrons, as
+        the store does), because a warm result only helps if its key is the key
+        a real request will produce.
+        """
+        out: list[tuple[str, BaseModel]] = []
+        for n in (1, 2, 3):
+            for l in range(n):
+                for m in range(-l, l + 1):
+                    out.append(("sample", SampleRequest(n=n, l=l, m=m)))
+                    out.append(("plane", PlaneRequest(n=n, l=l, m=m)))
+        for key in ATOM_KEYS:
+            z = atom_for_key(key).z
+            out.append(("hf", HFRequest(z=z, n_electrons=z)))
+        return out
+
+    async def warm() -> None:
+        """Run the popular states through the real endpoints, one at a time.
+
+        One at a time so a first visitor never queues behind the warm-up for
+        more than one job, and each warm job is discarded once it finishes so
+        it cannot push a real visitor's finished job out of the store.
+        """
+        endpoints = {"sample": create_sample_job, "plane": create_plane_job, "hf": create_hf_job}
+        for kind, req in app.state.popular:
+            try:
+                job = await endpoints[kind](req)
+            except HTTPException:
+                continue
+            while (j := jobs.get(job.id)) is not None and j.status not in (
+                JobStatus.DONE, JobStatus.ERROR,
+            ):
+                await asyncio.sleep(0.2)
+            jobs.discard(job.id)
+        logger.info(
+            "Warmed %d results (%.0f MB) for the popular states",
+            len(results), results.size_bytes / 2**20,
+        )
+
+    app.state.popular = _popular_requests()
+    app.state.warm = warm
 
     web_dist = _web_dist()
     if web_dist.is_dir():
