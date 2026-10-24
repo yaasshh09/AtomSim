@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { getVersion } from "../api/client";
 import type { Provenance } from "../api/types";
+import { citeBibtex } from "../lib/cite";
 import { formatErrorScale } from "../lib/liberties";
 import { Notation } from "../lib/mathText";
 
@@ -166,9 +168,35 @@ export function Badge({ provenance }: { provenance: Provenance }) {
                 <strong>To improve:</strong> <Notation>{provenance.refinement}</Notation>
               </p>
             )}
+            <CiteButton provenance={provenance} />
           </div>,
           document.body,
         )}
     </span>
+  );
+}
+
+/** Copies BibTeX for this value: AtomSim, plus the primary source its provenance names. */
+function CiteButton({ provenance }: { provenance: Provenance }) {
+  const [done, setDone] = useState<"idle" | "copied" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className="ghost cite-button"
+      onClick={() =>
+        void getVersion()
+          .then((v) =>
+            navigator.clipboard.writeText(
+              citeBibtex(provenance, v, new Date().toISOString().slice(0, 10)),
+            ),
+          )
+          .then(
+            () => setDone("copied"),
+            () => setDone("failed"),
+          )
+      }
+    >
+      {done === "copied" ? "BibTeX copied" : done === "failed" ? "Could not copy" : "Cite this value"}
+    </button>
   );
 }

@@ -121,6 +121,14 @@ export async function getSnippet(query: string): Promise<string> {
   return body.code;
 }
 
+let versionPromise: Promise<string> | null = null;
+
+/** The server's atomsim version, asked once per page: it cannot change under a running app. */
+export function getVersion(): Promise<string> {
+  versionPromise ??= getJson<{ version: string }>("/api/health").then((h) => h.version);
+  return versionPromise;
+}
+
 export function getIonizationReference(): Promise<IonizationReference> {
   return getJson("/api/reference/ionization");
 }
