@@ -13,6 +13,7 @@ import {
   type ForcePreset,
 } from "./forceLaw";
 import { DEFAULT_SUP, parseSup, sameSup, serializeSup, type SupComponent } from "./evolve";
+import { isHybridKey } from "./hybrids";
 import { N_MAX, clampState } from "./quantum";
 import { CONST_MAX, CONST_MIN, CONSTANT_KEYS, type ConstantKey } from "./whatif";
 
@@ -137,6 +138,11 @@ export interface UrlState {
    * a place: changing a weight replaces the history entry.
    */
   superposition: SupComponent[];
+  /**
+   * An sp/sp2/sp3 hybrid drawn in place of (n, l, m), or null. A place, like
+   * the state it replaces: it lives on n = 2 in the real basis.
+   */
+  hybrid: string | null;
 }
 
 export const URL_DEFAULTS: UrlState = {
@@ -182,6 +188,7 @@ export const URL_DEFAULTS: UrlState = {
   tour: null,
   step: 0,
   superposition: DEFAULT_SUP,
+  hybrid: null,
 };
 
 // A config string reads as compact subshell tokens: "1s2 2s2 2p6 3p1"
@@ -280,6 +287,7 @@ export function currentUrlState(s: Omit<UrlState, "tour" | "step">): UrlState {
     exchange: s.exchange,
     pauli: s.pauli,
     superposition: s.superposition,
+    hybrid: s.hybrid,
     // Not read off the snapshot. The store holds them as tourId/stepIndex, and
     // the two callers want opposite things: the URL subscriber overrides both
     // with the live tour, while the tour's own entry snapshot wants the
@@ -449,6 +457,10 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   const sup = parseSup(q.getAll("sup"));
   if (sup) out.superposition = sup;
 
+  // A hybrid is an n = 2 real-basis state whatever the link says about (n, l, m).
+  const hyb = q.get("hyb");
+  if (isHybridKey(hyb)) Object.assign(out, { hybrid: hyb, n: 2, l: 1, m: 0, basis: "real" });
+
   const tour = q.get("tour");
   if (tour) {
     out.tour = tour;
@@ -536,6 +548,7 @@ export function serializeAppUrl(state: UrlState): string {
   // through a parser that would infer the missing one anyway, but a link
   // someone reads or edits should say both things it means.
   if (!state.pauli) q.set("nopauli", "1");
+  if (state.hybrid) q.set("hyb", state.hybrid);
   if (!sameSup(state.superposition, URL_DEFAULTS.superposition)) {
     for (const s of serializeSup(state.superposition)) q.append("sup", s);
   }

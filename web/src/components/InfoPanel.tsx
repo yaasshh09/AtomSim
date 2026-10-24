@@ -1,4 +1,5 @@
 import { Fragment, useEffect } from "react";
+import { hybridLabel } from "../lib/hybrids";
 import { Notation } from "../lib/mathText";
 import { nodeSummary, realOrbitalLabel, stateLabel } from "../lib/quantum";
 import { informativeEnd, sparkBars } from "../lib/spark";
@@ -16,7 +17,7 @@ const SPARK_BARS = 22;
 
 export function InfoPanel() {
   const {
-    n, l, m, basis, system, systems, fineStructure, stateInfo, meta, model,
+    n, l, m, basis, system, systems, fineStructure, stateInfo, meta, model, hybrid,
     radial, loadStateInfo, loadRadial,
   } = useAppStore();
   const selected = systems.find((s) => s.key === system);
@@ -64,9 +65,15 @@ export function InfoPanel() {
           State vector{sys ? ` · ${sys.name} Z=${sys.z}` : ""}
         </div>
         <div className="state-card-title">
-          {stateLabel(n, l, m)}
-          {basis === "real" && (
-            <span className="orbital-label"> · {realOrbitalLabel(l, m)}</span>
+          {hybrid ? (
+            hybridLabel(hybrid)
+          ) : (
+            <>
+              {stateLabel(n, l, m)}
+              {basis === "real" && (
+                <span className="orbital-label"> · {realOrbitalLabel(l, m)}</span>
+              )}
+            </>
           )}
         </div>
         <div className="state-card-sub">
@@ -74,6 +81,12 @@ export function InfoPanel() {
         </div>
       </div>
       {sys && <p className="system-desc">{sys.description}</p>}
+      {hybrid && (
+        <p className="system-desc">
+          The energy below is the hybrid's own: 2s and 2p share E₂ exactly. The other
+          readouts are for its 2p component.
+        </p>
+      )}
       {unknownSystem && (
         <p className="system-desc">
           There is no preset called "{system}". Choose one under System to carry on.

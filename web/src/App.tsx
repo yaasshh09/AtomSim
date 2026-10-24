@@ -16,6 +16,7 @@ import { TourPanel } from "./components/TourPanel";
 import { TourSpotlight } from "./components/TourSpotlight";
 import { ViewTabs } from "./components/ViewTabs";
 import { WhatIfView } from "./components/WhatIfView";
+import { hybridLabel } from "./lib/hybrids";
 import { snapHeight } from "./lib/sheet";
 import { isNarrow, useViewport } from "./lib/viewport";
 import { useAppStore } from "./state/store";
@@ -32,6 +33,7 @@ const CloudView = lazy(() =>
  *  around the picture changes, never the picture. */
 function Stage() {
   const view = useAppStore((s) => s.view);
+  const hybrid = useAppStore((s) => s.hybrid);
   return (
     <>
       {view === "cloud" && (
@@ -40,6 +42,12 @@ function Stage() {
         </Suspense>
       )}
       {view === "plane" && <PlaneView />}
+      {view === "radial" && hybrid && (
+        <p className="hint-block">
+          A hybrid has no single R(r): its 2s and 2p parts have different radial
+          functions. These plots are for its 2p component, not for the {hybridLabel(hybrid)}.
+        </p>
+      )}
       {view === "radial" && <RadialView />}
       {view === "levels" && <LevelsView />}
       {view === "spectrum" && <SpectrumView />}

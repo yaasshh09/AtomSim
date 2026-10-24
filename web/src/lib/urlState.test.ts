@@ -26,6 +26,15 @@ describe("parseAppUrl", () => {
     });
   });
 
+  it("reads a hybrid as the n = 2 real-basis state it lives on, and drops unknown ones", () => {
+    const got = parseAppUrl("?n=4&l=3&m=2&basis=complex&hyb=sp3-2");
+    expect(got).toMatchObject({ hybrid: "sp3-2", n: 2, l: 1, m: 0, basis: "real" });
+    expect(parseAppUrl("?hyb=sp4-1").hybrid).toBeUndefined();
+    const back = serializeAppUrl({ ...URL_DEFAULTS, ...got });
+    expect(back).toContain("hyb=sp3-2");
+    expect(parseAppUrl(back)).toMatchObject({ hybrid: "sp3-2" });
+  });
+
   it("reads the probability-current plane", () => {
     expect(parseAppUrl("?n=2&l=1&m=1&plane=current").planeQuantity).toBe("current");
     expect(serializeAppUrl({ ...URL_DEFAULTS, planeQuantity: "current" })).toContain(
@@ -100,6 +109,7 @@ describe("serializeAppUrl", () => {
       ghost: false,
       nucleusMode: "hidden" as const,
       planeQuantity: "psi" as const,
+      hybrid: null,
       labConst: { hbar: 1, e: 2, m_e: 1, eps0: 4, c: 1 },
       labZ: 3,
       forcePreset: "powerlaw" as const,

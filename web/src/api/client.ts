@@ -319,6 +319,8 @@ export interface SampleParams extends Partial<ManyElectronParams> {
   seed?: number;
   basis: Basis;
   system: string;
+  /** An sp/sp2/sp3 hybrid drawn in place of (n, l, m). */
+  hybrid?: string | null;
 }
 
 export function createSampleJob(params: SampleParams): Promise<JobInfo> {
@@ -333,6 +335,8 @@ export interface PlaneParams extends Partial<ManyElectronParams> {
   basis: Basis;
   system: string;
   resolution?: number;
+  /** As on SampleParams. */
+  hybrid?: string | null;
 }
 
 export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {

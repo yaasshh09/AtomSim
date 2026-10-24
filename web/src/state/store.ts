@@ -30,6 +30,7 @@ import {
 import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { clampState } from "../lib/quantum";
+import { isHydrogenic } from "../lib/systemKind";
 import type { Snap } from "../lib/sheet";
 import { URL_DEFAULTS, currentUrlState, type UrlState } from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
@@ -160,6 +161,8 @@ interface AppState {
   error: string | null;
   fps: number;
   planeQuantity: PlaneQuantity;
+  /** An sp/sp2/sp3 hybrid key drawn in place of (n, l, m) in the cloud and plane, or null. */
+  hybrid: string | null;
   plane: { meta: PlaneMeta; values: Float32Array } | null;
   planeStatus: SampleStatus;
   planeProgress: number;
@@ -264,6 +267,8 @@ interface AppState {
   setLabZ: (labZ: number) => void;
   loadWhatIf: () => Promise<void>;
   setQuantumNumbers: (n: number, l: number, m: number) => void;
+  /** Draw an sp/sp2/sp3 hybrid in place of (n, l, m); null goes back to one orbital. */
+  setHybrid: (hybrid: string | null) => void;
   setSystem: (system: string) => void;
   setConfig: (config: string | null) => void;
   setModel: (model: AtomModel) => void;
@@ -426,6 +431,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fps: 0,
   planeQuantity: "density",
   superposition: DEFAULT_SUP,
+  hybrid: null,
   surfaceMode: "cloud",
   isoFraction: 0.9,
   labConst: { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 },
@@ -461,7 +467,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   // it gets reset explicitly here rather than living in INVALIDATED (a basis
   // change keeps it).
   setQuantumNumbers: (n, l, m) =>
-    set({ ...clampState(n, l, m), ...INVALIDATED, classicalGhost: null, classicalStatus: "idle" }),
+    set({
+      ...clampState(n, l, m), ...INVALIDATED, classicalGhost: null, classicalStatus: "idle",
+      // Picking an orbital is leaving the hybrid.
+      hybrid: null,
+    }),
+  setHybrid: (hybrid) =>
+    set((s) => ({
+      hybrid,
+      // A hybrid lives on n = 2 and is a real function, so its picture is the
+      // real basis's and phase colouring has nothing to show.
+      ...(hybrid
+        ? {
+            n: 2, l: 1, m: 0, basis: "real" as const,
+            colorMode: s.colorMode === "phase" ? ("density" as const) : s.colorMode,
+          }
+        : {}),
+      ...INVALIDATED,
+    })),
   setSystem: (system) =>
     set((state) => ({
       system,
@@ -470,6 +493,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       // than leaving a model selected under which every request is refused.
       model: resolveModel(state.systems, system, state.model),
       ...INVALIDATED,
+      // Hybrids need hydrogen's 2s/2p degeneracy, so only a one-electron system keeps one.
+      hybrid: isHydrogenic(state.systems, system) ? state.hybrid : null,
       // selecting a system resets to the Aufbau ground config, which the
       // server fills in
       config: null,
@@ -630,6 +655,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBasis: (basis) =>
     set((s) => ({
       basis,
+      hybrid: basis === "complex" ? null : s.hybrid,
       ...INVALIDATED,
       colorMode: basis === "real" && s.colorMode === "phase" ? "density" : s.colorMode,
     })),
@@ -789,6 +815,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const job = await client.createSampleJob({
         n, l, m, count, basis, system, ...manyElectronParams(get()),
+        hybrid: get().hybrid,
       });
       await client.watchJob(job.id, (progress) => set({ progress }));
       const [meta, positions, density, phase] = await Promise.all([
@@ -863,6 +890,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         basis,
         quantity: planeQuantity,
         ...manyElectronParams(get()),
+        hybrid: get().hybrid,
       });
       await client.watchJob(job.id, (planeProgress) => set({ planeProgress }));
       const [meta, values] = await Promise.all([

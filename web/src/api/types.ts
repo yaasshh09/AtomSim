@@ -514,6 +514,8 @@ export interface SampleMeta {
   m: number;
   basis: string;
   system: string;
+  /** The sp/sp2/sp3 hybrid drawn in place of (n, l, m), or null. */
+  hybrid?: string | null;
   /**
    * Which many-electron model drew this: "gsz" or "hf".
    *
@@ -543,6 +545,8 @@ export interface PlaneMeta {
   m: number;
   basis: string;
   system: string;
+  /** The sp/sp2/sp3 hybrid drawn in place of (n, l, m), or null. */
+  hybrid?: string | null;
   /** Which many-electron model drew this; see SampleMeta.model. */
   model: string;
   provenance: Provenance;

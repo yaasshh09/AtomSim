@@ -3,7 +3,9 @@ import { isScreenedLevels } from "../api/client";
 import { compareAvailable, gszAvailable, subshellAvailable } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
+import { HYBRID_FAMILIES, hybridLabel } from "../lib/hybrids";
 import { N_CHOICES } from "../lib/quantum";
+import { isHydrogenic } from "../lib/systemKind";
 import { isNarrow, useViewport } from "../lib/viewport";
 import { useAppStore } from "../state/store";
 import type { ColorMode, ViewMode } from "../state/store";
@@ -30,8 +32,8 @@ export function Controls() {
   const {
     n, l, m, count, status, progress, error, system, systems, basis, view,
     colorMode, fineStructure, nucleusMode, config, levels, model, exchange,
-    pauli, hf, compare, meta,
-    setQuantumNumbers, setCount, sample, setSystem, setBasis, setView,
+    pauli, hf, compare, meta, hybrid,
+    setQuantumNumbers, setHybrid, setCount, sample, setSystem, setBasis, setView,
     setColorMode, setFineStructure, setNucleusMode, setConfig, setModel,
     setExchange, setPauli, setCompare, loadSystems, ensureHF,
   } = useAppStore();
@@ -316,6 +318,35 @@ export function Controls() {
           real S<sub>lm</sub>
         </label>
       </div>
+      {isHydrogenic(systems, system) && (
+        <label>
+          hybrid orbital
+          <select
+            value={hybrid ?? ""}
+            onChange={(e) => setHybrid(e.target.value || null)}
+            aria-label="hybrid orbital"
+          >
+            <option value="">none (one orbital)</option>
+            {HYBRID_FAMILIES.map(({ family, lobes }) => (
+              <optgroup key={family} label={hybridLabel(`${family}-1`).split(",")[0]}>
+                {Array.from({ length: lobes }, (_, i) => `${family}-${i + 1}`).map((k) => (
+                  <option key={k} value={k}>
+                    {hybridLabel(k)}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      )}
+      {hybrid && (
+        <p className="panel-hint">
+          A hybrid mixes 2s and 2p. In hydrogen they share one energy, so this mix is
+          itself an exact stationary state with E = E₂; in carbon they do not, and a
+          hybrid there is bookkeeping for bond directions. The cloud and the plane
+          draw the hybrid; the other views show its 2p component.
+        </p>
+      )}
       <label className="check" data-tour="fine-structure">
         <input
           type="checkbox"

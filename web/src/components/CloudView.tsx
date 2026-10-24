@@ -21,6 +21,7 @@ import { Notation } from "../lib/mathText";
 import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
+import { hybridLabel } from "../lib/hybrids";
 import { ISO_FRACTIONS, useAppStore } from "../state/store";
 import { AxisTriad, CloudGrid, axisArmLength, gridStep } from "./AxisTriad";
 import { Badge } from "./Badge";
@@ -100,6 +101,7 @@ export function CloudView() {
     system,
     systems,
     surfaceMode,
+    hybrid,
     setSurfaceMode,
     isoFraction,
     setIsoFraction,
@@ -141,8 +143,10 @@ export function CloudView() {
   // classical ghost: a deep link can arrive with ?surf=surface set without
   // ever passing through the toggle, and this is what it reaches.
   useEffect(() => {
-    if (showSurface && isoStatus === "idle") void loadIso();
-  }, [showSurface, isoStatus, loadIso]);
+    // A hybrid has no isosurface job yet; asking would draw its 2p component
+    // under the hybrid's name, so the hint below says so instead.
+    if (showSurface && isoStatus === "idle" && !hybrid) void loadIso();
+  }, [showSurface, isoStatus, loadIso, hybrid]);
   const surfaceColors = useMemo(
     () => (iso ? buildSurfaceColors(iso.phase) : null),
     [iso],
@@ -235,7 +239,14 @@ export function CloudView() {
       {meta && (
         <div className="stage-caption">
           |ψ|² Monte-Carlo · {meta.count.toLocaleString()} draws
+          {meta.hybrid ? ` · ${hybridLabel(meta.hybrid)}` : ""}
         </div>
+      )}
+      {hybrid && showSurface && (
+        <p className="hint">
+          Surfaces are not drawn for hybrids yet: switch the mode to the cloud to see
+          the {hybridLabel(hybrid)}.
+        </p>
       )}
       {!positions && surfaceMode === "cloud" && (
         <p className="hint">Choose a state and press Sample</p>
