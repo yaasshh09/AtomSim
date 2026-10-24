@@ -349,6 +349,8 @@ def test_plane_job_end_to_end(client):
     assert meta["unit"] == "bohr^-3"
     assert meta["half_extent"] == pytest.approx(10.0 / 0.9994557, rel=1e-4)
     assert meta["provenance"]["fidelity"] == "exact"
+    # The client's scale bar converts with the server's CODATA value, not its own.
+    assert meta["bohr_pm"] == pytest.approx(52.9177210544, rel=1e-9)
 
     raw = client.get(f"/api/jobs/{job_id}/data").content
     assert len(raw) == 64 * 64 * 4

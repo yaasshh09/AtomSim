@@ -2,6 +2,7 @@ import { scaleLinear } from "d3-scale";
 import { useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 import { minorTicks } from "../lib/axis";
+import { scaleBar } from "../lib/scaleBar";
 import { GridLines, PlotTools } from "./PlotZoom";
 
 /** Overlay viewBox size. Strokes are non-scaling, so this only sets the text scale. */
@@ -24,6 +25,7 @@ export function PlaneStack({
   name,
   light = false,
   overlay,
+  bohrPm,
   children,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -36,6 +38,8 @@ export function PlaneStack({
   light?: boolean;
   /** Extra marks drawn in bohr, given the overlay's x and z scales (viewBox units). */
   overlay?: (x: (bohr: number) => number, z: (bohr: number) => number) => ReactNode;
+  /** One bohr in pm, from the job meta. Given, a real-size scale bar is drawn. */
+  bohrPm?: number;
   /** Status lines drawn over the frame (computing..., errors). */
   children?: ReactNode;
 }) {
@@ -49,6 +53,8 @@ export function PlaneStack({
   // Labels stay off the frame edge, where they would print over the axis
   // names and over each other in the corner. The caption states the extent.
   const labelled = major.filter((t) => Math.abs(t) < 0.85 * h);
+  const bar = h > 0 && bohrPm ? scaleBar(2 * h, bohrPm) : null;
+  const barLen = bar ? x(bar.bohr) - x(0) : 0;
   return (
     <>
       <div className="plane-frame" ref={frameRef}>
@@ -78,6 +84,16 @@ export function PlaneStack({
                 </text>
               ))}
               {overlay?.(x, z)}
+              {bar && (
+                <g className="scale-bar">
+                  <line x1={60} x2={60 + barLen} y1={S - 70} y2={S - 70} />
+                  <line x1={60} x2={60} y1={S - 78} y2={S - 62} />
+                  <line x1={60 + barLen} x2={60 + barLen} y1={S - 78} y2={S - 62} />
+                  <text x={60 + barLen / 2} y={S - 86} textAnchor="middle" className="plane-grid-label scale-bar-label">
+                    {bar.label}
+                  </text>
+                </g>
+              )}
               <text x={S - 14} y={S - 52} textAnchor="end" className="plane-grid-label">
                 x [bohr]
               </text>

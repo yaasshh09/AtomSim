@@ -434,6 +434,7 @@ export function EvolveView() {
             halfExtent={evolve?.meta.half_extent ?? 0}
             resolution={evolve?.meta.resolution ?? 0}
             name="atomsim-time-evolution"
+            bohrPm={evolve?.meta.bohr_pm}
           >
             {evolveStatus === "sampling" && (
               <p className="hint">computing… {(evolveProgress * 100).toFixed(0)}%</p>

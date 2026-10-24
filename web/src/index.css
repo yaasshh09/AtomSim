@@ -909,7 +909,7 @@ button.ghost:hover {
   stroke: rgb(255 255 255 / 0.85);
 }
 
-:root[data-grid="off"] .plane-grid-label {
+:root[data-grid="off"] .plane-grid-label:not(.scale-bar-label) {
   display: none;
 }
 
@@ -3809,4 +3809,15 @@ figure.plot:fullscreen > svg {
 .born-tick {
   font-size: 11px;
   fill: var(--label);
+}
+
+/* The real-size bar: the same ink as the grid labels, so it reads as an axis aid. */
+.scale-bar line {
+  stroke: rgb(255 255 255 / 0.85);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.plane-stack.on-light .scale-bar line {
+  stroke: rgb(0 0 0 / 0.75);
 }

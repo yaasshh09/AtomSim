@@ -536,6 +536,8 @@ export interface PlaneMeta {
   label: string;
   half_extent: number;
   axis_unit: string;
+  /** One bohr in picometres (CODATA, from the server), for the real-size scale bar. */
+  bohr_pm: number;
   n: number;
   l: number;
   m: number;
@@ -709,6 +711,8 @@ export interface SuperpositionMeta {
   unit: string;
   half_extent: number;
   axis_unit: string;
+  /** One bohr in picometres (CODATA, from the server), for the real-size scale bar. */
+  bohr_pm: number;
   basis: string;
   system: string;
   components: SuperpositionComponentMeta[];

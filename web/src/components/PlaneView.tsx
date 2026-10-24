@@ -6,6 +6,7 @@ import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { Notation } from "../lib/mathText";
 import { toCsv } from "../lib/plotExport";
 import { rasterize } from "../lib/rasterize";
+import { sizeAnchor } from "../lib/scaleBar";
 import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
@@ -145,6 +146,7 @@ export function PlaneView() {
         resolution={plane?.meta.resolution ?? 0}
         name={`atomsim-plane-${planeQuantity}`}
         light={plane ? plane.meta.quantity !== "density" : false}
+        bohrPm={plane?.meta.bohr_pm}
         overlay={
           showNodes && nodes && plane
             ? (x, z) => (
@@ -177,6 +179,7 @@ export function PlaneView() {
         <p className="caption">
           x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
           {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
+          {sizeAnchor(2 * plane.meta.half_extent, plane.meta.bohr_pm)}{" "}
           {plane.meta.quantity === "density" ? (
             "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
           ) : plane.meta.quantity === "psi" ? (

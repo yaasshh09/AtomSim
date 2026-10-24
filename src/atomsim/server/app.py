@@ -534,6 +534,9 @@ class PlaneMetaModel(BaseModel):
     label: str
     half_extent: float
     axis_unit: str
+    #: One bohr in picometres (CODATA, via scipy), so the client can draw a
+    #: real-size scale bar without carrying a physical constant of its own.
+    bohr_pm: float = BOHR_RADIUS_PM
     n: int
     l: int
     m: int
@@ -586,6 +589,8 @@ class SuperpositionMetaModel(BaseModel):
     components: list[SuperpositionComponentMeta]
     #: hbar / E_h in fs, so the browser's clock (which runs in atomic units,
     #: because E_k is in hartree) can be read out in femtoseconds.
+    #: One bohr in picometres, as on PlaneMetaModel.
+    bohr_pm: float = BOHR_RADIUS_PM
     time_unit_fs: float
     #: The distinct nonzero beat periods 2 pi hbar / |E_j - E_k|, ascending
     #: frequency. Empty means the mix is stationary.
