@@ -28,6 +28,7 @@ from atomsim.analytic.hydrogen import (
     angular_momentum_magnitude,
     energy,
     mean_radius,
+    momentum_wavefunction,
     radial_wavefunction,
     validate_quantum_numbers,
 )
@@ -86,7 +87,7 @@ from atomsim.plane import (
     screened_plane_grid,
 )
 from atomsim.populations import ThermalConditions
-from atomsim.provenance import Field, Quantity
+from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.sampling import (
     SampleCloud,
     sample_density,
@@ -416,6 +417,11 @@ class RadialResponse(BaseModel):
     #: costs a second solve. Null rather than omitted for the same reason as
     #: above: one response shape, asked for or not.
     density_comparison: DensityComparisonModel | None = None
+    #: p^2 |F_nl(p)|^2, the same orbital's momentum distribution. Hydrogen-like
+    #: systems only, where it has a closed form; null for atoms, same shape.
+    momentum_probability: FieldModel | None = None
+    #: sqrt(<p^2>) = Z mu / n, exact from the virial theorem.
+    momentum_rms: QuantityModel | None = None
 
 
 class SpectrumResponse(BaseModel):
@@ -1779,11 +1785,35 @@ def create_app() -> FastAPI:
             label=f"P_{n},{l}(r) = r^2 R^2",
             provenance=rw.provenance,
         )
+        # Momentum scales as Z mu / n where r scales as n^2 / (Z mu), and the
+        # s-state tail falls as p^-6, under 1e-4 of the peak by 12 Z mu / n.
+        p_grid = np.linspace(0.0, 12.0 * sys_.Z * mu / n, points)
+        fp = momentum_wavefunction(n, l, p_grid, Z=sys_.Z, mu_ratio=mu)
+        momentum = Field(
+            values=p_grid * p_grid * fp.values**2,
+            grid=p_grid,
+            unit="(hbar/bohr)^-1",
+            grid_unit="hbar/bohr",
+            label=f"Pi_{n},{l}(p) = p^2 F^2",
+            provenance=fp.provenance,
+        )
+        p_rms = Quantity(
+            value=sys_.Z * mu / n,
+            unit="hbar/bohr",
+            label="sqrt(<p^2>)",
+            provenance=Provenance(
+                fidelity=Fidelity.EXACT,
+                method="virial theorem: <p^2> = 2 mu <T> = -2 mu E_n = (Z mu / n)^2",
+                assumptions=fp.provenance.assumptions,
+            ),
+        )
         return RadialResponse(
             n=n, l=l, system=SystemModel.from_system(sys_),
             r_wavefunction=FieldModel.from_field(rw),
             radial_probability=FieldModel.from_field(p),
             density_comparison=_comparison(),
+            momentum_probability=FieldModel.from_field(momentum),
+            momentum_rms=QuantityModel.from_quantity(p_rms),
         )
 
     def _resolve_zoom(

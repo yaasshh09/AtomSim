@@ -193,6 +193,18 @@ def test_radial_endpoint_fields(client):
     assert np.trapezoid(p, g) == pytest.approx(1.0, abs=5e-3)  # P(r) normalized
 
 
+def test_radial_endpoint_momentum_distribution(client):
+    body = client.get("/api/radial/3/1?system=he%2B&points=400").json()
+    mp, rms = body["momentum_probability"], body["momentum_rms"]
+    g, v = np.array(mp["grid"]), np.array(mp["values"])
+    assert mp["provenance"]["fidelity"] == "exact"
+    assert np.trapezoid(v, g) == pytest.approx(1.0, abs=1e-3)  # the window holds it all
+    mu = body["system"]["mu_ratio"]["value"]
+    assert rms["value"] == pytest.approx(2.0 * mu / 3.0, rel=1e-12)  # Z mu / n
+    # Atoms have no closed form, so they get null, not a guess.
+    assert client.get("/api/radial/3/0?system=na").json()["momentum_probability"] is None
+
+
 def test_spectrum_endpoint_with_comparison(client):
     body = client.get("/api/spectrum?system=h&n_max=6").json()
     assert body["reference_citation"] and "NIST" in body["reference_citation"]
