@@ -9,7 +9,7 @@ ground truth the numerical radial solver is validated against.
 import math
 
 import numpy as np
-from scipy.special import eval_genlaguerre
+from scipy.special import eval_gegenbauer, eval_genlaguerre
 
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 
@@ -90,6 +90,50 @@ def radial_wavefunction(
             method="closed-form R_nl (normalized generalized-Laguerre form)",
             assumptions=_EXACT_ASSUMPTIONS
             + ("float64 Laguerre evaluation reliable for n <= 20",),
+        ),
+    )
+
+
+def momentum_wavefunction(
+    n: int, l: int, p: np.ndarray, Z: int = 1, mu_ratio: float = 1.0
+) -> Field:
+    """The normalized momentum-space radial function F_nl(p), p in hbar/bohr.
+
+    Podolsky-Pauling (1929), as in Bethe-Salpeter eq. 8.8, with q = n p / (Z mu'):
+    F_nl = (Z mu')^(-3/2) sqrt((2/pi) (n-l-1)!/(n+l)!) n^2 2^(2l+2) l!
+           q^l / (q^2+1)^(l+2) C^(l+1)_{n-l-1}((q^2-1)/(q^2+1)).
+    The full wavefunction is phi_nlm(p) = (-i)^l F_nl(p) Y_lm(p_hat); F is the
+    spherical Bessel transform sqrt(2/pi) int j_l(p r) R_nl(r) r^2 dr, sign
+    included, and the test suite checks it against that transform.
+    """
+    validate_quantum_numbers(n, l)
+    _validate_physical(Z, mu_ratio)
+    grid = np.asarray(p, dtype=float)
+    p0 = Z * mu_ratio
+    q = n * grid / p0
+    q2 = q * q
+    norm = (
+        p0**-1.5
+        * math.sqrt(2.0 / math.pi * math.factorial(n - l - 1) / math.factorial(n + l))
+        * n**2 * 2 ** (2 * l + 2) * math.factorial(l)
+    )
+    values = (
+        norm * q**l / (q2 + 1.0) ** (l + 2)
+        * eval_gegenbauer(n - l - 1, l + 1, (q2 - 1.0) / (q2 + 1.0))
+    )
+    return Field(
+        values=values,
+        grid=grid,
+        unit="(hbar/bohr)^-3/2",
+        grid_unit="hbar/bohr",
+        label=f"F_{n},{l}(p) (Z={Z}, mu/m_e={mu_ratio:g})",
+        provenance=Provenance(
+            fidelity=Fidelity.EXACT,
+            method=(
+                "closed-form Podolsky-Pauling F_nl(p) (Gegenbauer form); "
+                "phase (-i)^l of phi_nlm dropped, F itself is real"
+            ),
+            assumptions=_EXACT_ASSUMPTIONS,
         ),
     )
 
