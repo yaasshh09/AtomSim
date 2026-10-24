@@ -3784,3 +3784,29 @@ figure.plot:fullscreen > svg {
 .plane-stack.on-light .node-marks line {
   stroke: #0b62a4;
 }
+
+/* The Born-rule demo: measured counts as quiet bars, the exact P(r) on top. */
+.born-rule {
+  margin: 1.25rem 0;
+  border-top: 1px solid var(--edge);
+  padding-top: 1rem;
+}
+
+.born-bar {
+  fill: color-mix(in srgb, var(--info) 35%, transparent);
+}
+
+.born-curve {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.born-axis {
+  stroke: var(--edge-strong);
+}
+
+.born-tick {
+  font-size: 11px;
+  fill: var(--label);
+}

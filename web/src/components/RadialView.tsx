@@ -11,6 +11,7 @@ import { toCsv } from "../lib/plotExport";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { BornRuleDemo } from "./BornRuleDemo";
 import { Disclosure } from "./Disclosure";
 import { HoverReadout, usePlotHover } from "./PlotHover";
 import { usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -501,6 +502,7 @@ export function RadialView() {
         markerLabel="⟨r⟩"
         trimTail
       />
+      <BornRuleDemo pr={radial.radial_probability} width={W} />
       {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}
       {radial.total_density && (
         <>
