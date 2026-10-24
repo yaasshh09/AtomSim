@@ -53,6 +53,7 @@ from atomsim.atoms import (
     why_no_gsz,
 )
 from atomsim.broadening import synthesize
+from atomsim.cascade import decay_cascade
 from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
@@ -105,6 +106,7 @@ from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD, TokenBuck
 from atomsim.server.result_cache import DEFAULT_MAX_BYTES, ResultCache
 from atomsim.server.schemas import (
     AbsorptionSpectrumModel,
+    CascadeModel,
     ChannelModel,
     ClassicalGhostModel,
     ComparisonModel,
@@ -2194,6 +2196,27 @@ def create_app() -> FastAPI:
         sys_ = _resolve_system(system)
         return NodeSetModel.from_nodes(
             nodes(n, l, m, Z=sys_.Z, mu_ratio=sys_.mu_ratio.value, basis=basis)
+        )
+
+    @app.get("/api/cascade/{n}/{l}", response_model=CascadeModel)
+    def cascade_endpoint(n: int, l: int, system: str = "h") -> CascadeModel:
+        """Where an excited hydrogen-like atom goes: branches, photons, populations.
+
+        Hydrogenic rates only. A screened atom's cascade would need its rates
+        over every lower orbital, including ones its own electrons fill, so it
+        is refused rather than approximated with the hydrogen numbers.
+        """
+        _validate_state(n, l, 0)
+        if n > 10:
+            raise HTTPException(status_code=422, detail="n must be <= 10 for a cascade")
+        if _is_screened(system):
+            raise HTTPException(
+                status_code=400,
+                detail="the decay cascade is computed for hydrogen-like systems only",
+            )
+        sys_ = _resolve_system(system)
+        return CascadeModel.from_cascade(
+            decay_cascade(n, l, Z=sys_.Z, mu_ratio=sys_.mu_ratio.value)
         )
 
     @app.get("/api/og/{n}/{l}/{m}")

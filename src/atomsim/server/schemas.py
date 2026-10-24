@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from atomsim.atoms import has_gsz_parameters
 from atomsim.broadening import SyntheticSpectrum
+from atomsim.cascade import Cascade
 from atomsim.classical import BohrOrbit, ClassicalGhost
 from atomsim.constants import BOHR_RADIUS_FM
 from atomsim.constants_lab import ConstantsReport, DerivedObservable
@@ -749,4 +750,59 @@ class ComparisonModel(BaseModel):
             relative_error=c.relative_error,
             within_tolerance=c.within_tolerance,
             provenance=ProvenanceModel.from_provenance(c.provenance),
+        )
+
+
+class CascadeLevelModel(BaseModel):
+    n: int
+    l: int
+    visit_probability: QuantityModel
+    #: Null for a terminal level (1s, 2s): it has no E1 channel, so its E1
+    #: lifetime is infinite, which JSON cannot carry.
+    lifetime: QuantityModel | None
+    terminal: bool
+
+
+class CascadeBranchModel(BaseModel):
+    upper: tuple[int, int]
+    lower: tuple[int, int]
+    einstein_A: QuantityModel
+    branching_ratio: QuantityModel
+    photons: QuantityModel
+    wavelength: QuantityModel
+
+
+class CascadeModel(BaseModel):
+    start: tuple[int, int]
+    levels: list[CascadeLevelModel]
+    branches: list[CascadeBranchModel]
+    mean_settle_time: QuantityModel
+    populations: list[FieldModel]
+
+    @classmethod
+    def from_cascade(cls, c: Cascade) -> "CascadeModel":
+        q = QuantityModel.from_quantity
+        return cls(
+            start=c.start,
+            levels=[
+                CascadeLevelModel(
+                    n=lv.n, l=lv.l,
+                    visit_probability=q(lv.visit_probability),
+                    lifetime=None if lv.terminal else q(lv.lifetime),
+                    terminal=lv.terminal,
+                )
+                for lv in c.levels
+            ],
+            branches=[
+                CascadeBranchModel(
+                    upper=b.upper, lower=b.lower,
+                    einstein_A=q(b.einstein_A),
+                    branching_ratio=q(b.branching_ratio),
+                    photons=q(b.photons),
+                    wavelength=q(b.wavelength),
+                )
+                for b in c.branches
+            ],
+            mean_settle_time=q(c.mean_settle_time),
+            populations=[FieldModel.from_field(p) for p in c.populations],
         )
