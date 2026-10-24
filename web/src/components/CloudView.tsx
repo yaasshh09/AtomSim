@@ -22,6 +22,8 @@ import { nucleusCaption, nucleusSphere } from "../lib/nucleus";
 import { systemKind } from "../lib/systemKind";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { hybridLabel } from "../lib/hybrids";
+import { plyPoints, stlBinary } from "../lib/meshExport";
+import { download } from "../lib/plotExport";
 import { ISO_FRACTIONS, useAppStore } from "../state/store";
 import { AxisTriad, CloudGrid, axisArmLength, gridStep } from "./AxisTriad";
 import { Badge } from "./Badge";
@@ -270,6 +272,52 @@ export function CloudView() {
           frame={() => wrapRef.current}
           name="atomsim-point-cloud"
         />
+        <div className="zoom-buttons" role="toolbar" aria-label="3-D export">
+          {iso && (
+            <button
+              type="button"
+              title="The isosurface as binary STL, in bohr, for 3-D printing or CAD"
+              onClick={() =>
+                download(
+                  "atomsim-isosurface-bohr.stl",
+                  new Blob([stlBinary(iso.vertices, iso.triangles)], { type: "model/stl" }),
+                )
+              }
+            >
+              STL
+            </button>
+          )}
+          {positions && (
+            <button
+              type="button"
+              title="The sampled points as binary PLY, in bohr, with |psi|^2 at each"
+              onClick={() =>
+                download(
+                  "atomsim-points-bohr.ply",
+                  new Blob([plyPoints(positions, density)], { type: "application/octet-stream" }),
+                )
+              }
+            >
+              PLY
+            </button>
+          )}
+          {(positions || iso) && (
+            <button
+              type="button"
+              title="Points and surface as one binary glTF (GLB), in bohr"
+              onClick={() =>
+                void import("../lib/glbExport").then(async ({ glbScene }) =>
+                  download(
+                    "atomsim-scene-bohr.glb",
+                    new Blob([await glbScene(positions, iso)], { type: "model/gltf-binary" }),
+                  ),
+                )
+              }
+            >
+              GLB
+            </button>
+          )}
+        </div>
         <div className="surface-controls" data-tour="surface-controls">
           <label>
             Draw
