@@ -234,6 +234,10 @@ export interface RadialResponse {
    * shape whichever model the orbital plots are drawn under.
    */
   density_comparison: DensityComparison | null;
+  /** p² F(p)², the orbital's momentum distribution. Hydrogen-like only, else null. */
+  momentum_probability: FieldData | null;
+  /** √⟨p²⟩ = Zμ/n, exact. Null exactly when momentum_probability is. */
+  momentum_rms: Quantity | null;
 }
 
 export interface ShellPeak {

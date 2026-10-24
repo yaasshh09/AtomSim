@@ -4,7 +4,7 @@ import type { FieldData, Quantity, ShellPeak } from "../api/types";
 import { VIEW_LEADS } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { formatHover, nearestIndex, withinPlot } from "../lib/hover";
-import { Notation, mathTspans } from "../lib/mathText";
+import { Notation, mathParts, mathTspans } from "../lib/mathText";
 import { minorTicks } from "../lib/axis";
 import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
 import { toCsv } from "../lib/plotExport";
@@ -125,6 +125,7 @@ function FieldPlot({
   showNodes = false,
   trimTail = false,
   overlay,
+  xName = "r",
 }: {
   field: FieldData;
   /** The measured pixel width of the view. One viewBox unit is one of these. */
@@ -139,7 +140,11 @@ function FieldPlot({
   /** Window the axis to where the curve still has amplitude, disclosed below the plot. */
   trimTail?: boolean;
   overlay?: { field: FieldData; label: string; selfLabel: string };
+  /** The horizontal variable: r, or p for the momentum distribution. */
+  xName?: string;
 }) {
+  // Typeset once for the hover and the foot, which are plain strings (hbar to ℏ).
+  const xUnit = mathParts(field.grid_unit).map((part) => part.text).join("");
   /* The solver's grid runs far past the orbital: hydrogen's 3s is solved out
      to 180 bohr and is flat past about 30, so four fifths of this plot used to
      be an axis with nothing on it. The window trims to where the curve still
@@ -200,7 +205,7 @@ function FieldPlot({
   const csv = () =>
     toCsv(
       [
-        `r [${field.grid_unit}]`,
+        `${xName} [${field.grid_unit}]`,
         `${overlay ? overlay.selfLabel : field.label} [${field.unit}]`,
         ...(overlay ? [`${overlay.label} [${overlay.field.unit}]`] : []),
       ],
@@ -226,7 +231,7 @@ function FieldPlot({
   const hoverLines =
     hoverIndex >= 0
       ? [
-          `r = ${formatHover(grid[hoverIndex])} ${field.grid_unit}`,
+          `${xName} = ${formatHover(grid[hoverIndex])} ${xUnit}`,
           `${overlay ? overlay.selfLabel : "value"} = ${formatHover(values[hoverIndex])}`,
           ...(overlay && hoverIndex < overlayValues.length
             ? [`${overlay.label} = ${formatHover(overlayValues[hoverIndex])}`]
@@ -372,7 +377,7 @@ function FieldPlot({
           x={(M.left + W - M.right) / 2} y={H - 4} textAnchor="middle"
           className="axis-title"
         >
-          r [{field.grid_unit}]{logX ? " (log)" : ""}
+          {xName} [{xUnit}]{logX ? " (log)" : ""}
         </text>
         {/* The vertical axis names itself too. It was the one scale on these
             plots whose unit lived only in the caption. */}
@@ -395,7 +400,7 @@ function FieldPlot({
           />
         )}
       </svg>
-      <ZoomControls zoom={zoom} what="r" csv={csv} />
+      <ZoomControls zoom={zoom} what={xName} csv={csv} />
       {(nodes.length > 0 || didTrim) && (
         <p className="plot-foot">
           {nodes.length > 0 && (
@@ -411,7 +416,7 @@ function FieldPlot({
                   end of the payload, not the wall of the solve box. Saying
                   otherwise would assert a number nobody ever supplied. The
                   badge carries both radii. */}
-              The curve is drawn out to {formatHover(rMax)} {field.grid_unit},
+              The curve is drawn out to {formatHover(rMax)} {xUnit},
               past which it is under a thousandth of its peak. The data sent
               here runs to {formatHover(field.grid[field.grid.length - 1])}.
             </>
@@ -503,6 +508,29 @@ export function RadialView() {
         trimTail
       />
       <BornRuleDemo pr={radial.radial_probability} width={W} />
+      {radial.momentum_probability && radial.momentum_rms && (
+        <>
+          <FieldPlot
+            field={radial.momentum_probability}
+            width={W}
+            title="Π(p), how fast the electron is moving"
+            blurb="The same orbital in momentum space: probability per unit momentum. Its area is 1, like P(r)'s."
+            marker={radial.momentum_rms}
+            markerLabel="√⟨p²⟩"
+            trimTail
+            xName="p"
+          />
+          <Disclosure summary="Why a bigger orbital moves slower">
+            <p className="caption">
+              Momentum space is the Fourier transform of position space, so
+              the two trade off. Raise n and P(r) spreads out by n² while Π(p)
+              squeezes in by 1/n: a big, loose orbital is a slow one. That is
+              the uncertainty principle drawn as two curves. The marker is
+              exact, √⟨p²⟩ = Zμ/n, straight from the virial theorem.
+            </p>
+          </Disclosure>
+        </>
+      )}
       {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}
       {radial.total_density && (
         <>
