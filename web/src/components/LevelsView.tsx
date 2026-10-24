@@ -19,6 +19,7 @@ import { useAppStore } from "../state/store";
 import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { ConfigRace } from "./ConfigRace";
+import { HFvsExperiment } from "./HFvsExperiment";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -503,6 +504,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         </p>
       </Disclosure>
       <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
+      <HFvsExperiment />
     </div>
   );
 }

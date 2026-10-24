@@ -16,6 +16,7 @@ import type {
   StateResponse,
   SystemsResponse,
 } from "./types";
+import type { IonizationReference } from "../lib/hfVsExperiment";
 
 /** An /api/levels payload is hydrogenic or screened, discriminated on `orbitals`. */
 export function isScreenedLevels(
@@ -112,6 +113,10 @@ export function getState(
   return getJson(
     `/api/state/${n}/${l}/${m}?system=${key(system)}&fine_structure=${fineStructure}`,
   );
+}
+
+export function getIonizationReference(): Promise<IonizationReference> {
+  return getJson("/api/reference/ionization");
 }
 
 export function getNodes(

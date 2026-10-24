@@ -1,0 +1,180 @@
+{
+  "species": "Neutral atoms He I to Ca I: first ionization energies",
+  "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database, Ionization Energies Data, https://physics.nist.gov/asd (query: spectra=He-Ca I, units eV)",
+  "retrieved": "2026-10-24",
+  "units": "eV",
+  "note": "Measured (or NIST-evaluated) first ionization energies of the neutral ground states, with NIST's own uncertainties and bibliography keys. [Ne] = 1s2.2s2.2p6 and [Ar] = 1s2.2s2.2p6.3s2.3p6 in ground_shells. Ground term to ground term, so these include every effect a non-relativistic Hartree-Fock orbital energy leaves out: orbital relaxation, correlation, relativity, and the term splitting Hartree-Fock averages over.",
+  "atoms": [
+    {
+      "z": 2,
+      "symbol": "He",
+      "ground_shells": "1s2",
+      "ground_level": "1S0",
+      "ie_ev": 24.587389011,
+      "uncertainty_ev": 2.5e-08,
+      "references": "L17714"
+    },
+    {
+      "z": 3,
+      "symbol": "Li",
+      "ground_shells": "1s2.2s",
+      "ground_level": "2S<1/2>",
+      "ie_ev": 5.391714996,
+      "uncertainty_ev": 2.2e-08,
+      "references": "L12261"
+    },
+    {
+      "z": 4,
+      "symbol": "Be",
+      "ground_shells": "1s2.2s2",
+      "ground_level": "1S0",
+      "ie_ev": 9.322699,
+      "uncertainty_ev": 7e-06,
+      "references": "L5964"
+    },
+    {
+      "z": 5,
+      "symbol": "B",
+      "ground_shells": "1s2.2s2.2p",
+      "ground_level": "2P*<1/2>",
+      "ie_ev": 8.298019,
+      "uncertainty_ev": 3e-06,
+      "references": "L12312"
+    },
+    {
+      "z": 6,
+      "symbol": "C",
+      "ground_shells": "1s2.2s2.2p2",
+      "ground_level": "3P0",
+      "ie_ev": 11.260288,
+      "uncertainty_ev": 1.1e-06,
+      "references": "L20057"
+    },
+    {
+      "z": 7,
+      "symbol": "N",
+      "ground_shells": "1s2.2s2.2p3",
+      "ground_level": "4S*<3/2>",
+      "ie_ev": 14.53413,
+      "uncertainty_ev": 4e-05,
+      "references": "L1411"
+    },
+    {
+      "z": 8,
+      "symbol": "O",
+      "ground_shells": "1s2.2s2.2p4",
+      "ground_level": "3P<2>",
+      "ie_ev": 13.618055,
+      "uncertainty_ev": 7e-06,
+      "references": "L74,L3760"
+    },
+    {
+      "z": 9,
+      "symbol": "F",
+      "ground_shells": "1s2.2s2.2p5",
+      "ground_level": "2P*<3/2>",
+      "ie_ev": 17.42282,
+      "uncertainty_ev": 5e-05,
+      "references": "L7481,L526"
+    },
+    {
+      "z": 10,
+      "symbol": "Ne",
+      "ground_shells": "1s2.2s2.2p6",
+      "ground_level": "1S0",
+      "ie_ev": 21.564541,
+      "uncertainty_ev": 7e-06,
+      "references": "L8826,L1407"
+    },
+    {
+      "z": 11,
+      "symbol": "Na",
+      "ground_shells": "[Ne].3s",
+      "ground_level": "2S<1/2>",
+      "ie_ev": 5.13907696,
+      "uncertainty_ev": 2.5e-07,
+      "references": "L10921,L9648"
+    },
+    {
+      "z": 12,
+      "symbol": "Mg",
+      "ground_shells": "[Ne].3s2",
+      "ground_level": "1S0",
+      "ie_ev": 7.646236,
+      "uncertainty_ev": 4e-06,
+      "references": "L10635,L6969"
+    },
+    {
+      "z": 13,
+      "symbol": "Al",
+      "ground_shells": "[Ne].3s2.3p",
+      "ground_level": "2P*<1/2>",
+      "ie_ev": 5.985769,
+      "uncertainty_ev": 3e-06,
+      "references": "L7215,L10321"
+    },
+    {
+      "z": 14,
+      "symbol": "Si",
+      "ground_shells": "[Ne].3s2.3p2",
+      "ground_level": "3P0",
+      "ie_ev": 8.15168,
+      "uncertainty_ev": 3e-05,
+      "references": "L5815"
+    },
+    {
+      "z": 15,
+      "symbol": "P",
+      "ground_shells": "[Ne].3s2.3p3",
+      "ground_level": "4S*<3/2>",
+      "ie_ev": 10.486686,
+      "uncertainty_ev": 1.5e-05,
+      "references": "L5148"
+    },
+    {
+      "z": 16,
+      "symbol": "S",
+      "ground_shells": "[Ne].3s2.3p4",
+      "ground_level": "3P<2>",
+      "ie_ev": 10.3600167,
+      "uncertainty_ev": 1.4e-06,
+      "references": "L23116"
+    },
+    {
+      "z": 17,
+      "symbol": "Cl",
+      "ground_shells": "[Ne].3s2.3p5",
+      "ground_level": "2P*<3/2>",
+      "ie_ev": 12.967633,
+      "uncertainty_ev": 1.6e-05,
+      "references": "L19191"
+    },
+    {
+      "z": 18,
+      "symbol": "Ar",
+      "ground_shells": "[Ne].3s2.3p6",
+      "ground_level": "1S0",
+      "ie_ev": 15.7596119,
+      "uncertainty_ev": 5e-07,
+      "references": "L9217"
+    },
+    {
+      "z": 19,
+      "symbol": "K",
+      "ground_shells": "[Ar].4s",
+      "ground_level": "2S<1/2>",
+      "ie_ev": 4.34066373,
+      "uncertainty_ev": 9e-08,
+      "references": "L5451,L5783,L7185"
+    },
+    {
+      "z": 20,
+      "symbol": "Ca",
+      "ground_shells": "[Ar].4s2",
+      "ground_level": "1S0",
+      "ie_ev": 6.113154921,
+      "uncertainty_ev": 5e-10,
+      "references": "L22848"
+    }
+  ]
+}

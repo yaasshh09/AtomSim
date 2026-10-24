@@ -67,6 +67,7 @@ from atomsim.hf_atom import (
     pauli_collapse,
     solve_hartree_fock,
 )
+from atomsim.hf_reference import NIST_IONIZATION
 from atomsim.hybrids import HYBRIDS, evaluate_hybrid, hybrid_plane_grid, sample_hybrid
 from atomsim.isosurface import (
     GRID_SIZES,
@@ -2075,6 +2076,15 @@ def create_app() -> FastAPI:
             content=png, media_type="image/png",
             headers={"Cache-Control": "public, max-age=86400"},
         )
+
+    @app.get("/api/reference/ionization")
+    def ionization_reference() -> dict:
+        """The vendored NIST first ionization energies, He to Ca, citation and all.
+
+        Reference data rather than a result, so it carries a citation and a
+        retrieval date instead of a fidelity tier, like the NIST line lists.
+        """
+        return NIST_IONIZATION
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)
     def nodes_endpoint(

@@ -19,7 +19,23 @@ HF_REFERENCE = json.loads(
     resources.files("atomsim.data").joinpath(_FILENAME).read_text(encoding="utf-8")
 )
 
-__all__ = ["HF_REFERENCE", "load_hf_reference"]
+#: Measured first ionization energies, He to Ca, from the NIST ASD (see the file's
+#: citation and retrieval date). The experiment a Koopmans IE is held against.
+NIST_IONIZATION = json.loads(
+    resources.files("atomsim.data")
+    .joinpath("nist_ionization_energies.json")
+    .read_text(encoding="utf-8")
+)
+
+__all__ = ["HF_REFERENCE", "NIST_IONIZATION", "load_hf_reference", "nist_ionization_energy"]
+
+
+def nist_ionization_energy(z: int) -> dict:
+    """The NIST entry for one neutral atom (``ie_ev``, ``uncertainty_ev``, ...)."""
+    for atom in NIST_IONIZATION["atoms"]:
+        if atom["z"] == z:
+            return atom
+    raise KeyError(f"no vendored NIST ionization energy for Z = {z}")
 
 
 def load_hf_reference(symbol: str) -> dict:
