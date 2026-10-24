@@ -32,6 +32,7 @@ from atomsim.analytic.hydrogen import (
     validate_quantum_numbers,
 )
 from atomsim.analytic.hyperfine import hyperfine_report
+from atomsim.analytic.nodes import nodes
 from atomsim.analytic.stark import stark_sublevels
 from atomsim.analytic.wavefunction import WavefunctionValues, evaluate_state
 from atomsim.analytic.zeeman import zeeman_sublevels
@@ -113,6 +114,7 @@ from atomsim.server.schemas import (
     HFOrbitalModel,
     HFResultModel,
     LineModel,
+    NodeSetModel,
     PauliCollapseModel,
     PotentialCurveModel,
     ProfileModel,
@@ -2055,6 +2057,30 @@ def create_app() -> FastAPI:
         return Response(
             content=png, media_type="image/png",
             headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)
+    def nodes_endpoint(
+        n: int, l: int, m: int, system: str = "h", basis: str = "complex"
+    ) -> NodeSetModel:
+        """The exact nodal surfaces, hydrogen-like systems only.
+
+        A screened or Hartree-Fock orbital has nodes too, but they are zeros of a
+        numerical function; reporting them through this EXACT endpoint would
+        give them a tier they have not earned, so they are refused here.
+        """
+        _validate_state(n, l, m)
+        if _is_screened(system):
+            raise HTTPException(
+                status_code=400,
+                detail="exact nodes exist only for the hydrogen-like systems; a "
+                "many-electron orbital's nodes are zeros of a numerical function",
+            )
+        if basis not in ("complex", "real"):
+            raise HTTPException(status_code=422, detail=f"unknown basis {basis!r}")
+        sys_ = _resolve_system(system)
+        return NodeSetModel.from_nodes(
+            nodes(n, l, m, Z=sys_.Z, mu_ratio=sys_.mu_ratio.value, basis=basis)
         )
 
     @app.get("/api/og/{n}/{l}/{m}")

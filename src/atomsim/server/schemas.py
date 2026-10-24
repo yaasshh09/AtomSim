@@ -390,6 +390,28 @@ class HFResultModel(BaseModel):
     channels: list[ChannelModel]
 
 
+class NodeSetModel(BaseModel):
+    """Where psi is exactly zero: spheres, cones about z, planes through z, the z axis."""
+
+    radial: list[QuantityModel]
+    cones: list[QuantityModel]
+    planes: list[QuantityModel]
+    z_axis: bool
+    basis: str
+    provenance: ProvenanceModel
+
+    @classmethod
+    def from_nodes(cls, ns) -> "NodeSetModel":
+        return cls(
+            radial=[QuantityModel.from_quantity(q) for q in ns.radial],
+            cones=[QuantityModel.from_quantity(q) for q in ns.cones],
+            planes=[QuantityModel.from_quantity(q) for q in ns.planes],
+            z_axis=ns.z_axis,
+            basis=ns.basis,
+            provenance=ProvenanceModel.from_provenance(ns.provenance),
+        )
+
+
 class VirialModel(BaseModel):
     """2<T> against <r dV/dr>, integrated from a wavefunction (see expectations.py)."""
 

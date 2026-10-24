@@ -28,6 +28,20 @@ export function stateLabel(n: number, l: number, m: number): string {
   return `${n}${letter} (m = ${m})`;
 }
 
+/**
+ * The node count, said per basis. "l angular nodes" is true of a real orbital,
+ * whose cos/sin(|m| phi) adds |m| nodal planes to the l - |m| cones. A complex
+ * one has only the cones: |e^{imphi}| = 1 never vanishes, and for m != 0 the
+ * missing nodes collapse into the z axis as a nodal line (analytic/nodes.py).
+ */
+export function nodeSummary(n: number, l: number, m: number, basis: "complex" | "real"): string {
+  const radial = `${n - l - 1} radial`;
+  if (basis === "real") return `${radial} · ${l} angular`;
+  const cones = l - Math.abs(m);
+  const coneText = `${cones} ${cones === 1 ? "cone" : "cones"}`;
+  return m === 0 ? `${radial} · ${coneText}` : `${radial} · ${coneText} + the z axis`;
+}
+
 export function clampState(n: number, l: number, m: number): { n: number; l: number; m: number } {
   const cn = Math.max(1, Math.round(n));
   const cl = Math.min(Math.max(0, Math.round(l)), cn - 1);

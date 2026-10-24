@@ -85,6 +85,19 @@ export interface StateResponse {
   virial: VirialCheck | null;
 }
 
+/**
+ * Where psi is exactly zero (hydrogen-like only): sphere radii in bohr, cone
+ * polar angles and plane azimuths in radians, and whether the z axis is a nodal line.
+ */
+export interface NodeSet {
+  radial: Quantity[];
+  cones: Quantity[];
+  planes: Quantity[];
+  z_axis: boolean;
+  basis: string;
+  provenance: Provenance;
+}
+
 /** 2<T> against <r dV/dr>, integrated from a wavefunction; residual 0 for an eigenstate. */
 export interface VirialCheck {
   kinetic: Quantity;

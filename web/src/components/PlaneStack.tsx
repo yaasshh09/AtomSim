@@ -23,6 +23,7 @@ export function PlaneStack({
   csv,
   name,
   light = false,
+  overlay,
   children,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -33,6 +34,8 @@ export function PlaneStack({
   name: string;
   /** The raster is mostly near-white (the diverging maps), so draw the grid dark. */
   light?: boolean;
+  /** Extra marks drawn in bohr, given the overlay's x and z scales (viewBox units). */
+  overlay?: (x: (bohr: number) => number, z: (bohr: number) => number) => ReactNode;
   /** Status lines drawn over the frame (computing..., errors). */
   children?: ReactNode;
 }) {
@@ -74,6 +77,7 @@ export function PlaneStack({
                   {t}
                 </text>
               ))}
+              {overlay?.(x, z)}
               <text x={S - 14} y={S - 52} textAnchor="end" className="plane-grid-label">
                 x [bohr]
               </text>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampState, isValidState, realOrbitalLabel, stateLabel } from "./quantum";
+import { clampState, isValidState, nodeSummary, realOrbitalLabel, stateLabel } from "./quantum";
 
 describe("isValidState", () => {
   it("accepts physical states", () => {
@@ -47,5 +47,14 @@ describe("realOrbitalLabel", () => {
     expect(realOrbitalLabel(4, 0)).toBe("g(m=0)");
     expect(realOrbitalLabel(4, 2)).toBe("g(m=+2, cos)");
     expect(realOrbitalLabel(4, -2)).toBe("g(m=-2, sin)");
+  });
+});
+
+describe("nodeSummary", () => {
+  it("counts l angular nodes only for real orbitals", () => {
+    expect(nodeSummary(3, 2, 1, "real")).toBe("0 radial · 2 angular");
+    expect(nodeSummary(3, 2, 1, "complex")).toBe("0 radial · 1 cone + the z axis");
+    expect(nodeSummary(3, 2, 0, "complex")).toBe("0 radial · 2 cones");
+    expect(nodeSummary(4, 1, 0, "complex")).toBe("2 radial · 1 cone");
   });
 });

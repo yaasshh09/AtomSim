@@ -1,12 +1,54 @@
-import { useEffect, useRef } from "react";
-import { currentCaption } from "../lib/explain";
+import { useEffect, useRef, useState } from "react";
+import { getNodes } from "../api/client";
+import type { NodeSet } from "../api/types";
+import { currentCaption, nodeCaption } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { Notation } from "../lib/mathText";
 import { toCsv } from "../lib/plotExport";
 import { rasterize } from "../lib/rasterize";
+import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { PlaneStack } from "./PlaneStack";
+
+/**
+ * The exact nodes where they cut this slice. A sphere is a circle, a cone about
+ * z is two rays at ±theta from +z, and a nodal plane through z meets y = 0 only
+ * along the z axis, unless it is y = 0 itself (the sin-type real orbitals), which
+ * the caption says instead of drawing.
+ */
+export function NodeMarks({
+  nodes,
+  x,
+  z,
+  reach,
+}: {
+  nodes: NodeSet;
+  x: (b: number) => number;
+  z: (b: number) => number;
+  reach: number;
+}) {
+  const axis = nodes.z_axis || nodes.planes.some((p) => Math.abs(Math.sin(p.value)) > 1e-9);
+  return (
+    <g className="node-marks" aria-hidden="true">
+      {nodes.radial.map((q) => (
+        <circle key={q.label} cx={x(0)} cy={z(0)} r={x(q.value) - x(0)} />
+      ))}
+      {nodes.cones.flatMap((q) =>
+        [1, -1].map((side) => (
+          <line
+            key={`${q.label}${side}`}
+            x1={x(0)}
+            y1={z(0)}
+            x2={x(side * reach * Math.sin(q.value))}
+            y2={z(reach * Math.cos(q.value))}
+          />
+        )),
+      )}
+      {axis && <line x1={x(0)} y1={z(-reach)} x2={x(0)} y2={z(reach)} />}
+    </g>
+  );
+}
 
 export function PlaneView() {
   const {
@@ -14,6 +56,23 @@ export function PlaneView() {
     error, loadPlane, setPlaneQuantity,
   } = useAppStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const systems = useAppStore((st) => st.systems);
+  const hydrogenic = isHydrogenic(systems, system);
+  const [showNodes, setShowNodes] = useState(false);
+  const [nodes, setNodes] = useState<NodeSet | null>(null);
+
+  useEffect(() => {
+    setNodes(null);
+    if (!showNodes || !hydrogenic) return;
+    let live = true;
+    getNodes(n, l, m, system, basis).then(
+      (ns) => live && setNodes(ns),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [showNodes, hydrogenic, n, l, m, system, basis]);
 
   useEffect(() => {
     if (!plane && planeStatus === "idle") void loadPlane();
@@ -69,6 +128,16 @@ export function PlaneView() {
             current j
           </button>
         </div>
+        <button
+          type="button"
+          className={showNodes ? "ghost seg-on" : "ghost"}
+          aria-pressed={showNodes}
+          onClick={() => setShowNodes((v) => !v)}
+          title="Mark where psi is exactly zero"
+        >
+          nodes
+        </button>
+        {showNodes && nodes && <Badge provenance={nodes.provenance} />}
       </div>
       <PlaneStack
         canvasRef={canvasRef}
@@ -76,6 +145,13 @@ export function PlaneView() {
         resolution={plane?.meta.resolution ?? 0}
         name={`atomsim-plane-${planeQuantity}`}
         light={plane ? plane.meta.quantity !== "density" : false}
+        overlay={
+          showNodes && nodes && plane
+            ? (x, z) => (
+                <NodeMarks nodes={nodes} x={x} z={z} reach={2 * plane.meta.half_extent} />
+              )
+            : undefined
+        }
         csv={
           plane
             ? () => {
@@ -108,6 +184,15 @@ export function PlaneView() {
           ) : (
             <Notation>{currentCaption(basis, plane.meta.m)}</Notation>
           )}
+        </p>
+      )}
+      {showNodes && nodes && <p className="caption">{nodeCaption(nodes)}</p>}
+      {showNodes && !hydrogenic && (
+        <p className="caption">
+          Exact nodes are drawn for the hydrogen-like systems only. A many-electron
+          orbital has nodes too, but they are zeros of a numerical function, and
+          drawing them with the same dashed line would give them a tier they have not
+          earned.
         </p>
       )}
       {plane?.meta.model === "hf" && <p className="caption">{HF_ORBITAL_CAPTION}</p>}

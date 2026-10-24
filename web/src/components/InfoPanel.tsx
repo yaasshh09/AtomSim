@@ -1,6 +1,6 @@
 import { Fragment, useEffect } from "react";
 import { Notation } from "../lib/mathText";
-import { realOrbitalLabel, stateLabel } from "../lib/quantum";
+import { nodeSummary, realOrbitalLabel, stateLabel } from "../lib/quantum";
 import { informativeEnd, sparkBars } from "../lib/spark";
 import { isHydrogenic } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
@@ -133,9 +133,7 @@ export function InfoPanel() {
           </dt>
           <dd>{stateInfo.angular_momentum.value.toFixed(3)} ℏ</dd>
           <dt>Nodes</dt>
-          <dd>
-            {stateInfo.radial_nodes} radial · {stateInfo.angular_nodes} angular
-          </dd>
+          <dd>{nodeSummary(n, l, m, basis)}</dd>
           {sys?.nuclear_radius_fm ? (
             <>
               <dt>

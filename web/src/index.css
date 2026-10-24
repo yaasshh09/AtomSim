@@ -3769,3 +3769,18 @@ figure.plot:fullscreen > svg {
 .race-table {
   margin: 0.75rem 0;
 }
+
+/* Exact nodes over the plane: dashed so they read as "zero here", never as data. */
+.node-marks circle,
+.node-marks line {
+  fill: none;
+  stroke: #7dd3fc;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.plane-stack.on-light .node-marks circle,
+.plane-stack.on-light .node-marks line {
+  stroke: #0b62a4;
+}

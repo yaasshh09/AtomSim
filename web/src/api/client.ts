@@ -8,6 +8,7 @@ import type {
   JobMeta,
   LevelsResponse,
   ManyElectronParams,
+  NodeSet,
   RadialResponse,
   ScreenedLevels,
   CurveOfGrowthInfo,
@@ -111,6 +112,16 @@ export function getState(
   return getJson(
     `/api/state/${n}/${l}/${m}?system=${key(system)}&fine_structure=${fineStructure}`,
   );
+}
+
+export function getNodes(
+  n: number,
+  l: number,
+  m: number,
+  system: string,
+  basis: Basis,
+): Promise<NodeSet> {
+  return getJson(`/api/nodes/${n}/${l}/${m}?system=${key(system)}&basis=${basis}`);
 }
 
 export function getRadial(

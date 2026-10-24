@@ -1,3 +1,4 @@
+import type { NodeSet } from "../api/types";
 /**
  * Plain-English scaffolding for the instrument views.
  *
@@ -364,3 +365,29 @@ export function virialVerdict(residual: number): string {
     : `${shown}, fails: not a converged eigenstate (squeezed by the box or under-resolved)`;
 }
 
+/** Degrees, for a caption: 54.7° reads where 0.9553 rad does not. */
+const deg = (rad: number) => `${((rad * 180) / Math.PI).toFixed(1)}°`;
+
+/** What the node overlay shows, in words, so a dashed line is never a mystery. */
+export function nodeCaption(nodes: NodeSet): string {
+  const parts: string[] = [];
+  if (nodes.radial.length) {
+    parts.push(`spheres at r = ${nodes.radial.map((q) => q.value.toFixed(2)).join(", ")} bohr`);
+  }
+  if (nodes.cones.length) {
+    parts.push(`cones at θ = ${nodes.cones.map((q) => deg(q.value)).join(", ")} from +z`);
+  }
+  if (nodes.z_axis) parts.push("the z axis, a nodal line");
+  if (nodes.planes.length) {
+    parts.push(
+      `${nodes.planes.length} plane${nodes.planes.length > 1 ? "s" : ""} through z at φ = ` +
+        nodes.planes.map((q) => deg(q.value)).join(", "),
+    );
+  }
+  const slice = nodes.planes.some((p) => Math.abs(Math.sin(p.value)) < 1e-9)
+    ? " One nodal plane is y = 0 itself, so ψ is zero everywhere on this slice: the blank picture is the answer."
+    : "";
+  return parts.length
+    ? `Dashed: where ψ is exactly zero, ${parts.join("; ")}.${slice}`
+    : "This state has no nodes at all: ψ is zero nowhere.";
+}
