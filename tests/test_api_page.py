@@ -25,5 +25,5 @@ def test_the_quoted_limits_are_the_server_defaults():
     from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD
 
     assert f"burst of {DEFAULT_CAPACITY}" in PAGE
-    assert "one\n        job every three seconds" in PAGE or "job every three seconds" in PAGE
+    assert "job every three seconds" in PAGE
     assert DEFAULT_PERIOD / DEFAULT_CAPACITY == 3.0
