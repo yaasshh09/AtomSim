@@ -9,6 +9,7 @@ import { LevelsView } from "./components/LevelsView";
 import { MobileSheet } from "./components/MobileSheet";
 import { PlaneView } from "./components/PlaneView";
 import { RadialView } from "./components/RadialView";
+import { ReproduceInPython } from "./components/ReproduceInPython";
 import { SpectrumView } from "./components/SpectrumView";
 import { TopBar } from "./components/TopBar";
 import { TourInvite } from "./components/TourInvite";
@@ -54,6 +55,7 @@ function Stage() {
       {view === "evolve" && <EvolveView />}
       {view === "whatif" && <WhatIfView />}
       {view === "forcelaw" && <ForceLawView />}
+      <ReproduceInPython />
     </>
   );
 }

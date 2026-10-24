@@ -137,6 +137,7 @@ from atomsim.server.thumbnails import (
     render_thumbnail,
     state_title,
 )
+from atomsim.snippets import snippet
 from atomsim.spectra import (
     compare_lines,
     load_reference,
@@ -2076,6 +2077,29 @@ def create_app() -> FastAPI:
             content=png, media_type="image/png",
             headers={"Cache-Control": "public, max-age=86400"},
         )
+
+    @app.get("/api/snippet")
+    def snippet_endpoint(
+        view: str = "cloud", n: int = 1, l: int = 0, m: int = 0, system: str = "h",
+        basis: Literal["complex", "real"] = "complex", model: Literal["gsz", "hf"] = "gsz",
+        hybrid: str | None = None, plane: Literal["density", "psi", "current"] = "density",
+        count: int = Query(default=100_000, ge=1_000, le=1_000_000),
+        sup: list[str] = Query(default=[]),
+    ) -> dict[str, str]:
+        """The Python that reproduces this view (see snippets.py, whose tests run it)."""
+        _validate_state(n, l, m)
+        if not is_atom_key(system):
+            _resolve_system(system)  # a 422 now beats a snippet that cannot run
+        if hybrid is not None and hybrid not in HYBRIDS:
+            raise HTTPException(status_code=422, detail=f"unknown hybrid {hybrid!r}")
+        try:
+            code = snippet(
+                view, n=n, l=l, m=m, system=system, basis=basis, model=model,
+                hybrid=hybrid, plane=plane, count=count, sup=sup or None,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"code": code}
 
     @app.get("/api/reference/ionization")
     def ionization_reference() -> dict:

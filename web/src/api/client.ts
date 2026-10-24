@@ -115,6 +115,12 @@ export function getState(
   );
 }
 
+/** The Python reproducing a view, for an already-built query string (see snippets.py). */
+export async function getSnippet(query: string): Promise<string> {
+  const body = await getJson<{ code: string }>(`/api/snippet?${query}`);
+  return body.code;
+}
+
 export function getIonizationReference(): Promise<IonizationReference> {
   return getJson("/api/reference/ionization");
 }
