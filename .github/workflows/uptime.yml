@@ -1,0 +1,24 @@
+# Is the public site up? GitHub emails the repository owner when this fails.
+#
+# Every six hours, not every five minutes. The machine suspends when idle
+# (fly.toml), and any request wakes it: a frequent probe would keep it awake for
+# good and quietly cancel the suspension the deployment is built around. Four
+# wake-ups a day cost seconds of machine time and still catch an outage the
+# same day.
+name: uptime
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the API for its health
+        # Retries cover the resume from suspend, which can take a few seconds.
+        run: |
+          body=$(curl -fsS --retry 4 --retry-delay 15 --max-time 60 https://atomsim.fly.dev/api/health)
+          echo "$body"
+          echo "$body" | grep -q '"status":"ok"'

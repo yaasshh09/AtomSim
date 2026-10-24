@@ -2,7 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { COUNT_CHOICES } from "./components/Controls";
+import { getVersion } from "./api/client";
 import { installAnalytics } from "./lib/analytics";
+import { installErrorReporter } from "./lib/errorReport";
 import { shouldAutoSample } from "./lib/startup";
 import { currentUrlState, isNewPlace, parseAppUrl, serializeAppUrl } from "./lib/urlState";
 import { isNarrow } from "./lib/viewport";
@@ -19,6 +21,8 @@ import "./index.css";
 // set at build time, which the dev server and a plain `npm run build` never
 // do.
 installAnalytics(import.meta.env.VITE_GOATCOUNTER, document);
+// Production only: in development the console already is the report.
+if (import.meta.env.PROD) installErrorReporter(getVersion);
 
 // A phone opens on the smallest sample rather than on 100,000 points, which a
 // mid-range mobile GPU will not enjoy. A starting value only: every count stays

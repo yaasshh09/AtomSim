@@ -15,6 +15,7 @@ simply not evicting, which is the honest failure: too much memory beats a job
 that vanishes mid-flight.
 """
 
+import logging
 import threading
 import uuid
 from collections import OrderedDict
@@ -22,6 +23,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 #: How many finished jobs the store keeps. 16 x 20 MB is the worst case
 #: (sixteen consecutive requests at the million-point ceiling); 16 x 1.2 MB is
@@ -123,6 +126,9 @@ class JobStore:
         except Exception as exc:  # the honest failure: surface type + message
             job.error = f"{type(exc).__name__}: {exc}"
             job.status = JobStatus.ERROR
+            # The client gets the message; the host gets the traceback, which is
+            # the only copy anyone can debug from once the job is evicted.
+            logger.exception("job %s failed", job_id)
         else:
             job.progress = 1.0
             job.status = JobStatus.DONE

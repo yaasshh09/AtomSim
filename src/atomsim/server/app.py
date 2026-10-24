@@ -368,6 +368,16 @@ class LevelsResponse(BaseModel):
     hyperfine_shells: list[HyperfineShellModel] | None = None
 
 
+class ClientErrorReport(BaseModel):
+    """A browser-side crash. Capped so a report cannot be used to fill the log."""
+
+    message: str = PydanticField(max_length=500)
+    stack: str | None = PydanticField(default=None, max_length=4000)
+    #: The page path, without the query string: the app state is not needed to debug.
+    page: str = PydanticField(default="", max_length=200)
+    version: str = PydanticField(default="", max_length=40)
+
+
 class StateResponse(BaseModel):
     n: int
     l: int
@@ -1299,6 +1309,28 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": atomsim.__version__}
+
+    #: Its own small bucket: an error report costs no CPU, but a page stuck in an
+    #: error loop must not be able to fill the host's log.
+    error_reports = TokenBucket(capacity=5, period=300.0)
+
+    @app.post("/api/client-error", status_code=204)
+    def client_error(report: ClientErrorReport, request: Request) -> Response:
+        """A browser-side crash, written to the log as one line and kept nowhere else."""
+        if error_reports.check(_client_key(request, client_ip_header)) is not None:
+            return Response(status_code=429)
+
+        def flat(text: str) -> str:
+            # One line per report, whatever the report contains: a newline in a
+            # stack would otherwise let a client write lines that look like ours.
+            return " | ".join(text.splitlines())
+
+        logger.warning(
+            "client error on %s (version %s): %s :: %s",
+            flat(report.page), flat(report.version), flat(report.message),
+            flat(report.stack or ""),
+        )
+        return Response(status_code=204)
 
     @app.get("/api/systems", response_model=SystemsResponse)
     def systems() -> SystemsResponse:
