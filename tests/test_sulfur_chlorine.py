@@ -57,8 +57,8 @@ def test_sulfur_and_chlorine_are_atoms_the_app_knows():
 
 
 def test_they_are_not_atoms_the_screened_model_can_speak_for():
-    """The capability list is separate now, and still excludes exactly two."""
-    assert set(ATOM_KEYS) - set(GSZ_ATOM_KEYS) == {"s", "cl"}
+    """The capability list is separate now: two gaps in the table, two past its end."""
+    assert set(ATOM_KEYS) - set(GSZ_ATOM_KEYS) == {"s", "cl", "k", "ca"}
     assert not has_gsz_parameters(16)
     assert not has_gsz_parameters(17)
     assert has_gsz_parameters(18)  # argon is tabulated, sulfur's neighbour is not
@@ -68,7 +68,7 @@ def test_the_gsz_list_did_not_otherwise_change():
     """A guard on the split: nothing else gained or lost parameters."""
     assert GSZ_ATOM_KEYS[0] == "he" and GSZ_ATOM_KEYS[-1] == "ar"
     assert len(GSZ_ATOM_KEYS) == 15
-    assert len(ATOM_KEYS) == 17
+    assert len(ATOM_KEYS) == 19
 
 
 # --- the server refuses the screened model, with the reason ----------------

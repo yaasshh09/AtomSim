@@ -204,6 +204,7 @@ ELEMENTS: tuple[Element, ...] = (
     Element(13, "Al", "Aluminium", 26.981538), Element(14, "Si", "Silicon", 28.085),
     Element(15, "P", "Phosphorus", 30.973762), Element(16, "S", "Sulfur", 32.06),
     Element(17, "Cl", "Chlorine", 35.45), Element(18, "Ar", "Argon", 39.95),
+    Element(19, "K", "Potassium", 39.0983), Element(20, "Ca", "Calcium", 40.078),
 )
 
 _BY_SYMBOL = {e.symbol: e for e in ELEMENTS}
@@ -218,9 +219,14 @@ _BY_Z = {e.z: e for e in ELEMENTS}
 # This set bounds the GSZ model, not the engine. Hartree-Fock builds its own
 # potential out of the orbitals it is solving for, so it needs no fitted table,
 # and hf_atom.solve_hartree_fock runs sulfur and chlorine like any other atom.
-NO_GSZ_PARAMETERS: frozenset[int] = frozenset({16, 17})  # S, Cl
+#
+# Potassium and calcium are past the end of the table rather than gaps in it:
+# Szydlik and Green stop at argon. They are offered for the same reason sulfur
+# and chlorine are, and they became reachable once Hartree-Fock's starting
+# field could carry a 4s (see hf_atom._thomas_fermi_latter).
+NO_GSZ_PARAMETERS: frozenset[int] = frozenset({16, 17, 19, 20})  # S, Cl, K, Ca
 
-# Every nameable many-electron atom, neutral He..Ar. Membership means "this key
+# Every nameable many-electron atom, neutral He..Ca. Membership means "this key
 # identifies an atom", and nothing more.
 #
 # It used to mean "this key selects the screened model" as well, and the two
@@ -247,6 +253,19 @@ GSZ_ATOM_KEYS: tuple[str, ...] = tuple(
 def has_gsz_parameters(z: int) -> bool:
     """Whether Szydlik and Green fitted this element. See NO_GSZ_PARAMETERS."""
     return z not in NO_GSZ_PARAMETERS
+
+
+def why_no_gsz(z: int) -> str:
+    """The sentence a refusal or a description owes the reader, per element."""
+    if z > 18:
+        return (
+            "Szydlik and Green, Phys. Rev. A 9, 1885 (1974), tabulate neutral "
+            "atoms only as far as argon"
+        )
+    return (
+        "Szydlik and Green, Phys. Rev. A 9, 1885 (1974), tabulate neutral He to "
+        "P and Ar and skip Z = 16 and 17"
+    )
 
 
 def element_by_symbol(sym: str) -> Element:

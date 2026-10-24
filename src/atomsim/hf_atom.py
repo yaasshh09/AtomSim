@@ -298,22 +298,50 @@ def hf_mesh(z: int, n_electrons: int, n_top: int, refinement: int = 1) -> Radial
     return mesh_for_atom_at_step(z, r_max, _MESH_STEP / refinement)
 
 
+def _thomas_fermi_latter(z: int, n_electrons: int):
+    """-Z_eff(r)/r with Z_eff = max(Z phi(r/b), Z - N + 1): the universal screened field.
+
+    phi is Moliere's three-exponential fit to the Thomas-Fermi function and
+    b = 0.8853 Z^(-1/3) bohr is the Thomas-Fermi length; Latter's floor stops the
+    screening at the ion's net charge, so the tail is -(Z - N + 1)/r and not
+    zero. Every constant here is universal, the same for every Z, so this
+    invents no per-element parameter, which is the property the bare nucleus
+    was chosen for.
+
+    It replaced the bare nucleus above argon. -Z/r put potassium's 4s guess at
+    -11.3 hartree against a converged -0.147, and the SCF could not screen a
+    guess that far outward; from this field the same solve converges in seconds
+    to -599.1623 hartree (Hartree-Fock limit -599.1648). Only the starting point
+    changed: the converged orbitals are the fixed point's, not the guess's.
+    """
+    b = 0.8853 * z ** (-1.0 / 3.0)
+    floor = float(max(z - n_electrons + 1, 1))
+
+    def v(rr):
+        r = np.asarray(rr, dtype=float)
+        x = r / b
+        phi = 0.35 * np.exp(-0.3 * x) + 0.55 * np.exp(-1.2 * x) + 0.10 * np.exp(-6.0 * x)
+        return -np.maximum(z * phi, floor) / r
+
+    return v
+
+
 def _start_potential(z: int, n_electrons: int):
     """The central field the first guess is drawn from.
 
-    GSZ where Szydlik and Green fitted it, and the bare nucleus otherwise. That
-    bare-nucleus fallback is what makes sulfur and chlorine runnable at all:
-    their GSZ parameters were never published, and a hydrogenic guess at
-    Z_eff = Z - N + 1 = 1 would start every core orbital an order of magnitude
-    too diffuse. Starting from -Z/r errs the other way, too contracted, which the
-    SCF screens outward, and it invents no parameter.
+    GSZ where Szydlik and Green fitted it, and the Thomas-Fermi-Latter field
+    otherwise (sulfur, chlorine, and everything above argon). A hydrogenic guess
+    at Z_eff = Z - N + 1 = 1 would start every core orbital an order of magnitude
+    too diffuse, and the bare nucleus, which this used to fall back to, starts
+    the outer shells far too contracted for the SCF to recover once there is a
+    4s; see _thomas_fermi_latter.
     """
     if n_electrons == 1:
         return screened_potential(z, n_electrons)  # exactly -Z/r, with no screening term
     try:
         gsz_parameters(z, n_electrons)
     except ValueError:
-        return lambda rr: -float(z) / np.asarray(rr, dtype=float)
+        return _thomas_fermi_latter(z, n_electrons)
     return screened_potential(z, n_electrons)
 
 

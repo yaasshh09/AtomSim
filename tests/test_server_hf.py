@@ -130,18 +130,28 @@ def test_an_unknown_channel_names_the_ones_that_exist(client):
     assert "P_1s" in r.json()["detail"]
 
 
-def test_a_neutral_alkali_beyond_argon_is_refused_with_the_reason(client):
-    """Potassium is a well-posed request this solver cannot answer honestly.
+def test_potassium_now_solves_and_lands_on_its_hartree_fock_limit(client):
+    """It used to be refused: the bare-nucleus guess could not carry a 4s.
 
-    The refusal has to say which part is the problem, because the obvious
-    reading - that Z is too large - is wrong, and a user who believes it would
-    not try the ions that do work.
+    -599.164787 hartree is the numerical Hartree-Fock limit (Bunge et al.,
+    At. Data Nucl. Data Tables 53, 113 (1993)); the solve has to land on it
+    inside its own error bar, not merely converge to something.
     """
-    r = client.post("/api/jobs/hf", json={"z": 19})
+    _, meta = _run(client, z=19)
+    assert meta["symbol"] == "K" and meta["config"].endswith("4s1")
+    e = meta["total_energy"]
+    assert abs(e["value"] - (-599.164787)) <= max(e["provenance"]["error_estimate"], 3e-3)
+
+
+def test_an_n5_configuration_is_refused_with_the_reason(client):
+    """The cap moved to n = 4, and the refusal still says which part is the problem."""
+    r = client.post(
+        "/api/jobs/hf", json={"z": 18, "config": "1s2 2s2 2p6 3s2 3p5 5s1"}
+    )
     assert r.status_code == 400
     detail = r.json()["detail"]
-    assert "n = 4" in detail
-    assert "n <= 3" in detail
+    assert "n = 5" in detail
+    assert "n <= 4" in detail
 
 
 def test_an_argon_like_ion_above_argon_is_accepted(client):
@@ -150,9 +160,9 @@ def test_an_argon_like_ion_above_argon_is_accepted(client):
     If this failed, the refusal message would be describing a limit the server
     does not actually have, which is its own kind of dishonesty.
     """
-    _, meta = _run(client, z=20, n_electrons=18)
+    _, meta = _run(client, z=21, n_electrons=18)
     assert meta["symbol"] is None  # past the preset table, and says so
-    assert meta["z"] == 20 and meta["n_electrons"] == 18
+    assert meta["z"] == 21 and meta["n_electrons"] == 18
     assert meta["virial_ratio"]["value"] == pytest.approx(2.0, rel=1e-3)
 
 
@@ -172,7 +182,9 @@ def test_a_malformed_config_is_a_different_status_than_an_unsupported_one(client
     """422 means "not understood", 400 means "understood and declined"."""
     unreadable = client.post("/api/jobs/hf", json={"z": 10, "config": "1s2 2s9"})
     assert unreadable.status_code == 422
-    declined = client.post("/api/jobs/hf", json={"z": 19})
+    declined = client.post(
+        "/api/jobs/hf", json={"z": 18, "config": "1s2 2s2 2p6 3s2 3p5 5s1"}
+    )
     assert declined.status_code == 400
 
 

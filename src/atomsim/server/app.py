@@ -48,6 +48,7 @@ from atomsim.atoms import (
     parse_config,
     total_electrons,
     validate_config,
+    why_no_gsz,
 )
 from atomsim.broadening import synthesize
 from atomsim.classical import classical_ghost
@@ -667,14 +668,14 @@ class HFRequest(BaseModel):
 #
 # Measured, and NOT a statement about Z. Argon-like ions come out cleanly all
 # the way to Z = 36 (virial 2.000003 at every Z tried), and K+ and Ca2+ solve in
-# about six seconds. What defeats the solver is the 4s channel of a neutral
-# alkali: the starting potential falls back to the bare nucleus above argon,
-# which puts potassium's 4s guess at -11.3 hartree against a true -0.15, and the
-# SCF cannot screen a guess that far outward. LOBPCG then stagnates at a
-# residual 28x over its ceiling, so this is stagnation rather than a budget that
-# wants raising, and refusing up front beats letting a job die eight seconds in
-# with an eigensolver message.
-_HF_MAX_N = 3
+# about six seconds. What used to defeat the solver was the 4s channel of a
+# neutral alkali: the starting potential fell back to the bare nucleus above
+# argon, which put potassium's 4s guess at -11.3 hartree against a true -0.15,
+# and LOBPCG stagnated. The Thomas-Fermi-Latter starting field fixed that
+# (hf_atom._thomas_fermi_latter), and every neutral atom to krypton now lands
+# on its Hartree-Fock limit within the solver's own error bar. n = 5 has not
+# been exercised, so it is refused up front rather than left to fail inside a job.
+_HF_MAX_N = 4
 # As far as this has been exercised. Beyond it the answer is untested, and a
 # non-relativistic model is also getting thin: the neglected relativity is
 # already 1.8% of the 1s energy at Z = 36 (hf_atom quantifies it in the
@@ -1117,8 +1118,7 @@ def create_app() -> FastAPI:
                 status_code=400,
                 detail=(
                     f"{element.name} has no published GSZ screening parameters: "
-                    f"Szydlik and Green, Phys. Rev. A 9, 1885 (1974), tabulate "
-                    f"neutral He to P and Ar and skip Z = 16 and 17. Inventing "
+                    f"{why_no_gsz(element.z)}. Inventing "
                     f"them would mean shipping physics with no source. Ask "
                     f"for model='hf' instead: Hartree-Fock builds its potential "
                     f"out of the orbitals it is solving for and needs no fitted "
@@ -1248,7 +1248,7 @@ def create_app() -> FastAPI:
     def systems() -> SystemsResponse:
         """Every selectable system, and which models can speak for it.
 
-        All seventeen atoms are listed, including the two GSZ has no parameters
+        All nineteen atoms are listed, including the four GSZ has no parameters
         for. `has_gsz` is what tells them apart, so the client greys one control
         rather than hiding an atom that solves perfectly well; the description
         carries the same fact in words, because a greyed control with no
@@ -1261,10 +1261,15 @@ def create_app() -> FastAPI:
                     f"{element.name}: GSZ screened central-field model "
                     f"(APPROXIMATION), or self-consistent Hartree-Fock."
                 )
+            gap = (
+                "Szydlik and Green's 1974 table stops at argon"
+                if element.z > 18
+                else "Szydlik and Green never published neutral GSZ screening "
+                f"parameters for Z = {element.z}"
+            )
             return (
-                f"{element.name}: Hartree-Fock only (APPROXIMATION). Szydlik "
-                f"and Green never published neutral GSZ screening parameters "
-                f"for Z = {element.z}, and Hartree-Fock needs none."
+                f"{element.name}: Hartree-Fock only (APPROXIMATION). "
+                f"{gap}, and Hartree-Fock needs none."
             )
 
         hydrogenic = [SystemModel.from_system(s) for s in list_systems()]
