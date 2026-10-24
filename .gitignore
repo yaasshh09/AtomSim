@@ -34,3 +34,5 @@ out/
 .ruff_cache/
 .coverage
 htmlcov/
+web/test-results/
+web/playwright-report/

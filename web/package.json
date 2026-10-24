@@ -20,6 +20,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/d3-scale": "^4.0.9",
     "@types/katex": "^0.16.8",
     "@types/react": "^19.1.0",
