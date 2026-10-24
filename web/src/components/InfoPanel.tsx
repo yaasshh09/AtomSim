@@ -230,6 +230,8 @@ export function InfoPanel() {
         <a href="/terms.html">Terms</a>
         <a href="/privacy.html">Privacy</a>
         <a href="/api.html">API</a>
+        <a href="/changelog.html">What's new</a>
+        <a href="https://github.com/yaasshh09/AtomSim/issues">Feedback</a>
       </nav>
     </aside>
   );
