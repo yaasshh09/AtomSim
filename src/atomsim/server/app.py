@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, model_validator
 from pydantic import Field as PydanticField
+from scipy import constants as _sc
 
 import atomsim
 from atomsim.analytic.dirac import dirac_energy, dirac_kappa, dirac_moments, dirac_radial
@@ -55,7 +56,7 @@ from atomsim.atoms import (
 from atomsim.broadening import synthesize
 from atomsim.cascade import decay_cascade
 from atomsim.classical import classical_ghost
-from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_PM, HARTREE_EV
+from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_FM, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
 from atomsim.density_compare import compare_total_densities
 from atomsim.expectations import hydrogen_expectations, hydrogen_virial
@@ -78,6 +79,7 @@ from atomsim.isosurface import (
     isosurface,
     screened_isosurface,
 )
+from atomsim.nuclear_size import finite_size_shift, load_lamb_reference, muonic_lamb_shift
 from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import (
@@ -117,10 +119,13 @@ from atomsim.server.schemas import (
     DiracComponentModel,
     DiracRadialModel,
     FieldModel,
+    FiniteSizeLevelModel,
+    FiniteSizeModel,
     ForceLawLevelModel,
     ForceLawModel,
     HFOrbitalModel,
     HFResultModel,
+    LambPredictionModel,
     LineModel,
     NodeSetModel,
     PauliCollapseModel,
@@ -168,6 +173,7 @@ from atomsim.systems import (
 from atomsim.transfer import absorb, curve_of_growth, default_columns
 
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+_HARTREE_HZ = _sc.physical_constants["hartree-hertz relationship"][0]
 
 logger = logging.getLogger(__name__)
 
@@ -2280,6 +2286,64 @@ def create_app() -> FastAPI:
             schrodinger_mean_r=QuantityModel.from_quantity(_h(mean_radius(n, l, Z=z))),
             schrodinger_energy=QuantityModel.from_quantity(_h(energy(n, Z=z))),
             components=components,
+        )
+
+    @app.get("/api/finite-size", response_model=FiniteSizeModel)
+    def finite_size_endpoint(system: str = "h") -> FiniteSizeModel:
+        """How much the nucleus' size moves the low levels, and the proton radius puzzle."""
+        if _is_screened(system):
+            raise HTTPException(
+                status_code=400,
+                detail="the finite-size shift is computed for hydrogen-like systems only",
+            )
+        sys_ = _resolve_system(system)
+        radius = sys_.nuclear_radius
+        if radius is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{sys_.name} has no nuclear charge radius: its nucleus is a point "
+                "particle or unidentified, so there is no size to shift anything",
+            )
+        mu = sys_.mu_ratio.value
+        levels = []
+        for n, l in ((1, 0), (2, 0), (3, 0), (2, 1)):
+            q = finite_size_shift(n, l, radius, Z=sys_.Z, mu_ratio=mu)
+            levels.append(FiniteSizeLevelModel(
+                n=n, l=l,
+                shift_mhz=QuantityModel.from_quantity(
+                    _rescaled(q, _HARTREE_HZ / 1e6, "MHz", "CODATA hartree-hertz relation")
+                ),
+                shift_mev=QuantityModel.from_quantity(
+                    _rescaled(q, HARTREE_EV * 1e3, "meV", "CODATA Hartree-eV factor")
+                ),
+                fraction=q.value / abs(energy(n, Z=sys_.Z, mu_ratio=mu).value),
+            ))
+        ref = load_lamb_reference()
+        one_fm = Quantity(1.0 / BOHR_RADIUS_FM, "bohr", "1 fm", Provenance(
+            fidelity=Fidelity.EXACT, method="a unit radius, to read off the r^2 coefficient",
+        ))
+        coeff = finite_size_shift(2, 0, one_fm, mu_ratio=get_system("mu-h").mu_ratio.value)
+        predictions = [
+            LambPredictionModel(
+                key=key, source=src, radius_fm=r, radius_uncertainty_fm=dr,
+                lamb_shift=QuantityModel.from_quantity(muonic_lamb_shift(r, dr)),
+            )
+            for key, (r, dr, src) in ref.radii_fm.items()
+        ]
+        return FiniteSizeModel(
+            system=system,
+            radius_fm=QuantityModel.from_quantity(
+                _rescaled(radius, BOHR_RADIUS_FM, "fm", "CODATA Bohr radius")
+            ),
+            levels=levels,
+            coefficient_ours=QuantityModel.from_quantity(
+                _rescaled(coeff, HARTREE_EV * 1e3, "meV", "CODATA Hartree-eV factor")
+            ),
+            coefficient_published=ref.r2_coefficient[0],
+            coefficient_published_uncertainty=ref.r2_coefficient[1],
+            predictions=predictions,
+            citation=ref.citation,
+            retrieved=ref.retrieved,
         )
 
     @app.get("/api/rabi", response_model=RabiModel)

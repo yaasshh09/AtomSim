@@ -865,3 +865,34 @@ class DiracRadialModel(BaseModel):
     schrodinger_mean_r: QuantityModel
     schrodinger_energy: QuantityModel
     components: list[DiracComponentModel]
+
+
+class FiniteSizeLevelModel(BaseModel):
+    n: int
+    l: int
+    shift_mhz: QuantityModel
+    shift_mev: QuantityModel
+    #: The shift as a fraction of the level's binding energy, |dE / E_n|.
+    fraction: float
+
+
+class LambPredictionModel(BaseModel):
+    key: str
+    source: str
+    radius_fm: float
+    radius_uncertainty_fm: float
+    lamb_shift: QuantityModel
+
+
+class FiniteSizeModel(BaseModel):
+    system: str
+    radius_fm: QuantityModel
+    levels: list[FiniteSizeLevelModel]
+    #: This project's leading-order r^2 coefficient for muonic hydrogen 2S, meV/fm^2,
+    #: beside the full theory's.
+    coefficient_ours: QuantityModel
+    coefficient_published: float
+    coefficient_published_uncertainty: float
+    predictions: list[LambPredictionModel]
+    citation: str
+    retrieved: str
