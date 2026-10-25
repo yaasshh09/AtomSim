@@ -47,6 +47,12 @@
           presets and atoms from He to Ca) and which models can speak for each.
         </li>
         <li>
+          <code>/api/system/m500</code>: one system by key. Keys of the form
+          <code>m&lt;M&gt;</code> are an electron around a +1 nucleus of mass M electron
+          masses, for any M from 1 (positronium) to 10000, and work as
+          <code>system=</code> everywhere a hydrogen-like preset does.
+        </li>
+        <li>
           <code>/api/state/{n}/{l}/{m}?system=h</code>: the energy, ⟨r⟩, |L|,
           closed-form expectation values and a live virial check for one state.
         </li>

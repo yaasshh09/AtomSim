@@ -1175,7 +1175,7 @@ def create_app() -> FastAPI:
             return hydrogen_like(Z)
         try:
             return get_system(key)
-        except KeyError as exc:
+        except (KeyError, ValueError) as exc:  # ValueError: a mass key out of range
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     def _is_screened(key: str) -> bool:
@@ -1385,6 +1385,15 @@ def create_app() -> FastAPI:
             for el in (atom_for_key(k) for k in ATOM_KEYS)
         ]
         return SystemsResponse(systems=hydrogenic + screened)
+
+    @app.get("/api/system/{key}", response_model=SystemModel)
+    def system_one(key: str) -> SystemModel:
+        """One hydrogenic system by key, including the nuclear-mass family.
+
+        The table above lists the presets only: a continuum of masses cannot be
+        enumerated, so a client holding an `m<M>` key asks for it here.
+        """
+        return SystemModel.from_system(_resolve_system(key))
 
     @app.get("/api/state/{n}/{l}/{m}", response_model=StateResponse)
     def state(n: int, l: int, m: int, system: str = "h",

@@ -7,6 +7,7 @@ scale: positronium stays honest because that error is quantified, never because
 a silent wrong number is served.
 """
 
+import re
 from dataclasses import dataclass, replace
 
 from scipy import constants as _sc
@@ -189,11 +190,78 @@ _SYSTEMS: tuple[System, ...] = (
 )
 
 
+#: The nuclear-mass slider's range, in m_e: positronium's positron at the bottom,
+#: and room past tritium (5497 m_e) at the top, where mu/m_e is within 1e-4 of 1.
+MASS_RATIO_MIN = 1.0
+MASS_RATIO_MAX = 10000.0
+
+# Plain decimals only, one spelling per mass: "m1e3" and "m1000" naming the
+# same atom would split caches and URLs for no reason.
+_MASS_KEY = re.compile(r"^m(\d+(?:\.\d+)?)$")
+
+#: The three masses in range that belong to real positive particles.
+_REAL_NUCLEI = (
+    "M = 1 is a positron (positronium), M = 206.768 an antimuon (muonium) and "
+    "M = 1836.15 a proton (hydrogen); any other M is a nucleus that does not exist"
+)
+
+
+def is_mass_key(key: str) -> bool:
+    """Whether `key` names a member of the continuous nuclear-mass family."""
+    return _MASS_KEY.match(key) is not None
+
+
+def nuclear_mass_system(M: float, key: str | None = None) -> System:
+    """An electron bound to a point charge +1 of mass M m_e, for any M in range.
+
+    This is what turns the reduced-mass factor into a slider: mu/m_e = M/(1 + M)
+    runs from exactly 1/2 (positronium) to 0.99946 (hydrogen) and on toward 1.
+    The two-body Coulomb problem is still solved exactly at every M, but a
+    nucleus of a freely chosen mass is physics altered, so the tier is
+    COUNTERFACTUAL, the same call the constants lab makes for alpha. The real
+    particles at the landmarks are the presets, which carry CODATA uncertainties
+    and nuclear radii this family has no business inventing.
+    """
+    if not MASS_RATIO_MIN <= M <= MASS_RATIO_MAX:
+        raise ValueError(
+            f"nuclear mass must be in [{MASS_RATIO_MIN:g}, {MASS_RATIO_MAX:g}] m_e, got {M:g}"
+        )
+    key = key if key is not None else f"m{M:g}"
+    return System(
+        key=key,
+        name=f"Hydrogen-like, M = {M:g} mₑ",  # Unicode: a name lands in plain <option> text
+        Z=1,
+        mu_ratio=Quantity(
+            value=M / (1.0 + M),
+            unit="m_e",
+            label=f"mu/m_e (M = {M:g} m_e)",
+            provenance=Provenance(
+                fidelity=Fidelity.COUNTERFACTUAL,
+                method=f"mu/m_e = M/(1 + M) with the nuclear mass set to M = {M:g} m_e",
+                assumptions=(
+                    "an electron orbits a point particle of charge +1 and the chosen mass",
+                    _REAL_NUCLEI,
+                ),
+                error_estimate=0.0,
+            ),
+        ),
+        m_over_M=1.0 / M,
+        description=(
+            f"An electron around a +1 nucleus of mass {M:g} mₑ, on the line from "
+            "positronium (M = 1) to hydrogen (M = 1836). Exact two-body physics, "
+            "with a nucleus chosen rather than found."
+        ),
+    )
+
+
 def list_systems() -> tuple[System, ...]:
     return _SYSTEMS
 
 
 def get_system(key: str) -> System:
+    found = _MASS_KEY.match(key)
+    if found:
+        return nuclear_mass_system(float(found.group(1)), key=key)
     for s in _SYSTEMS:
         if s.key == key:
             return s
