@@ -18,6 +18,7 @@ from atomsim.constants_lab import ConstantsReport, DerivedObservable
 from atomsim.density_compare import DensityComparison
 from atomsim.populations import ThermalState
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
+from atomsim.rabi import RabiDrive
 from atomsim.spectra import LineComparison, SpectralLine
 from atomsim.systems import System
 from atomsim.transfer import AbsorbingLine, AbsorptionSpectrum, CurveOfGrowth
@@ -805,4 +806,39 @@ class CascadeModel(BaseModel):
             ],
             mean_settle_time=q(c.mean_settle_time),
             populations=[FieldModel.from_field(p) for p in c.populations],
+        )
+
+
+class RabiModel(BaseModel):
+    lower: tuple[int, int, int]
+    upper: tuple[int, int, int]
+    dipole: QuantityModel
+    rabi_frequency: QuantityModel
+    effective_frequency: QuantityModel
+    decay_rate: QuantityModel
+    return_fraction: QuantityModel
+    rwa_parameter: QuantityModel
+    #: Only for a closed pair, where every decay returns to the lower sublevel.
+    steady_excited: QuantityModel | None
+    excited: FieldModel
+    excited_undamped: FieldModel
+    lost: FieldModel
+
+    @classmethod
+    def from_drive(cls, r: RabiDrive) -> "RabiModel":
+        q = QuantityModel.from_quantity
+        f = FieldModel.from_field
+        return cls(
+            lower=r.lower,
+            upper=r.upper,
+            dipole=q(r.dipole),
+            rabi_frequency=q(r.rabi_frequency),
+            effective_frequency=q(r.effective_frequency),
+            decay_rate=q(r.decay_rate),
+            return_fraction=q(r.return_fraction),
+            rwa_parameter=q(r.rwa_parameter),
+            steady_excited=q(r.steady_excited) if r.steady_excited else None,
+            excited=f(r.excited),
+            excited_undamped=f(r.excited_undamped),
+            lost=f(r.lost),
         )

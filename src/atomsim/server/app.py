@@ -89,6 +89,7 @@ from atomsim.plane import (
 )
 from atomsim.populations import ThermalConditions
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
+from atomsim.rabi import rabi_drive
 from atomsim.sampling import (
     SampleCloud,
     sample_density,
@@ -125,6 +126,7 @@ from atomsim.server.schemas import (
     ProfileModel,
     ProvenanceModel,
     QuantityModel,
+    RabiModel,
     ReferenceItemModel,
     ReferenceModel,
     ScreenedLevelsModel,
@@ -2218,6 +2220,33 @@ def create_app() -> FastAPI:
         return CascadeModel.from_cascade(
             decay_cascade(n, l, Z=sys_.Z, mu_ratio=sys_.mu_ratio.value)
         )
+
+    @app.get("/api/rabi", response_model=RabiModel)
+    def rabi_endpoint(
+        n1: int = 1, l1: int = 0, n2: int = 2, l2: int = 1, m: int = 0,
+        intensity: float = 1e6, detuning: float = 0.0, decay: bool = True,
+        system: str = "h",
+    ) -> RabiModel:
+        """One dipole transition driven by a z-polarized laser (intensity in W/m^2,
+        detuning in MHz), hydrogen-like systems only."""
+        if max(n1, n2) > 10:
+            raise HTTPException(status_code=422, detail="n must be <= 10")
+        if not math.isfinite(detuning) or abs(detuning) > 1e6:
+            raise HTTPException(status_code=422, detail="|detuning| must be <= 1e6 MHz")
+        if _is_screened(system):
+            raise HTTPException(
+                status_code=400,
+                detail="laser driving is computed for hydrogen-like systems only",
+            )
+        sys_ = _resolve_system(system)
+        try:
+            drive = rabi_drive(
+                (n1, l1, m), (n2, l2, m), intensity, detuning_mhz=detuning,
+                Z=sys_.Z, mu_ratio=sys_.mu_ratio.value, decay=decay,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return RabiModel.from_drive(drive)
 
     @app.get("/api/og/{n}/{l}/{m}")
     def og_card(n: int, l: int, m: int, system: str = "h", basis: str = "complex") -> Response:
