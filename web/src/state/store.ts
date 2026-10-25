@@ -29,6 +29,7 @@ import {
 } from "../lib/forceLaw";
 import { manyElectronParams, resolveCompare, resolveModel } from "../lib/hfModel";
 import type { NucleusMode } from "../lib/nucleus";
+import { parseMassKey, withMassSystem } from "../lib/nuclearMass";
 import { clampState } from "../lib/quantum";
 import { isHydrogenic } from "../lib/systemKind";
 import type { Snap } from "../lib/sheet";
@@ -90,6 +91,48 @@ const N_MAX_DIAGRAM = 6;
  * `loadSystems` for who races for it.
  */
 let inFlightSystems: Promise<{ systems: SystemInfo[] }> | null = null;
+
+/**
+ * Counts nuclear-mass selections, so only the newest `/api/system` answer is
+ * applied. A slider drag can have two in flight, and the older one landing
+ * last would put the atom back where the hand already left.
+ */
+let massRequest = 0;
+
+/**
+ * Everything selecting `system` changes, given the systems table to judge it
+ * by. Pure, so a mass key can wait for its description and then land in one
+ * `set` together with it, never as a key the table cannot yet explain.
+ */
+function systemPatch(state: AppState, system: string, systems: SystemInfo[]) {
+  return {
+    system,
+    systems,
+    // Sulfur and chlorine have no GSZ parameters, so the screened model
+    // cannot draw them at all. Selecting one moves to Hartree-Fock rather
+    // than leaving a model selected under which every request is refused.
+    model: resolveModel(systems, system, state.model),
+    ...INVALIDATED,
+    // Hybrids need hydrogen's 2s/2p degeneracy, so only a one-electron system keeps one.
+    hybrid: isHydrogenic(systems, system) ? state.hybrid : null,
+    // selecting a system resets to the Aufbau ground config, which the
+    // server fills in
+    config: null,
+    classicalGhost: null,
+    classicalStatus: "idle" as SampleStatus,
+    forceLaw: null,
+    forceStatus: "idle" as SampleStatus,
+    // a solve belongs to one atom; see the comment on `hf`
+    hf: null,
+    hfStatus: "idle" as SampleStatus,
+    // and altered physics does not carry to the next atom
+    exchange: true,
+    pauli: true,
+    // nor a comparison: it is something you asked for about the atom in
+    // front of you, and the next one may not have both models.
+    compare: false,
+  };
+}
 
 interface AppState {
   n: number;
@@ -485,33 +528,27 @@ export const useAppStore = create<AppState>((set, get) => ({
         : {}),
       ...INVALIDATED,
     })),
-  setSystem: (system) =>
-    set((state) => ({
-      system,
-      // Sulfur and chlorine have no GSZ parameters, so the screened model
-      // cannot draw them at all. Selecting one moves to Hartree-Fock rather
-      // than leaving a model selected under which every request is refused.
-      model: resolveModel(state.systems, system, state.model),
-      ...INVALIDATED,
-      // Hybrids need hydrogen's 2s/2p degeneracy, so only a one-electron system keeps one.
-      hybrid: isHydrogenic(state.systems, system) ? state.hybrid : null,
-      // selecting a system resets to the Aufbau ground config, which the
-      // server fills in
-      config: null,
-      classicalGhost: null,
-      classicalStatus: "idle",
-      forceLaw: null,
-      forceStatus: "idle",
-      // a solve belongs to one atom; see the comment on `hf`
-      hf: null,
-      hfStatus: "idle" as SampleStatus,
-      // and altered physics does not carry to the next atom
-      exchange: true,
-      pauli: true,
-      // nor a comparison: it is something you asked for about the atom in
-      // front of you, and the next one may not have both models.
-      compare: false,
-    })),
+  setSystem: (system) => {
+    const token = ++massRequest;
+    const known = get().systems.some((s) => s.key === system);
+    if (parseMassKey(system) === null || known) {
+      set((state) => systemPatch(state, system, state.systems));
+      return;
+    }
+    // A nuclear-mass key is in no table, and every view gates on the table
+    // saying "hydrogenic". So the description is fetched first and the switch
+    // happens with it, rather than selecting a key nothing can explain yet.
+    client.getSystem(system).then(
+      (info) => {
+        if (token !== massRequest) return;
+        set((state) => systemPatch(state, system, withMassSystem(state.systems, info)));
+      },
+      (err) => {
+        if (token !== massRequest) return;
+        set({ error: err instanceof Error ? err.message : String(err) });
+      },
+    );
+  },
   // config is its own physics input: everything derived from it goes, and the
   // selected system stays.
   //
@@ -802,6 +839,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     // once the table saying sulfur has no GSZ parameters has arrived. This is
     // the moment it arrives, so this is where that link gets corrected.
     const { system, model } = get();
+    // A deep link to a nuclear mass names a key the table never lists, so its
+    // one entry is fetched before the table lands, and both arrive together.
+    if (parseMassKey(system) !== null) {
+      try {
+        systems = withMassSystem(systems, await client.getSystem(system));
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : String(err) });
+      }
+    }
     set({ systems, model: resolveModel(systems, system, model) });
   },
   loadStateInfo: async () => {

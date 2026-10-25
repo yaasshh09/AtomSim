@@ -212,7 +212,8 @@ const FORCE_PRESETS: ForcePreset[] = [
   "coulombcore",
   "custom",
 ];
-const SYSTEM_KEY = /^[a-z0-9+-]{1,16}$/;
+// The "." is for nuclear-mass keys such as m206.768.
+const SYSTEM_KEY = /^[a-z0-9.+-]{1,16}$/;
 
 // the short URL names for the five constant multipliers (m_e -> "me")
 const CONST_PARAMS: Record<ConstantKey, string> = {

@@ -58,3 +58,25 @@ test("the guide, the changelog and the generated reference all load", async ({ p
   const docs = await page.request.get("/openapi.json");
   expect(docs.ok()).toBe(true);
 });
+
+test("the nuclear-mass slider walks hydrogen to positronium and flags the made-up nuclei", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/?view=levels");
+  const slider = page.locator(".mass-slider input[type=range]");
+  await expect(slider).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".mass-slider")).toContainText("hydrogen, a real atom");
+  // A mass no particle has: its own key, and the badge on mu says counterfactual.
+  await slider.fill("2.699"); // log10(500) on the 0.001 step grid
+  await expect(page).toHaveURL(/system=m500(&|$)/, { timeout: 10_000 });
+  await expect(page.locator(".mass-slider .badge", { hasText: /counterfactual/i })).toBeVisible();
+  await expect(page.locator(".mass-slider")).toContainText("no such nucleus exists");
+  await expect(page.getByText(/−13\.5\d* eV/).first()).toBeVisible({ timeout: 30_000 });
+  // The bottom of the dial snaps onto the real positronium preset: half of hydrogen.
+  await slider.fill("0");
+  await expect(page).toHaveURL(/system=ps(&|$)/, { timeout: 10_000 });
+  await expect(page.getByText(/−6\.80\d* eV/).first()).toBeVisible({ timeout: 30_000 });
+  // And a deep link to a mass key opens on it.
+  await page.goto("/?system=m206.768&view=levels");
+  await expect(page.locator(".mass-slider")).toContainText("muonium, a real atom", { timeout: 30_000 });
+  expect(errors).toEqual([]);
+});

@@ -19,6 +19,7 @@ import type {
   CurveOfGrowthInfo,
   SpectrumResponse,
   StateResponse,
+  SystemInfo,
   SystemsResponse,
 } from "./types";
 import type { IonizationReference } from "../lib/hfVsExperiment";
@@ -106,6 +107,11 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 export function getSystems(): Promise<SystemsResponse> {
   return getJson("/api/systems");
+}
+
+/** One system by key: how a nuclear-mass key, which no table lists, gets described. */
+export function getSystem(key: string): Promise<SystemInfo> {
+  return getJson(`/api/system/${encodeURIComponent(key)}`);
 }
 
 export function getState(

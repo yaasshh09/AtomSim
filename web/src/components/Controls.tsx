@@ -4,11 +4,13 @@ import { compareAvailable, gszAvailable, subshellAvailable } from "../lib/hfMode
 import type { NucleusMode } from "../lib/nucleus";
 import { NUCLEUS_MODES } from "../lib/nucleus";
 import { HYBRID_FAMILIES, hybridLabel } from "../lib/hybrids";
+import { onMassLine } from "../lib/nuclearMass";
 import { N_CHOICES } from "../lib/quantum";
 import { isHydrogenic } from "../lib/systemKind";
 import { isNarrow, useViewport } from "../lib/viewport";
 import { useAppStore } from "../state/store";
 import type { ColorMode, ViewMode } from "../state/store";
+import { NuclearMassSlider } from "./NuclearMassSlider";
 import { ShowPhysics } from "./ShowPhysics";
 
 /** Exported so main.tsx can open a phone on the smallest of them rather than
@@ -104,6 +106,7 @@ export function Controls() {
           )}
         </select>
       </label>
+      {onMassLine(system) && <NuclearMassSlider />}
       {isScreened && (
         <div className="config-panel">
           <label>

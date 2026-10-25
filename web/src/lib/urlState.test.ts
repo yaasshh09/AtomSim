@@ -49,6 +49,10 @@ describe("parseAppUrl", () => {
     expect(parseAppUrl("?l=1")).toEqual({ n: 1, l: 0, m: 0 });
   });
 
+  it("keeps a nuclear-mass key, decimal point and all", () => {
+    expect(parseAppUrl("?system=m206.768").system).toBe("m206.768");
+  });
+
   it("rejects junk instead of propagating it", () => {
     expect(parseAppUrl("?view=poster")).toEqual({});
     expect(parseAppUrl("?n=abc")).toEqual({});
