@@ -166,6 +166,14 @@ _NUCLEI: dict[str, Nucleus] = {
                  _gI_from_codata("deuteron mag. mom. to nuclear magneton ratio", 1.0)),
     "t": Nucleus("triton", 0.5,
                  _gI_from_codata("triton mag. mom. to nuclear magneton ratio", 0.5)),
+    # By CPT the antiproton's moment is minus the proton's and the positron's is
+    # minus the electron's; the contact coupling goes as their product, so the
+    # splitting is hydrogen's, sign and all.
+    "anti-h": Nucleus("antiproton", 0.5,
+                      _gI_from_codata("proton mag. mom. to nuclear magneton ratio", 0.5),
+                      note="antiproton and positron moments are each the negative of "
+                           "the proton's and electron's (CPT), and the coupling goes as "
+                           "their product, so this is hydrogen's splitting"),
     "he+": Nucleus("alpha particle (He-4)", 0.0, 0.0,
                    note="I = 0: a spin-0 nucleus has no magnetic moment, so there is "
                         "no hyperfine splitting to show (He-3 would split)"),

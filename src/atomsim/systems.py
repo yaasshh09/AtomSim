@@ -7,7 +7,7 @@ scale: positronium stays honest because that error is quantified, never because
 a silent wrong number is served.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from scipy import constants as _sc
 
@@ -132,6 +132,40 @@ _POSITRONIUM = System(
     "unreliable at alpha^2 (error estimate says so).",
 )
 
+#: Why antihydrogen may borrow hydrogen's numbers, and how well that is tested.
+CPT_ASSUMPTION = (
+    "CPT symmetry: the positron and antiproton have exactly the electron's and proton's "
+    "masses, so every energy here equals hydrogen's; ALPHA measured the 1S-2S line "
+    "agreeing with hydrogen to 2 parts in 10^12 (Ahmadi et al., Nature 557, 71 (2018))"
+)
+
+
+def _antihydrogen() -> System:
+    """A positron around an antiproton: hydrogen's masses, by CPT rather than by measurement."""
+    h = _codata_system("anti-h", "Antihydrogen", 1, "proton-electron mass ratio",
+                       "A positron bound to an antiproton. By CPT symmetry its spectrum "
+                       "is hydrogen's, which is exactly what experiments test.")
+    p = h.mu_ratio.provenance
+    proton = _codata_radius("proton rms charge radius", "proton")
+    rp = proton.provenance
+    return replace(
+        h,
+        mu_ratio=replace(h.mu_ratio, provenance=replace(
+            p,
+            method=p.method + "; the antiparticle masses are taken equal by CPT",
+            assumptions=("a positron is the orbiting particle here", CPT_ASSUMPTION),
+        )),
+        nuclear_radius=replace(proton, label="nuclear rms charge radius (antiproton)",
+                               provenance=replace(
+            rp,
+            fidelity=Fidelity.APPROXIMATION,
+            method="the proton's measured radius, carried over to the antiproton by CPT; "
+                   "the antiproton's own radius has never been measured",
+            assumptions=(CPT_ASSUMPTION,),
+        )),
+    )
+
+
 _SYSTEMS: tuple[System, ...] = (
     _codata_system("h", "Hydrogen", 1, "proton-electron mass ratio",
                    "Ordinary hydrogen: electron + proton.",
@@ -151,6 +185,7 @@ _SYSTEMS: tuple[System, ...] = (
                    "One-electron helium: Z=2 scaling on real helium-4.",
                    nuclear_radius=_codata_radius(
                        "alpha particle rms charge radius", "alpha particle")),
+    _antihydrogen(),
 )
 
 

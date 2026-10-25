@@ -10,7 +10,7 @@ R_MU = sc.physical_constants["muon-electron mass ratio"][0]
 
 def test_registry_contents_and_order():
     keys = [s.key for s in list_systems()]
-    assert keys == ["h", "d", "t", "mu-h", "ps", "he+"]
+    assert keys == ["h", "d", "t", "mu-h", "ps", "he+", "anti-h"]
 
 
 def test_hydrogen_reduced_mass():
