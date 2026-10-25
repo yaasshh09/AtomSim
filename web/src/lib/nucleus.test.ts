@@ -77,6 +77,11 @@ describe("nucleusCaption", () => {
     expect(c).toMatch(/point lepton/);
     expect(c).toMatch(/no measured size/);
   });
+  it("a chosen nuclear mass is called made up, not a lepton", () => {
+    const c = nucleusCaption("marker", { ...PS, key: "m500" }, null);
+    expect(c).toMatch(/made-up point charge/);
+    expect(c).not.toMatch(/lepton/);
+  });
   it("true scale states the radius and that it is subpixel", () => {
     const c = nucleusCaption("true-scale", H, nucleusSphere("true-scale", 1.5888e-5, 9));
     expect(c).toContain("0.841 fm");

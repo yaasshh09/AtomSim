@@ -245,6 +245,10 @@ body {
   text-transform: uppercase;
 }
 
+.state-card-eyebrow .as-written {
+  text-transform: none;
+}
+
 .state-card-title {
   font-family: var(--sans);
   font-weight: 600;

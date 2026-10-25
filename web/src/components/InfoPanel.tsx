@@ -1,6 +1,7 @@
 import { Fragment, useEffect } from "react";
 import { hybridLabel } from "../lib/hybrids";
 import { Notation } from "../lib/mathText";
+import { pointNucleus } from "../lib/nucleus";
 import { nodeSummary, realOrbitalLabel, stateLabel } from "../lib/quantum";
 import { informativeEnd, sparkBars } from "../lib/spark";
 import { isHydrogenic } from "../lib/systemKind";
@@ -63,7 +64,10 @@ export function InfoPanel() {
     <aside className="panel">
       <div className="state-card" data-tour="state-card">
         <div className="state-card-eyebrow">
-          State vector{sys ? ` · ${sys.name} Z=${sys.z}` : ""}
+          State vector
+          {/* The name keeps its own case: uppercased, "He+" read "HE+" and
+              a nuclear mass in m_e read "M_E". */}
+          {sys && <span className="as-written">{` · ${sys.name} Z=${sys.z}`}</span>}
         </div>
         <div className="state-card-title">
           {hybrid ? (
@@ -160,7 +164,7 @@ export function InfoPanel() {
             sys && (
               <>
                 <dt>Nucleus</dt>
-                <dd>a point lepton, so there is no measured size</dd>
+                <dd>{pointNucleus(sys)}, no size</dd>
               </>
             )
           )}

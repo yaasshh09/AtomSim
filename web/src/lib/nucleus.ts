@@ -1,4 +1,5 @@
 import type { SystemInfo } from "../api/types";
+import { parseMassKey } from "./nuclearMass";
 
 export type NucleusMode = "hidden" | "true-scale" | "marker";
 
@@ -37,6 +38,14 @@ export function formatMagnification(x: number): string {
   return `${rounded.toLocaleString("en-US")}×`;
 }
 
+/**
+ * What a nucleus with no radius is, in a few words. Positronium's is a positron,
+ * a genuine point lepton; a nuclear-mass key's is invented and given no size.
+ */
+export function pointNucleus(system: SystemInfo): string {
+  return parseMassKey(system.key) !== null ? "a made-up point charge" : "a point lepton";
+}
+
 /** The one-line caption for the nucleus overlay; null when there is nothing to say. */
 export function nucleusCaption(
   mode: NucleusMode,
@@ -45,7 +54,7 @@ export function nucleusCaption(
 ): string | null {
   if (mode === "hidden" || !system) return null;
   if (system.nuclear_radius === null || system.nuclear_radius_fm === null) {
-    return "the \"nucleus\" here is a point lepton, so there is no measured size to draw";
+    return `the "nucleus" here is ${pointNucleus(system)}, so there is no measured size to draw`;
   }
   const fm = system.nuclear_radius_fm.value.toFixed(3);
   const bohr = system.nuclear_radius.value.toExponential(1).replace("e-", "e-");

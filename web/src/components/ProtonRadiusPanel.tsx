@@ -4,6 +4,7 @@ import { getFiniteSize } from "../api/client";
 import type { FiniteSize } from "../api/types";
 import { fixed } from "../lib/format";
 import { usePlotWidth } from "../lib/plotSize";
+import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
 import { Disclosure } from "./Disclosure";
 
@@ -22,11 +23,24 @@ export function ProtonRadiusPanel({ system }: { system: string }) {
   const [data, setData] = useState<FiniteSize | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const { width: W, ref } = usePlotWidth(280);
+  // The systems table already says which nuclei have no radius (positronium's
+  // positron, a chosen nuclear mass), so those never send a request the server
+  // can only refuse. undefined means the table has not arrived: wait, do not guess.
+  const info = useAppStore((s) => s.systems.find((x) => x.key === system));
+  const pointNucleus = info !== undefined && info.nuclear_radius === null;
 
   useEffect(() => {
     let live = true;
     setData(null);
     setRefusal(null);
+    if (info === undefined) return;
+    if (pointNucleus) {
+      setRefusal(
+        `${info.name} has no nuclear charge radius: its nucleus is a point particle or ` +
+          "unidentified, so there is no size to shift anything.",
+      );
+      return;
+    }
     getFiniteSize(system).then(
       (d) => live && setData(d),
       (e) => live && setRefusal(e instanceof Error ? e.message : String(e)),
@@ -34,7 +48,7 @@ export function ProtonRadiusPanel({ system }: { system: string }) {
     return () => {
       live = false;
     };
-  }, [system]);
+  }, [system, info, pointNucleus]);
 
   return (
     <section className="config-race" aria-labelledby="radius-title" ref={ref}>
