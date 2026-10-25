@@ -10,6 +10,8 @@ import type {
   LevelsResponse,
   ManyElectronParams,
   NodeSet,
+  RabiDrive,
+  RabiParams,
   RadialResponse,
   ScreenedLevels,
   CurveOfGrowthInfo,
@@ -146,6 +148,11 @@ export function getNodes(
 
 export function getCascade(n: number, l: number, system: string): Promise<Cascade> {
   return getJson(`/api/cascade/${n}/${l}?system=${key(system)}`);
+}
+
+export function getRabi(p: RabiParams): Promise<RabiDrive> {
+  const q = `n1=${p.n1}&l1=${p.l1}&n2=${p.n2}&l2=${p.l2}&intensity=${num(p.intensity)}`;
+  return getJson(`/api/rabi?${q}&detuning=${num(p.detuning)}&system=${key(p.system)}`);
 }
 
 export function getRadial(

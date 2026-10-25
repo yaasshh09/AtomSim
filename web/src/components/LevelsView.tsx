@@ -20,6 +20,7 @@ import { withinView } from "../lib/zoom";
 import { Badge } from "./Badge";
 import { ConfigRace } from "./ConfigRace";
 import { DecayCascade } from "./DecayCascade";
+import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
@@ -1131,6 +1132,7 @@ export function LevelsView() {
         </p>
       </Disclosure>
       <DecayCascade n={n} l={l} system={system} />
+      <RabiPanel system={system} />
     </div>
   );
 }

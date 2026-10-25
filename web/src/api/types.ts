@@ -760,3 +760,30 @@ export interface Cascade {
   /** One per level, in the same order, on a shared log-spaced time grid in s. */
   populations: FieldData[];
 }
+
+/** One transition driven by a z-polarized laser: Rabi oscillations with decay. */
+export interface RabiDrive {
+  lower: [number, number, number];
+  upper: [number, number, number];
+  dipole: Quantity;
+  rabi_frequency: Quantity;
+  effective_frequency: Quantity;
+  decay_rate: Quantity;
+  return_fraction: Quantity;
+  rwa_parameter: Quantity;
+  /** Only for a closed pair, where every decay returns to the lower sublevel. */
+  steady_excited: Quantity | null;
+  excited: FieldData;
+  excited_undamped: FieldData;
+  lost: FieldData;
+}
+
+export interface RabiParams {
+  n1: number;
+  l1: number;
+  n2: number;
+  l2: number;
+  intensity: number;
+  detuning: number;
+  system: string;
+}
