@@ -22,7 +22,7 @@ from pydantic import BaseModel, model_validator
 from pydantic import Field as PydanticField
 
 import atomsim
-from atomsim.analytic.dirac import dirac_energy
+from atomsim.analytic.dirac import dirac_energy, dirac_kappa, dirac_moments, dirac_radial
 from atomsim.analytic.fine_structure import fine_structure_shift, level_energy
 from atomsim.analytic.hydrogen import (
     angular_momentum_magnitude,
@@ -114,6 +114,8 @@ from atomsim.server.schemas import (
     ConstantsReportModel,
     CurveOfGrowthModel,
     DensityComparisonModel,
+    DiracComponentModel,
+    DiracRadialModel,
     FieldModel,
     ForceLawLevelModel,
     ForceLawModel,
@@ -2219,6 +2221,65 @@ def create_app() -> FastAPI:
         sys_ = _resolve_system(system)
         return CascadeModel.from_cascade(
             decay_cascade(n, l, Z=sys_.Z, mu_ratio=sys_.mu_ratio.value)
+        )
+
+    @app.get("/api/dirac-radial/{n}/{l}", response_model=DiracRadialModel)
+    def dirac_radial_endpoint(n: int, l: int, z: int = 1, points: int = 400) -> DiracRadialModel:
+        """The exact Dirac radial functions of a hydrogen-like ion of charge z, every j.
+
+        Any z from 1 to 118 is a real hydrogen-like ion (one electron left), so
+        this takes z directly rather than a preset. The nucleus is infinitely
+        heavy here, which every value's assumptions say: the recoil it drops is
+        m_e/M, 5e-4 for hydrogen and smaller for every heavier ion.
+        """
+        heavy = (
+            "an infinitely heavy nucleus (mu = m_e): the dropped recoil is m_e/M, "
+            "5e-4 for hydrogen and smaller for heavier ions"
+        )
+
+        def _h(q):
+            """The same value, with the heavy-nucleus assumption stated on it."""
+            p = q.provenance
+            return dataclasses.replace(
+                q, provenance=dataclasses.replace(p, assumptions=p.assumptions + (heavy,))
+            )
+
+        _validate_state(n, l, 0)
+        if n > 6:
+            raise HTTPException(status_code=422, detail="n must be <= 6")
+        if not 1 <= z <= 118:
+            raise HTTPException(status_code=422, detail="z must be in [1, 118]")
+        if not 50 <= points <= 2000:
+            raise HTTPException(status_code=422, detail="points must be in [50, 2000]")
+        r_max = 20.0 * n * n / z
+        # r = 0 is left off: for j = 1/2 the point-nucleus functions diverge there.
+        r = np.linspace(r_max / points, r_max, points)
+        schr = _h(radial_wavefunction(n, l, r, Z=z))
+        components = []
+        for j in ([l - 0.5, l + 0.5] if l else [0.5]):
+            g, f = (_h(x) for x in dirac_radial(n, l, j, r, Z=z))
+            mean_r, small_w = (_h(x) for x in dirac_moments(n, l, j, Z=z))
+            components.append(DiracComponentModel(
+                j=j,
+                kappa=dirac_kappa(l, j),
+                energy=QuantityModel.from_quantity(_h(dirac_energy(n, j, Z=z))),
+                large=FieldModel.from_field(g),
+                small=FieldModel.from_field(f),
+                probability=FieldModel.from_field(Field(
+                    r * r * (g.values**2 + f.values**2), r, "bohr^-1", "bohr",
+                    f"P_Dirac {n},l={l},j={j:g} = r^2 (g^2 + f^2)", g.provenance,
+                )),
+                mean_r=QuantityModel.from_quantity(mean_r),
+                small_weight=QuantityModel.from_quantity(small_w),
+            ))
+        return DiracRadialModel(
+            n=n, l=l, z=z,
+            schrodinger=FieldModel.from_field(Field(
+                r * r * schr.values**2, r, "bohr^-1", "bohr",
+                f"P_{n},{l}(r) = r^2 R^2", schr.provenance,
+            )),
+            schrodinger_mean_r=QuantityModel.from_quantity(_h(mean_radius(n, l, Z=z))),
+            components=components,
         )
 
     @app.get("/api/rabi", response_model=RabiModel)

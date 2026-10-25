@@ -87,3 +87,18 @@ def test_refusals_and_tier():
     assert g.provenance.fidelity.value == "exact"
     g, _ = dirac_radial(1, 0, 0.5, np.array([1.0]), alpha=0.01)
     assert g.provenance.fidelity.value == "counterfactual"
+
+
+def test_moments_match_closed_forms():
+    from atomsim.analytic.dirac import dirac_moments
+
+    # Schrodinger limit: <r> = (3n^2 - l(l+1)) / 2Z, small component vanishing.
+    mean, small = dirac_moments(3, 1, 1.5, alpha=1e-6)
+    assert mean.value == pytest.approx((27 - 2) / 2, rel=1e-9)
+    assert small.value < 1e-10
+    # 1s exact: <r> = (2 gamma + 1) / 2Z and the small weight (1 - gamma) / 2.
+    Z = 80
+    gam = math.sqrt(1 - (Z * ALPHA) ** 2)
+    mean, small = dirac_moments(1, 0, 0.5, Z=Z)
+    assert mean.value == pytest.approx((2 * gam + 1) / (2 * Z), rel=1e-9)
+    assert small.value == pytest.approx((1 - gam) / 2, rel=1e-8)

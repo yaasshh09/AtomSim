@@ -10,6 +10,7 @@ reduced-mass scaling. See docs/specs/2026-07-23-phase9-dirac-hydrogen-design.md.
 import math
 
 import numpy as np
+from scipy.integrate import quad
 from scipy.special import gammaln, hyp1f1
 
 from atomsim.analytic.hydrogen import energy
@@ -170,4 +171,36 @@ def dirac_radial(
     return (
         Field(g, grid, "bohr^-3/2", "bohr", f"g_{label}", prov),
         Field(f, grid, "bohr^-3/2", "bohr", f"f_{label}", prov),
+    )
+
+
+def dirac_moments(
+    n: int, l: int, j: float, Z: int = 1, mu_ratio: float = 1.0, alpha: float = ALPHA
+) -> tuple[Quantity, Quantity]:
+    """<r> in bohr and the small-component weight (integral of f^2 r^2), by quadrature.
+
+    The functions are exact; the integrals are adaptive quadrature over [0, inf),
+    whose own error estimate is carried, so these two are NUMERICAL.
+    """
+    def integrand(power: int, small_only: bool):
+        def fn(r: float) -> float:
+            g, f = dirac_radial(n, l, j, np.array([r]), Z=Z, mu_ratio=mu_ratio, alpha=alpha)
+            dens = f.values[0] ** 2 if small_only else g.values[0] ** 2 + f.values[0] ** 2
+            return float(dens * r ** (2 + power))
+        return fn
+
+    scale = n * n / (Z * mu_ratio)                     # where the function lives
+    mean, mean_err = quad(integrand(1, False), 0, np.inf, limit=400, epsabs=0, epsrel=1e-11)
+    small, small_err = quad(integrand(0, True), 0, 50 * scale, limit=400, epsabs=1e-16)
+    method = "adaptive quadrature (scipy quad) of the exact Dirac radial functions"
+    return (
+        Quantity(mean, "bohr", f"<r> Dirac {n},l={l},j={j:g}", Provenance(
+            fidelity=Fidelity.NUMERICAL, method=method,
+            assumptions=_DIRAC_ASSUMPTIONS, error_estimate=mean_err,
+        )),
+        Quantity(small, "dimensionless", f"small-component weight {n},l={l},j={j:g}",
+                 Provenance(
+            fidelity=Fidelity.NUMERICAL, method=method,
+            assumptions=_DIRAC_ASSUMPTIONS, error_estimate=small_err,
+        )),
     )

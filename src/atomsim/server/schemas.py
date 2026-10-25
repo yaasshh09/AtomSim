@@ -842,3 +842,25 @@ class RabiModel(BaseModel):
             excited_undamped=f(r.excited_undamped),
             lost=f(r.lost),
         )
+
+
+class DiracComponentModel(BaseModel):
+    """One j of the selected (n, l): its exact energy, spinor parts and two moments."""
+
+    j: float
+    kappa: int
+    energy: QuantityModel
+    large: FieldModel
+    small: FieldModel
+    probability: FieldModel
+    mean_r: QuantityModel
+    small_weight: QuantityModel
+
+
+class DiracRadialModel(BaseModel):
+    n: int
+    l: int
+    z: int
+    schrodinger: FieldModel
+    schrodinger_mean_r: QuantityModel
+    components: list[DiracComponentModel]
