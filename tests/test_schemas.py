@@ -44,6 +44,15 @@ _NO_PROVENANCE_NEEDED = {
                                           "carries the provenance",
     ("DerivedObservableModel", "ratio"): "ratio of the sibling quantity to its real value; "
                                          "that Quantity carries the provenance",
+    ("DiracComponentModel", "j"): "quantum-number label",
+    ("FiniteSizeLevelModel", "fraction"): "ratio of the sibling shift to E_n; that Quantity "
+                                          "carries the provenance",
+    ("FiniteSizeModel", "coefficient_published"): "vendored published value; citation and "
+                                                  "retrieval date sit beside it",
+    ("FiniteSizeModel", "coefficient_published_uncertainty"): "vendored published value",
+    ("LambPredictionModel", "radius_fm"): "vendored published radius; the parent carries "
+                                          "the citation",
+    ("LambPredictionModel", "radius_uncertainty_fm"): "vendored published value",
 }
 
 
