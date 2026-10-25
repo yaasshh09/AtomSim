@@ -1,0 +1,16 @@
+{
+  "species": "Muonic hydrogen (mu- p): 2S-2P Lamb shift theory and the proton radius",
+  "citation": "R. Pohl, R. Gilman, G. A. Miller, K. Pachucki, Muonic hydrogen and the proton radius puzzle, Annu. Rev. Nucl. Part. Sci. 63, 175 (2013), arXiv:1301.0905, Sect. 4.2 and Sect. 1",
+  "retrieved": "2026-10-25",
+  "units": "meV, fm",
+  "note": "Delta E_LS(r_p) = constant - r2_coefficient * r_p^2 + two_photon_exchange, r_p in fm. The constant gathers every QED term that does not depend on r_p; it is published theory, transcribed, not computed here.",
+  "lamb_shift": {
+    "constant": {"value": 206.0336, "uncertainty": 0.0015},
+    "r2_coefficient": {"value": 5.2275, "uncertainty": 0.0010},
+    "two_photon_exchange": {"value": 0.0351, "uncertainty": 0.0020}
+  },
+  "radii_fm": {
+    "muonic": {"value": 0.84087, "uncertainty": 0.00039, "source": "muonic hydrogen Lamb shift (Antognini et al. 2013, as quoted in the review)"},
+    "codata_2010": {"value": 0.8775, "uncertainty": 0.0051, "source": "CODATA 2010: electronic hydrogen spectroscopy plus electron scattering"}
+  }
+}
