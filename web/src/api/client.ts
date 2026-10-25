@@ -4,6 +4,7 @@ import type {
   ClassicalGhost,
   ConstantsReport,
   DiracRadial,
+  FiniteSize,
   ForceLawResult,
   HFLevels,
   JobInfo,
@@ -149,6 +150,10 @@ export function getNodes(
 
 export function getCascade(n: number, l: number, system: string): Promise<Cascade> {
   return getJson(`/api/cascade/${n}/${l}?system=${key(system)}`);
+}
+
+export function getFiniteSize(system: string): Promise<FiniteSize> {
+  return getJson(`/api/finite-size?system=${key(system)}`);
 }
 
 export function getDiracRadial(n: number, l: number, z: number): Promise<DiracRadial> {

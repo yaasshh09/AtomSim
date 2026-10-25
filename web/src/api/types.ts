@@ -811,3 +811,33 @@ export interface DiracRadial {
   schrodinger_energy: Quantity;
   components: DiracComponent[];
 }
+
+export interface FiniteSizeLevel {
+  n: number;
+  l: number;
+  shift_mhz: Quantity;
+  shift_mev: Quantity;
+  /** |dE / E_n|. */
+  fraction: number;
+}
+
+export interface LambPrediction {
+  key: string;
+  source: string;
+  radius_fm: number;
+  radius_uncertainty_fm: number;
+  lamb_shift: Quantity;
+}
+
+/** The nucleus' finite size, and the muonic hydrogen Lamb shift each proton radius predicts. */
+export interface FiniteSize {
+  system: string;
+  radius_fm: Quantity;
+  levels: FiniteSizeLevel[];
+  coefficient_ours: Quantity;
+  coefficient_published: number;
+  coefficient_published_uncertainty: number;
+  predictions: LambPrediction[];
+  citation: string;
+  retrieved: string;
+}
