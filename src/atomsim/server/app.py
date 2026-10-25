@@ -1001,16 +1001,23 @@ def _with_state_preview(html: str, query) -> str:
     return html
 
 
-def _to_ev(q: Quantity) -> Quantity:
+def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
+    """A display conversion. The error bar is in the quantity's unit, so it moves too."""
+    err = q.provenance.error_estimate
     return Quantity(
-        value=q.value * HARTREE_EV,
-        unit="eV",
-        label=q.label + " [eV]",
+        value=q.value * factor,
+        unit=unit,
+        label=q.label + f" [{unit}]",
         provenance=dataclasses.replace(
             q.provenance,
-            method=q.provenance.method + "; converted to eV via CODATA Hartree-eV factor",
+            method=q.provenance.method + f"; converted to {unit} via {via}",
+            error_estimate=None if err is None else err * abs(factor),
         ),
     )
+
+
+def _to_ev(q: Quantity) -> Quantity:
+    return _rescaled(q, HARTREE_EV, "eV", "CODATA Hartree-eV factor")
 
 
 def _hyperfine_shell_model(rep) -> "HyperfineShellModel":
@@ -1037,15 +1044,7 @@ def _hyperfine_shell_model(rep) -> "HyperfineShellModel":
 
 
 def _to_pm(q: Quantity) -> Quantity:
-    return Quantity(
-        value=q.value * BOHR_RADIUS_PM,
-        unit="pm",
-        label=q.label + " [pm]",
-        provenance=dataclasses.replace(
-            q.provenance,
-            method=q.provenance.method + "; converted to pm via CODATA Bohr radius",
-        ),
-    )
+    return _rescaled(q, BOHR_RADIUS_PM, "pm", "CODATA Bohr radius")
 
 
 def _job_model(job: Job) -> JobModel:
