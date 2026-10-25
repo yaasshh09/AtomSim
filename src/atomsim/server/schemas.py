@@ -863,4 +863,5 @@ class DiracRadialModel(BaseModel):
     z: int
     schrodinger: FieldModel
     schrodinger_mean_r: QuantityModel
+    schrodinger_energy: QuantityModel
     components: list[DiracComponentModel]

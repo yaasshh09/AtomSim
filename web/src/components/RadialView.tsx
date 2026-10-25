@@ -10,6 +10,7 @@ import { informativeEndSigned, linePath, zeroCrossings } from "../lib/plot";
 import { toCsv } from "../lib/plotExport";
 import { plotHeight, usePlotWidth } from "../lib/plotSize";
 import { useAppStore } from "../state/store";
+import { DiracPanel } from "./DiracPanel";
 import { Badge } from "./Badge";
 import { BornRuleDemo } from "./BornRuleDemo";
 import { Disclosure } from "./Disclosure";
@@ -529,6 +530,7 @@ export function RadialView() {
               exact, √⟨p²⟩ = Zμ/n, straight from the virial theorem.
             </p>
           </Disclosure>
+          <DiracPanel n={n} l={l} width={W} />
         </>
       )}
       {model === "hf" && <p className="hint-block">{HF_ORBITAL_CAPTION}</p>}

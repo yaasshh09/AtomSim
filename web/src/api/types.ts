@@ -787,3 +787,27 @@ export interface RabiParams {
   detuning: number;
   system: string;
 }
+
+/** One j of a state under the Dirac equation. */
+export interface DiracComponent {
+  j: number;
+  kappa: number;
+  energy: Quantity;
+  large: FieldData;
+  small: FieldData;
+  probability: FieldData;
+  mean_r: Quantity;
+  small_weight: Quantity;
+}
+
+/** The exact Dirac radial functions of a one-electron ion, beside Schrodinger's. */
+export interface DiracRadial {
+  n: number;
+  l: number;
+  z: number;
+  schrodinger: FieldData;
+  schrodinger_mean_r: Quantity;
+  /** The Bohr energy, hartree, same heavy nucleus. */
+  schrodinger_energy: Quantity;
+  components: DiracComponent[];
+}

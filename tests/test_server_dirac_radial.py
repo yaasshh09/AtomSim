@@ -46,3 +46,10 @@ def test_1s_moments_are_the_closed_forms(client):
 ])
 def test_refusals(client, path, params):
     assert client.get(path, params=params).status_code == 422
+
+
+def test_dirac_binds_tighter_than_bohr(client):
+    body = client.get("/api/dirac-radial/1/0", params={"z": 92}).json()
+    bohr = body["schrodinger_energy"]["value"]
+    assert bohr == pytest.approx(-(92**2) / 2, rel=1e-12)
+    assert body["components"][0]["energy"]["value"] < bohr

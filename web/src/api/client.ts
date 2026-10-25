@@ -3,6 +3,7 @@ import type {
   Cascade,
   ClassicalGhost,
   ConstantsReport,
+  DiracRadial,
   ForceLawResult,
   HFLevels,
   JobInfo,
@@ -148,6 +149,10 @@ export function getNodes(
 
 export function getCascade(n: number, l: number, system: string): Promise<Cascade> {
   return getJson(`/api/cascade/${n}/${l}?system=${key(system)}`);
+}
+
+export function getDiracRadial(n: number, l: number, z: number): Promise<DiracRadial> {
+  return getJson(`/api/dirac-radial/${n}/${l}?z=${z}`);
 }
 
 export function getRabi(p: RabiParams): Promise<RabiDrive> {

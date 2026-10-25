@@ -2279,6 +2279,7 @@ def create_app() -> FastAPI:
                 f"P_{n},{l}(r) = r^2 R^2", schr.provenance,
             )),
             schrodinger_mean_r=QuantityModel.from_quantity(_h(mean_radius(n, l, Z=z))),
+            schrodinger_energy=QuantityModel.from_quantity(_h(energy(n, Z=z))),
             components=components,
         )
 
