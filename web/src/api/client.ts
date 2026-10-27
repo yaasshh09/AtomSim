@@ -25,6 +25,7 @@ import type {
 import type { IonizationReference } from "../lib/hfVsExperiment";
 import type { IsoelectronicSequence } from "../lib/isoelectronic";
 import type { Rydberg } from "../lib/rydberg";
+import type { Kalpha } from "../lib/xray";
 
 /** An /api/levels payload is hydrogenic or screened, discriminated on `orbitals`. */
 export function isScreenedLevels(
@@ -494,6 +495,14 @@ export function createHFJob(params: HFParams): Promise<JobInfo> {
 /** A job `meta` payload is a sample, a plane, or a Hartree-Fock solve. */
 export function isHFLevels(meta: JobMeta): meta is HFLevels {
   return meta.kind === "hf";
+}
+
+export function createXrayJob(z: number): Promise<JobInfo> {
+  return postJson("/api/jobs/xray", { z });
+}
+
+export function isKalpha(meta: JobMeta): meta is Kalpha {
+  return meta.kind === "kalpha";
 }
 
 export function watchJob(jobId: string, onProgress: (p: number) => void): Promise<void> {

@@ -1,3 +1,4 @@
+import type { Kalpha } from "../lib/xray";
 // An exact mirror of src/atomsim/server/schemas.py, which is the single
 // canonical JSON contract.
 
@@ -730,7 +731,7 @@ export interface SuperpositionMeta {
   provenance: Provenance;
 }
 
-export type JobMeta = SampleMeta | PlaneMeta | IsoMeta | HFLevels | SuperpositionMeta;
+export type JobMeta = SampleMeta | PlaneMeta | IsoMeta | HFLevels | SuperpositionMeta | Kalpha;
 
 /** One level the decay cascade passes through. Terminal levels (1s, 2s) have no E1 channel. */
 export interface CascadeLevel {

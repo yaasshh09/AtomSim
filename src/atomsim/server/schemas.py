@@ -951,3 +951,31 @@ class RydbergModel(BaseModel):
     retrieved: str
     note: str
 
+
+class XrayLineModel(BaseModel):
+    """One vendored K-alpha line: NIST's Dirac-Fock theory and its experiment."""
+
+    theory_ev: float
+    theory_uncertainty_ev: float
+    experiment_ev: float
+    experiment_uncertainty_ev: float
+    experiment_kind: str
+    blend: str | None
+
+
+class KalphaModel(BaseModel):
+    kind: Literal["kalpha"] = "kalpha"
+    z: int
+    symbol: str
+    hole_1s_config: str
+    hole_2p_config: str
+    #: Delta-SCF Hartree-Fock, non-relativistic, eV.
+    delta_scf_ev: QuantityModel
+    #: What the leading Dirac correction would add, eV; kept apart, not folded in.
+    relativity_ev: QuantityModel
+    #: (3/4)(Z - 1)^2 Ry, eV.
+    moseley_ev: QuantityModel
+    ka1: XrayLineModel
+    ka2: XrayLineModel
+    citation: str
+    retrieved: str

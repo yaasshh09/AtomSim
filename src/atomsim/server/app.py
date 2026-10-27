@@ -142,6 +142,7 @@ from atomsim.server.schemas import (
     HFResultModel,
     IsoelectronicIonModel,
     IsoelectronicModel,
+    KalphaModel,
     LambPredictionModel,
     LineModel,
     MeasuredDefectModel,
@@ -160,6 +161,7 @@ from atomsim.server.schemas import (
     SystemModel,
     ThermalModel,
     VirialModel,
+    XrayLineModel,
 )
 from atomsim.server.thumbnails import (
     OG_HEIGHT,
@@ -190,6 +192,7 @@ from atomsim.systems import (
     list_systems,
 )
 from atomsim.transfer import absorb, curve_of_growth, default_columns
+from atomsim.xray import NIST_XRAY, XRAY_Z, KalphaResult, kalpha, measured_kalpha
 
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 _HARTREE_HZ = _sc.physical_constants["hartree-hertz relationship"][0]
@@ -714,6 +717,10 @@ class IsoMetaModel(BaseModel):
     provenance: ProvenanceModel
 
 
+class XrayRequest(BaseModel):
+    z: int
+
+
 class HFRequest(BaseModel):
     z: int
     n_electrons: int | None = None  # defaults to neutral
@@ -1046,6 +1053,23 @@ def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
 
 def _to_ev(q: Quantity) -> Quantity:
     return _rescaled(q, HARTREE_EV, "eV", "CODATA Hartree-eV factor")
+
+
+def _kalpha_model(res: KalphaResult) -> KalphaModel:
+    m = measured_kalpha(res.z)
+    return KalphaModel(
+        z=res.z,
+        symbol=res.symbol,
+        hole_1s_config=format_config(res.hole_1s.config),
+        hole_2p_config=format_config(res.hole_2p.config),
+        delta_scf_ev=QuantityModel.from_quantity(_to_ev(res.delta_scf)),
+        relativity_ev=QuantityModel.from_quantity(_to_ev(res.relativity)),
+        moseley_ev=QuantityModel.from_quantity(_to_ev(res.moseley)),
+        ka1=XrayLineModel(**m["ka1"]),
+        ka2=XrayLineModel(**m["ka2"]),
+        citation=NIST_XRAY["citation"],
+        retrieved=NIST_XRAY["retrieved"],
+    )
 
 
 def _hyperfine_shell_model(rep) -> "HyperfineShellModel":
@@ -2802,6 +2826,28 @@ def create_app() -> FastAPI:
 
         return _dispatch(job, work, req)
 
+    @app.post("/api/jobs/xray", response_model=JobModel)
+    async def create_xray_job(req: XrayRequest) -> JobModel:
+        """The K-alpha line of one element: two Hartree-Fock solves of core-hole ions.
+
+        Assembled here rather than by a client differencing two HF jobs, so the
+        two ions are known to come from matching solves.
+        """
+        if req.z not in XRAY_Z:
+            raise HTTPException(
+                status_code=400,
+                detail=f"K-alpha lines are computed for Z = {XRAY_Z[0]} to {XRAY_Z[-1]}, "
+                f"neon to krypton, got {req.z}",
+            )
+        job = jobs.create()
+
+        def work(progress):
+            out = kalpha(req.z)
+            progress(1.0)
+            return out
+
+        return _dispatch(job, work, req)
+
     @app.get("/api/jobs/{job_id}", response_model=JobModel)
     def job_status(job_id: str) -> JobModel:
         job = jobs.get(job_id)
@@ -2929,14 +2975,14 @@ def create_app() -> FastAPI:
         "/api/jobs/{job_id}/meta",
         response_model=(
             SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel
-            | SuperpositionMetaModel
+            | SuperpositionMetaModel | KalphaModel
         ),
     )
     def job_meta(
         job_id: str,
     ) -> (
         SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel
-        | SuperpositionMetaModel
+        | SuperpositionMetaModel | KalphaModel
     ):
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
@@ -2955,6 +3001,8 @@ def create_app() -> FastAPI:
             # the energies and their provenance. /data carries only the orbital
             # shapes, which are the part that is an array.
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
+        if isinstance(res, KalphaResult):
+            return _kalpha_model(res)
         return _sample_meta(res, system_key, model_key).model_copy(
             update={"hybrid": hybrid_key}
         )
@@ -3012,6 +3060,11 @@ def create_app() -> FastAPI:
             payload = _iso_channel_payload(res, channel)
         elif isinstance(res, HFJobResult):
             payload = _hf_channel_payload(res.result, channel)
+        elif isinstance(res, KalphaResult):
+            raise HTTPException(
+                status_code=422,
+                detail="an X-ray job has no array data; everything is in its meta",
+            )
         elif (channel or "positions") == "positions":
             payload = res.cloud.positions
         elif channel == "density":

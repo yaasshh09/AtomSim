@@ -25,6 +25,7 @@ import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { IsoelectronicPanel } from "./IsoelectronicPanel";
 import { RydbergPanel } from "./RydbergPanel";
+import { XrayPanel } from "./XrayPanel";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -513,6 +514,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
       <HFvsExperiment />
       <IsoelectronicPanel />
+      <XrayPanel />
     </div>
   );
 }

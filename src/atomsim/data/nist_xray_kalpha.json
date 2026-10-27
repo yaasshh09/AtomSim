@@ -1,0 +1,549 @@
+{
+ "species": "K-alpha X-ray lines, KL2 (K-alpha2) and KL3 (K-alpha1), neon to krypton",
+ "citation": "Deslattes, R. D., Kessler, E. G., Jr., Indelicato, P., de Billy, L., Lindroth, E., Anton, J., Coursey, J. S., Schwab, D. J., Chang, C., Sukumar, R., Olsen, K., and Dragoset, R. A. (2005), X-ray Transition Energies (version 1.2), https://physics.nist.gov/XrayTrans (originally Rev. Mod. Phys. 75, 35 (2003))",
+ "retrieved": "2026-10-28",
+ "units": "eV",
+ "note": "theory_ev is the database's relativistic multiconfiguration Dirac-Fock value; experiment_ev is the first of its direct, combined and vapor-phase experimental columns that is present, and experiment_kind says which. blend names the lines an experiment could not resolve: for the lightest elements K-alpha1 and K-alpha2 were measured as one line, so the two experimental entries are the same number.",
+ "atoms": [
+  {
+   "z": 10,
+   "symbol": "Ne",
+   "ka2": {
+    "theory_ev": 849.09,
+    "theory_uncertainty_ev": 0.54,
+    "experiment_ev": 848.61,
+    "experiment_uncertainty_ev": 0.26,
+    "experiment_kind": "direct",
+    "blend": "KL2,3"
+   },
+   "ka1": {
+    "theory_ev": 849.17,
+    "theory_uncertainty_ev": 0.54,
+    "experiment_ev": 848.61,
+    "experiment_uncertainty_ev": 0.26,
+    "experiment_kind": "direct",
+    "blend": "KL2,3"
+   }
+  },
+  {
+   "z": 11,
+   "symbol": "Na",
+   "ka2": {
+    "theory_ev": 1041.77,
+    "theory_uncertainty_ev": 0.51,
+    "experiment_ev": 1040.98,
+    "experiment_uncertainty_ev": 0.12,
+    "experiment_kind": "direct",
+    "blend": "KL2,3"
+   },
+   "ka1": {
+    "theory_ev": 1041.94,
+    "theory_uncertainty_ev": 0.51,
+    "experiment_ev": 1040.98,
+    "experiment_uncertainty_ev": 0.12,
+    "experiment_kind": "direct",
+    "blend": "KL2,3"
+   }
+  },
+  {
+   "z": 12,
+   "symbol": "Mg",
+   "ka2": {
+    "theory_ev": 1254.14,
+    "theory_uncertainty_ev": 0.49,
+    "experiment_ev": 1253.437,
+    "experiment_uncertainty_ev": 0.013,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 1254.39,
+    "theory_uncertainty_ev": 0.49,
+    "experiment_ev": 1253.688,
+    "experiment_uncertainty_ev": 0.011,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 13,
+   "symbol": "Al",
+   "ka2": {
+    "theory_ev": 1487.12,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 1486.295,
+    "experiment_uncertainty_ev": 0.01,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 1487.53,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 1486.708,
+    "experiment_uncertainty_ev": 0.01,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 14,
+   "symbol": "Si",
+   "ka2": {
+    "theory_ev": 1739.67,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 1739.394,
+    "experiment_uncertainty_ev": 0.034,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 1741.16,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 1739.985,
+    "experiment_uncertainty_ev": 0.019,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 15,
+   "symbol": "P",
+   "ka2": {
+    "theory_ev": 2013.14,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 2012.7,
+    "experiment_uncertainty_ev": 0.48,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 2014.73,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 2013.68,
+    "experiment_uncertainty_ev": 0.48,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 16,
+   "symbol": "S",
+   "ka2": {
+    "theory_ev": 2307.01,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 2306.7,
+    "experiment_uncertainty_ev": 0.038,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 2308.8,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 2307.885,
+    "experiment_uncertainty_ev": 0.034,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 17,
+   "symbol": "Cl",
+   "ka2": {
+    "theory_ev": 2621.27,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 2620.846,
+    "experiment_uncertainty_ev": 0.039,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 2623.67,
+    "theory_uncertainty_ev": 0.43,
+    "experiment_ev": 2622.44,
+    "experiment_uncertainty_ev": 0.039,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 18,
+   "symbol": "Ar",
+   "ka2": {
+    "theory_ev": 2955.89,
+    "theory_uncertainty_ev": 0.43,
+    "experiment_ev": 2955.566,
+    "experiment_uncertainty_ev": 0.016,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 2957.9,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 2957.682,
+    "experiment_uncertainty_ev": 0.016,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 19,
+   "symbol": "K",
+   "ka2": {
+    "theory_ev": 3311.97,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 3311.1956,
+    "experiment_uncertainty_ev": 0.006,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 3314.6,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 3313.9476,
+    "experiment_uncertainty_ev": 0.005,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 20,
+   "symbol": "Ca",
+   "ka2": {
+    "theory_ev": 3687.56,
+    "theory_uncertainty_ev": 0.43,
+    "experiment_ev": 3688.128,
+    "experiment_uncertainty_ev": 0.049,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 3690.98,
+    "theory_uncertainty_ev": 0.41,
+    "experiment_ev": 3691.719,
+    "experiment_uncertainty_ev": 0.049,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 21,
+   "symbol": "Sc",
+   "ka2": {
+    "theory_ev": 4085.43,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 4085.9526,
+    "experiment_uncertainty_ev": 0.0085,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 4090.15,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 4090.735,
+    "experiment_uncertainty_ev": 0.019,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 22,
+   "symbol": "Ti",
+   "ka2": {
+    "theory_ev": 4504.07,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 4504.9201,
+    "experiment_uncertainty_ev": 0.0094,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 4510.38,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 4510.8991,
+    "experiment_uncertainty_ev": 0.0094,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 23,
+   "symbol": "V",
+   "ka2": {
+    "theory_ev": 4943.59,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 4944.671,
+    "experiment_uncertainty_ev": 0.059,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 4951.79,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 4952.216,
+    "experiment_uncertainty_ev": 0.059,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 24,
+   "symbol": "Cr",
+   "ka2": {
+    "theory_ev": 5404.06,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 5405.5384,
+    "experiment_uncertainty_ev": 0.0071,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 5413.88,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 5414.8045,
+    "experiment_uncertainty_ev": 0.0071,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 25,
+   "symbol": "Mn",
+   "ka2": {
+    "theory_ev": 5886.2,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 5887.6859,
+    "experiment_uncertainty_ev": 0.0084,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 5898.1,
+    "theory_uncertainty_ev": 0.42,
+    "experiment_ev": 5898.801,
+    "experiment_uncertainty_ev": 0.0084,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 26,
+   "symbol": "Fe",
+   "ka2": {
+    "theory_ev": 6389.51,
+    "theory_uncertainty_ev": 0.46,
+    "experiment_ev": 6391.0264,
+    "experiment_uncertainty_ev": 0.0099,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 6403.13,
+    "theory_uncertainty_ev": 0.43,
+    "experiment_ev": 6404.0062,
+    "experiment_uncertainty_ev": 0.0099,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 27,
+   "symbol": "Co",
+   "ka2": {
+    "theory_ev": 6914.08,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 6915.538,
+    "experiment_uncertainty_ev": 0.0039,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 6929.63,
+    "theory_uncertainty_ev": 0.43,
+    "experiment_ev": 6930.378,
+    "experiment_uncertainty_ev": 0.0039,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 28,
+   "symbol": "Ni",
+   "ka2": {
+    "theory_ev": 7459.96,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 7461.0343,
+    "experiment_uncertainty_ev": 0.0045,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 7477.72,
+    "theory_uncertainty_ev": 0.44,
+    "experiment_ev": 7478.2521,
+    "experiment_uncertainty_ev": 0.0045,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 29,
+   "symbol": "Cu",
+   "ka2": {
+    "theory_ev": 8028.38,
+    "theory_uncertainty_ev": 0.48,
+    "experiment_ev": 8027.8416,
+    "experiment_uncertainty_ev": 0.0026,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 8048.11,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 8047.8227,
+    "experiment_uncertainty_ev": 0.0026,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 30,
+   "symbol": "Zn",
+   "ka2": {
+    "theory_ev": 8616.22,
+    "theory_uncertainty_ev": 0.5,
+    "experiment_ev": 8615.823,
+    "experiment_uncertainty_ev": 0.073,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 8639.1,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 8638.906,
+    "experiment_uncertainty_ev": 0.073,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 31,
+   "symbol": "Ga",
+   "ka2": {
+    "theory_ev": 9225.1,
+    "theory_uncertainty_ev": 0.49,
+    "experiment_ev": 9224.835,
+    "experiment_uncertainty_ev": 0.027,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 9251.89,
+    "theory_uncertainty_ev": 0.45,
+    "experiment_ev": 9251.674,
+    "experiment_uncertainty_ev": 0.066,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 32,
+   "symbol": "Ge",
+   "ka2": {
+    "theory_ev": 9855.67,
+    "theory_uncertainty_ev": 0.51,
+    "experiment_ev": 9855.42,
+    "experiment_uncertainty_ev": 0.1,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 9886.67,
+    "theory_uncertainty_ev": 0.46,
+    "experiment_ev": 9886.52,
+    "experiment_uncertainty_ev": 0.11,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 33,
+   "symbol": "As",
+   "ka2": {
+    "theory_ev": 10507.84,
+    "theory_uncertainty_ev": 0.51,
+    "experiment_ev": 10507.5,
+    "experiment_uncertainty_ev": 0.15,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 10543.48,
+    "theory_uncertainty_ev": 0.47,
+    "experiment_ev": 10543.2674,
+    "experiment_uncertainty_ev": 0.0081,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 34,
+   "symbol": "Se",
+   "ka2": {
+    "theory_ev": 11181.82,
+    "theory_uncertainty_ev": 0.52,
+    "experiment_ev": 11181.53,
+    "experiment_uncertainty_ev": 0.31,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 11222.55,
+    "theory_uncertainty_ev": 0.48,
+    "experiment_ev": 11222.52,
+    "experiment_uncertainty_ev": 0.12,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 35,
+   "symbol": "Br",
+   "ka2": {
+    "theory_ev": 11877.69,
+    "theory_uncertainty_ev": 0.53,
+    "experiment_ev": 11877.75,
+    "experiment_uncertainty_ev": 0.34,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 11924.02,
+    "theory_uncertainty_ev": 0.48,
+    "experiment_ev": 11924.36,
+    "experiment_uncertainty_ev": 0.34,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  },
+  {
+   "z": 36,
+   "symbol": "Kr",
+   "ka2": {
+    "theory_ev": 12595.58,
+    "theory_uncertainty_ev": 0.54,
+    "experiment_ev": 12595.424,
+    "experiment_uncertainty_ev": 0.056,
+    "experiment_kind": "direct",
+    "blend": null
+   },
+   "ka1": {
+    "theory_ev": 12648.0,
+    "theory_uncertainty_ev": 0.49,
+    "experiment_ev": 12648.002,
+    "experiment_uncertainty_ev": 0.052,
+    "experiment_kind": "direct",
+    "blend": null
+   }
+  }
+ ]
+}

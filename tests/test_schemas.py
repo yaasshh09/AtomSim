@@ -59,7 +59,11 @@ _NO_PROVENANCE_NEEDED = {
     ("MeasuredDefectModel", "defect"): "read off vendored NIST term energies with the "
                                        "Rydberg formula; the parent carries the citation",
     ("MeasuredDefectModel", "uncertainty"): "NIST's level uncertainties, propagated",
-
+    ("XrayLineModel", "theory_ev"): "vendored NIST Dirac-Fock value; the parent carries "
+                                    "the citation",
+    ("XrayLineModel", "theory_uncertainty_ev"): "vendored NIST value",
+    ("XrayLineModel", "experiment_ev"): "vendored NIST measurement",
+    ("XrayLineModel", "experiment_uncertainty_ev"): "vendored NIST value",
 }
 
 
