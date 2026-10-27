@@ -1,14 +1,14 @@
 {
   "id": "break-the-physics",
   "title": "Break the physics",
-  "blurb": "Change a constant, change a force law, switch off exclusion. Rigorously.",
+  "blurb": "Change a constant, change a force law, switch off exclusion, and solve each one properly.",
   "steps": [
     {
       "id": "turn-up-alpha",
       "title": "Turn up the fine-structure constant",
       "body": [
         "Alpha is about 1 over 137, and nothing in the theory says why. Here you can move it and watch the level structure respond.",
-        "The badge says COUNTERFACTUAL, which is a specific promise: the physics was altered deliberately, then solved properly under the altered rules. This is not a cartoon."
+        "The badge says COUNTERFACTUAL, which is a specific promise: the physics was altered deliberately, then solved properly under the altered rules."
       ],
       "state": { "view": "whatif", "n": 2, "l": 1, "m": 0 },
       "spotlight": "const-sliders"

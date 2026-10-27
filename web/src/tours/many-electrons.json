@@ -29,7 +29,7 @@
       "title": "Atoms the cheap model cannot do at all",
       "body": [
         "Sulfur and chlorine have no published screening parameters, so the fitted model cannot draw them. Hartree-Fock needs none and solves them from scratch.",
-        "So the tour moves you to Hartree-Fock rather than offering a model that would refuse every request. That is the difference between a limit and a bug."
+        "So the tour moves you to Hartree-Fock rather than offering a model that would refuse every request."
       ],
       "state": { "system": "cl", "model": "hf", "view": "radial" },
       "spotlight": "system-picker"

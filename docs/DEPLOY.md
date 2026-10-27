@@ -36,8 +36,8 @@ of capacity mid-deploy. The deploy destroyed the running machine, couldn't
 create the replacement, and **the app stayed down until the region changed**.
 Retrying got nowhere.
 
-The lesson: a deploy is exactly the moment you need capacity, so a tight region
-is an availability risk, not just a latency choice. `fra` is the next closest
+A deploy is exactly the moment you need capacity, so a tight region is an
+availability risk as well as a latency choice. `fra` is the next closest
 with room. Moving back means changing `primary_region` in `fly.toml` and
 deploying, but decide on capacity, not distance.
 

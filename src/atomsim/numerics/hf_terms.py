@@ -23,9 +23,9 @@ tests/test_hartree_fock.py: hydrogen sees no self-interaction at all (the
 coefficients reduce to the independently derived closed-shell ones when q is
 full, and beryllium gives the textbook 4J - 2K.
 
-This is the part that fails silently when it is wrong: bad coefficients
-produce converged, smooth, believable orbitals with the wrong energy. Do not
-adjust a coefficient to make a benchmark match without re-deriving it.
+A wrong coefficient fails silently. It produces converged, smooth, believable
+orbitals with the wrong energy, so never adjust one to make a benchmark match
+without re-deriving it.
 
 Sign convention: `direct_potential` and `exchange_apply` both return the
 magnitude of their term as written above, so the caller assembles the Fock

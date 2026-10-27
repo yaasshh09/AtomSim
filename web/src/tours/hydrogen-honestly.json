@@ -53,7 +53,7 @@
       "title": "m, and a basis is a choice",
       "body": [
         "The chemistry orbitals you were taught, p_x and p_y, are not more real than the complex states with definite m. They are sums of them, and which set you call the answer is a choice of basis rather than a fact about the atom.",
-        "Both are first-class here, and the badge says which one is on screen. Switch it and watch the same physics wear a different face."
+        "Both are first-class here, and the badge says which one is on screen. Switch it and the shape on screen changes while the energy stays put."
       ],
       "state": { "n": 2, "l": 1, "m": 1, "view": "cloud", "basis": "real" },
       "spotlight": "basis-picker"
