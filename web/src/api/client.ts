@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import type { IonizationReference } from "../lib/hfVsExperiment";
 import type { IsoelectronicSequence } from "../lib/isoelectronic";
+import type { Rydberg } from "../lib/rydberg";
 
 /** An /api/levels payload is hydrogenic or screened, discriminated on `orbitals`. */
 export function isScreenedLevels(
@@ -147,6 +148,10 @@ export function getIonizationReference(): Promise<IonizationReference> {
 
 export function getIsoelectronic(nElectrons: number): Promise<IsoelectronicSequence> {
   return getJson(`/api/isoelectronic/${nElectrons}`);
+}
+
+export function getRydberg(atom: string): Promise<Rydberg> {
+  return getJson(`/api/rydberg/${atom}`);
 }
 
 export function getNodes(

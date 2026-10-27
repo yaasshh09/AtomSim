@@ -921,3 +921,33 @@ class IsoelectronicModel(BaseModel):
     citation: str
     retrieved: str
     note: str
+
+
+class DefectPointModel(BaseModel):
+    n: int
+    energy: QuantityModel
+    defect: QuantityModel
+
+
+class MeasuredDefectModel(BaseModel):
+    """NIST's defect for one term, from vendored term energies."""
+
+    n: int
+    defect: float
+    uncertainty: float
+
+
+class DefectSeriesModel(BaseModel):
+    l: int
+    computed: list[DefectPointModel]
+    measured: list[MeasuredDefectModel]
+
+
+class RydbergModel(BaseModel):
+    atom: str
+    symbol: str
+    series: list[DefectSeriesModel]
+    citation: str
+    retrieved: str
+    note: str
+

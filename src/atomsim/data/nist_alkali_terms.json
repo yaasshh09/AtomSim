@@ -1,0 +1,465 @@
+{
+ "species": "Li I and Na I: the ns, np, nd and nf terms to n = 20, and the ionization limit",
+ "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database, Energy Levels Data, https://physics.nist.gov/asd (query: spectrum=Li I and Na I, units cm-1)",
+ "retrieved": "2026-10-28",
+ "units": "cm-1",
+ "note": "energy_cm1 is the (2J+1)-weighted mean of the fine-structure levels of one term, so the spin-orbit splitting a central field has no room for is averaged out rather than dropped. uncertainty_cm1 is the largest NIST uncertainty among those levels. Levels NIST marks as theoretical or semi-empirical are left out. Isotope masses (AME2020) are for the reduced-mass Rydberg constant only; the isotope's effect on a quantum defect stays below 1e-3 to n = 20.",
+ "atoms": {
+  "Li": {
+   "limit_cm1": 43487.1142,
+   "limit_uncertainty_cm1": 0.00018,
+   "terms": [
+    {
+     "n": 2,
+     "l": 0,
+     "energy_cm1": 0.0,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 3,
+     "l": 0,
+     "energy_cm1": 27206.12,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 4,
+     "l": 0,
+     "energy_cm1": 35012.06,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 5,
+     "l": 0,
+     "energy_cm1": 38299.5,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 6,
+     "l": 0,
+     "energy_cm1": 39987.64,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 7,
+     "l": 0,
+     "energy_cm1": 40967.9,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 8,
+     "l": 0,
+     "energy_cm1": 41587.1,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 9,
+     "l": 0,
+     "energy_cm1": 42003.3,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 10,
+     "l": 0,
+     "energy_cm1": 42298.0,
+     "uncertainty_cm1": 10.0
+    },
+    {
+     "n": 11,
+     "l": 0,
+     "energy_cm1": 42510.0,
+     "uncertainty_cm1": 10.0
+    },
+    {
+     "n": 2,
+     "l": 1,
+     "energy_cm1": 14903.88667,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 3,
+     "l": 1,
+     "energy_cm1": 30925.38,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 4,
+     "l": 1,
+     "energy_cm1": 36469.55,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 5,
+     "l": 1,
+     "energy_cm1": 39015.56,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 6,
+     "l": 1,
+     "energy_cm1": 40390.84,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 7,
+     "l": 1,
+     "energy_cm1": 41217.35,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 8,
+     "l": 1,
+     "energy_cm1": 41751.63,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 9,
+     "l": 1,
+     "energy_cm1": 42118.27,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 10,
+     "l": 1,
+     "energy_cm1": 42379.16,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 11,
+     "l": 1,
+     "energy_cm1": 42569.1,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 12,
+     "l": 1,
+     "energy_cm1": 42719.14,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 13,
+     "l": 1,
+     "energy_cm1": 42832.92,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 14,
+     "l": 1,
+     "energy_cm1": 42923.39,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 15,
+     "l": 1,
+     "energy_cm1": 42995.51,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 16,
+     "l": 1,
+     "energy_cm1": 43055.34,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 17,
+     "l": 1,
+     "energy_cm1": 43105.42,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 18,
+     "l": 1,
+     "energy_cm1": 43146.96,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 19,
+     "l": 1,
+     "energy_cm1": 43181.84,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 20,
+     "l": 1,
+     "energy_cm1": 43211.39,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 3,
+     "l": 2,
+     "energy_cm1": 31283.104,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 4,
+     "l": 2,
+     "energy_cm1": 36623.392,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 5,
+     "l": 2,
+     "energy_cm1": 39094.936,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 6,
+     "l": 2,
+     "energy_cm1": 40437.316,
+     "uncertainty_cm1": 0.1
+    },
+    {
+     "n": 7,
+     "l": 2,
+     "energy_cm1": 41246.5,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 8,
+     "l": 2,
+     "energy_cm1": 41771.3,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 9,
+     "l": 2,
+     "energy_cm1": 42131.3,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 10,
+     "l": 2,
+     "energy_cm1": 42389.0,
+     "uncertainty_cm1": 10.0
+    },
+    {
+     "n": 11,
+     "l": 2,
+     "energy_cm1": 42578.0,
+     "uncertainty_cm1": 10.0
+    },
+    {
+     "n": 12,
+     "l": 2,
+     "energy_cm1": 42725.0,
+     "uncertainty_cm1": 10.0
+    },
+    {
+     "n": 4,
+     "l": 3,
+     "energy_cm1": 36630.2,
+     "uncertainty_cm1": 1.0
+    },
+    {
+     "n": 5,
+     "l": 3,
+     "energy_cm1": 39104.5,
+     "uncertainty_cm1": 1.0
+    }
+   ],
+   "z": 3,
+   "isotope_mass_u": 7.0160034366,
+   "isotope": "7Li"
+  },
+  "Na": {
+   "limit_cm1": 41449.451,
+   "limit_uncertainty_cm1": 0.002,
+   "terms": [
+    {
+     "n": 3,
+     "l": 0,
+     "energy_cm1": 0.0,
+     "uncertainty_cm1": 0.0
+    },
+    {
+     "n": 4,
+     "l": 0,
+     "energy_cm1": 25739.999,
+     "uncertainty_cm1": 0.003
+    },
+    {
+     "n": 5,
+     "l": 0,
+     "energy_cm1": 33200.673,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 6,
+     "l": 0,
+     "energy_cm1": 36372.618,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 7,
+     "l": 0,
+     "energy_cm1": 38012.042,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 8,
+     "l": 0,
+     "energy_cm1": 38968.51,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 9,
+     "l": 0,
+     "energy_cm1": 39574.85,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 10,
+     "l": 0,
+     "energy_cm1": 39983.27,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 11,
+     "l": 0,
+     "energy_cm1": 40271.396,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 12,
+     "l": 0,
+     "energy_cm1": 40482.236,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 3,
+     "l": 1,
+     "energy_cm1": 16967.63421,
+     "uncertainty_cm1": 5e-05
+    },
+    {
+     "n": 4,
+     "l": 1,
+     "energy_cm1": 30270.71667,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 5,
+     "l": 1,
+     "energy_cm1": 35042.02667,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 6,
+     "l": 1,
+     "energy_cm1": 37297.18,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 7,
+     "l": 1,
+     "energy_cm1": 38540.68,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 8,
+     "l": 1,
+     "energy_cm1": 39298.67667,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 10,
+     "l": 1,
+     "energy_cm1": 40136.96533,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 11,
+     "l": 1,
+     "energy_cm1": 40383.03967,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 3,
+     "l": 2,
+     "energy_cm1": 29172.857,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 4,
+     "l": 2,
+     "energy_cm1": 34548.743,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 5,
+     "l": 2,
+     "energy_cm1": 37036.76,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 6,
+     "l": 2,
+     "energy_cm1": 38387.2602,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 7,
+     "l": 2,
+     "energy_cm1": 39200.93,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 8,
+     "l": 2,
+     "energy_cm1": 39728.7,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 9,
+     "l": 2,
+     "energy_cm1": 40090.31,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 10,
+     "l": 2,
+     "energy_cm1": 40348.9162,
+     "uncertainty_cm1": 0.002
+    },
+    {
+     "n": 4,
+     "l": 3,
+     "energy_cm1": 34586.92,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 5,
+     "l": 3,
+     "energy_cm1": 37057.65,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 6,
+     "l": 3,
+     "energy_cm1": 38399.79,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 7,
+     "l": 3,
+     "energy_cm1": 39208.98,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 8,
+     "l": 3,
+     "energy_cm1": 39734.16,
+     "uncertainty_cm1": 0.02
+    },
+    {
+     "n": 9,
+     "l": 3,
+     "energy_cm1": 40094.19,
+     "uncertainty_cm1": 0.02
+    }
+   ],
+   "z": 11,
+   "isotope_mass_u": 22.989769282,
+   "isotope": "23Na"
+  }
+ }
+}

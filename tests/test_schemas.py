@@ -56,6 +56,10 @@ _NO_PROVENANCE_NEEDED = {
     ("IsoelectronicIonModel", "ie_ev"): "vendored NIST value; the parent carries the "
                                         "citation and retrieval date",
     ("IsoelectronicIonModel", "uncertainty_ev"): "vendored NIST value",
+    ("MeasuredDefectModel", "defect"): "read off vendored NIST term energies with the "
+                                       "Rydberg formula; the parent carries the citation",
+    ("MeasuredDefectModel", "uncertainty"): "NIST's level uncertainties, propagated",
+
 }
 
 

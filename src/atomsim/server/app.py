@@ -99,6 +99,12 @@ from atomsim.plane import (
 from atomsim.populations import ThermalConditions
 from atomsim.provenance import Fidelity, Field, Provenance, Quantity
 from atomsim.rabi import rabi_drive
+from atomsim.rydberg import (
+    NIST_ALKALI_TERMS,
+    RYDBERG_ATOMS,
+    computed_defects,
+    measured_defects,
+)
 from atomsim.sampling import (
     SampleCloud,
     sample_density,
@@ -122,6 +128,8 @@ from atomsim.server.schemas import (
     ComparisonModel,
     ConstantsReportModel,
     CurveOfGrowthModel,
+    DefectPointModel,
+    DefectSeriesModel,
     DensityComparisonModel,
     DiracComponentModel,
     DiracRadialModel,
@@ -136,6 +144,7 @@ from atomsim.server.schemas import (
     IsoelectronicModel,
     LambPredictionModel,
     LineModel,
+    MeasuredDefectModel,
     NodeSetModel,
     PauliCollapseModel,
     PotentialCurveModel,
@@ -145,6 +154,7 @@ from atomsim.server.schemas import (
     RabiModel,
     ReferenceItemModel,
     ReferenceModel,
+    RydbergModel,
     ScreenedLevelsModel,
     ScreenedOrbitalModel,
     SystemModel,
@@ -2235,6 +2245,43 @@ def create_app() -> FastAPI:
             citation=NIST_ISOELECTRONIC["citation"],
             retrieved=NIST_ISOELECTRONIC["retrieved"],
             note=NIST_ISOELECTRONIC["note"],
+        )
+
+    @app.get("/api/rydberg/{atom}", response_model=RydbergModel)
+    def rydberg_endpoint(atom: str) -> RydbergModel:
+        """Quantum defects of an alkali's s, p, d and f series, GSZ against NIST."""
+        symbol = RYDBERG_ATOMS.get(atom)
+        if symbol is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"quantum defects are computed for {sorted(RYDBERG_ATOMS)}, "
+                "the alkalis with both GSZ parameters and vendored NIST terms",
+            )
+        z = NIST_ALKALI_TERMS["atoms"][symbol]["z"]
+        return RydbergModel(
+            atom=atom,
+            symbol=symbol,
+            series=[
+                DefectSeriesModel(
+                    l=l,
+                    computed=[
+                        DefectPointModel(
+                            n=p.n,
+                            energy=QuantityModel.from_quantity(p.energy),
+                            defect=QuantityModel.from_quantity(p.defect),
+                        )
+                        for p in computed_defects(z, l)
+                    ],
+                    measured=[
+                        MeasuredDefectModel(n=m.n, defect=m.defect, uncertainty=m.uncertainty)
+                        for m in measured_defects(symbol, l)
+                    ],
+                )
+                for l in range(4)
+            ],
+            citation=NIST_ALKALI_TERMS["citation"],
+            retrieved=NIST_ALKALI_TERMS["retrieved"],
+            note=NIST_ALKALI_TERMS["note"],
         )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)

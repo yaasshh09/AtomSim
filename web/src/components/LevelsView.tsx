@@ -24,6 +24,7 @@ import { ProtonRadiusPanel } from "./ProtonRadiusPanel";
 import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { IsoelectronicPanel } from "./IsoelectronicPanel";
+import { RydbergPanel } from "./RydbergPanel";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -249,6 +250,7 @@ function ScreenedLadder({ levels }: { levels: ScreenedLevels }) {
           badge says the rest.
         </p>
       </Disclosure>
+      <RydbergPanel initial={levels.system.key} />
     </div>
   );
 }
