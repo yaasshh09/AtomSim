@@ -979,3 +979,14 @@ class KalphaModel(BaseModel):
     ka2: XrayLineModel
     citation: str
     retrieved: str
+
+
+class ExchangeHoleModel(BaseModel):
+    z: int
+    #: Where the reference electron sits, bohr from the nucleus, snapped to a mesh node.
+    a_bohr: float
+    #: rho(s) and rho(s | a) along the line through the nucleus and the electron.
+    density: FieldModel
+    conditional: FieldModel
+    #: The hole's integral, -1 exactly in theory; NUMERICAL.
+    sum_rule: QuantityModel

@@ -842,3 +842,14 @@ export interface FiniteSize {
   citation: string;
   retrieved: string;
 }
+
+/** /api/exchange-hole: the density along the line through the nucleus, with and without the hole. */
+export interface ExchangeHole {
+  z: number;
+  /** Where the pinned electron sits, snapped to a solver mesh node. */
+  a_bohr: number;
+  density: FieldData;
+  conditional: FieldData;
+  /** The hole's integral; -1 exactly in theory. */
+  sum_rule: Quantity;
+}

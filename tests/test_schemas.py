@@ -64,6 +64,8 @@ _NO_PROVENANCE_NEEDED = {
     ("XrayLineModel", "theory_uncertainty_ev"): "vendored NIST value",
     ("XrayLineModel", "experiment_ev"): "vendored NIST measurement",
     ("XrayLineModel", "experiment_uncertainty_ev"): "vendored NIST value",
+    ("ExchangeHoleModel", "a_bohr"): "the coordinate the caller chose, snapped to a mesh "
+                                     "node; the profile's provenance names the snap",
 }
 
 

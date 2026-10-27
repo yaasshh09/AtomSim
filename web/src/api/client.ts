@@ -4,6 +4,7 @@ import type {
   ClassicalGhost,
   ConstantsReport,
   DiracRadial,
+  ExchangeHole,
   FiniteSize,
   ForceLawResult,
   HFLevels,
@@ -149,6 +150,10 @@ export function getIonizationReference(): Promise<IonizationReference> {
 
 export function getIsoelectronic(nElectrons: number): Promise<IsoelectronicSequence> {
   return getJson(`/api/isoelectronic/${nElectrons}`);
+}
+
+export function getExchangeHole(z: number, a: number): Promise<ExchangeHole> {
+  return getJson(`/api/exchange-hole?z=${z}&a=${a.toFixed(4)}`);
 }
 
 export function getRydberg(atom: string): Promise<Rydberg> {

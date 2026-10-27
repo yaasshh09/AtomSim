@@ -60,6 +60,7 @@ from atomsim.classical import classical_ghost
 from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_FM, BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.constants_lab import analyze_constants
 from atomsim.density_compare import compare_total_densities
+from atomsim.exchange_hole import CLOSED_SHELL_Z, PROFILE_REACH, exchange_hole
 from atomsim.expectations import hydrogen_expectations, hydrogen_virial
 from atomsim.hf_atom import (
     HFResult,
@@ -133,6 +134,7 @@ from atomsim.server.schemas import (
     DensityComparisonModel,
     DiracComponentModel,
     DiracRadialModel,
+    ExchangeHoleModel,
     FieldModel,
     FiniteSizeLevelModel,
     FiniteSizeModel,
@@ -2306,6 +2308,48 @@ def create_app() -> FastAPI:
             citation=NIST_ALKALI_TERMS["citation"],
             retrieved=NIST_ALKALI_TERMS["retrieved"],
             note=NIST_ALKALI_TERMS["note"],
+        )
+
+    @app.get("/api/exchange-hole", response_model=ExchangeHoleModel)
+    def exchange_hole_endpoint(z: int, a: float = 1.0) -> ExchangeHoleModel:
+        """Where the other electrons are, given one electron a bohr from the nucleus.
+
+        A GET rather than a job because the panel that asks sits under this
+        atom's own Hartree-Fock ladder, so the solve is already memoized.
+        """
+        if z not in CLOSED_SHELL_Z:
+            raise HTTPException(
+                status_code=400,
+                detail=f"the exchange hole is drawn for closed-shell atoms, Z in "
+                f"{list(CLOSED_SHELL_Z)}; an open shell here is an average over its "
+                "terms, not one determinant with a hole to draw",
+            )
+        if not 0.0 < a <= PROFILE_REACH:
+            raise HTTPException(
+                status_code=422, detail=f"a must be in (0, {PROFILE_REACH}] bohr"
+            )
+        hole = exchange_hole(z, a)
+        # Every mesh node is real data; a stride keeps the payload to a plot's
+        # worth, and the electron's own node is always kept so the dip is drawn
+        # where it is.
+        keep = np.unique(np.r_[
+            np.arange(0, hole.s.size, max(1, hole.s.size // 800)),
+            np.flatnonzero(hole.s == hole.a),
+        ])
+        grid = hole.s[keep]
+
+        def field(values, label):
+            return FieldModel.from_field(Field(
+                values=values[keep], grid=grid, unit="bohr^-3", grid_unit="bohr",
+                label=label, provenance=hole.provenance,
+            ))
+
+        return ExchangeHoleModel(
+            z=z,
+            a_bohr=hole.a,
+            density=field(hole.density, "rho(s)"),
+            conditional=field(hole.conditional, "rho(s | a)"),
+            sum_rule=QuantityModel.from_quantity(hole.sum_rule),
         )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)
