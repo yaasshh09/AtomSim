@@ -23,6 +23,7 @@ import type {
   SystemsResponse,
 } from "./types";
 import type { IonizationReference } from "../lib/hfVsExperiment";
+import type { IsoelectronicSequence } from "../lib/isoelectronic";
 
 /** An /api/levels payload is hydrogenic or screened, discriminated on `orbitals`. */
 export function isScreenedLevels(
@@ -142,6 +143,10 @@ export function getVersion(): Promise<string> {
 
 export function getIonizationReference(): Promise<IonizationReference> {
   return getJson("/api/reference/ionization");
+}
+
+export function getIsoelectronic(nElectrons: number): Promise<IsoelectronicSequence> {
+  return getJson(`/api/isoelectronic/${nElectrons}`);
 }
 
 export function getNodes(

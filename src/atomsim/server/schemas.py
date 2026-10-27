@@ -896,3 +896,28 @@ class FiniteSizeModel(BaseModel):
     predictions: list[LambPredictionModel]
     citation: str
     retrieved: str
+
+
+class IsoelectronicIonModel(BaseModel):
+    """One vendored NIST ionization energy along a sequence."""
+
+    z: int
+    symbol: str
+    spectrum: str
+    ie_ev: float
+    uncertainty_ev: float
+    #: NIST's own marking: "measured", "theoretical" or "semi-empirical".
+    kind: str
+
+
+class IsoelectronicModel(BaseModel):
+    n_electrons: int
+    isoelectronic_with: str
+    config: str
+    #: E0 per Z^2 and E1 per Z, hartree: E(Z) = E0 Z^2 + E1 Z + E2 + ...
+    e0: QuantityModel
+    e1: QuantityModel
+    ions: list[IsoelectronicIonModel]
+    citation: str
+    retrieved: str
+    note: str

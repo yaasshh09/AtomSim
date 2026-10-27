@@ -1,0 +1,584 @@
+{
+  "species": "Isoelectronic sequences He, Li, Be, Ne and Na: ionization energies of the ground state, Z = N to N + 10",
+  "citation": "Kramida, A., Ralchenko, Yu., Reader, J., and NIST ASD Team. NIST Atomic Spectra Database, Ionization Energies Data, https://physics.nist.gov/asd (query: spectra=He-like Li-like Be-like Ne-like Na-like, units eV)",
+  "retrieved": "2026-10-27",
+  "units": "eV",
+  "note": "Ground term to ground term. kind records NIST's own marking: measured values are unmarked in the ASD, theoretical ones are in parentheses, semi-empirical (interpolated or extrapolated along the sequence) ones are in square brackets. NIST's helium-like ions past He I are theoretical: there the calculations are more precise than the experiments. These include every effect a non-relativistic Hartree-Fock orbital energy leaves out: orbital relaxation, correlation, relativity and QED.",
+  "sequences": {
+    "2": {
+      "isoelectronic_with": "He",
+      "ions": [
+        {
+          "z": 2,
+          "spectrum": "He I",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 24.587389011,
+          "uncertainty_ev": 2.5e-08,
+          "kind": "measured",
+          "references": "L17714"
+        },
+        {
+          "z": 3,
+          "spectrum": "Li II",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 75.640097,
+          "uncertainty_ev": 1.2e-06,
+          "kind": "theoretical",
+          "references": "L10054"
+        },
+        {
+          "z": 4,
+          "spectrum": "Be III",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 153.896205,
+          "uncertainty_ev": 4e-06,
+          "kind": "theoretical",
+          "references": "L10054"
+        },
+        {
+          "z": 5,
+          "spectrum": "B IV",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 259.374379,
+          "uncertainty_ev": 9e-06,
+          "kind": "theoretical",
+          "references": "L10054"
+        },
+        {
+          "z": 6,
+          "spectrum": "C V",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 392.09056,
+          "uncertainty_ev": 4e-05,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 7,
+          "spectrum": "N VI",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 552.06741,
+          "uncertainty_ev": 8e-05,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 8,
+          "spectrum": "O VII",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 739.32697,
+          "uncertainty_ev": 0.00015,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 9,
+          "spectrum": "F VIII",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 953.8983,
+          "uncertainty_ev": 0.0003,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 10,
+          "spectrum": "Ne IX",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 1195.8082,
+          "uncertainty_ev": 0.0004,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 11,
+          "spectrum": "Na X",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 1465.0992,
+          "uncertainty_ev": 0.0007,
+          "kind": "theoretical",
+          "references": "L21139"
+        },
+        {
+          "z": 12,
+          "spectrum": "Mg XI",
+          "ground_shells": "1s2",
+          "ground_level": "1S0",
+          "ie_ev": 1761.8049,
+          "uncertainty_ev": 0.001,
+          "kind": "theoretical",
+          "references": "L21139"
+        }
+      ]
+    },
+    "3": {
+      "isoelectronic_with": "Li",
+      "ions": [
+        {
+          "z": 3,
+          "spectrum": "Li I",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 5.391714996,
+          "uncertainty_ev": 2.2e-08,
+          "kind": "measured",
+          "references": "L12261"
+        },
+        {
+          "z": 4,
+          "spectrum": "Be II",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 18.21115,
+          "uncertainty_ev": 4e-05,
+          "kind": "measured",
+          "references": "L12158"
+        },
+        {
+          "z": 5,
+          "spectrum": "B III",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 37.93059,
+          "uncertainty_ev": 7e-05,
+          "kind": "measured",
+          "references": "L12547"
+        },
+        {
+          "z": 6,
+          "spectrum": "C IV",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 64.49352,
+          "uncertainty_ev": 0.00019,
+          "kind": "measured",
+          "references": "L11667"
+        },
+        {
+          "z": 7,
+          "spectrum": "N V",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 97.8901,
+          "uncertainty_ev": 0.0004,
+          "kind": "measured",
+          "references": "L4829"
+        },
+        {
+          "z": 8,
+          "spectrum": "O VI",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 138.1189,
+          "uncertainty_ev": 0.0021,
+          "kind": "semi-empirical",
+          "references": "L4713"
+        },
+        {
+          "z": 9,
+          "spectrum": "F VII",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 185.1868,
+          "uncertainty_ev": 0.0006,
+          "kind": "measured",
+          "references": "L6335"
+        },
+        {
+          "z": 10,
+          "spectrum": "Ne VIII",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 239.097,
+          "uncertainty_ev": 0.0019,
+          "kind": "semi-empirical",
+          "references": "L9090"
+        },
+        {
+          "z": 11,
+          "spectrum": "Na IX",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 299.856,
+          "uncertainty_ev": 0.007,
+          "kind": "theoretical",
+          "references": "L16264c99"
+        },
+        {
+          "z": 12,
+          "spectrum": "Mg X",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 367.489,
+          "uncertainty_ev": 0.007,
+          "kind": "theoretical",
+          "references": "L16264c99"
+        },
+        {
+          "z": 13,
+          "spectrum": "Al XI",
+          "ground_shells": "1s2.2s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 442.005,
+          "uncertainty_ev": 0.007,
+          "kind": "theoretical",
+          "references": "L16264c99"
+        }
+      ]
+    },
+    "4": {
+      "isoelectronic_with": "Be",
+      "ions": [
+        {
+          "z": 4,
+          "spectrum": "Be I",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 9.322699,
+          "uncertainty_ev": 7e-06,
+          "kind": "measured",
+          "references": "L5964"
+        },
+        {
+          "z": 5,
+          "spectrum": "B II",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 25.15483,
+          "uncertainty_ev": 5e-05,
+          "kind": "measured",
+          "references": "L12120"
+        },
+        {
+          "z": 6,
+          "spectrum": "C III",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 47.88778,
+          "uncertainty_ev": 0.00025,
+          "kind": "measured",
+          "references": "L876c191"
+        },
+        {
+          "z": 7,
+          "spectrum": "N IV",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 77.4735,
+          "uncertainty_ev": 0.0004,
+          "kind": "measured",
+          "references": "L7288,L876"
+        },
+        {
+          "z": 8,
+          "spectrum": "O V",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 113.899,
+          "uncertainty_ev": 0.0005,
+          "kind": "measured",
+          "references": "L7288"
+        },
+        {
+          "z": 9,
+          "spectrum": "F VI",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 157.16311,
+          "uncertainty_ev": 0.00025,
+          "kind": "measured",
+          "references": "L6491"
+        },
+        {
+          "z": 10,
+          "spectrum": "Ne VII",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 207.271,
+          "uncertainty_ev": 0.012,
+          "kind": "measured",
+          "references": "L9089"
+        },
+        {
+          "z": 11,
+          "spectrum": "Na VIII",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 264.192,
+          "uncertainty_ev": 0.022,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 12,
+          "spectrum": "Mg IX",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 327.99,
+          "uncertainty_ev": 0.04,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 13,
+          "spectrum": "Al X",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 398.65,
+          "uncertainty_ev": 0.06,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 14,
+          "spectrum": "Si XI",
+          "ground_shells": "1s2.2s2",
+          "ground_level": "1S0",
+          "ie_ev": 476.273,
+          "uncertainty_ev": 0.019,
+          "kind": "semi-empirical",
+          "references": "c192"
+        }
+      ]
+    },
+    "10": {
+      "isoelectronic_with": "Ne",
+      "ions": [
+        {
+          "z": 10,
+          "spectrum": "Ne I",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 21.564541,
+          "uncertainty_ev": 7e-06,
+          "kind": "measured",
+          "references": "L8826,L1407"
+        },
+        {
+          "z": 11,
+          "spectrum": "Na II",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 47.28636,
+          "uncertainty_ev": 0.00025,
+          "kind": "measured",
+          "references": "L914"
+        },
+        {
+          "z": 12,
+          "spectrum": "Mg III",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 80.1436,
+          "uncertainty_ev": 0.0006,
+          "kind": "measured",
+          "references": "L4995,L1434"
+        },
+        {
+          "z": 13,
+          "spectrum": "Al IV",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 119.9924,
+          "uncertainty_ev": 0.0019,
+          "kind": "measured",
+          "references": "L4714,L2829"
+        },
+        {
+          "z": 14,
+          "spectrum": "Si V",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 166.767,
+          "uncertainty_ev": 0.003,
+          "kind": "measured",
+          "references": "L3934"
+        },
+        {
+          "z": 15,
+          "spectrum": "P VI",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 220.43,
+          "uncertainty_ev": 0.005,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 16,
+          "spectrum": "S VII",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 280.954,
+          "uncertainty_ev": 0.007,
+          "kind": "measured",
+          "references": "L9896"
+        },
+        {
+          "z": 17,
+          "spectrum": "Cl VIII",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 348.306,
+          "uncertainty_ev": 0.007,
+          "kind": "measured",
+          "references": "L6972"
+        },
+        {
+          "z": 18,
+          "spectrum": "Ar IX",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 422.6,
+          "uncertainty_ev": 0.06,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 19,
+          "spectrum": "K X",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 503.67,
+          "uncertainty_ev": 0.07,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 20,
+          "spectrum": "Ca XI",
+          "ground_shells": "1s2.2s2.2p6",
+          "ground_level": "1S0",
+          "ie_ev": 591.6,
+          "uncertainty_ev": 0.12,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        }
+      ]
+    },
+    "11": {
+      "isoelectronic_with": "Na",
+      "ions": [
+        {
+          "z": 11,
+          "spectrum": "Na I",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 5.13907696,
+          "uncertainty_ev": 2.5e-07,
+          "kind": "measured",
+          "references": "L10921,L9648"
+        },
+        {
+          "z": 12,
+          "spectrum": "Mg II",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 15.035271,
+          "uncertainty_ev": 6e-06,
+          "kind": "measured",
+          "references": "L10635"
+        },
+        {
+          "z": 13,
+          "spectrum": "Al III",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 28.447642,
+          "uncertainty_ev": 2.5e-05,
+          "kind": "measured",
+          "references": "L4714,L277"
+        },
+        {
+          "z": 14,
+          "spectrum": "Si IV",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 45.14179,
+          "uncertainty_ev": 7e-05,
+          "kind": "measured",
+          "references": "L5815,L6098"
+        },
+        {
+          "z": 15,
+          "spectrum": "P V",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 65.02511,
+          "uncertainty_ev": 0.00012,
+          "kind": "measured",
+          "references": "L7147,L2613"
+        },
+        {
+          "z": 16,
+          "spectrum": "S VI",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 88.0529,
+          "uncertainty_ev": 0.0004,
+          "kind": "measured",
+          "references": "L7237,L4882"
+        },
+        {
+          "z": 17,
+          "spectrum": "Cl VII",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 114.2013,
+          "uncertainty_ev": 0.0006,
+          "kind": "measured",
+          "references": "L6356"
+        },
+        {
+          "z": 18,
+          "spectrum": "Ar VIII",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 143.4567,
+          "uncertainty_ev": 0.0012,
+          "kind": "semi-empirical",
+          "references": "L4344"
+        },
+        {
+          "z": 19,
+          "spectrum": "K IX",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 175.8174,
+          "uncertainty_ev": 0.0025,
+          "kind": "semi-empirical",
+          "references": "L4344"
+        },
+        {
+          "z": 20,
+          "spectrum": "Ca X",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 211.275,
+          "uncertainty_ev": 0.004,
+          "kind": "semi-empirical",
+          "references": "L11770"
+        },
+        {
+          "z": 21,
+          "spectrum": "Sc XI",
+          "ground_shells": "[Ne].3s",
+          "ground_level": "2S<1/2>",
+          "ie_ev": 249.798,
+          "uncertainty_ev": 0.005,
+          "kind": "semi-empirical",
+          "references": "L10106"
+        }
+      ]
+    }
+  }
+}

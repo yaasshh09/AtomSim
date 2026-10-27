@@ -53,6 +53,9 @@ _NO_PROVENANCE_NEEDED = {
     ("LambPredictionModel", "radius_fm"): "vendored published radius; the parent carries "
                                           "the citation",
     ("LambPredictionModel", "radius_uncertainty_fm"): "vendored published value",
+    ("IsoelectronicIonModel", "ie_ev"): "vendored NIST value; the parent carries the "
+                                        "citation and retrieval date",
+    ("IsoelectronicIonModel", "uncertainty_ev"): "vendored NIST value",
 }
 
 

@@ -2,6 +2,7 @@
 
 import asyncio
 import dataclasses
+import functools
 import logging
 import math
 import os
@@ -72,6 +73,12 @@ from atomsim.hf_atom import (
 )
 from atomsim.hf_reference import NIST_IONIZATION
 from atomsim.hybrids import HYBRIDS, evaluate_hybrid, hybrid_plane_grid, sample_hybrid
+from atomsim.isoelectronic import (
+    NIST_ISOELECTRONIC,
+    SEQUENCE_ELECTRONS,
+    sequence_coefficients,
+    sequence_reference,
+)
 from atomsim.isosurface import (
     GRID_SIZES,
     Isosurface,
@@ -125,6 +132,8 @@ from atomsim.server.schemas import (
     ForceLawModel,
     HFOrbitalModel,
     HFResultModel,
+    IsoelectronicIonModel,
+    IsoelectronicModel,
     LambPredictionModel,
     LineModel,
     NodeSetModel,
@@ -745,6 +754,9 @@ _HF_MAX_N = 4
 # already 1.8% of the 1s energy at Z = 36 (hf_atom quantifies it in the
 # provenance from Z = 9 up).
 _HF_MAX_Z = 36
+
+# Five sequences, each a few milliseconds of quadrature; no reason to redo them.
+_sequence_coefficients = functools.cache(sequence_coefficients)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2191,6 +2203,39 @@ def create_app() -> FastAPI:
         retrieval date instead of a fidelity tier, like the NIST line lists.
         """
         return NIST_IONIZATION
+
+    @app.get("/api/isoelectronic/{n_electrons}", response_model=IsoelectronicModel)
+    def isoelectronic_endpoint(n_electrons: int) -> IsoelectronicModel:
+        """One electron count, Z turned up: the 1/Z coefficients and NIST's ions.
+
+        The Hartree-Fock energies themselves come from /api/jobs/hf, one ion at
+        a time, so this stays a millisecond GET and every solve is memoized.
+        """
+        if n_electrons not in SEQUENCE_ELECTRONS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"no vendored sequence for N = {n_electrons}; "
+                f"available: {list(SEQUENCE_ELECTRONS)}",
+            )
+        coeffs = _sequence_coefficients(n_electrons)
+        ref = sequence_reference(n_electrons)
+        return IsoelectronicModel(
+            n_electrons=n_electrons,
+            isoelectronic_with=ref["isoelectronic_with"],
+            config=format_config(coeffs.config),
+            e0=QuantityModel.from_quantity(coeffs.e0),
+            e1=QuantityModel.from_quantity(coeffs.e1),
+            ions=[
+                IsoelectronicIonModel(
+                    z=ion["z"], symbol=ion["spectrum"].split()[0], spectrum=ion["spectrum"],
+                    ie_ev=ion["ie_ev"], uncertainty_ev=ion["uncertainty_ev"], kind=ion["kind"],
+                )
+                for ion in ref["ions"]
+            ],
+            citation=NIST_ISOELECTRONIC["citation"],
+            retrieved=NIST_ISOELECTRONIC["retrieved"],
+            note=NIST_ISOELECTRONIC["note"],
+        )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)
     def nodes_endpoint(

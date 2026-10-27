@@ -23,6 +23,7 @@ import { DecayCascade } from "./DecayCascade";
 import { ProtonRadiusPanel } from "./ProtonRadiusPanel";
 import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
+import { IsoelectronicPanel } from "./IsoelectronicPanel";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
 import { GridLines, LadderGrid, OffWindowMarks, usePlotZoom, ZoomControls } from "./PlotZoom";
@@ -509,6 +510,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       </Disclosure>
       <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
       <HFvsExperiment />
+      <IsoelectronicPanel />
     </div>
   );
 }
