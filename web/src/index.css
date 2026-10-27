@@ -333,6 +333,15 @@ body {
   margin: 0 0 0.5rem;
 }
 
+/* The Levels-view panels (config race, HF against experiment, sequences,
+   X-ray lines, the cascade) carry their "4 of 14 solved" progress as `.hint`,
+   and a panel is not a positioned ancestor either: the line escaped to the
+   page's bottom edge at full viewport width. In a panel it is ordinary text. */
+.config-race .hint {
+  position: static;
+  text-align: left;
+}
+
 label {
   display: flex;
   justify-content: space-between;
