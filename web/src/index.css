@@ -3911,3 +3911,58 @@ figure.plot:fullscreen > svg {
   font-size: 0.75em;
   letter-spacing: 0.04em;
 }
+
+/* The glossary button sits among the rail's footer links and reads as one. */
+.legal-links .link-button {
+  color: var(--label);
+}
+
+.legal-links .link-button:hover {
+  color: var(--accent);
+}
+
+/* A term with a definition on hover or focus: dotted, not a link colour, so
+   running text stays readable and a glossed word never looks like navigation. */
+abbr.gloss {
+  text-decoration: underline dotted;
+  text-underline-offset: 0.18em;
+  cursor: help;
+}
+
+.glossary-dialog {
+  max-width: min(40rem, calc(100vw - 2rem));
+  max-height: min(80vh, 50rem);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 1rem 1.25rem;
+}
+
+.glossary-dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.glossary-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) 1fr;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--edge);
+}
+
+.glossary-row dt {
+  font-weight: 600;
+}
+
+.glossary-row dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .glossary-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}

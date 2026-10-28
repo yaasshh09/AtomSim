@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ViewLead } from "../lib/explain";
 import { Notation } from "../lib/mathText";
 import { isNarrow } from "../lib/viewport";
+import { Glossed } from "./Glossed";
 
 /**
  * The card every instrument view now opens with.
@@ -42,14 +43,14 @@ export function ViewIntro({
         {badge ? <span className="view-intro-badge">{badge}</span> : null}
       </summary>
       <p className="view-intro-lead">
-        <Notation>{lead.lead}</Notation>
+        <Glossed>{lead.lead}</Glossed>
       </p>
       {lead.notice && (
         <p className="view-intro-notice">
           <span className="view-intro-notice-mark" aria-hidden="true">
             ◇
           </span>
-          <Notation>{lead.notice}</Notation>
+          <Glossed>{lead.notice}</Glossed>
         </p>
       )}
       {children}
