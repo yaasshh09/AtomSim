@@ -161,6 +161,7 @@ describe("serializeAppUrl", () => {
       planeSlice: { theta: 35, phi: 120.5, offset: -1.25 },
       planeCompare: { n: 2, l: 1, m: -1, system: "mu-h" },
       present: true,
+      embed: true,
       hybrid: null,
       labConst: { hbar: 1, e: 2, m_e: 1, eps0: 4, c: 1 },
       labZ: 3,

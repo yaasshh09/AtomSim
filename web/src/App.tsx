@@ -17,7 +17,9 @@ import { TourPanel } from "./components/TourPanel";
 import { TourSpotlight } from "./components/TourSpotlight";
 import { ViewTabs } from "./components/ViewTabs";
 import { WhatIfView } from "./components/WhatIfView";
+import { fullAppHref } from "./lib/embed";
 import { hybridLabel } from "./lib/hybrids";
+import { currentUrlState } from "./lib/urlState";
 import { snapHeight } from "./lib/sheet";
 import { isNarrow, useViewport } from "./lib/viewport";
 import { useAppStore } from "./state/store";
@@ -130,8 +132,30 @@ function MobileShell({ height }: { height: number }) {
   );
 }
 
+/** Inside someone else's page: the view alone, and the way back to the full app. */
+function EmbedShell() {
+  const state = useAppStore();
+  return (
+    <div className="app-shell embed">
+      <main className="center-col">
+        <Stage />
+      </main>
+      <a
+        className="embed-open"
+        href={fullAppHref(currentUrlState(state))}
+        target="_blank"
+        rel="noopener"
+      >
+        Open in AtomSim
+      </a>
+    </div>
+  );
+}
+
 export default function App() {
   const { width, height } = useViewport();
+  const embed = useAppStore((s) => s.embed);
+  if (embed) return <EmbedShell />;
   // Picked in JS rather than by a media query, so there is one threshold and
   // one place it is written down. See lib/viewport.ts for why it is 900.
   return isNarrow(width) ? <MobileShell height={height} /> : <DesktopShell />;

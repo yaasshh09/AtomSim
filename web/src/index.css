@@ -4016,3 +4016,24 @@ html.presenting {
   padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
+
+/* Embedded in another page: the view alone, and a small way back. */
+.app-shell.embed {
+  display: block;
+  height: 100vh;
+  overflow: auto;
+}
+
+.embed-open {
+  position: fixed;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 50;
+  font-size: 0.75rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  text-decoration: none;
+}

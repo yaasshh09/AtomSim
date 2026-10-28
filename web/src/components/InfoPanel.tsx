@@ -1,4 +1,5 @@
 import { Challenges } from "./Challenges";
+import { EmbedButton } from "./EmbedButton";
 import { GlossaryLink } from "./Glossed";
 import { Fragment, useEffect } from "react";
 import { hybridLabel } from "../lib/hybrids";
@@ -241,6 +242,7 @@ export function InfoPanel() {
         <a href="/changelog.html">What's new</a>
         <a href="/worksheets.html">Worksheets</a>
         <GlossaryLink />
+        <EmbedButton />
         <a href="https://github.com/yaasshh09/AtomSim/issues">Feedback</a>
       </nav>
     </aside>

@@ -216,6 +216,7 @@ interface AppState {
   planeSlice: PlaneSlice;
   planeCompare: PlaneCompare | null;
   present: boolean;
+  embed: boolean;
   comparePlane: { meta: PlaneMeta; values: Float32Array } | null;
   comparePlaneStatus: SampleStatus;
   /** An sp/sp2/sp3 hybrid key drawn in place of (n, l, m) in the cloud and plane, or null. */
@@ -502,6 +503,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   planeSlice: Y0_SLICE,
   planeCompare: null,
   present: false,
+  embed: false,
   superposition: DEFAULT_SUP,
   hybrid: null,
   surfaceMode: "cloud",
