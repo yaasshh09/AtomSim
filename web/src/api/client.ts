@@ -3,6 +3,7 @@ import type {
   Cascade,
   ClassicalGhost,
   ConstantsReport,
+  AlphaTable,
   DiracRadial,
   Dimensions,
   ExchangeHole,
@@ -164,6 +165,10 @@ export function getHeliumCorrelation(): Promise<HeliumCorrelation> {
 
 export function getDimensions(system: string): Promise<Dimensions> {
   return getJson(`/api/dimensions?system=${encodeURIComponent(system)}`);
+}
+
+export function getAlphaTable(alphaMultiplier: number): Promise<AlphaTable> {
+  return getJson(`/api/alpha-table?alpha_multiplier=${alphaMultiplier}`);
 }
 
 export function getRydberg(atom: string): Promise<Rydberg> {

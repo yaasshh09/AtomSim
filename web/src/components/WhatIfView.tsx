@@ -1,3 +1,4 @@
+import { AlphaTablePanel } from "./AlphaTablePanel";
 import { scaleLinear } from "d3-scale";
 import { useEffect } from "react";
 import type { ConstMultipliers } from "../api/client";
@@ -387,6 +388,7 @@ export function WhatIfView() {
           reset to real constants
         </button>
       </div>
+      <AlphaTablePanel />
     </div>
   );
 }

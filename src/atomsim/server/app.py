@@ -24,6 +24,7 @@ from pydantic import Field as PydanticField
 from scipy import constants as _sc
 
 import atomsim
+from atomsim.alpha_table import alpha_table
 from atomsim.analytic.dirac import dirac_energy, dirac_kappa, dirac_moments, dirac_radial
 from atomsim.analytic.fine_structure import fine_structure_shift, level_energy
 from atomsim.analytic.hydrogen import (
@@ -135,6 +136,7 @@ from atomsim.server.ratelimit import DEFAULT_CAPACITY, DEFAULT_PERIOD, TokenBuck
 from atomsim.server.result_cache import DEFAULT_MAX_BYTES, ResultCache
 from atomsim.server.schemas import (
     AbsorptionSpectrumModel,
+    AlphaTableModel,
     CascadeModel,
     ChannelModel,
     ClassicalGhostModel,
@@ -2555,6 +2557,20 @@ def create_app() -> FastAPI:
                 ])
                 for dim in DIMENSIONS
             ],
+        )
+
+    @app.get("/api/alpha-table", response_model=AlphaTableModel)
+    def alpha_table_endpoint(alpha_multiplier: float = 1.0) -> AlphaTableModel:
+        """Relativity's share of the 1s binding across the table, at a scaled alpha."""
+        try:
+            t = alpha_table(alpha_multiplier)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return AlphaTableModel(
+            alpha_multiplier=t.alpha_multiplier,
+            z_edge=t.z_edge,
+            shares=[None if q is None else QuantityModel.from_quantity(q)
+                    for q in t.relativistic_share],
         )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)

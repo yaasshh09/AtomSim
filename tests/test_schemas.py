@@ -72,6 +72,7 @@ _NO_PROVENANCE_NEEDED = {
                                        "optimal zeta",
     ("HeliumCorrelationModel", "exact_energy"): "a cited literature constant; the citation "
                                                 "sits beside it",
+    ("AlphaTableModel", "alpha_multiplier"): "the reader's chosen input, echoed",
     ("HeliumCorrelationModel", "measured_ie_ev"): "vendored NIST value; citation and "
                                                   "retrieval date sit beside it",
 }

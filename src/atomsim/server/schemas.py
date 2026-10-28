@@ -1047,3 +1047,11 @@ class DimensionSeriesModel(BaseModel):
 class DimensionsModel(BaseModel):
     system: str
     dimensions: list[DimensionSeriesModel]
+
+
+class AlphaTableModel(BaseModel):
+    alpha_multiplier: float
+    #: The largest Z up to 118 whose point-nucleus Dirac 1s exists (Z alpha < 1).
+    z_edge: int
+    #: Relativity's share of the hydrogen-like 1s binding for Z = 1..118; null past the edge.
+    shares: list[QuantityModel | None]

@@ -916,3 +916,10 @@ export interface Dimensions {
     levels: { n: number; degeneracy: number; energy: Quantity; energy_ev: Quantity }[];
   }[];
 }
+
+/** /api/alpha-table: relativity's share of the 1s binding per element at a scaled alpha. */
+export interface AlphaTable {
+  alpha_multiplier: number;
+  z_edge: number;
+  shares: (Quantity | null)[];
+}

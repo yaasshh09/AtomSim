@@ -4037,3 +4037,25 @@ html.presenting {
   padding: 0.25rem 0.6rem;
   text-decoration: none;
 }
+
+/* The periodic table as one strip of cells, coloured by relativity's share. */
+.alpha-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.1rem, 1fr));
+  gap: 2px;
+  margin: 0.5rem 0;
+}
+
+.alpha-cell {
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.2rem 0;
+  border-radius: 3px;
+  color: #fff;
+  text-shadow: 0 0 2px #000;
+}
+
+.alpha-cell.gone {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
