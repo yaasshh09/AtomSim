@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Worksheets · AtomSim</title>
+    <meta name="theme-color" content="#050708" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/legal.css" />
+    <style>
+      .sheet {
+        border-top: 1px solid #2a3532;
+        margin-top: 2.5rem;
+        padding-top: 0.5rem;
+      }
+      .sheet ol > li {
+        margin: 0.9rem 0;
+      }
+      .open-link {
+        font-size: 0.85rem;
+      }
+      .answers summary {
+        cursor: pointer;
+        color: #8fb3a8;
+      }
+      .note {
+        font-size: 0.85rem;
+        color: #8fa29c;
+      }
+      @media print {
+        :root {
+          color-scheme: light;
+        }
+        body {
+          background: #fff;
+          color: #000;
+        }
+        p,
+        li {
+          color: #000;
+        }
+        .back,
+        .open-link,
+        .no-print {
+          display: none;
+        }
+        .sheet {
+          break-before: page;
+          border: none;
+        }
+        .answers {
+          break-before: page;
+        }
+        .answers summary {
+          color: #000;
+          font-weight: 600;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">Back to AtomSim</a>
+      <h1>Worksheets for teachers</h1>
+      <p class="updated">Last updated 28 October 2026</p>
+      <p>
+        Three printable worksheets, each built around states you can open in AtomSim with one
+        click. The answer keys are folded away under each sheet and print on their own page.
+        Every number in them is checked against the engine by the project's test suite, the
+        same way the guided tours are, so a key cannot drift away from what the app shows.
+      </p>
+      <p class="no-print">Print this page to get all three, each starting on a new sheet.</p>
+
+      <section class="sheet" id="hydrogen-levels">
+        <h2>1. Hydrogen's energy ladder and its light</h2>
+        <p class="note">Level: final year of school or first year of university.</p>
+        <ol>
+          <li>
+            Open the energy levels for hydrogen. What is the energy of the n = 2 level, in eV?
+            <a class="open-link" href="/?view=levels">open in AtomSim</a>
+          </li>
+          <li>
+            How much energy does it take to free the electron from the ground state? Explain
+            why this is the same number as the magnitude of the n = 1 energy.
+          </li>
+          <li>
+            A photon is emitted when the electron drops from n = 3 to n = 2. Find its wavelength
+            in the spectrum view, and say what colour it is.
+            <a class="open-link" href="/?view=spectrum">open in AtomSim</a>
+          </li>
+          <li>
+            The drop from n = 2 to n = 1 gives a much shorter wavelength. Find it, and say why
+            you cannot see it.
+          </li>
+          <li>
+            Switch the system to He⁺. Every energy is four times larger. Use the Bohr formula,
+            E = −13.6 Z²/n² eV, to explain why.
+            <a class="open-link" href="/?system=he%2B&amp;view=levels">open in AtomSim</a>
+          </li>
+        </ol>
+        <details class="answers">
+          <summary>Answer key</summary>
+          <ol>
+            <li>
+              <span data-claim='{"of": "energy_eV", "system": "h", "n": 2, "tol": 0.006}'>-3.40 eV</span>.
+            </li>
+            <li>
+              <span data-claim='{"of": "energy_eV", "system": "h", "n": 1, "tol": 0.006}'>-13.60 eV</span>
+              is the ground-state energy measured from a free electron at rest, so freeing the
+              electron takes exactly 13.6 eV: the ionization energy.
+            </li>
+            <li>
+              <span data-claim='{"of": "wavelength_nm", "system": "h", "n_upper": 3, "n_lower": 2, "tol": 0.01}'>656.47 nm</span>,
+              red: Balmer alpha, the line that gives hydrogen nebulae their colour. The app
+              quotes the wavelength in vacuum; tables often quote it in air, 656.28 nm.
+            </li>
+            <li>
+              <span data-claim='{"of": "wavelength_nm", "system": "h", "n_upper": 2, "n_lower": 1, "tol": 0.01}'>121.57 nm</span>,
+              Lyman alpha, in the ultraviolet: shorter than the roughly 380 nm where human
+              vision stops.
+            </li>
+            <li>
+              Z = 2 for He⁺, and the energy goes as Z², so every level is 2² = 4 times deeper.
+              The ground state is
+              <span data-claim='{"of": "energy_eV", "system": "he+", "n": 1, "tol": 0.006}'>-54.42 eV</span>.
+            </li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="sheet" id="orbitals-and-nodes">
+        <h2>2. Orbitals, sizes and nodes</h2>
+        <p class="note">Level: first or second year of university.</p>
+        <ol>
+          <li>
+            Open hydrogen's 1s state in the radial view. What is the mean distance of the
+            electron from the nucleus, in pm?
+            <a class="open-link" href="/?view=radial">open in AtomSim</a>
+          </li>
+          <li>
+            Now open 2p. How much bigger is it, on average?
+            <a class="open-link" href="/?n=2&amp;l=1&amp;view=radial">open in AtomSim</a>
+          </li>
+          <li>
+            Count the wiggles of the 4s radial function that cross zero. Check your count against
+            the rule n − ℓ − 1.
+            <a class="open-link" href="/?n=4&amp;view=radial">open in AtomSim</a>
+          </li>
+          <li>
+            Open 3d₀ in the 2-D cross-section and switch on the node marks. Which nodes are
+            cones, and why does a cone show up as two straight lines?
+            <a class="open-link" href="/?n=3&amp;l=2&amp;view=plane">open in AtomSim</a>
+          </li>
+          <li>
+            Tilt the slice so that the 2p₀ orbital disappears completely. Which plane did you
+            choose, and why is the orbital exactly zero there?
+            <a class="open-link" href="/?n=2&amp;l=1&amp;view=plane">open in AtomSim</a>
+          </li>
+        </ol>
+        <details class="answers">
+          <summary>Answer key</summary>
+          <ol>
+            <li>
+              <span data-claim='{"of": "mean_r_pm", "system": "h", "n": 1, "l": 0, "tol": 0.05}'>79.42 pm</span>,
+              one and a half Bohr radii: ⟨r⟩ = (3/2) a₀ for 1s.
+            </li>
+            <li>
+              <span data-claim='{"of": "mean_r_pm", "system": "h", "n": 2, "l": 1, "tol": 0.05}'>264.73 pm</span>,
+              five Bohr radii and about three and a third times the 1s average.
+            </li>
+            <li>Three: n − ℓ − 1 = 4 − 0 − 1 = 3.</li>
+            <li>
+              3d₀ has ℓ − |m| = 2 polar nodes, both cones about the z axis, at about 55° and
+              125° from it, where 3cos²θ = 1. A slice through the axis cuts each cone in two
+              straight lines. 3d₀ has no nodal plane; that appears in 3d±1, where ℓ − |m| = 1.
+            </li>
+            <li>
+              The flat plane through the nucleus, z = 0: normal along z, no offset. 2p₀ is z
+              times a function of r alone, so it is exactly zero wherever z = 0.
+            </li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="sheet" id="many-electrons">
+        <h2>3. Many electrons: what models get right and wrong</h2>
+        <p class="note">Level: second or third year of university.</p>
+        <ol>
+          <li>
+            Open sodium with the Hartree-Fock model. Read its ionization energy from Koopmans'
+            theorem and compare it with the measured value.
+            <a class="open-link" href="/?system=na&amp;model=hf&amp;view=levels">open in AtomSim</a>
+          </li>
+          <li>
+            Do the same for helium. Is Koopmans too high or too low here, and why is helium
+            different from sodium?
+            <a class="open-link" href="/?system=he&amp;model=hf&amp;view=levels">open in AtomSim</a>
+          </li>
+          <li>
+            Under helium's ladder, find the correlation energy. What does Hartree-Fock assume
+            about the two electrons that a correlated wavefunction does not?
+          </li>
+          <li>
+            Switch off the exclusion principle for neon. Where do all ten electrons go, and what
+            would that do to chemistry?
+            <a class="open-link" href="/?system=ne&amp;model=hf&amp;nox=1&amp;nopauli=1&amp;view=levels">open in AtomSim</a>
+          </li>
+        </ol>
+        <details class="answers">
+          <summary>Answer key</summary>
+          <ol>
+            <li>
+              Koopmans gives
+              <span data-claim='{"of": "ionization_eV", "system": "na", "tol": 0.01}'>4.95 eV</span>;
+              NIST measures <span data-nist-ie="11">5.14 eV</span>. Koopmans is low by about
+              0.2 eV, because removing the lone 3s electron barely disturbs the core, so the
+              missing correlation dominates.
+            </li>
+            <li>
+              Koopmans gives
+              <span data-claim='{"of": "ionization_eV", "system": "he", "tol": 0.01}'>24.98 eV</span>
+              against a measured <span data-nist-ie="2">24.59 eV</span>: too high. Removing one of
+              helium's two electrons lets the other contract a lot, and freezing the orbitals
+              ignores that relaxation, which outweighs the missing correlation.
+            </li>
+            <li>
+              <span data-claim='{"of": "correlation_eV", "system": "he", "tol": 0.01}'>-1.14 eV</span>.
+              Hartree-Fock lets each electron feel the other only as an average cloud; a
+              correlated wavefunction lets them avoid each other instant by instant.
+            </li>
+            <li>
+              All ten fall into 1s. With no shells there is no valence shell, so the regularities
+              of the periodic table, and with them chemistry, disappear.
+            </li>
+          </ol>
+        </details>
+      </section>
+    </main>
+    <script>
+      // Printing should include the keys; a folded <details> would otherwise print empty.
+      window.addEventListener("beforeprint", () => {
+        document.querySelectorAll("details.answers").forEach((d) => (d.open = true));
+      });
+    </script>
+  </body>
+</html>

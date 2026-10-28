@@ -3726,7 +3726,8 @@ figure.plot:fullscreen > svg {
    have to be findable, not compete with the physics. */
 .legal-links {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
   margin-top: 1.5rem;
   font-size: 0.62rem;
 }
