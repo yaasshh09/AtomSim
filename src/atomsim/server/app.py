@@ -77,6 +77,7 @@ from atomsim.hf_atom import (
     hf_exchange_energy,
     hf_radial,
     hf_total_radial_density,
+    hf_valence_ionization_energy,
     pauli_collapse,
     solve_hartree_fock,
 )
@@ -975,6 +976,12 @@ def _pauli_collapse_model(collapse: PauliCollapse) -> PauliCollapseModel:
         variational_energy=QuantityModel.from_quantity(collapse.variational_energy),
         variational_energy_ev=QuantityModel.from_quantity(
             _to_ev(collapse.variational_energy)
+        ),
+        real_ionization_ev=QuantityModel.from_quantity(
+            _to_ev(hf_valence_ionization_energy(collapse.real))
+        ),
+        collapsed_ionization_ev=QuantityModel.from_quantity(
+            _to_ev(hf_valence_ionization_energy(collapse.collapsed))
         ),
     )
 

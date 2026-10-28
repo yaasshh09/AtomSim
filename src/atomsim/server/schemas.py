@@ -340,6 +340,11 @@ class PauliCollapseModel(BaseModel):
     variational_zeta: QuantityModel
     variational_energy: QuantityModel
     variational_energy_ev: QuantityModel
+    #: Koopmans ionization energies of both atoms, eV: the real atom's outermost
+    #: subshell against the collapsed atom's single 1s. Across a run of Z, the
+    #: first has the periodic table's sawtooth and the second has none.
+    real_ionization_ev: QuantityModel
+    collapsed_ionization_ev: QuantityModel
 
 
 class HFResultModel(BaseModel):

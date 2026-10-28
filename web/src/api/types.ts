@@ -640,6 +640,9 @@ export interface PauliCollapse {
   variational_zeta: Quantity;
   variational_energy: Quantity;
   variational_energy_ev: Quantity;
+  /** Koopmans ionization energies, eV: the real atom's outermost subshell, the collapsed 1s. */
+  real_ionization_ev: Quantity;
+  collapsed_ionization_ev: Quantity;
 }
 
 /**

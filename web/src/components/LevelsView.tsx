@@ -25,6 +25,7 @@ import { DimensionsPanel } from "./DimensionsPanel";
 import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { IsoelectronicPanel } from "./IsoelectronicPanel";
+import { BosonTable } from "./BosonTable";
 import { RydbergPanel } from "./RydbergPanel";
 import { CLOSED_SHELL_Z, ExchangeHolePanel } from "./ExchangeHolePanel";
 import { HeliumCorrelationPanel } from "./HeliumCorrelationPanel";
@@ -527,6 +528,7 @@ function HFLadder({ levels }: { levels: HFLevels }) {
       <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
       <HFvsExperiment />
       <IsoelectronicPanel />
+      <BosonTable />
       <XrayPanel />
     </div>
   );
