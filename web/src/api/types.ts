@@ -737,7 +737,34 @@ export interface SuperpositionMeta {
   provenance: Provenance;
 }
 
-export type JobMeta = SampleMeta | PlaneMeta | IsoMeta | HFLevels | SuperpositionMeta | Kalpha;
+export type JobMeta =
+  | SampleMeta
+  | PlaneMeta
+  | IsoMeta
+  | HFLevels
+  | SuperpositionMeta
+  | Kalpha
+  | VolumeMeta;
+
+/** |psi|^2 on a cubic grid, for the volume render. Layout [i][j][k] at (x, y, z), z fastest. */
+export interface VolumeMeta {
+  kind: "volume";
+  resolution: number;
+  dtype: string;
+  layout: string;
+  unit: string;
+  label: string;
+  half_width: number;
+  axis_unit: string;
+  captured: Quantity;
+  n: number;
+  l: number;
+  m: number;
+  basis: string;
+  system: string;
+  model: string;
+  provenance: Provenance;
+}
 
 /** One level the decay cascade passes through. Terminal levels (1s, 2s) have no E1 channel. */
 export interface CascadeLevel {

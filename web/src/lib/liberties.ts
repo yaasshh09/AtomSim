@@ -260,3 +260,23 @@ export const CASCADE_GROTRIAN_LIBERTY: Provenance = {
   error_estimate: null,
   refinement: "the table below gives each line's photons per atom and wavelength as numbers",
 };
+
+/**
+ * The volume render draws the engine's density grid as a glowing fog. Every
+ * choice between the grid and the pixel is presentation: the trilinear
+ * interpolation between nodes, the gamma compression, and above all the
+ * opacity, which decides how deep into the fog a ray sees. A denser-looking
+ * core is the transfer function as much as the atom.
+ */
+export const VOLUME_LIBERTY: Provenance = {
+  fidelity: "visual_liberty",
+  method: "the engine's |psi|^2 grid ray-marched as an emission-absorption fog in three.js",
+  assumptions: [
+    "the node values are the engine's; between nodes the GPU interpolates linearly",
+    "colour and glow follow the inferno map at t = (rho/rho_max)^0.5, the same gamma as the cloud",
+    "opacity per unit length is a presentation knob: it sets how far into the fog you see, not how much electron is there",
+    "the grid is stored as 8-bit levels of that gamma-compressed value for the GPU",
+  ],
+  error_estimate: null,
+  refinement: "the 2-D cross-section draws the same density with no opacity choice at all",
+};

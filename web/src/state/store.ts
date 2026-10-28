@@ -9,6 +9,7 @@ import type {
   IsoMeta,
   LevelsResponse,
   PlaneMeta,
+  VolumeMeta,
   RadialResponse,
   SampleMeta,
   AbsorptionInfo,
@@ -68,7 +69,7 @@ export type ColorMode = "solid" | "density" | "phase";
  * data it selects does get invalidated, but by (n, l, m, system, basis) like
  * every other derived payload, never by this.
  */
-export type SurfaceMode = "cloud" | "surface" | "both";
+export type SurfaceMode = "cloud" | "surface" | "both" | "volume";
 
 /**
  * The fractions offered as one-click contours.
@@ -237,6 +238,8 @@ interface AppState {
     phase: Float32Array;
   } | null;
   isoStatus: SampleStatus;
+  volume: { meta: VolumeMeta; values: Float32Array } | null;
+  volumeStatus: SampleStatus;
   isoProgress: number;
   radial: RadialResponse | null;
   /** Hydrogenic keys return a LevelsResponse; screened atoms return ScreenedLevels. */
@@ -396,6 +399,7 @@ interface AppState {
   setSurfaceMode: (surfaceMode: SurfaceMode) => void;
   setIsoFraction: (isoFraction: number) => void;
   loadIso: () => Promise<void>;
+  loadVolume: () => Promise<void>;
   setFps: (fps: number) => void;
   loadSystems: () => Promise<void>;
   loadStateInfo: () => Promise<void>;
@@ -435,6 +439,8 @@ export const INVALIDATED = {
   // of here: that is a question the reader asked, and it survives to be asked
   // again of the next orbital.
   iso: null,
+  volume: null,
+  volumeStatus: "idle" as SampleStatus,
   isoStatus: "idle" as SampleStatus,
   isoProgress: 0,
   radial: null,
@@ -961,6 +967,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({
         isoStatus: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  },
+  loadVolume: async () => {
+    if (get().volumeStatus === "sampling") return;
+    if (!(await get().ensureHF())) return;
+    const { n, l, m, system, basis } = get();
+    set({ volumeStatus: "sampling", error: null });
+    try {
+      const job = await client.createVolumeJob({
+        n,
+        l,
+        m,
+        system,
+        basis,
+        ...manyElectronParams(get()),
+      });
+      await client.watchJob(job.id, () => {});
+      const [meta, values] = await Promise.all([
+        client.getJobMeta(job.id),
+        client.getChannel(job.id),
+      ]);
+      if (meta.kind !== "volume") throw new Error("expected volume-job meta");
+      set({ volume: { meta, values }, volumeStatus: "ready" });
+    } catch (err) {
+      set({
+        volumeStatus: "error",
         error: err instanceof Error ? err.message : String(err),
       });
     }

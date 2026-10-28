@@ -199,6 +199,13 @@ from atomsim.systems import (
     list_systems,
 )
 from atomsim.transfer import absorb, curve_of_growth, default_columns
+from atomsim.volume import (
+    VOLUME_SIZES,
+    VolumeGrid,
+    density_volume,
+    hf_density_volume,
+    screened_density_volume,
+)
 from atomsim.xray import NIST_XRAY, XRAY_Z, KalphaResult, kalpha, measured_kalpha
 
 _DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -678,6 +685,44 @@ class SuperpositionMetaModel(BaseModel):
     #: The distinct nonzero beat periods 2 pi hbar / |E_j - E_k|, ascending
     #: frequency. Empty means the mix is stationary.
     beat_periods: list[QuantityModel]
+    provenance: ProvenanceModel
+
+
+class VolumeRequest(ManyElectronRequest):
+    """|psi|^2 on a cubic grid, its box fitted as the isosurface's is."""
+
+    n: int
+    l: int
+    m: int
+    resolution: int = 64
+    basis: Literal["complex", "real"] = "complex"
+    system: str = "h"
+
+    @model_validator(mode="after")
+    def _resolution_is_offered(self) -> "VolumeRequest":
+        if self.resolution not in VOLUME_SIZES:
+            raise ValueError(
+                f"resolution must be one of {VOLUME_SIZES}, got {self.resolution}"
+            )
+        return self
+
+
+class VolumeMetaModel(BaseModel):
+    kind: Literal["volume"] = "volume"
+    resolution: int
+    dtype: str
+    layout: str
+    unit: str
+    label: str
+    half_width: float
+    axis_unit: str
+    captured: QuantityModel
+    n: int
+    l: int
+    m: int
+    basis: str
+    system: str
+    model: str
     provenance: ProvenanceModel
 
 
@@ -2900,6 +2945,46 @@ def create_app() -> FastAPI:
 
         return _dispatch(job, work, req)
 
+    @app.post("/api/jobs/volume", response_model=JobModel)
+    async def create_volume_job(req: VolumeRequest) -> JobModel:
+        """|psi|^2 on a cubic grid for the volume render; the box fitted to the electron."""
+        _validate_state(req.n, req.l, req.m)
+        hf_target = _hf_view_target(req) if req.model == "hf" else None
+        job = jobs.create()
+        app.state.job_systems[job.id] = req.system
+        app.state.job_models[job.id] = req.model
+
+        if hf_target is not None:
+            hf_z, hf_n, hf_config = hf_target
+
+            def work(progress):
+                return hf_density_volume(
+                    hf_z, hf_n, req.n, req.l, req.m, basis=req.basis,
+                    resolution=req.resolution, progress=progress,
+                    config=hf_config, exchange=req.exchange, pauli=req.pauli,
+                )
+
+        elif _is_screened(req.system):
+            element = _gsz_element(req.system)
+
+            def work(progress):
+                return screened_density_volume(
+                    element.z, element.z, req.n, req.l, req.m, basis=req.basis,
+                    resolution=req.resolution, progress=progress,
+                )
+
+        else:
+            sys_ = _resolve_system(req.system)
+
+            def work(progress):
+                return density_volume(
+                    req.n, req.l, req.m, basis=req.basis,
+                    Z=sys_.Z, mu_ratio=sys_.mu_ratio.value,
+                    resolution=req.resolution, progress=progress,
+                )
+
+        return _dispatch(job, work, req)
+
     @app.post("/api/jobs/hf", response_model=JobModel)
     async def create_hf_job(req: HFRequest) -> JobModel:
         """Start a Hartree-Fock solve.
@@ -3104,14 +3189,14 @@ def create_app() -> FastAPI:
         "/api/jobs/{job_id}/meta",
         response_model=(
             SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel
-            | SuperpositionMetaModel | KalphaModel
+            | SuperpositionMetaModel | KalphaModel | VolumeMetaModel
         ),
     )
     def job_meta(
         job_id: str,
     ) -> (
         SampleMetaModel | PlaneMetaModel | IsoMetaModel | HFResultModel
-        | SuperpositionMetaModel | KalphaModel
+        | SuperpositionMetaModel | KalphaModel | VolumeMetaModel
     ):
         res = _finished_result(jobs, job_id)
         system_key = app.state.job_systems.get(job_id, "h")
@@ -3132,6 +3217,17 @@ def create_app() -> FastAPI:
             return _hf_result_model(res.result, res.exchange_energy, res.collapse)
         if isinstance(res, KalphaResult):
             return _kalpha_model(res)
+        if isinstance(res, VolumeGrid):
+            return VolumeMetaModel(
+                resolution=res.values.shape[0], dtype="float32",
+                layout="row-major float32; index [i, j, k] at (x=axis[i], y=axis[j], "
+                "z=axis[k]), k fastest; axis = linspace(-half_width, half_width, N)",
+                unit="bohr^-3", label=res.label, half_width=res.half_width,
+                axis_unit="bohr", captured=QuantityModel.from_quantity(res.captured),
+                n=res.n, l=res.l, m=res.m, basis=res.basis, system=system_key,
+                model=model_key,
+                provenance=ProvenanceModel.from_provenance(res.provenance),
+            )
         return _sample_meta(res, system_key, model_key).model_copy(
             update={"hybrid": hybrid_key}
         )
@@ -3189,6 +3285,12 @@ def create_app() -> FastAPI:
             payload = _iso_channel_payload(res, channel)
         elif isinstance(res, HFJobResult):
             payload = _hf_channel_payload(res.result, channel)
+        elif isinstance(res, VolumeGrid):
+            if channel is not None:
+                raise HTTPException(
+                    status_code=422, detail="volume jobs have a single channel"
+                )
+            payload = res.values
         elif isinstance(res, KalphaResult):
             raise HTTPException(
                 status_code=422,

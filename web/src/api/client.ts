@@ -445,6 +445,19 @@ export interface IsoParams extends Partial<ManyElectronParams> {
   resolution?: number;
 }
 
+export interface VolumeParams extends Partial<ManyElectronParams> {
+  n: number;
+  l: number;
+  m: number;
+  basis: Basis;
+  system: string;
+  resolution?: number;
+}
+
+export function createVolumeJob(params: VolumeParams): Promise<JobInfo> {
+  return postJson("/api/jobs/volume", { resolution: 64, ...params });
+}
+
 export function createIsoJob(params: IsoParams): Promise<JobInfo> {
   return postJson("/api/jobs/isosurface", { resolution: 96, ...params });
 }

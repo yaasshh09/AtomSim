@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import { formatSeconds, slowMotionFactor } from "../lib/classical";
 import { buildCloudColors } from "../lib/cloudColors";
@@ -13,6 +13,7 @@ import {
 import {
   CLASSICAL_SLOWMO,
   ISOSURFACE_LIBERTY,
+  VOLUME_LIBERTY,
   NUCLEUS_MARKER_LIBERTY,
   RENDER_LIBERTIES,
   formatErrorScale,
@@ -29,6 +30,7 @@ import { AxisTriad, CloudGrid, axisArmLength, gridStep } from "./AxisTriad";
 import { Badge } from "./Badge";
 import { GhostClock, GhostOverlay } from "./GhostOverlay";
 import { IsoSurface } from "./IsoSurface";
+import { VolumeRender } from "./VolumeRender";
 import { Legend } from "./Legend";
 import { PlotTools } from "./PlotZoom";
 import { PointCloud } from "./PointCloud";
@@ -111,9 +113,14 @@ export function CloudView() {
     isoStatus,
     isoProgress,
     loadIso,
+    volume,
+    volumeStatus,
+    loadVolume,
     model,
     meta,
   } = useAppStore();
+  // How far into the fog a ray sees: a presentation knob, on VOLUME_LIBERTY.
+  const [fogDepth, setFogDepth] = useState(10);
   // The ghost is a Kepler orbit, which exists because the field is exactly
   // 1/r. A screened atom's whole content is that its field is not, so there is
   // no ghost to draw and /api/classical says so with a 422. Three states here,
@@ -139,8 +146,13 @@ export function CloudView() {
     () => buildCloudColors(colorMode, density, phase),
     [colorMode, density, phase],
   );
-  const showSurface = surfaceMode !== "cloud";
-  const showCloud = surfaceMode !== "surface";
+  const showSurface = surfaceMode === "surface" || surfaceMode === "both";
+  const showCloud = surfaceMode === "cloud" || surfaceMode === "both";
+  const showVolume = surfaceMode === "volume";
+  useEffect(() => {
+    // Like the surface, a hybrid has no volume job yet.
+    if (showVolume && volumeStatus === "idle" && !hybrid) void loadVolume();
+  }, [showVolume, volumeStatus, loadVolume, hybrid]);
   // The surface is fetched when someone asks to see it, exactly like the
   // classical ghost: a deep link can arrive with ?surf=surface set without
   // ever passing through the toggle, and this is what it reaches.
@@ -162,7 +174,9 @@ export function CloudView() {
   const distance =
     surfaceMode === "surface" && iso
       ? Math.max(2.6 * surfaceExtent(iso.vertices), 1e-3)
-      : meanRadiusDistance;
+      : showVolume && volume
+        ? Math.max(2.6 * volume.meta.half_width, 1e-3)
+        : meanRadiusDistance;
   const sysInfo = stateInfo?.system ?? null;
   const nucleus = nucleusSphere(
     nucleusMode,
@@ -220,6 +234,14 @@ export function CloudView() {
               colors={surfaceColors}
             />
           </>
+        )}
+        {showVolume && volume && (
+          <VolumeRender
+            values={volume.values}
+            resolution={volume.meta.resolution}
+            halfWidth={volume.meta.half_width}
+            absorb={fogDepth}
+          />
         )}
         {ghost && classicalGhost && (
           <GhostOverlay ghost={classicalGhost} distance={distance} tauRef={ghostTauRef} />
@@ -330,8 +352,23 @@ export function CloudView() {
               <option value="cloud">point cloud</option>
               <option value="surface">enclosing surface</option>
               <option value="both">both</option>
+              <option value="volume">volume (glowing fog)</option>
             </select>
           </label>
+          {showVolume && (
+            <label>
+              Fog depth
+              <input
+                type="range"
+                min={1}
+                max={30}
+                step={1}
+                value={fogDepth}
+                onChange={(e) => setFogDepth(Number(e.target.value))}
+                aria-label="how far into the fog a ray sees"
+              />
+            </label>
+          )}
           {showSurface && (
             <label>
               Enclosing
@@ -348,6 +385,30 @@ export function CloudView() {
             </label>
           )}
         </div>
+        {showVolume && volumeStatus === "sampling" && (
+          <span className="ghost-readout">evaluating the density on the grid…</span>
+        )}
+        {showVolume && hybrid && (
+          <span className="ghost-readout">
+            The volume is drawn for single states, not hybrids, for now.
+          </span>
+        )}
+        {showVolume && volume && (
+          <div className="surface-hud">
+            <div className="ghost-readout">
+              <Notation>{`|psi|^2 on a ${volume.meta.resolution}^3 grid, half-width ${volume.meta.half_width.toFixed(2)} bohr`}</Notation>{" "}
+              <Badge provenance={volume.meta.provenance} />
+            </div>
+            <div className="ghost-readout">
+              the box holds {(100 * volume.meta.captured.value).toFixed(2)}% of the electron{" "}
+              <Badge provenance={volume.meta.captured.provenance} />
+            </div>
+            <div className="ghost-readout">
+              Fog depth sets how far into the cloud you see, not how much electron is there.
+            </div>
+            <Badge provenance={VOLUME_LIBERTY} />
+          </div>
+        )}
         {showSurface && isoStatus === "sampling" && (
           <span className="ghost-readout">
             solving for the level… {Math.round(isoProgress * 100)}%

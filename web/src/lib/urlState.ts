@@ -251,7 +251,7 @@ const BASES: Basis[] = ["complex", "real"];
 const MODELS: AtomModel[] = ["gsz", "hf"];
 const NUCLEUS: NucleusMode[] = ["hidden", "true-scale", "marker"];
 const PLANES: PlaneQuantity[] = ["density", "psi", "current"];
-const SURFACES: SurfaceMode[] = ["cloud", "surface", "both"];
+const SURFACES: SurfaceMode[] = ["cloud", "surface", "both", "volume"];
 const FORCE_PRESETS: ForcePreset[] = [
   "powerlaw",
   "yukawa",
