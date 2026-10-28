@@ -5,6 +5,8 @@ import {
   arrowLattice,
   beatPeriods,
   coefficients,
+  morphBound,
+  morphCoefficients,
   currentBound,
   densityBound,
   evolveCurrent,
@@ -21,6 +23,7 @@ import { rasterize, rasterizePhase } from "../lib/rasterize";
 import { isHydrogenic, isScreened } from "../lib/systemKind";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { Disclosure } from "./Disclosure";
 import { ControlGroup, Slider } from "./Field";
 import { PlaneStack } from "./PlaneStack";
 import { ViewIntro } from "./ViewIntro";
@@ -218,12 +221,35 @@ export function EvolveView() {
     () => evolve?.meta.components.map((c) => c.energy.value) ?? [],
     [evolve],
   );
-  const coeffs = useMemo(() => coefficients(superposition), [superposition]);
+  // The morph walks from the first state to the second along a path of real,
+  // normalized states, with the clock stopped at t = 0. It is offered for a
+  // mix of exactly two states, and only overrides the populations while on.
+  const [morphOn, setMorphOn] = useState(false);
+  const [morphDeg, setMorphDeg] = useState(0);
+  const [morphPhase, setMorphPhase] = useState<-0.5 | 0>(-0.5);
+  const [morphPlaying, setMorphPlaying] = useState(false);
+  const morphing = morphOn && superposition.length === 2;
+  const coeffs = useMemo(
+    () =>
+      morphing
+        ? morphCoefficients((morphDeg * Math.PI) / 180, morphPhase)
+        : coefficients(superposition),
+    [morphing, morphDeg, morphPhase, superposition],
+  );
+  useEffect(() => {
+    if (!morphPlaying) return;
+    const id = setInterval(() => setMorphDeg((d) => Math.min(90, d + 1)), 40);
+    return () => clearInterval(id);
+  }, [morphPlaying]);
+  useEffect(() => {
+    if (morphPlaying && morphDeg >= 90) setMorphPlaying(false);
+  }, [morphPlaying, morphDeg]);
   const periods = useMemo(() => beatPeriods(energies, superposition), [energies, superposition]);
   // Fixed for the whole movie, so the density visibly breathes.
   const scale = useMemo(
-    () => (evolve ? densityBound(evolve.psi, coeffs) : 0),
-    [evolve, coeffs],
+    () =>
+      evolve ? (morphing ? morphBound(evolve.psi) : densityBound(evolve.psi, coeffs)) : 0,
+    [evolve, coeffs, morphing],
   );
 
   const every = evolve ? Math.max(4, Math.round(evolve.meta.resolution / ARROWS_ACROSS)) : 1;
@@ -289,7 +315,10 @@ export function EvolveView() {
         const { jx, jz } = evolveCurrent(evolve.psi, grads.dx, grads.dz, coeffs, energies, t, lattice);
         drawArrows(ctx, lattice, jx, jz, jScale, res, every, UPSCALE);
       }
-      if (clockRef.current) {
+      if (clockRef.current && morphing) {
+        const share = Math.sin((morphDeg * Math.PI) / 180) ** 2;
+        clockRef.current.textContent = `Morph: ${(100 * share).toFixed(0)}% of the way into the second state, clock stopped at t = 0.`;
+      } else if (clockRef.current) {
         const t = tRef.current;
         clockRef.current.textContent = slowest
           ? `t = ${formatFs(t * unitFs)}, ${(t / slowest).toFixed(2)} of the slowest beat`
@@ -297,7 +326,7 @@ export function EvolveView() {
       }
     };
     draw();
-    if (!playing || !slowest) return;
+    if (!playing || !slowest || morphing) return;
 
     let raf = 0;
     let last = performance.now();
@@ -313,7 +342,7 @@ export function EvolveView() {
     return () => cancelAnimationFrame(raf);
   }, [
     evolve, problem, coeffs, energies, periods, scale, playing, speed, epoch,
-    colour, shifted, showCurrent, grads, lattice, jScale, every,
+    colour, shifted, showCurrent, grads, lattice, jScale, every, morphing, morphDeg,
   ]);
 
   const total = superposition.reduce((s, c) => s + c.weight, 0);
@@ -365,6 +394,73 @@ export function EvolveView() {
             )}
             {problem && <p className="error">{problem}</p>}
           </ControlGroup>
+          {superposition.length === 2 && (
+            <Disclosure summary="Morph: walk from the first state to the second">
+              <p className="caption">
+                Every frame is a real, normalized state, cos α ψ₁ + e^(iφ) sin α ψ₂, drawn
+                with the clock stopped at t = 0. With φ = −π/2 this is the path a resonant π
+                pulse drives between two levels, seen rotating with them: on this plane the
+                two never interfere and the density fades from one to the other. In phase,
+                φ = 0, they interfere, and the in-between frames are lopsided.
+              </p>
+              <div className="view-header">
+                <button
+                  type="button"
+                  className={morphOn ? "ghost seg-on" : "ghost"}
+                  aria-pressed={morphOn}
+                  onClick={() => {
+                    setMorphOn((v) => !v);
+                    setMorphPlaying(false);
+                    setPlaying(false);
+                    tRef.current = 0;
+                  }}
+                >
+                  {morphOn ? "Morph on" : "Morph off"}
+                </button>
+                <div className="seg" role="group" aria-label="morph path">
+                  <button
+                    type="button"
+                    className={morphPhase === -0.5 ? "seg-on" : ""}
+                    onClick={() => setMorphPhase(-0.5)}
+                  >
+                    π-pulse path
+                  </button>
+                  <button
+                    type="button"
+                    className={morphPhase === 0 ? "seg-on" : ""}
+                    onClick={() => setMorphPhase(0)}
+                  >
+                    in phase
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={!morphOn}
+                  onClick={() => {
+                    if (morphDeg >= 90) setMorphDeg(0);
+                    setMorphPlaying((v) => !v);
+                  }}
+                >
+                  {morphPlaying ? "Pause morph" : "Play morph"}
+                </button>
+              </div>
+              {morphOn && (
+                <Slider
+                  label="Mixing angle α"
+                  readout={`${morphDeg}°, ${(100 * Math.sin((morphDeg * Math.PI) / 180) ** 2).toFixed(0)}% in the second state`}
+                  min={0}
+                  max={90}
+                  step={1}
+                  value={morphDeg}
+                  onChange={(v) => {
+                    setMorphPlaying(false);
+                    setMorphDeg(v);
+                  }}
+                />
+              )}
+            </Disclosure>
+          )}
 
           <div className="view-header">
             <span className="plot-title">

@@ -307,3 +307,35 @@ export function arrowLattice(res: number, every: number): number[] {
   }
   return out;
 }
+
+/**
+ * The two coefficients along a morph from the first state to the second:
+ * c = (cos alpha, e^{i pi phasePi} sin alpha), alpha from 0 to pi/2.
+ *
+ * Every frame is a normalized quantum state, not a blend of two pictures. With
+ * phasePi = -1/2 it is the path a resonant pi pulse drives between the two
+ * levels, seen in the frame rotating with them: there the cross term
+ * 2 cos sin Re(e^{-i pi/2} psi_A psi_B) vanishes for the real psi on y = 0,
+ * and the density crossfades, cos^2 rho_A + sin^2 rho_B. With phasePi = 0 the
+ * two states interfere and the in-between frames show it.
+ */
+export function morphCoefficients(alpha: number, phasePi: number): Coefficient[] {
+  const s = Math.sin(alpha);
+  return [
+    { re: Math.cos(alpha), im: 0 },
+    { re: s * Math.cos(Math.PI * phasePi), im: s * Math.sin(Math.PI * phasePi) },
+  ];
+}
+
+/**
+ * The brightest any frame of the morph can be, so the whole path is drawn on
+ * one scale. By Cauchy-Schwarz (cos a |psi_A| + sin a |psi_B|)^2 <= psi_A^2 +
+ * psi_B^2, with equality at some alpha, so this is the supremum over the path,
+ * whatever the phase, and not a sample of it.
+ */
+export function morphBound(psi: Float32Array[]): number {
+  const [a, b] = psi;
+  let best = 0;
+  for (let i = 0; i < a.length; i++) best = Math.max(best, a[i] * a[i] + b[i] * b[i]);
+  return best;
+}
