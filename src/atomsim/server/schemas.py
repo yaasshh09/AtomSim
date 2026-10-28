@@ -1025,3 +1025,20 @@ class HeliumCorrelationModel(BaseModel):
     measured_ie_ev: float
     measured_citation: str
     measured_retrieved: str
+
+
+class DimensionLevelModel(BaseModel):
+    n: int
+    degeneracy: int
+    energy: QuantityModel
+    energy_ev: QuantityModel
+
+
+class DimensionSeriesModel(BaseModel):
+    dim: int
+    levels: list[DimensionLevelModel]
+
+
+class DimensionsModel(BaseModel):
+    system: str
+    dimensions: list[DimensionSeriesModel]

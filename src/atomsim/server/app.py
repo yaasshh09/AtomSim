@@ -67,6 +67,7 @@ from atomsim.constants import (
 )
 from atomsim.constants_lab import analyze_constants
 from atomsim.density_compare import compare_total_densities
+from atomsim.dimensions import DIMENSIONS, degeneracy, energy_d
 from atomsim.exchange_hole import CLOSED_SHELL_Z, PROFILE_REACH, exchange_hole
 from atomsim.expectations import hydrogen_expectations, hydrogen_virial
 from atomsim.hf_atom import (
@@ -142,6 +143,9 @@ from atomsim.server.schemas import (
     DefectPointModel,
     DefectSeriesModel,
     DensityComparisonModel,
+    DimensionLevelModel,
+    DimensionSeriesModel,
+    DimensionsModel,
     DiracComponentModel,
     DiracRadialModel,
     ExchangeHoleModel,
@@ -2516,6 +2520,34 @@ def create_app() -> FastAPI:
             measured_ie_ev=he["ie_ev"],
             measured_citation=NIST_IONIZATION["citation"],
             measured_retrieved=NIST_IONIZATION["retrieved"],
+        )
+
+    @app.get("/api/dimensions", response_model=DimensionsModel)
+    def dimensions_endpoint(system: str = "h", n_max: int = 4) -> DimensionsModel:
+        """Hydrogen's ladder with the same -Z/r pull in 2, 3 and 4 dimensions."""
+        if _is_screened(system):
+            raise HTTPException(
+                status_code=400,
+                detail="other dimensions are drawn for the hydrogen-like systems only",
+            )
+        if not 1 <= n_max <= 8:
+            raise HTTPException(status_code=422, detail="n_max must be in [1, 8]")
+        sys_ = _resolve_system(system)
+        mu = sys_.mu_ratio.value
+        return DimensionsModel(
+            system=system,
+            dimensions=[
+                DimensionSeriesModel(dim=dim, levels=[
+                    DimensionLevelModel(
+                        n=n, degeneracy=degeneracy(n, dim),
+                        energy=QuantityModel.from_quantity(e),
+                        energy_ev=QuantityModel.from_quantity(_to_ev(e)),
+                    )
+                    for n in range(1, n_max + 1)
+                    for e in [energy_d(n, dim, Z=sys_.Z, mu_ratio=mu)]
+                ])
+                for dim in DIMENSIONS
+            ],
         )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)

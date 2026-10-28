@@ -21,6 +21,7 @@ import { Badge } from "./Badge";
 import { ConfigRace } from "./ConfigRace";
 import { DecayCascade } from "./DecayCascade";
 import { ProtonRadiusPanel } from "./ProtonRadiusPanel";
+import { DimensionsPanel } from "./DimensionsPanel";
 import { RabiPanel } from "./RabiPanel";
 import { HFvsExperiment } from "./HFvsExperiment";
 import { IsoelectronicPanel } from "./IsoelectronicPanel";
@@ -1153,6 +1154,7 @@ export function LevelsView() {
       <DecayCascade n={n} l={l} system={system} />
       <RabiPanel system={system} />
       <ProtonRadiusPanel system={system} />
+      <DimensionsPanel system={system} />
     </div>
   );
 }

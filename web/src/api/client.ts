@@ -4,6 +4,7 @@ import type {
   ClassicalGhost,
   ConstantsReport,
   DiracRadial,
+  Dimensions,
   ExchangeHole,
   HeliumCorrelation,
   FiniteSize,
@@ -159,6 +160,10 @@ export function getExchangeHole(z: number, a: number): Promise<ExchangeHole> {
 
 export function getHeliumCorrelation(): Promise<HeliumCorrelation> {
   return getJson("/api/helium-correlation");
+}
+
+export function getDimensions(system: string): Promise<Dimensions> {
+  return getJson(`/api/dimensions?system=${encodeURIComponent(system)}`);
 }
 
 export function getRydberg(atom: string): Promise<Rydberg> {

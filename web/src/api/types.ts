@@ -904,3 +904,12 @@ export interface HeliumCorrelation {
   measured_citation: string;
   measured_retrieved: string;
 }
+
+/** /api/dimensions: hydrogen's ladder with the same pull in 2, 3 and 4 dimensions. */
+export interface Dimensions {
+  system: string;
+  dimensions: {
+    dim: number;
+    levels: { n: number; degeneracy: number; energy: Quantity; energy_ev: Quantity }[];
+  }[];
+}
