@@ -3966,3 +3966,24 @@ abbr.gloss {
     gap: 0.15rem;
   }
 }
+
+/* The rail's challenge list: a tick and the reason once solved, a hint before. */
+.challenge-list {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.challenge {
+  margin: 0.45rem 0;
+}
+
+.challenge.done {
+  color: var(--muted);
+}
+
+.challenge details summary {
+  cursor: pointer;
+  color: var(--label);
+  font-size: 0.8rem;
+}
