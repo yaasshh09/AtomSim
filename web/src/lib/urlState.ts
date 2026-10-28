@@ -30,6 +30,14 @@ export interface PlaneSlice {
 
 export const Y0_SLICE: PlaneSlice = { theta: 90, phi: 90, offset: 0 };
 
+/** A second hydrogen-like state drawn beside the first in the 2-D view. */
+export interface PlaneCompare {
+  n: number;
+  l: number;
+  m: number;
+  system: string;
+}
+
 export function isY0(s: PlaneSlice): boolean {
   return s.theta === 90 && s.phi === 90 && s.offset === 0;
 }
@@ -97,6 +105,8 @@ export interface UrlState {
   planeQuantity: PlaneQuantity;
   /** The plane the 2-D view cuts. A physical choice, so it travels in the link. */
   planeSlice: PlaneSlice;
+  /** The state drawn beside the first on the same frame and colour scale, or null. */
+  planeCompare: PlaneCompare | null;
   /** What the 3-D view draws: the cloud, the enclosing surface, or both. */
   surfaceMode: SurfaceMode;
   /**
@@ -210,6 +220,7 @@ export const URL_DEFAULTS: UrlState = {
   nucleusMode: "marker",
   planeQuantity: "density",
   planeSlice: Y0_SLICE,
+  planeCompare: null,
   surfaceMode: "cloud",
   isoFraction: 0.9,
   labConst: { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 },
@@ -313,6 +324,7 @@ export function currentUrlState(s: Omit<UrlState, "tour" | "step">): UrlState {
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,
     planeSlice: s.planeSlice,
+    planeCompare: s.planeCompare,
     surfaceMode: s.surfaceMode,
     isoFraction: s.isoFraction,
     labConst: s.labConst,
@@ -400,6 +412,23 @@ export function parseAppUrl(search: string): Partial<UrlState> {
     Math.abs(slice[2]) <= 100
   ) {
     out.planeSlice = { theta: slice[0], phi: slice[1], offset: slice[2] };
+  }
+  // cmp=n,l,m,system. Quantum numbers are checked here; the system key is
+  // checked by the server, which refuses one it does not know.
+  const cmp = (q.get("cmp") ?? "").split(",");
+  if (cmp.length === 4) {
+    const [cn, cl, cm] = cmp.slice(0, 3).map(Number);
+    if (
+      [cn, cl, cm].every(Number.isInteger) &&
+      cn >= 1 &&
+      cn <= 10 &&
+      cl >= 0 &&
+      cl < cn &&
+      Math.abs(cm) <= cl &&
+      /^[a-z0-9+.-]{1,16}$/.test(cmp[3])
+    ) {
+      out.planeCompare = { n: cn, l: cl, m: cm, system: cmp[3] };
+    }
   }
   const surf = pickEnum(q.get("surf"), SURFACES);
   if (surf) out.surfaceMode = surf;
@@ -572,6 +601,10 @@ export function serializeAppUrl(state: UrlState): string {
   if (!isY0(state.planeSlice)) {
     const { theta, phi, offset } = state.planeSlice;
     q.set("slice", `${theta},${phi},${offset}`);
+  }
+  if (state.planeCompare) {
+    const c = state.planeCompare;
+    q.set("cmp", `${c.n},${c.l},${c.m},${c.system}`);
   }
   if (state.surfaceMode !== URL_DEFAULTS.surfaceMode) q.set("surf", state.surfaceMode);
   // Written only when a surface is being drawn: a fraction in a link that

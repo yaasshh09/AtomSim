@@ -855,6 +855,34 @@ button.ghost:hover {
   flex-shrink: 0;
 }
 
+/* Two planes side by side on one frame and colour scale; stacked on a phone,
+   where two squares abreast would each be too small to read. */
+.plane-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .plane-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A PlaneStack is a frame and its toolbar; the cell keeps the pair together
+   in one grid column and, like the frame, refuses to shrink in the flex column. */
+.plane-cell {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.compare-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+
 .plane-canvas {
   width: 100%;
   max-width: min(100%, 70vh);

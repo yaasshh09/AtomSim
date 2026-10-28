@@ -33,6 +33,20 @@ describe("the slice plane in the URL", () => {
   });
 });
 
+describe("the comparison state in the URL", () => {
+  it("parses a valid one and drops an impossible one", () => {
+    expect(parseAppUrl("?cmp=3,2,-1,he%2B").planeCompare).toEqual({
+      n: 3,
+      l: 2,
+      m: -1,
+      system: "he+",
+    });
+    for (const bad of ["2,2,0,h", "2,1,2,h", "0,0,0,h", "2,1,0", "2,1,0,H<script>"]) {
+      expect(parseAppUrl(`?cmp=${encodeURIComponent(bad)}`).planeCompare).toBeUndefined();
+    }
+  });
+});
+
 describe("parseAppUrl", () => {
   it("empty search yields no overrides", () => {
     expect(parseAppUrl("")).toEqual({});
@@ -145,6 +159,7 @@ describe("serializeAppUrl", () => {
       nucleusMode: "hidden" as const,
       planeQuantity: "psi" as const,
       planeSlice: { theta: 35, phi: 120.5, offset: -1.25 },
+      planeCompare: { n: 2, l: 1, m: -1, system: "mu-h" },
       hybrid: null,
       labConst: { hbar: 1, e: 2, m_e: 1, eps0: 4, c: 1 },
       labZ: 3,

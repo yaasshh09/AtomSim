@@ -409,6 +409,8 @@ export interface PlaneParams extends Partial<ManyElectronParams> {
   plane_theta?: number;
   plane_phi?: number;
   plane_offset?: number;
+  /** Frame half-width in bohr; omitted, the state frames itself. */
+  half_extent?: number;
 }
 
 export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {

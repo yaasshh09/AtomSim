@@ -593,6 +593,9 @@ class PlaneRequest(ManyElectronRequest):
     plane_theta: float = PydanticField(default=90.0, ge=0.0, le=180.0)
     plane_phi: float = PydanticField(default=90.0, ge=0.0, lt=360.0)
     plane_offset: float = PydanticField(default=0.0, ge=-100.0, le=100.0)
+    #: The frame's half-width in bohr. Omitted, each state frames itself; given,
+    #: two states can be drawn on the same extent and compared by size.
+    half_extent: float | None = PydanticField(default=None, gt=0.0, le=5000.0)
 
 
 class PlaneMetaModel(BaseModel):
@@ -2781,7 +2784,7 @@ def create_app() -> FastAPI:
                     quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
                     config=hf_config, exchange=req.exchange, pauli=req.pauli,
-                    orientation=orientation,
+                    orientation=orientation, half_extent=req.half_extent,
                 )
 
             return _dispatch_plane(job, work)
@@ -2794,7 +2797,7 @@ def create_app() -> FastAPI:
                     element.z, element.z, req.n, req.l, req.m,
                     quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
-                    orientation=orientation,
+                    orientation=orientation, half_extent=req.half_extent,
                 )
 
             return _dispatch_plane(job, work)
@@ -2806,7 +2809,7 @@ def create_app() -> FastAPI:
                 req.n, req.l, req.m, quantity=quantity, basis=req.basis,
                 Z=sys_.Z, mu_ratio=sys_.mu_ratio.value,
                 resolution=req.resolution, progress=progress,
-                orientation=orientation,
+                orientation=orientation, half_extent=req.half_extent,
             )
 
         return _dispatch_plane(job, work)

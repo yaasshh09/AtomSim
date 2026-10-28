@@ -38,6 +38,7 @@ import {
   Y0_SLICE,
   currentUrlState,
   planeQuantityOn,
+  type PlaneCompare,
   type PlaneSlice,
   type UrlState,
 } from "../lib/urlState";
@@ -212,6 +213,9 @@ interface AppState {
   fps: number;
   planeQuantity: PlaneQuantity;
   planeSlice: PlaneSlice;
+  planeCompare: PlaneCompare | null;
+  comparePlane: { meta: PlaneMeta; values: Float32Array } | null;
+  comparePlaneStatus: SampleStatus;
   /** An sp/sp2/sp3 hybrid key drawn in place of (n, l, m) in the cloud and plane, or null. */
   hybrid: string | null;
   plane: { meta: PlaneMeta; values: Float32Array } | null;
@@ -388,6 +392,7 @@ interface AppState {
   setSheet: (sheet: Snap) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
   setPlaneSlice: (planeSlice: PlaneSlice) => void;
+  setPlaneCompare: (planeCompare: PlaneCompare | null) => void;
   setSurfaceMode: (surfaceMode: SurfaceMode) => void;
   setIsoFraction: (isoFraction: number) => void;
   loadIso: () => Promise<void>;
@@ -396,6 +401,7 @@ interface AppState {
   loadStateInfo: () => Promise<void>;
   sample: () => Promise<void>;
   loadPlane: () => Promise<void>;
+  loadComparePlane: (halfExtent: number) => Promise<void>;
   setSuperposition: (superposition: SupComponent[]) => void;
   loadEvolve: () => Promise<void>;
   loadRadial: () => Promise<void>;
@@ -416,6 +422,9 @@ export const INVALIDATED = {
   plane: null,
   planeStatus: "idle" as SampleStatus,
   planeProgress: 0,
+  // Drawn on the main plane's extent, so it goes whenever the main one does.
+  comparePlane: null,
+  comparePlaneStatus: "idle" as SampleStatus,
   // The superposition's grids are drawn for one system and one basis, so they
   // go too. The mix itself stays: it is the reader's question, not an answer.
   evolve: null,
@@ -483,6 +492,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fps: 0,
   planeQuantity: "density",
   planeSlice: Y0_SLICE,
+  planeCompare: null,
   superposition: DEFAULT_SUP,
   hybrid: null,
   surfaceMode: "cloud",
@@ -738,7 +748,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCount: (count) => set({ count }),
   setSheet: (sheet) => set({ sheet }),
   setPlaneQuantity: (planeQuantity) =>
-    set({ planeQuantity, plane: null, planeStatus: "idle", planeProgress: 0 }),
+    set({
+      planeQuantity,
+      plane: null,
+      planeStatus: "idle",
+      planeProgress: 0,
+      comparePlane: null,
+      comparePlaneStatus: "idle",
+    }),
+  setPlaneCompare: (planeCompare) =>
+    set({ planeCompare, comparePlane: null, comparePlaneStatus: "idle" }),
   // A tilted plane cannot carry the current (it is the flow through y = 0) and
   // cannot carry a signed psi that is complex there, so the quantity falls back
   // to the density rather than asking for a grid the server would refuse.
@@ -749,6 +768,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       plane: null,
       planeStatus: "idle",
       planeProgress: 0,
+      comparePlane: null,
+      comparePlaneStatus: "idle",
     })),
   setFps: (fps) => set({ fps }),
   // the lab slice: independent of the main (n,l,m,system) physics, so it never goes in INVALIDATED
@@ -940,6 +961,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({
         isoStatus: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  },
+  loadComparePlane: async (halfExtent) => {
+    const { planeCompare: c, basis, planeQuantity, planeSlice } = get();
+    if (!c) return;
+    set({ comparePlaneStatus: "sampling", error: null });
+    try {
+      const job = await client.createPlaneJob({
+        n: c.n,
+        l: c.l,
+        m: c.m,
+        system: c.system,
+        basis,
+        quantity: planeQuantity,
+        plane_theta: planeSlice.theta,
+        plane_phi: planeSlice.phi,
+        plane_offset: planeSlice.offset,
+        half_extent: halfExtent,
+      });
+      await client.watchJob(job.id, () => {});
+      const [meta, values] = await Promise.all([
+        client.getJobMeta(job.id),
+        client.getChannel(job.id),
+      ]);
+      if (meta.kind !== "plane") throw new Error("expected plane-job meta");
+      // A newer choice may have landed while this one computed; only the
+      // answer to the current question is kept.
+      if (get().planeCompare !== c) return;
+      set({ comparePlane: { meta, values }, comparePlaneStatus: "ready" });
+    } catch (err) {
+      set({
+        comparePlaneStatus: "error",
         error: err instanceof Error ? err.message : String(err),
       });
     }

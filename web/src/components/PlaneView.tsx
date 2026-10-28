@@ -5,12 +5,14 @@ import { currentCaption, nodeCaption } from "../lib/explain";
 import { HF_ORBITAL_CAPTION } from "../lib/hfModel";
 import { Notation } from "../lib/mathText";
 import { toCsv } from "../lib/plotExport";
+import { maxAbs, maxOf } from "../lib/colormap";
 import { rasterize } from "../lib/rasterize";
 import { sizeAnchor } from "../lib/scaleBar";
 import { isHydrogenic } from "../lib/systemKind";
 import { isY0, planeQuantityOn, Y0_SLICE, type PlaneSlice } from "../lib/urlState";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { ComparePicker } from "./ComparePicker";
 import { Disclosure } from "./Disclosure";
 import { Slider } from "./Field";
 import { PlaneStack } from "./PlaneStack";
@@ -58,7 +60,9 @@ export function PlaneView() {
   const {
     n, l, m, system, basis, planeQuantity, plane, planeStatus, planeProgress,
     error, loadPlane, setPlaneQuantity, planeSlice, setPlaneSlice,
+    planeCompare, setPlaneCompare, comparePlane, comparePlaneStatus, loadComparePlane,
   } = useAppStore();
+  const compareRef = useRef<HTMLCanvasElement>(null);
   const tilted = !isY0(planeSlice);
   // The sliders move a local copy; the store, and so a new grid, follows 300 ms
   // after the hand stops, so a drag is one solve rather than thirty.
@@ -92,20 +96,40 @@ export function PlaneView() {
     if (!plane && planeStatus === "idle") void loadPlane();
   }, [plane, planeStatus, loadPlane, n, l, m, system, basis, planeQuantity, planeSlice]);
 
+  // The comparison is drawn on the main plane's extent, so it can only be
+  // asked for once that extent is known.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !plane) return;
-    const { resolution, quantity } = plane.meta;
-    canvas.width = resolution;
-    canvas.height = resolution;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.putImageData(
-      new ImageData(rasterize(plane.values, resolution, quantity), resolution, resolution),
-      0,
-      0,
-    );
-  }, [plane]);
+    if (planeCompare && plane && !comparePlane && comparePlaneStatus === "idle") {
+      void loadComparePlane(plane.meta.half_extent);
+    }
+  }, [planeCompare, plane, comparePlane, comparePlaneStatus, loadComparePlane]);
+
+  // Side by side, both frames share one colour scale, so equal brightness is
+  // equal density; alone, a frame keeps its own maximum as it always has.
+  const shared =
+    plane && comparePlane
+      ? plane.meta.quantity === "density"
+        ? Math.max(maxOf(plane.values), maxOf(comparePlane.values))
+        : Math.max(maxAbs(plane.values), maxAbs(comparePlane.values))
+      : undefined;
+
+  useEffect(() => {
+    const paint = (canvas: HTMLCanvasElement | null, grid: typeof plane) => {
+      if (!canvas || !grid) return;
+      const { resolution, quantity } = grid.meta;
+      canvas.width = resolution;
+      canvas.height = resolution;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.putImageData(
+        new ImageData(rasterize(grid.values, resolution, quantity, shared), resolution, resolution),
+        0,
+        0,
+      );
+    };
+    paint(canvasRef.current, plane);
+    paint(compareRef.current, comparePlane);
+  }, [plane, comparePlane, shared]);
 
   return (
     <div className="view-wrap">
@@ -206,6 +230,34 @@ export function PlaneView() {
           back to y = 0
         </button>
       </Disclosure>
+      <Disclosure
+        summary={
+          planeCompare
+            ? `Compare: beside ${planeCompare.n},${planeCompare.l},${planeCompare.m} (${planeCompare.system})`
+            : "Compare with another state"
+        }
+      >
+        {planeQuantity === "current" ? (
+          <p className="caption">The comparison draws densities and signed ψ, not the current.</p>
+        ) : planeCompare ? (
+          <>
+            <ComparePicker value={planeCompare} systems={systems} onChange={setPlaneCompare} />
+            <button type="button" className="ghost" onClick={() => setPlaneCompare(null)}>
+              stop comparing
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => setPlaneCompare({ n, l, m, system: system === "h" ? "mu-h" : "h" })}
+          >
+            draw a second state beside this one
+          </button>
+        )}
+      </Disclosure>
+      <div className={comparePlane && planeCompare ? "plane-compare" : undefined}>
+      <div className="plane-cell">
       <PlaneStack
         canvasRef={canvasRef}
         halfExtent={plane?.meta.half_extent ?? 0}
@@ -243,6 +295,33 @@ export function PlaneView() {
         )}
         {planeStatus === "error" && error && <p className="error">{error}</p>}
       </PlaneStack>
+      </div>
+      {planeCompare && planeQuantity !== "current" && (
+        <div className="plane-cell">
+        <PlaneStack
+          canvasRef={compareRef}
+          halfExtent={comparePlane?.meta.half_extent ?? 0}
+          resolution={comparePlane?.meta.resolution ?? 0}
+          name={`atomsim-plane-compare-${planeQuantity}`}
+          light={comparePlane ? comparePlane.meta.quantity !== "density" : false}
+          bohrPm={comparePlane?.meta.bohr_pm}
+          axisNames={tilted ? ["across", "up"] : ["x", "z"]}
+        >
+          {comparePlaneStatus === "sampling" && <p className="hint">computing the comparison…</p>}
+          {comparePlaneStatus === "error" && error && <p className="error">{error}</p>}
+        </PlaneStack>
+        </div>
+      )}
+      </div>
+      {plane && comparePlane && planeCompare && (
+        <p className="caption">
+          Left: <Notation>{plane.meta.label}</Notation> <Badge provenance={plane.meta.provenance} />.
+          Right: <Notation>{comparePlane.meta.label}</Notation>{" "}
+          <Badge provenance={comparePlane.meta.provenance} /> ({planeCompare.system}). Same plane,
+          same frame and one colour scale for both, so sizes and brightnesses compare directly; a
+          state much smaller than the frame is drawn small rather than rescaled to fill it.
+        </p>
+      )}
       {plane && (
         <p className="caption">
           {tilted ? (

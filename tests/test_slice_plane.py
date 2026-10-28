@@ -88,3 +88,13 @@ def test_server_echoes_the_plane_and_refuses_what_it_cannot_draw():
         assert _run(client, {**base, "plane_theta": 45.0, "quantity": "current"})[0] == 422
         assert _run(client, {**base, "plane_theta": 45.0, "quantity": "psi"})[0] == 422
         assert _run(client, {**base, "plane_theta": 200.0})[0] == 422
+
+
+def test_a_shared_extent_frames_two_states_alike():
+    """Compare mode asks for the first state's extent; the second must honour it."""
+    with TestClient(create_app()) as client:
+        body = {"n": 2, "l": 1, "m": 0, "resolution": 32, "half_extent": 10.0}
+        _, h = _run(client, {**body, "system": "h"})
+        _, he = _run(client, {**body, "system": "he+"})
+        assert h["half_extent"] == he["half_extent"] == pytest.approx(10.0)
+        assert _run(client, {**body, "half_extent": 0.0})[0] == 422
