@@ -74,6 +74,7 @@ from atomsim.hf_atom import (
 )
 from atomsim.hf_reference import NIST_IONIZATION
 from atomsim.hybrids import HYBRIDS, evaluate_hybrid, hybrid_plane_grid, sample_hybrid
+from atomsim.hylleraas import HELIUM_EXACT, HELIUM_EXACT_CITATION, helium_report
 from atomsim.isoelectronic import (
     NIST_ISOELECTRONIC,
     SEQUENCE_ELECTRONS,
@@ -140,8 +141,10 @@ from atomsim.server.schemas import (
     FiniteSizeModel,
     ForceLawLevelModel,
     ForceLawModel,
+    HeliumCorrelationModel,
     HFOrbitalModel,
     HFResultModel,
+    HylleraasLevelModel,
     IsoelectronicIonModel,
     IsoelectronicModel,
     KalphaModel,
@@ -2350,6 +2353,44 @@ def create_app() -> FastAPI:
             density=field(hole.density, "rho(s)"),
             conditional=field(hole.conditional, "rho(s | a)"),
             sum_rule=QuantityModel.from_quantity(hole.sum_rule),
+        )
+
+    @app.get("/api/helium-correlation", response_model=HeliumCorrelationModel)
+    def helium_correlation_endpoint() -> HeliumCorrelationModel:
+        """Helium beyond Hartree-Fock: a Hylleraas series and the correlation energy.
+
+        Two seconds of closed-form linear algebra the first time, then memoized.
+        """
+        r = helium_report()
+        he = next(a for a in NIST_IONIZATION["atoms"] if a["z"] == 2)
+        return HeliumCorrelationModel(
+            series=[
+                HylleraasLevelModel(
+                    omega=lv.omega, terms=lv.terms, zeta=lv.zeta, virial=lv.virial,
+                    energy=QuantityModel.from_quantity(Quantity(
+                        lv.energy, "hartree", f"E (omega={lv.omega})", Provenance(
+                            fidelity=Fidelity.NUMERICAL,
+                            method=f"Hylleraas variational bound, {lv.terms} terms",
+                            assumptions=(
+                                "the exact non-relativistic, clamped-nucleus Hamiltonian",
+                                "an upper bound for this basis",
+                            ),
+                        ),
+                    )),
+                )
+                for lv in r.series
+            ],
+            exact_energy=HELIUM_EXACT,
+            exact_citation=HELIUM_EXACT_CITATION,
+            correlated_ev=QuantityModel.from_quantity(_to_ev(r.correlated)),
+            hartree_fock_ev=QuantityModel.from_quantity(_to_ev(r.hartree_fock)),
+            correlation_ev=QuantityModel.from_quantity(_to_ev(r.correlation)),
+            ie_hartree_fock_ev=QuantityModel.from_quantity(_to_ev(r.ie_hartree_fock)),
+            ie_correlated_ev=QuantityModel.from_quantity(_to_ev(r.ie_correlated)),
+            ie_reduced_mass_ev=QuantityModel.from_quantity(_to_ev(r.ie_reduced_mass)),
+            measured_ie_ev=he["ie_ev"],
+            measured_citation=NIST_IONIZATION["citation"],
+            measured_retrieved=NIST_IONIZATION["retrieved"],
         )
 
     @app.get("/api/nodes/{n}/{l}/{m}", response_model=NodeSetModel)

@@ -66,6 +66,14 @@ _NO_PROVENANCE_NEEDED = {
     ("XrayLineModel", "experiment_uncertainty_ev"): "vendored NIST value",
     ("ExchangeHoleModel", "a_bohr"): "the coordinate the caller chose, snapped to a mesh "
                                      "node; the profile's provenance names the snap",
+    ("HylleraasLevelModel", "zeta"): "the basis's optimized exponent, a parameter of the "
+                                     "trial function and not a property of helium",
+    ("HylleraasLevelModel", "virial"): "a diagnostic of the solve, exactly 2 at the "
+                                       "optimal zeta",
+    ("HeliumCorrelationModel", "exact_energy"): "a cited literature constant; the citation "
+                                                "sits beside it",
+    ("HeliumCorrelationModel", "measured_ie_ev"): "vendored NIST value; citation and "
+                                                  "retrieval date sit beside it",
 }
 
 

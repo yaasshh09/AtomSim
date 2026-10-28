@@ -853,3 +853,19 @@ export interface ExchangeHole {
   /** The hole's integral; -1 exactly in theory. */
   sum_rule: Quantity;
 }
+
+/** /api/helium-correlation: a Hylleraas series beside Hartree-Fock. */
+export interface HeliumCorrelation {
+  series: { omega: number; terms: number; zeta: number; energy: Quantity; virial: number }[];
+  exact_energy: number;
+  exact_citation: string;
+  correlated_ev: Quantity;
+  hartree_fock_ev: Quantity;
+  correlation_ev: Quantity;
+  ie_hartree_fock_ev: Quantity;
+  ie_correlated_ev: Quantity;
+  ie_reduced_mass_ev: Quantity;
+  measured_ie_ev: number;
+  measured_citation: string;
+  measured_retrieved: string;
+}

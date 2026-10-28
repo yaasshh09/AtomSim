@@ -990,3 +990,30 @@ class ExchangeHoleModel(BaseModel):
     conditional: FieldModel
     #: The hole's integral, -1 exactly in theory; NUMERICAL.
     sum_rule: QuantityModel
+
+
+class HylleraasLevelModel(BaseModel):
+    omega: int
+    terms: int
+    #: The optimized exponent: a property of the basis, not of helium.
+    zeta: float
+    #: The variational bound for this basis, hartree.
+    energy: QuantityModel
+    #: -V/T, a diagnostic of the solve; exactly 2 at the optimal zeta.
+    virial: float
+
+
+class HeliumCorrelationModel(BaseModel):
+    series: list[HylleraasLevelModel]
+    #: The literature value the series converges to, hartree, and where it is from.
+    exact_energy: float
+    exact_citation: str
+    correlated_ev: QuantityModel
+    hartree_fock_ev: QuantityModel
+    correlation_ev: QuantityModel
+    ie_hartree_fock_ev: QuantityModel
+    ie_correlated_ev: QuantityModel
+    ie_reduced_mass_ev: QuantityModel
+    measured_ie_ev: float
+    measured_citation: str
+    measured_retrieved: str

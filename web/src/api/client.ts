@@ -5,6 +5,7 @@ import type {
   ConstantsReport,
   DiracRadial,
   ExchangeHole,
+  HeliumCorrelation,
   FiniteSize,
   ForceLawResult,
   HFLevels,
@@ -154,6 +155,10 @@ export function getIsoelectronic(nElectrons: number): Promise<IsoelectronicSeque
 
 export function getExchangeHole(z: number, a: number): Promise<ExchangeHole> {
   return getJson(`/api/exchange-hole?z=${z}&a=${a.toFixed(4)}`);
+}
+
+export function getHeliumCorrelation(): Promise<HeliumCorrelation> {
+  return getJson("/api/helium-correlation");
 }
 
 export function getRydberg(atom: string): Promise<Rydberg> {

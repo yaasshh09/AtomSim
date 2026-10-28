@@ -26,6 +26,7 @@ import { HFvsExperiment } from "./HFvsExperiment";
 import { IsoelectronicPanel } from "./IsoelectronicPanel";
 import { RydbergPanel } from "./RydbergPanel";
 import { CLOSED_SHELL_Z, ExchangeHolePanel } from "./ExchangeHolePanel";
+import { HeliumCorrelationPanel } from "./HeliumCorrelationPanel";
 import { XrayPanel } from "./XrayPanel";
 import { Disclosure } from "./Disclosure";
 import { Choice, ControlGroup, Slider, Toggle } from "./Field";
@@ -517,6 +518,11 @@ function HFLadder({ levels }: { levels: HFLevels }) {
         levels.is_ground &&
         levels.n_electrons === levels.z &&
         CLOSED_SHELL_Z.includes(levels.z) && <ExchangeHolePanel z={levels.z} />}
+      {levels.exchange &&
+        levels.pauli &&
+        levels.is_ground &&
+        levels.z === 2 &&
+        levels.n_electrons === 2 && <HeliumCorrelationPanel />}
       <ConfigRace initial={levels.symbol?.toLowerCase() ?? ""} />
       <HFvsExperiment />
       <IsoelectronicPanel />
