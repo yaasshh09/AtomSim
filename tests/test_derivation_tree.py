@@ -35,8 +35,11 @@ def test_correlation_energy_tree_reaches_both_solves_and_the_constant():
     assert corr["value"] == pytest.approx((e_hyl - e_hf) * top[1]["value"], rel=1e-12)
 
 
-def test_a_leaf_closed_form_stays_a_leaf():
+def test_a_closed_form_names_only_the_measured_mass_it_was_given():
     body = TestClient(create_app()).get("/api/state/2/1/0").json()
     energy = body["energy"]
     assert energy["provenance"]["fidelity"] == "exact"
-    assert energy["provenance"]["inputs"] == []
+    # The formula is exact; its one measured input is the reduced-mass ratio.
+    inputs = energy["provenance"]["inputs"]
+    assert [q["label"] for q in inputs] == ["mu/m_e (Hydrogen)"]
+    assert inputs[0]["provenance"]["inputs"] == []

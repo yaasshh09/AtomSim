@@ -1,6 +1,7 @@
 """Display conversions must carry the error bar into the new unit, not just the value."""
 
 import pytest
+from scipy import constants as sc
 
 from atomsim.constants import BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.provenance import Fidelity, Provenance, Quantity
@@ -22,5 +23,9 @@ def test_pm_conversion_scales_the_error():
     assert q.provenance.error_estimate == pytest.approx(1e-3 * BOHR_RADIUS_PM)
 
 
-def test_no_error_stays_no_error():
-    assert _to_ev(_q(None)).provenance.error_estimate is None
+def test_an_exact_value_converts_with_the_constants_own_uncertainty():
+    """No error of its own, but the conversion factor is a measured constant."""
+    value, _, unc = sc.physical_constants["Hartree energy in eV"]
+    q = _to_ev(_q(None))
+    assert q.provenance.error_estimate == pytest.approx(2.0 * unc, rel=1e-12)
+    assert q.provenance.error_estimate / q.value < 1e-11

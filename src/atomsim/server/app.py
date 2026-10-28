@@ -1131,6 +1131,19 @@ def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
     factor_q = (
         codata_factor(name, factor, f"{unit} per {q.unit}") if name is not None else None
     )
+    # The factor is a measured constant, and its uncertainty is part of the
+    # converted value's: independent of the value's own, so the two add in
+    # quadrature. An exact closed form in hartree comes out in eV carrying
+    # CODATA's uncertainty, and nothing else.
+    from_factor = (
+        abs(q.value) * factor_q.provenance.error_estimate
+        if factor_q is not None and factor_q.provenance.error_estimate
+        else 0.0
+    )
+    if err is None and from_factor == 0.0:
+        total = None
+    else:
+        total = math.hypot((err or 0.0) * abs(factor), from_factor)
     return Quantity(
         value=q.value * factor,
         unit=unit,
@@ -1138,10 +1151,34 @@ def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
         provenance=dataclasses.replace(
             q.provenance,
             method=q.provenance.method + f"; converted to {unit} via {via}",
-            error_estimate=None if err is None else err * abs(factor),
+            error_estimate=total,
             inputs=(q,) + ((factor_q,) if factor_q is not None else ()),
         ),
     )
+
+
+def _with_mass_uncertainty(q: Quantity, sys_, power: int) -> Quantity:
+    """q scales as mu^power; carry the CODATA uncertainty of the reduced mass.
+
+    The closed form is exact for the mass it is given. That mass is a measured
+    ratio, so the value inherits |power| times its relative uncertainty, and
+    the system's mu_ratio joins the derivation tree as an input.
+    """
+    mu = sys_.mu_ratio
+    unc = mu.provenance.error_estimate
+    if not unc:
+        return q
+    from_mu = abs(q.value) * abs(power) * unc / mu.value
+    err = q.provenance.error_estimate
+    return dataclasses.replace(q, provenance=dataclasses.replace(
+        q.provenance,
+        error_estimate=math.hypot(err or 0.0, from_mu),
+        assumptions=q.provenance.assumptions + (
+            "the closed form is exact for its inputs; the error bar is the CODATA "
+            "uncertainty of the reduced-mass ratio, propagated",
+        ),
+        inputs=q.provenance.inputs + (mu,),
+    ))
 
 
 def _to_ev(q: Quantity) -> Quantity:
@@ -1540,7 +1577,7 @@ def create_app() -> FastAPI:
         _validate_state(n, l, m)
         sys_ = _resolve_system(system)
         mu = sys_.mu_ratio.value
-        e = energy(n, Z=sys_.Z, mu_ratio=mu)
+        e = _with_mass_uncertainty(energy(n, Z=sys_.Z, mu_ratio=mu), sys_, 1)
         levels: list[LevelModel] = []
         if fine_structure:
             js = [l - 0.5, l + 0.5] if l > 0 else [0.5]
@@ -1558,7 +1595,7 @@ def create_app() -> FastAPI:
                         shift_ev=QuantityModel.from_quantity(_to_ev(sh)),
                     )
                 )
-        mr = mean_radius(n, l, Z=sys_.Z, mu_ratio=mu)
+        mr = _with_mass_uncertainty(mean_radius(n, l, Z=sys_.Z, mu_ratio=mu), sys_, -1)
         return StateResponse(
             n=n, l=l, m=m,
             system=SystemModel.from_system(sys_),
@@ -1621,7 +1658,7 @@ def create_app() -> FastAPI:
         alpha_used = ALPHA if alpha is None else alpha
         gross = []
         for n in range(1, n_max + 1):
-            e = energy(n, Z=sys_.Z, mu_ratio=mu)
+            e = _with_mass_uncertainty(energy(n, Z=sys_.Z, mu_ratio=mu), sys_, 1)
             gsubs = None
             if e_field > 0.0:
                 sss = stark_sublevels(
