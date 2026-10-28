@@ -26,6 +26,10 @@ class Provenance:
     assumptions: tuple[str, ...] = field(default=())
     error_estimate: float | None = None  # in the same unit as the quantity it describes
     refinement: str | None = None        # what would make this more accurate
+    # The quantities this one was computed from, each with its own provenance,
+    # so a number carries its whole derivation as a tree. Empty means a leaf:
+    # a closed form, a solve, or a cited constant.
+    inputs: tuple["Quantity", ...] = field(default=())
 
 
 @dataclass(frozen=True)

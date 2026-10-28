@@ -15,6 +15,8 @@ export interface Provenance {
   assumptions: string[];
   error_estimate: number | null;
   refinement: string | null;
+  /** What this value was computed from, each with its own provenance. Absent or empty: a leaf. */
+  inputs?: Quantity[];
 }
 
 export interface Quantity {

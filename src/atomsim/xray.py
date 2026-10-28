@@ -133,6 +133,7 @@ def kalpha(z: int) -> KalphaResult:
         # same error and largely cancel, so this overstates the line's error.
         error_estimate=(e1.provenance.error_estimate or 0) + (e2.provenance.error_estimate or 0),
         refinement="a relativistic (Dirac-Fock) solve; see the relativity estimate",
+        inputs=(e1, e2),
     )
     symbol = next(a["symbol"] for a in NIST_XRAY["atoms"] if a["z"] == z)
     return KalphaResult(

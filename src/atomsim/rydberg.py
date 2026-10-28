@@ -173,14 +173,16 @@ def computed_defects(z: int, l: int) -> tuple[DefectPoint, ...]:
             continue
         e, delta = fine[n]
         e_c, delta_c = coarse[n]
+        energy_q = Quantity(e, "hartree", f"E_{n}{'spdf'[l]}", Provenance(
+            fidelity=Fidelity.APPROXIMATION, method=method,
+            assumptions=base.assumptions, error_estimate=abs(e - e_c),
+            refinement=base.refinement,
+        ))
         points.append(DefectPoint(
             n=n, l=l,
-            energy=Quantity(e, "hartree", f"E_{n}{'spdf'[l]}", Provenance(
-                fidelity=Fidelity.APPROXIMATION, method=method,
-                assumptions=base.assumptions, error_estimate=abs(e - e_c),
-                refinement=base.refinement,
-            )),
+            energy=energy_q,
             defect=Quantity(delta, "dimensionless", f"delta_{n}{'spdf'[l]}", Provenance(
+                inputs=(energy_q,),
                 fidelity=Fidelity.APPROXIMATION, method=method,
                 assumptions=base.assumptions + _ASSUMPTIONS,
                 error_estimate=abs(delta - delta_c),

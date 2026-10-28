@@ -13,7 +13,7 @@ from atomsim.atoms import has_gsz_parameters
 from atomsim.broadening import SyntheticSpectrum
 from atomsim.cascade import Cascade
 from atomsim.classical import BohrOrbit, ClassicalGhost
-from atomsim.constants import BOHR_RADIUS_FM
+from atomsim.constants import BOHR_RADIUS_FM, codata_factor
 from atomsim.constants_lab import ConstantsReport, DerivedObservable
 from atomsim.density_compare import DensityComparison
 from atomsim.populations import ThermalState
@@ -34,6 +34,8 @@ class ProvenanceModel(BaseModel):
     assumptions: list[str]
     error_estimate: float | None
     refinement: str | None
+    #: What this value was computed from, each input with its own provenance.
+    inputs: list["QuantityModel"] = []
 
     @classmethod
     def from_provenance(cls, p: Provenance) -> "ProvenanceModel":
@@ -43,6 +45,7 @@ class ProvenanceModel(BaseModel):
             assumptions=list(p.assumptions),
             error_estimate=p.error_estimate,
             refinement=p.refinement,
+            inputs=[QuantityModel.from_quantity(q) for q in p.inputs],
         )
 
 
@@ -70,6 +73,10 @@ class QuantityModel(BaseModel):
             provenance=ProvenanceModel.from_provenance(q.provenance),
         )
 
+
+
+# ProvenanceModel.inputs refers forward to QuantityModel, defined just above.
+ProvenanceModel.model_rebuild()
 
 class DerivedObservableModel(BaseModel):
     quantity: QuantityModel
@@ -209,6 +216,7 @@ def _to_fm(q: Quantity) -> Quantity:
                 None if q.provenance.error_estimate is None
                 else q.provenance.error_estimate * BOHR_RADIUS_FM
             ),
+            inputs=(q, codata_factor("Bohr radius", BOHR_RADIUS_FM, f"fm per {q.unit}")),
         ),
     )
 

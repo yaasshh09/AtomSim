@@ -36,6 +36,7 @@ estimate. That estimate is a convergence spread and not a bound; the
 reference value it is tested against is a cited constant, not a query.
 """
 
+import dataclasses
 import math
 from dataclasses import dataclass
 from functools import lru_cache
@@ -234,14 +235,21 @@ def helium_report() -> HeliumReport:
         series=series,
         correlated=correlated,
         hartree_fock=hf,
-        correlation=Quantity(correlated.value - hf.value, "hartree", "E_corr", numerical),
+        correlation=Quantity(
+            correlated.value - hf.value, "hartree", "E_corr",
+            dataclasses.replace(numerical, inputs=(correlated, hf)),
+        ),
         ie_hartree_fock=Quantity(-2.0 - hf.value, "hartree", "IE_HF", Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method="Delta-SCF Hartree-Fock: E(He+) - E_HF(He)",
             assumptions=("no correlation",) + _ASSUMPTIONS[:1],
             error_estimate=err_hf,
+            inputs=(hf,),
         )),
-        ie_correlated=Quantity(-2.0 - correlated.value, "hartree", "IE", ie_prov),
+        ie_correlated=Quantity(
+            -2.0 - correlated.value, "hartree", "IE",
+            dataclasses.replace(ie_prov, inputs=(correlated,)),
+        ),
         ie_reduced_mass=Quantity((-2.0 - correlated.value) * mu, "hartree", "IE_mu", Provenance(
             fidelity=Fidelity.APPROXIMATION,
             method=(

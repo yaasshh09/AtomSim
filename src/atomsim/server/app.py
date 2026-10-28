@@ -57,7 +57,14 @@ from atomsim.atoms import (
 from atomsim.broadening import synthesize
 from atomsim.cascade import decay_cascade
 from atomsim.classical import classical_ghost
-from atomsim.constants import ALPHA, AU_TIME_FS, BOHR_RADIUS_FM, BOHR_RADIUS_PM, HARTREE_EV
+from atomsim.constants import (
+    ALPHA,
+    AU_TIME_FS,
+    BOHR_RADIUS_FM,
+    BOHR_RADIUS_PM,
+    HARTREE_EV,
+    codata_factor,
+)
 from atomsim.constants_lab import analyze_constants
 from atomsim.density_compare import compare_total_densities
 from atomsim.exchange_hole import CLOSED_SHELL_Z, PROFILE_REACH, exchange_hole
@@ -1103,9 +1110,27 @@ def _with_state_preview(html: str, query) -> str:
     return html
 
 
+#: Which CODATA constant each display conversion reads, so the factor can
+#: join the derivation tree with its own uncertainty.
+_VIA_CONSTANT = {
+    "CODATA Hartree-eV factor": "Hartree energy in eV",
+    "CODATA Bohr radius": "Bohr radius",
+    "CODATA hartree-hertz relation": "hartree-hertz relationship",
+}
+
+
 def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
-    """A display conversion. The error bar is in the quantity's unit, so it moves too."""
+    """A display conversion. The error bar is in the quantity's unit, so it moves too.
+
+    The result is derived from two inputs, the value in its own unit and the
+    conversion factor, and its provenance says so: the tree under a number in
+    eV ends at the hartree value it came from and the CODATA constant.
+    """
     err = q.provenance.error_estimate
+    name = _VIA_CONSTANT.get(via)
+    factor_q = (
+        codata_factor(name, factor, f"{unit} per {q.unit}") if name is not None else None
+    )
     return Quantity(
         value=q.value * factor,
         unit=unit,
@@ -1114,6 +1139,7 @@ def _rescaled(q: Quantity, factor: float, unit: str, via: str) -> Quantity:
             q.provenance,
             method=q.provenance.method + f"; converted to {unit} via {via}",
             error_estimate=None if err is None else err * abs(factor),
+            inputs=(q,) + ((factor_q,) if factor_q is not None else ()),
         ),
     )
 

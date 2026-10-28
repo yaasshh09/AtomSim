@@ -3883,3 +3883,31 @@ figure.plot:fullscreen > svg {
   font-size: 0.75rem;
   line-height: 1.5;
 }
+
+/* A value's derivation, nested: each input with its tier and method, and its
+   own inputs indented under it, down to the closed forms and constants. */
+.derivation summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.derivation-tree {
+  margin: 0.25rem 0 0.25rem 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--edge);
+  list-style: none;
+}
+
+.derivation-tree li {
+  margin: 0.35rem 0;
+}
+
+.derivation-method {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.derivation-tier {
+  font-size: 0.75em;
+  letter-spacing: 0.04em;
+}

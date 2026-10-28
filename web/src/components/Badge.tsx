@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "../api/client";
-import type { Provenance } from "../api/types";
+import type { Provenance, Quantity } from "../api/types";
 import { citeBibtex } from "../lib/cite";
 import { formatErrorScale } from "../lib/liberties";
 import { Notation } from "../lib/mathText";
@@ -168,6 +168,12 @@ export function Badge({ provenance }: { provenance: Provenance }) {
                 <strong>To improve:</strong> <Notation>{provenance.refinement}</Notation>
               </p>
             )}
+            {provenance.inputs && provenance.inputs.length > 0 && (
+              <details className="derivation">
+                <summary>Derived from {provenance.inputs.length} value{provenance.inputs.length > 1 ? "s" : ""}</summary>
+                <DerivationTree inputs={provenance.inputs} depth={0} />
+              </details>
+            )}
             <CiteButton provenance={provenance} />
           </div>,
           document.body,
@@ -199,4 +205,42 @@ function CiteButton({ provenance }: { provenance: Provenance }) {
       {done === "copied" ? "BibTeX copied" : done === "failed" ? "Could not copy" : "Cite this value"}
     </button>
   );
+}
+
+/** Deep enough for any derivation the engine builds; a guard, not a design limit. */
+const MAX_DEPTH = 6;
+
+/**
+ * What a value was computed from, as a nested list: each input's value, tier
+ * and method, and under it whatever that input was computed from, down to the
+ * closed forms, solves and cited constants at the leaves.
+ */
+function DerivationTree({ inputs, depth }: { inputs: Quantity[]; depth: number }) {
+  return (
+    <ul className="derivation-tree">
+      {inputs.map((q, i) => (
+        <li key={i}>
+          <span className="derivation-value">
+            <Notation>{q.label}</Notation> = {formatValue(q.value)} <Notation>{q.unit}</Notation>
+          </span>{" "}
+          <span className="derivation-tier" style={{ color: COLORS[q.provenance.fidelity] }}>
+            {q.provenance.fidelity.replace("_", " ")}
+          </span>
+          {q.provenance.error_estimate !== null && (
+            <span> ± <Notation>{formatErrorScale(q.provenance.error_estimate)}</Notation></span>
+          )}
+          <div className="derivation-method">
+            <Notation>{q.provenance.method}</Notation>
+          </div>
+          {q.provenance.inputs && q.provenance.inputs.length > 0 && depth < MAX_DEPTH && (
+            <DerivationTree inputs={q.provenance.inputs} depth={depth + 1} />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function formatValue(v: number): string {
+  return Math.abs(v) >= 1e-3 && Math.abs(v) < 1e5 ? v.toPrecision(10).replace(/\.?0+$/, "") : v.toExponential(8);
 }

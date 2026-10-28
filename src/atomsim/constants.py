@@ -12,6 +12,8 @@ from dataclasses import dataclass
 
 from scipy import constants as _sc
 
+from atomsim.provenance import Fidelity, Provenance, Quantity
+
 # A real-universe display anchor ONLY: in a counterfactual universe the
 # conversion has to come through FundamentalConstants.hartree_energy, never
 # through this.
@@ -75,3 +77,20 @@ class FundamentalConstants:
     def hartree_energy(self) -> float:
         """E_h = hbar^2 / (m_e a0^2), in joules."""
         return self.hbar**2 / (self.m_e * self.bohr_radius**2)
+
+
+def codata_factor(name: str, factor: float, unit: str) -> Quantity:
+    """A display-conversion factor as a Quantity, with CODATA's own uncertainty.
+
+    `name` is the scipy.constants key the factor comes from and `factor` its
+    value as used (possibly rescaled, as to meV or MHz). The relative standard
+    uncertainty is the constant's, so a derivation tree shows how little, or
+    how much, the conversion itself adds.
+    """
+    value, _, uncertainty = _sc.physical_constants[name]
+    return Quantity(factor, unit, f"CODATA {name}", Provenance(
+        fidelity=Fidelity.EXACT,
+        method=f"CODATA recommended value (scipy.constants: {name})",
+        assumptions=("a measured constant, carried with its standard uncertainty",),
+        error_estimate=abs(factor) * uncertainty / value,
+    ))
