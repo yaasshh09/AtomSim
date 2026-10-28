@@ -74,6 +74,8 @@ export interface UrlState {
   bField: number;
   eField: number;
   hyperfine: boolean;
+  /** Presentation mode: the picture alone, large, for a projector. Shareable as a link. */
+  present: boolean;
   /** Whether the Spectrum view draws line strengths. On by default, so the URL marks it off. */
   intensities: boolean;
   /** Whether the Spectrum view applies LTE weighting. Off by default, so the URL marks it on. */
@@ -205,6 +207,7 @@ export const URL_DEFAULTS: UrlState = {
   bField: 0,
   eField: 0,
   hyperfine: false,
+  present: false,
   intensities: true,
   thermal: false,
   profile: false,
@@ -324,6 +327,7 @@ export function currentUrlState(s: Omit<UrlState, "tour" | "step">): UrlState {
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,
     planeSlice: s.planeSlice,
+    present: s.present,
     planeCompare: s.planeCompare,
     surfaceMode: s.surfaceMode,
     isoFraction: s.isoFraction,
@@ -399,6 +403,7 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   if (nucleus) out.nucleusMode = nucleus;
   const plane = pickEnum(q.get("plane"), PLANES);
   if (plane) out.planeQuantity = plane;
+  if (q.get("present") === "1") out.present = true;
   // slice=theta,phi,offset. All three or none: a junk part drops the whole
   // slice back to y = 0 rather than cutting a plane nobody asked for.
   const slice = (q.get("slice") ?? "").split(",").map(Number);
@@ -598,6 +603,7 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);
   if (state.planeQuantity !== URL_DEFAULTS.planeQuantity) q.set("plane", state.planeQuantity);
+  if (state.present) q.set("present", "1");
   if (!isY0(state.planeSlice)) {
     const { theta, phi, offset } = state.planeSlice;
     q.set("slice", `${theta},${phi},${offset}`);

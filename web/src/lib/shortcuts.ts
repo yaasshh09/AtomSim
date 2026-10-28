@@ -17,6 +17,7 @@ export type Shortcut =
   | { kind: "quantum"; axis: "n" | "l" | "m"; delta: -1 | 1 }
   | { kind: "view"; index: number }
   | { kind: "help" }
+  | { kind: "present" }
   | { kind: "close" };
 
 /** The part of a KeyboardEvent this reads. */
@@ -64,6 +65,8 @@ export function matchShortcut(e: KeyEventLike): Shortcut | null {
       return { kind: "quantum", axis: e.shiftKey ? "m" : "l", delta: -1 };
     case "?":
       return { kind: "help" };
+    case "p":
+      return { kind: "present" };
     case "Escape":
       return { kind: "close" };
   }

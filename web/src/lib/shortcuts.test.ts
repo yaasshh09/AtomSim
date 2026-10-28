@@ -41,6 +41,12 @@ describe("the keyboard map", () => {
     }
   });
 
+  it("toggles presentation mode on p, and leaves P and modified p alone", () => {
+    expect(matchShortcut(key("p"))).toEqual({ kind: "present" });
+    expect(matchShortcut(key("P", { shiftKey: true }))).toBeNull();
+    expect(matchShortcut(key("p", { ctrlKey: true }))).toBeNull();
+  });
+
   it("opens and closes the list", () => {
     expect(matchShortcut(key("?"))).toEqual({ kind: "help" });
     expect(matchShortcut(key("Escape"))).toEqual({ kind: "close" });

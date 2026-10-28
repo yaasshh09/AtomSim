@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { Controls } from "./components/Controls";
 import { EvolveView } from "./components/EvolveView";
@@ -61,8 +61,21 @@ function Stage() {
 }
 
 function DesktopShell() {
+  const present = useAppStore((s) => s.present);
+  const setPresent = useAppStore((s) => s.setPresent);
+  // The root font scales so every rem-sized label grows together for a
+  // projector; the class on <html> is where that has to live.
+  useEffect(() => {
+    document.documentElement.classList.toggle("presenting", present);
+    return () => document.documentElement.classList.remove("presenting");
+  }, [present]);
   return (
-    <div className="app-shell">
+    <div className={present ? "app-shell present" : "app-shell"}>
+      {present && (
+        <button type="button" className="present-exit" onClick={() => setPresent(false)}>
+          Exit presentation (p)
+        </button>
+      )}
       <TopBar />
       <TourInvite />
       <div className="app-grid">

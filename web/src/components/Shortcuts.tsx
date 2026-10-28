@@ -10,6 +10,7 @@ const KEYS: { keys: string; does: string }[] = [
   { keys: "left / right", does: "orbital l" },
   { keys: "shift + left / right", does: "orientation m" },
   { keys: "1 - 7", does: "the seven views" },
+  { keys: "p", does: "presentation mode, for a projector" },
   { keys: "?", does: "this list" },
 ];
 
@@ -60,6 +61,9 @@ export function Shortcuts() {
         }
         case "help":
           setOpen((o) => !o);
+          break;
+        case "present":
+          s.setPresent(!s.present);
           break;
         case "close":
           setOpen(false);

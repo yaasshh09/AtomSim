@@ -215,6 +215,7 @@ interface AppState {
   planeQuantity: PlaneQuantity;
   planeSlice: PlaneSlice;
   planeCompare: PlaneCompare | null;
+  present: boolean;
   comparePlane: { meta: PlaneMeta; values: Float32Array } | null;
   comparePlaneStatus: SampleStatus;
   /** An sp/sp2/sp3 hybrid key drawn in place of (n, l, m) in the cloud and plane, or null. */
@@ -395,6 +396,7 @@ interface AppState {
   setSheet: (sheet: Snap) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
   setPlaneSlice: (planeSlice: PlaneSlice) => void;
+  setPresent: (present: boolean) => void;
   setPlaneCompare: (planeCompare: PlaneCompare | null) => void;
   setSurfaceMode: (surfaceMode: SurfaceMode) => void;
   setIsoFraction: (isoFraction: number) => void;
@@ -499,6 +501,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   planeQuantity: "density",
   planeSlice: Y0_SLICE,
   planeCompare: null,
+  present: false,
   superposition: DEFAULT_SUP,
   hybrid: null,
   surfaceMode: "cloud",
@@ -762,6 +765,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       comparePlane: null,
       comparePlaneStatus: "idle",
     }),
+  // Pure chrome: hiding the rails changes no physics, so nothing is invalidated.
+  setPresent: (present) => set({ present }),
   setPlaneCompare: (planeCompare) =>
     set({ planeCompare, comparePlane: null, comparePlaneStatus: "idle" }),
   // A tilted plane cannot carry the current (it is the flow through y = 0) and
