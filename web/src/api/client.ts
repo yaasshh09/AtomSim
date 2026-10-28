@@ -405,6 +405,10 @@ export interface PlaneParams extends Partial<ManyElectronParams> {
   resolution?: number;
   /** As on SampleParams. */
   hybrid?: string | null;
+  /** The plane's normal angles (degrees) and offset (bohr); omitted means y = 0. */
+  plane_theta?: number;
+  plane_phi?: number;
+  plane_offset?: number;
 }
 
 export function createPlaneJob(params: PlaneParams): Promise<JobInfo> {

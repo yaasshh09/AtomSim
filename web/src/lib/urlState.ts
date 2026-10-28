@@ -17,6 +17,40 @@ import { isHybridKey } from "./hybrids";
 import { N_MAX, clampState } from "./quantum";
 import { CONST_MAX, CONST_MIN, CONSTANT_KEYS, type ConstantKey } from "./whatif";
 
+/**
+ * Which plane the 2-D view cuts: the normal's polar and azimuthal angles in
+ * degrees and the plane's distance from the nucleus in bohr. The default,
+ * (90, 90, 0), is y = 0: the classic picture with z up.
+ */
+export interface PlaneSlice {
+  theta: number;
+  phi: number;
+  offset: number;
+}
+
+export const Y0_SLICE: PlaneSlice = { theta: 90, phi: 90, offset: 0 };
+
+export function isY0(s: PlaneSlice): boolean {
+  return s.theta === 90 && s.phi === 90 && s.offset === 0;
+}
+
+/**
+ * The quantity a plane can honestly show: the current is the flow through
+ * y = 0 only, and a signed psi needs psi to be real on the plane, which off
+ * y = 0 means the real basis or m = 0. Anything else falls back to the density.
+ */
+export function planeQuantityOn(
+  slice: PlaneSlice,
+  quantity: PlaneQuantity,
+  basis: string,
+  m: number,
+): PlaneQuantity {
+  if (isY0(slice)) return quantity;
+  if (quantity === "current") return "density";
+  if (quantity === "psi" && basis !== "real" && m !== 0) return "density";
+  return quantity;
+}
+
 export interface UrlState {
   n: number;
   l: number;
@@ -61,6 +95,8 @@ export interface UrlState {
   ghost: boolean;
   nucleusMode: NucleusMode;
   planeQuantity: PlaneQuantity;
+  /** The plane the 2-D view cuts. A physical choice, so it travels in the link. */
+  planeSlice: PlaneSlice;
   /** What the 3-D view draws: the cloud, the enclosing surface, or both. */
   surfaceMode: SurfaceMode;
   /**
@@ -173,6 +209,7 @@ export const URL_DEFAULTS: UrlState = {
   ghost: false,
   nucleusMode: "marker",
   planeQuantity: "density",
+  planeSlice: Y0_SLICE,
   surfaceMode: "cloud",
   isoFraction: 0.9,
   labConst: { hbar: 1, e: 1, m_e: 1, eps0: 1, c: 1 },
@@ -275,6 +312,7 @@ export function currentUrlState(s: Omit<UrlState, "tour" | "step">): UrlState {
     ghost: s.ghost,
     nucleusMode: s.nucleusMode,
     planeQuantity: s.planeQuantity,
+    planeSlice: s.planeSlice,
     surfaceMode: s.surfaceMode,
     isoFraction: s.isoFraction,
     labConst: s.labConst,
@@ -349,6 +387,20 @@ export function parseAppUrl(search: string): Partial<UrlState> {
   if (nucleus) out.nucleusMode = nucleus;
   const plane = pickEnum(q.get("plane"), PLANES);
   if (plane) out.planeQuantity = plane;
+  // slice=theta,phi,offset. All three or none: a junk part drops the whole
+  // slice back to y = 0 rather than cutting a plane nobody asked for.
+  const slice = (q.get("slice") ?? "").split(",").map(Number);
+  if (
+    slice.length === 3 &&
+    slice.every(Number.isFinite) &&
+    slice[0] >= 0 &&
+    slice[0] <= 180 &&
+    slice[1] >= 0 &&
+    slice[1] < 360 &&
+    Math.abs(slice[2]) <= 100
+  ) {
+    out.planeSlice = { theta: slice[0], phi: slice[1], offset: slice[2] };
+  }
   const surf = pickEnum(q.get("surf"), SURFACES);
   if (surf) out.surfaceMode = surf;
   const isoFraction = pickFloat(q.get("iso"));
@@ -517,6 +569,10 @@ export function serializeAppUrl(state: UrlState): string {
   if (state.ghost !== URL_DEFAULTS.ghost) q.set("ghost", "1");
   if (state.nucleusMode !== URL_DEFAULTS.nucleusMode) q.set("nucleus", state.nucleusMode);
   if (state.planeQuantity !== URL_DEFAULTS.planeQuantity) q.set("plane", state.planeQuantity);
+  if (!isY0(state.planeSlice)) {
+    const { theta, phi, offset } = state.planeSlice;
+    q.set("slice", `${theta},${phi},${offset}`);
+  }
   if (state.surfaceMode !== URL_DEFAULTS.surfaceMode) q.set("surf", state.surfaceMode);
   // Written only when a surface is being drawn: a fraction in a link that
   // shows a point cloud names a contour nobody is looking at.

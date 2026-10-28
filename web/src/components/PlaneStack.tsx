@@ -26,6 +26,7 @@ export function PlaneStack({
   light = false,
   overlay,
   bohrPm,
+  axisNames = ["x", "z"],
   children,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -40,6 +41,8 @@ export function PlaneStack({
   overlay?: (x: (bohr: number) => number, z: (bohr: number) => number) => ReactNode;
   /** One bohr in pm, from the job meta. Given, a real-size scale bar is drawn. */
   bohrPm?: number;
+  /** What the across and up axes are called: x and z on y = 0, plain words on a tilted plane. */
+  axisNames?: [string, string];
   /** Status lines drawn over the frame (computing..., errors). */
   children?: ReactNode;
 }) {
@@ -95,10 +98,10 @@ export function PlaneStack({
                 </g>
               )}
               <text x={S - 14} y={S - 52} textAnchor="end" className="plane-grid-label">
-                x [bohr]
+                {axisNames[0]} [bohr]
               </text>
               <text x={14} y={44} className="plane-grid-label">
-                z [bohr]
+                {axisNames[1]} [bohr]
               </text>
             </svg>
           )}

@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { defaultParams } from "./forceLaw";
-import { URL_DEFAULTS, isNewPlace, parseAppUrl, serializeAppUrl } from "./urlState";
+import {
+  URL_DEFAULTS,
+  Y0_SLICE,
+  isNewPlace,
+  parseAppUrl,
+  planeQuantityOn,
+  serializeAppUrl,
+} from "./urlState";
+
+describe("the slice plane in the URL", () => {
+  it("writes nothing for y = 0 and all three numbers otherwise", () => {
+    expect(serializeAppUrl(URL_DEFAULTS)).not.toContain("slice");
+    const q = serializeAppUrl({ ...URL_DEFAULTS, planeSlice: { theta: 0, phi: 0, offset: 0.5 } });
+    expect(q).toContain("slice=0%2C0%2C0.5");
+  });
+
+  it("drops a slice with any junk or out-of-range part back to y = 0", () => {
+    for (const bad of ["1,2", "a,2,3", "200,0,0", "10,360,0", "10,10,500"]) {
+      expect(parseAppUrl(`?slice=${bad}`).planeSlice).toBeUndefined();
+    }
+    expect(parseAppUrl("?slice=45,30,-2").planeSlice).toEqual({ theta: 45, phi: 30, offset: -2 });
+  });
+
+  it("falls back to the density where a quantity cannot be drawn honestly", () => {
+    const tilted = { theta: 45, phi: 30, offset: 0 };
+    expect(planeQuantityOn(Y0_SLICE, "current", "complex", 1)).toBe("current");
+    expect(planeQuantityOn(tilted, "current", "complex", 0)).toBe("density");
+    expect(planeQuantityOn(tilted, "psi", "complex", 1)).toBe("density");
+    expect(planeQuantityOn(tilted, "psi", "real", 1)).toBe("psi");
+    expect(planeQuantityOn(tilted, "psi", "complex", 0)).toBe("psi");
+  });
+});
 
 describe("parseAppUrl", () => {
   it("empty search yields no overrides", () => {
@@ -113,6 +144,7 @@ describe("serializeAppUrl", () => {
       ghost: false,
       nucleusMode: "hidden" as const,
       planeQuantity: "psi" as const,
+      planeSlice: { theta: 35, phi: 120.5, offset: -1.25 },
       hybrid: null,
       labConst: { hbar: 1, e: 2, m_e: 1, eps0: 4, c: 1 },
       labZ: 3,

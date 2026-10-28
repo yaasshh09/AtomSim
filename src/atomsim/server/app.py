@@ -93,9 +93,11 @@ from atomsim.numerics.expression import ExpressionError
 from atomsim.numerics.force_law import PRESETS, force_law_levels, free_form_levels
 from atomsim.plane import (
     PlaneGrid,
+    PlaneOrientation,
     current_through_plane,
     hf_plane_grid,
     plane_grid,
+    psi_is_real_on,
     screened_plane_grid,
 )
 from atomsim.populations import ThermalConditions
@@ -586,6 +588,11 @@ class PlaneRequest(ManyElectronRequest):
     resolution: int = PydanticField(default=512, ge=32, le=1024)
     #: As on SampleRequest.
     hybrid: str | None = None
+    #: The plane's normal, polar and azimuthal angle in degrees, and its distance
+    #: from the nucleus along that normal. The defaults are the y = 0 plane.
+    plane_theta: float = PydanticField(default=90.0, ge=0.0, le=180.0)
+    plane_phi: float = PydanticField(default=90.0, ge=0.0, lt=360.0)
+    plane_offset: float = PydanticField(default=0.0, ge=-100.0, le=100.0)
 
 
 class PlaneMetaModel(BaseModel):
@@ -610,6 +617,13 @@ class PlaneMetaModel(BaseModel):
     model: str = "gsz"
     #: The hybrid drawn instead of (n, l, m), if one was asked for.
     hybrid: str | None = None
+    #: Which plane this is (degrees, bohr), and the unit vectors its columns and
+    #: rows run along. The defaults are y = 0 with x across and z up.
+    plane_theta: float = 90.0
+    plane_phi: float = 90.0
+    plane_offset: float = 0.0
+    axis_across: list[float] = [1.0, 0.0, 0.0]
+    axis_up: list[float] = [0.0, 0.0, 1.0]
     provenance: ProvenanceModel
 
 
@@ -2709,6 +2723,25 @@ def create_app() -> FastAPI:
     @app.post("/api/jobs/plane", response_model=JobModel)
     async def create_plane_job(req: PlaneRequest) -> JobModel:
         _validate_state(req.n, req.l, req.m)
+        orientation = PlaneOrientation(req.plane_theta, req.plane_phi, req.plane_offset)
+        if not orientation.is_y0:
+            if req.quantity == "current":
+                raise HTTPException(
+                    status_code=422,
+                    detail="the current through the plane is drawn on y = 0 only, "
+                    "where it is the whole azimuthal flow",
+                )
+            if req.hybrid is not None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="hybrid orbitals are drawn on y = 0 only for now",
+                )
+        if req.quantity == "psi" and not psi_is_real_on(orientation, req.basis, req.m):
+            raise HTTPException(
+                status_code=422,
+                detail="psi is complex on this plane (complex basis, m != 0), so a "
+                "signed plot would drop half of it; draw the density or use the real basis",
+            )
         if req.hybrid is not None:
             sys_ = _hybrid_system(req)
             job = _new_job(req)
@@ -2748,6 +2781,7 @@ def create_app() -> FastAPI:
                     quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
                     config=hf_config, exchange=req.exchange, pauli=req.pauli,
+                    orientation=orientation,
                 )
 
             return _dispatch_plane(job, work)
@@ -2760,6 +2794,7 @@ def create_app() -> FastAPI:
                     element.z, element.z, req.n, req.l, req.m,
                     quantity=quantity, basis=req.basis,
                     resolution=req.resolution, progress=progress,
+                    orientation=orientation,
                 )
 
             return _dispatch_plane(job, work)
@@ -2771,6 +2806,7 @@ def create_app() -> FastAPI:
                 req.n, req.l, req.m, quantity=quantity, basis=req.basis,
                 Z=sys_.Z, mu_ratio=sys_.mu_ratio.value,
                 resolution=req.resolution, progress=progress,
+                orientation=orientation,
             )
 
         return _dispatch_plane(job, work)
@@ -2980,6 +3016,11 @@ def create_app() -> FastAPI:
             half_extent=float(pg.axis[-1]), axis_unit="bohr",
             n=pg.n, l=pg.l, m=pg.m, basis=pg.basis, system=system_key,
             model=model_key,
+            plane_theta=pg.orientation.theta,
+            plane_phi=pg.orientation.phi,
+            plane_offset=pg.orientation.offset,
+            axis_across=[float(v) for v in pg.orientation.frame()[0]],
+            axis_up=[float(v) for v in pg.orientation.frame()[1]],
             provenance=ProvenanceModel.from_provenance(pg.provenance),
         )
 

@@ -33,7 +33,14 @@ import { parseMassKey, withMassSystem } from "../lib/nuclearMass";
 import { clampState } from "../lib/quantum";
 import { isHydrogenic } from "../lib/systemKind";
 import type { Snap } from "../lib/sheet";
-import { URL_DEFAULTS, currentUrlState, type UrlState } from "../lib/urlState";
+import {
+  URL_DEFAULTS,
+  Y0_SLICE,
+  currentUrlState,
+  planeQuantityOn,
+  type PlaneSlice,
+  type UrlState,
+} from "../lib/urlState";
 import { isAlphaValid } from "../lib/whatif";
 import { tourReset } from "../tours/apply";
 import { tourById } from "../tours/registry";
@@ -204,6 +211,7 @@ interface AppState {
   error: string | null;
   fps: number;
   planeQuantity: PlaneQuantity;
+  planeSlice: PlaneSlice;
   /** An sp/sp2/sp3 hybrid key drawn in place of (n, l, m) in the cloud and plane, or null. */
   hybrid: string | null;
   plane: { meta: PlaneMeta; values: Float32Array } | null;
@@ -379,6 +387,7 @@ interface AppState {
   setCount: (count: number) => void;
   setSheet: (sheet: Snap) => void;
   setPlaneQuantity: (planeQuantity: PlaneQuantity) => void;
+  setPlaneSlice: (planeSlice: PlaneSlice) => void;
   setSurfaceMode: (surfaceMode: SurfaceMode) => void;
   setIsoFraction: (isoFraction: number) => void;
   loadIso: () => Promise<void>;
@@ -473,6 +482,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   systems: [],
   fps: 0,
   planeQuantity: "density",
+  planeSlice: Y0_SLICE,
   superposition: DEFAULT_SUP,
   hybrid: null,
   surfaceMode: "cloud",
@@ -729,6 +739,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSheet: (sheet) => set({ sheet }),
   setPlaneQuantity: (planeQuantity) =>
     set({ planeQuantity, plane: null, planeStatus: "idle", planeProgress: 0 }),
+  // A tilted plane cannot carry the current (it is the flow through y = 0) and
+  // cannot carry a signed psi that is complex there, so the quantity falls back
+  // to the density rather than asking for a grid the server would refuse.
+  setPlaneSlice: (planeSlice) =>
+    set((s) => ({
+      planeSlice,
+      planeQuantity: planeQuantityOn(planeSlice, s.planeQuantity, s.basis, s.m),
+      plane: null,
+      planeStatus: "idle",
+      planeProgress: 0,
+    })),
   setFps: (fps) => set({ fps }),
   // the lab slice: independent of the main (n,l,m,system) physics, so it never goes in INVALIDATED
   setLabConst: (partial) =>
@@ -925,7 +946,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   loadPlane: async () => {
     if (!(await get().ensureHF())) return;
-    const { n, l, m, system, basis, planeQuantity } = get();
+    const { n, l, m, system, basis, planeQuantity, planeSlice } = get();
     set({ planeStatus: "sampling", planeProgress: 0, error: null });
     try {
       const job = await client.createPlaneJob({
@@ -937,6 +958,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         quantity: planeQuantity,
         ...manyElectronParams(get()),
         hybrid: get().hybrid,
+        plane_theta: planeSlice.theta,
+        plane_phi: planeSlice.phi,
+        plane_offset: planeSlice.offset,
       });
       await client.watchJob(job.id, (planeProgress) => set({ planeProgress }));
       const [meta, values] = await Promise.all([

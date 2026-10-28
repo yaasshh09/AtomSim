@@ -554,6 +554,12 @@ export interface PlaneMeta {
   hybrid?: string | null;
   /** Which many-electron model drew this; see SampleMeta.model. */
   model: string;
+  /** The plane cut (degrees, bohr) and the unit vectors its columns and rows run along. */
+  plane_theta: number;
+  plane_phi: number;
+  plane_offset: number;
+  axis_across: number[];
+  axis_up: number[];
   provenance: Provenance;
 }
 

@@ -8,8 +8,11 @@ import { toCsv } from "../lib/plotExport";
 import { rasterize } from "../lib/rasterize";
 import { sizeAnchor } from "../lib/scaleBar";
 import { isHydrogenic } from "../lib/systemKind";
+import { isY0, planeQuantityOn, Y0_SLICE, type PlaneSlice } from "../lib/urlState";
 import { useAppStore } from "../state/store";
 import { Badge } from "./Badge";
+import { Disclosure } from "./Disclosure";
+import { Slider } from "./Field";
 import { PlaneStack } from "./PlaneStack";
 
 /**
@@ -54,8 +57,18 @@ export function NodeMarks({
 export function PlaneView() {
   const {
     n, l, m, system, basis, planeQuantity, plane, planeStatus, planeProgress,
-    error, loadPlane, setPlaneQuantity,
+    error, loadPlane, setPlaneQuantity, planeSlice, setPlaneSlice,
   } = useAppStore();
+  const tilted = !isY0(planeSlice);
+  // The sliders move a local copy; the store, and so a new grid, follows 300 ms
+  // after the hand stops, so a drag is one solve rather than thirty.
+  const [draft, setDraft] = useState<PlaneSlice>(planeSlice);
+  useEffect(() => setDraft(planeSlice), [planeSlice]);
+  useEffect(() => {
+    if (draft === planeSlice) return;
+    const t = setTimeout(() => setPlaneSlice(draft), 300);
+    return () => clearTimeout(t);
+  }, [draft, planeSlice, setPlaneSlice]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const systems = useAppStore((st) => st.systems);
   const hydrogenic = isHydrogenic(systems, system);
@@ -64,7 +77,7 @@ export function PlaneView() {
 
   useEffect(() => {
     setNodes(null);
-    if (!showNodes || !hydrogenic) return;
+    if (!showNodes || !hydrogenic || tilted) return;
     let live = true;
     getNodes(n, l, m, system, basis).then(
       (ns) => live && setNodes(ns),
@@ -73,11 +86,11 @@ export function PlaneView() {
     return () => {
       live = false;
     };
-  }, [showNodes, hydrogenic, n, l, m, system, basis]);
+  }, [showNodes, hydrogenic, tilted, n, l, m, system, basis]);
 
   useEffect(() => {
     if (!plane && planeStatus === "idle") void loadPlane();
-  }, [plane, planeStatus, loadPlane, n, l, m, system, basis, planeQuantity]);
+  }, [plane, planeStatus, loadPlane, n, l, m, system, basis, planeQuantity, planeSlice]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -117,6 +130,12 @@ export function PlaneView() {
             type="button"
             className={planeQuantity === "psi" ? "seg-on" : ""}
             onClick={() => setPlaneQuantity("psi")}
+            disabled={planeQuantityOn(planeSlice, "psi", basis, m) !== "psi"}
+            title={
+              planeQuantityOn(planeSlice, "psi", basis, m) !== "psi"
+                ? "psi is complex on this plane; use the real basis or the y = 0 plane"
+                : undefined
+            }
           >
             ψ (signed)
           </button>
@@ -124,7 +143,12 @@ export function PlaneView() {
             type="button"
             className={planeQuantity === "current" ? "seg-on" : ""}
             onClick={() => setPlaneQuantity("current")}
-            title="The probability current through this plane"
+            disabled={tilted}
+            title={
+              tilted
+                ? "The current is drawn through the y = 0 plane only"
+                : "The probability current through this plane"
+            }
           >
             current j
           </button>
@@ -134,12 +158,54 @@ export function PlaneView() {
           className={showNodes ? "ghost seg-on" : "ghost"}
           aria-pressed={showNodes}
           onClick={() => setShowNodes((v) => !v)}
-          title="Mark where psi is exactly zero"
+          disabled={tilted}
+          title={
+            tilted
+              ? "Exact node marks are drawn on the y = 0 plane only"
+              : "Mark where psi is exactly zero"
+          }
         >
           nodes
         </button>
-        {showNodes && nodes && <Badge provenance={nodes.provenance} />}
+        {showNodes && nodes && !tilted && <Badge provenance={nodes.provenance} />}
       </div>
+      <Disclosure summary={`Slice plane: ${tilted ? "tilted" : "y = 0, z up"}`}>
+        <Slider
+          label="Normal's angle from z"
+          readout={`${draft.theta}°`}
+          min={0}
+          max={180}
+          step={5}
+          value={draft.theta}
+          onChange={(theta) => setDraft({ ...draft, theta })}
+        />
+        <Slider
+          label="Normal's azimuth about z"
+          readout={`${draft.phi}°`}
+          min={0}
+          max={355}
+          step={5}
+          value={draft.phi}
+          onChange={(phi) => setDraft({ ...draft, phi })}
+        />
+        <Slider
+          label="Distance from the nucleus"
+          readout={`${draft.offset} bohr`}
+          min={-20}
+          max={20}
+          step={0.25}
+          value={draft.offset}
+          onChange={(offset) => setDraft({ ...draft, offset })}
+        />
+        <button
+          type="button"
+          className="ghost"
+          disabled={isY0(draft)}
+          onClick={() => setDraft(Y0_SLICE)}
+        >
+          back to y = 0
+        </button>
+      </Disclosure>
       <PlaneStack
         canvasRef={canvasRef}
         halfExtent={plane?.meta.half_extent ?? 0}
@@ -147,8 +213,9 @@ export function PlaneView() {
         name={`atomsim-plane-${planeQuantity}`}
         light={plane ? plane.meta.quantity !== "density" : false}
         bohrPm={plane?.meta.bohr_pm}
+        axisNames={tilted ? ["across", "up"] : ["x", "z"]}
         overlay={
-          showNodes && nodes && plane
+          showNodes && nodes && plane && !tilted
             ? (x, z) => (
                 <NodeMarks nodes={nodes} x={x} z={z} reach={2 * plane.meta.half_extent} />
               )
@@ -165,7 +232,8 @@ export function PlaneView() {
                 for (let i = 0; i < res; i++) {
                   for (let j = 0; j < res; j++) rows.push([at(j), at(i), plane.values[i * res + j]]);
                 }
-                return toCsv(["x_bohr", "z_bohr", `${quantity} [${unit}]`], rows);
+                const [across, up] = tilted ? ["across_bohr", "up_bohr"] : ["x_bohr", "z_bohr"];
+                return toCsv([across, up, `${quantity} [${unit}]`], rows);
               }
             : undefined
         }
@@ -177,13 +245,28 @@ export function PlaneView() {
       </PlaneStack>
       {plane && (
         <p className="caption">
-          x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
-          {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
+          {tilted ? (
+            <>
+              Both axes span [−{plane.meta.half_extent.toFixed(1)}, +
+              {plane.meta.half_extent.toFixed(1)}] bohr; across runs along (
+              {plane.meta.axis_across.map((v) => v.toFixed(2)).join(", ")}) and up along (
+              {plane.meta.axis_up.map((v) => v.toFixed(2)).join(", ")}) in (x, y, z).{" "}
+            </>
+          ) : (
+            <>
+              x, z ∈ [−{plane.meta.half_extent.toFixed(1)}, +
+              {plane.meta.half_extent.toFixed(1)}] bohr; z vertical (quantization axis).{" "}
+            </>
+          )}
           {sizeAnchor(2 * plane.meta.half_extent, plane.meta.bohr_pm)}{" "}
           {plane.meta.quantity === "density" ? (
             "The inferno brightness is γ-compressed at exponent 0.5 (VISUAL LIBERTY, so faint lobes stay visible)."
           ) : plane.meta.quantity === "psi" ? (
-            <Notation>{"A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}</Notation>
+            <Notation>
+              {tilted
+                ? "A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real everywhere in this basis, so the sign is honest on any plane."
+                : "A diverging RdBu, linear in ψ: blue < 0 < red. ψ is real on this plane (e^{imφ} = ±1)."}
+            </Notation>
           ) : (
             <Notation>{currentCaption(basis, plane.meta.m)}</Notation>
           )}
