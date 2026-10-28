@@ -10,7 +10,13 @@ import type { UrlState } from "../lib/urlState";
  * table plus one entry here, and the structural test asserts the two lists
  * match.
  */
-export const CLAIM_KINDS = ["energy_eV", "mean_r_pm", "wavelength_nm", "ionization_eV"] as const;
+export const CLAIM_KINDS = [
+  "energy_eV",
+  "mean_r_pm",
+  "wavelength_nm",
+  "ionization_eV",
+  "correlation_eV",
+] as const;
 
 export type ClaimKind = (typeof CLAIM_KINDS)[number];
 

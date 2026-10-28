@@ -193,6 +193,7 @@ export function PlaneView() {
         </button>
         {showNodes && nodes && !tilted && <Badge provenance={nodes.provenance} />}
       </div>
+      <div data-tour="slice-controls">
       <Disclosure summary={`Slice plane: ${tilted ? "tilted" : "y = 0, z up"}`}>
         <Slider
           label="Normal's angle from z"
@@ -230,6 +231,8 @@ export function PlaneView() {
           back to y = 0
         </button>
       </Disclosure>
+      </div>
+      <div data-tour="compare-controls">
       <Disclosure
         summary={
           planeCompare
@@ -256,6 +259,7 @@ export function PlaneView() {
           </button>
         )}
       </Disclosure>
+      </div>
       <div className={comparePlane && planeCompare ? "plane-compare" : undefined}>
       <div className="plane-cell">
       <PlaneStack

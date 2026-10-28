@@ -45,7 +45,7 @@ export function XrayPanel() {
   const fit = moseleyFit(rows);
 
   return (
-    <section className="config-race" aria-labelledby="xray-title">
+    <section className="config-race" aria-labelledby="xray-title" data-tour="xray-panel">
       <h3 id="xray-title" className="readouts-head">
         Moseley's law: the K-alpha X-ray line, neon to krypton
       </h3>

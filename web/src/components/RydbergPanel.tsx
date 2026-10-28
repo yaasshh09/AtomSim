@@ -35,7 +35,7 @@ export function RydbergPanel({ initial }: { initial: string }) {
   }, [atom]);
 
   return (
-    <section className="config-race" aria-labelledby="rydberg-title">
+    <section className="config-race" aria-labelledby="rydberg-title" data-tour="rydberg-panel">
       <h3 id="rydberg-title" className="readouts-head">
         Rydberg series: hydrogen with n shifted
       </h3>

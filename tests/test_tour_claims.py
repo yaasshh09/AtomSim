@@ -78,6 +78,13 @@ class TestResolverKinds:
         got = resolve_claim({"of": "ionization_eV", "system": "he", "model": "hf"})
         assert got == pytest.approx(24.98, abs=0.3)
 
+    def test_correlation_energy_of_helium(self):
+        # The literature value: E_exact - E_HF-limit = -0.04204 hartree, -1.144 eV.
+        got = resolve_claim({"of": "correlation_eV", "system": "he"})
+        assert got == pytest.approx(-1.144, abs=0.002)
+        with pytest.raises(ValueError, match="helium only"):
+            resolve_claim({"of": "correlation_eV", "system": "li"})
+
     def test_every_declared_kind_resolves(self):
         # A kind in CLAIM_KINDS with no branch in the dispatch would raise only
         # when a tour first used it, which is the wrong time to find out.
@@ -86,6 +93,7 @@ class TestResolverKinds:
             "mean_r_pm",
             "wavelength_nm",
             "ionization_eV",
+            "correlation_eV",
         }
 
     def test_unknown_kind_raises_rather_than_returning_zero(self):

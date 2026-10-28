@@ -1,0 +1,60 @@
+{
+  "id": "new-ways-to-look",
+  "title": "New ways to look",
+  "blurb": "Tilted slices, two states side by side, a volume render, and a morph between states.",
+  "steps": [
+    {
+      "id": "slice-plane",
+      "title": "Any slice, not just y = 0",
+      "body": [
+        "The cross-section can tilt, turn or slide off the nucleus, and the axes say exactly which plane you are looking at.",
+        "Signed ψ is offered only where ψ is real on the plane. A complex orbital on a tilted plane shows its density instead, because dropping its imaginary part would draw half a function."
+      ],
+      "state": {
+        "n": 3,
+        "l": 2,
+        "m": 1,
+        "basis": "real",
+        "view": "plane",
+        "planeQuantity": "psi",
+        "planeSlice": { "theta": 45, "phi": 30, "offset": 0 }
+      },
+      "spotlight": "slice-controls"
+    },
+    {
+      "id": "compare",
+      "title": "Two states, one frame",
+      "body": [
+        "A second state can sit beside the first, on the same frame and one colour scale. He⁺ has twice hydrogen's charge, so its 2p is half the size and far brighter.",
+        "Neither picture is rescaled to fill its frame, so size and brightness compare directly."
+      ],
+      "state": {
+        "n": 2,
+        "l": 1,
+        "m": 0,
+        "view": "plane",
+        "planeCompare": { "n": 2, "l": 1, "m": 0, "system": "he+" }
+      },
+      "spotlight": "compare-controls"
+    },
+    {
+      "id": "volume",
+      "title": "The density as a glowing fog",
+      "body": [
+        "The 3-D view can draw the whole density at once, ray-marched through the engine's grid in a box fitted to hold nearly all of the electron.",
+        "The fog depth is a display choice and is labelled as one. It sets how far into the cloud you see, not how much electron is there."
+      ],
+      "state": { "n": 3, "l": 2, "m": 0, "view": "cloud", "surfaceMode": "volume" },
+      "spotlight": "surface-controls"
+    },
+    {
+      "id": "morph",
+      "title": "From one state to another",
+      "body": [
+        "With two states in the mix, the time-evolution view can walk from the first to the second. Every frame is a real, normalized state, never a blend of two pictures.",
+        "On the π-pulse path the density fades from one to the other, as a laser on resonance would drive it. In phase, the two interfere and the in-between frames lean to one side."
+      ],
+      "state": { "view": "evolve" }
+    }
+  ]
+}

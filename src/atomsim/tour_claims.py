@@ -23,6 +23,7 @@ from atomsim.analytic.hydrogen import energy, mean_radius
 from atomsim.atoms import ATOM_KEYS, atom_for_key, aufbau_configuration
 from atomsim.constants import BOHR_RADIUS_PM, HARTREE_EV
 from atomsim.hf_atom import hf_valence_ionization_energy, solve_hartree_fock
+from atomsim.hylleraas import helium_report
 from atomsim.spectra import transition_lines
 from atomsim.systems import get_system
 
@@ -31,6 +32,7 @@ CLAIM_KINDS: tuple[str, ...] = (
     "mean_r_pm",
     "wavelength_nm",
     "ionization_eV",
+    "correlation_eV",
 )
 
 #: Repo root, from ``src/atomsim/tour_claims.py``.
@@ -114,11 +116,23 @@ def _ionization_ev(claim: dict[str, Any]) -> float:
     return hf_valence_ionization_energy(result).value * HARTREE_EV
 
 
+def _correlation_ev(claim: dict[str, Any]) -> float:
+    """Helium's correlation energy: the Hylleraas energy minus Hartree-Fock's, in eV.
+
+    Helium only, because that is the one atom with a correlated solve here; a
+    claim naming another system is refused rather than answered with helium.
+    """
+    if claim.get("system", "he") != "he":
+        raise ValueError("correlation_eV is computed for helium only")
+    return helium_report().correlation.value * HARTREE_EV
+
+
 _RESOLVERS = {
     "energy_eV": _energy_ev,
     "mean_r_pm": _mean_r_pm,
     "wavelength_nm": _wavelength_nm,
     "ionization_eV": _ionization_ev,
+    "correlation_eV": _correlation_ev,
 }
 
 

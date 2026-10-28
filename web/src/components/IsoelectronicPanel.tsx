@@ -68,7 +68,7 @@ export function IsoelectronicPanel() {
   const total = seq?.ions.length ?? 11;
 
   return (
-    <section className="config-race" aria-labelledby="iso-title">
+    <section className="config-race" aria-labelledby="iso-title" data-tour="iso-panel">
       <h3 id="iso-title" className="readouts-head">
         Isoelectronic sequences: same electrons, more charge
       </h3>

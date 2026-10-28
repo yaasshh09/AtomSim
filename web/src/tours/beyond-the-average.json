@@ -1,0 +1,58 @@
+{
+  "id": "beyond-the-average",
+  "title": "Beyond the average electron",
+  "blurb": "Correlation, the exchange hole, and what many electrons do to spectra and X-rays.",
+  "steps": [
+    {
+      "id": "correlation",
+      "title": "What Hartree-Fock leaves out",
+      "body": [
+        "Hartree-Fock lets each electron feel the others only as a smeared-out cloud. The panel under helium's ladder solves the same atom with the distance between its two electrons built into the wavefunction, and the difference is the correlation energy, -1.14 eV.",
+        "That is about one percent of the total energy, and all of it shows up in the ionization energy, because the ion left behind has a single electron and nothing to correlate."
+      ],
+      "state": { "system": "he", "model": "hf", "view": "levels" },
+      "spotlight": "corr-panel",
+      "claims": [{ "of": "correlation_eV", "system": "he", "is": -1.14, "tol": 0.01 }]
+    },
+    {
+      "id": "exchange-hole",
+      "title": "The hole an electron carries with it",
+      "body": [
+        "Pin one electron and ask where the others are. Electrons with the same spin keep out of each other's way, so the density dips around the pinned one, and the dip holds exactly one electron.",
+        "Hartree-Fock draws this hole and no other. Electrons of opposite spin get none at all, which is the same missing correlation as the step before."
+      ],
+      "state": { "system": "ne", "model": "hf", "view": "levels" },
+      "spotlight": "xhole-panel"
+    },
+    {
+      "id": "isoelectronic",
+      "title": "Same electrons, more charge",
+      "body": [
+        "Keep two electrons and raise the nuclear charge: He, Li⁺, Be²⁺ and on. Perturbation theory gives the first two terms of the energy exactly, and the panel takes them off each Hartree-Fock solve.",
+        "What is left settles onto a constant as the charge grows. Against the measured ionization energies, Koopmans' estimate starts high and ends low, once relativity outgrows the error from frozen orbitals."
+      ],
+      "state": { "system": "he", "model": "hf", "view": "levels" },
+      "spotlight": "iso-panel"
+    },
+    {
+      "id": "rydberg",
+      "title": "Hydrogen again, far from the core",
+      "body": [
+        "Excite sodium's outer electron far enough and its levels look like hydrogen's, with n shifted by a nearly constant amount called the quantum defect. The s series is shifted most, because an s electron dives deepest into the core.",
+        "The screened model lands a few hundredths away from the measured defects, and further off for f, where the core's polarization does most of the work."
+      ],
+      "state": { "system": "na", "model": "gsz", "view": "levels" },
+      "spotlight": "rydberg-panel"
+    },
+    {
+      "id": "xrays",
+      "title": "The X-ray line that ordered the periodic table",
+      "body": [
+        "Knock out a 1s electron and the X-ray that follows rises with the nuclear charge so regularly that Moseley used it to put the elements in order. The panel solves the two core-hole ions for each element and sets the result beside NIST.",
+        "Without relativity the computed line falls further short with every heavier element. A simple Dirac correction, kept separate and labelled, closes most of the gap."
+      ],
+      "state": { "system": "ar", "model": "hf", "view": "levels" },
+      "spotlight": "xray-panel"
+    }
+  ]
+}

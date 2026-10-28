@@ -45,7 +45,7 @@ export function ExchangeHolePanel({ z }: { z: number }) {
   }, [z, a]);
 
   return (
-    <section className="config-race" aria-labelledby="xhole-title" ref={ref}>
+    <section className="config-race" aria-labelledby="xhole-title" ref={ref} data-tour="xhole-panel">
       <h3 id="xhole-title" className="readouts-head">
         The exchange hole: where the others are, given one electron
       </h3>

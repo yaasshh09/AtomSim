@@ -1,7 +1,9 @@
 import aRealSpectrum from "./a-real-spectrum.json";
+import beyondTheAverage from "./beyond-the-average.json";
 import breakThePhysics from "./break-the-physics.json";
 import hydrogenHonestly from "./hydrogen-honestly.json";
 import manyElectrons from "./many-electrons.json";
+import newWaysToLook from "./new-ways-to-look.json";
 import type { Tour } from "./types";
 
 /**
@@ -21,6 +23,8 @@ export const TOURS: Tour[] = [
   breakThePhysics as Tour,
   manyElectrons as Tour,
   aRealSpectrum as Tour,
+  beyondTheAverage as Tour,
+  newWaysToLook as Tour,
 ];
 
 export function tourById(id: string): Tour | null {

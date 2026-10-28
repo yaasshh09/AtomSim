@@ -7,6 +7,7 @@ import { CLAIM_KINDS } from "./types";
 
 const UNIT_OF: Record<string, string> = {
   energy_eV: "eV", ionization_eV: "eV", mean_r_pm: "pm", wavelength_nm: "nm",
+  correlation_eV: "eV",
 };
 
 describe("registry", () => {

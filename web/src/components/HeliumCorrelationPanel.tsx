@@ -31,7 +31,7 @@ export function HeliumCorrelationPanel() {
     : [];
 
   return (
-    <section className="config-race" aria-labelledby="corr-title">
+    <section className="config-race" aria-labelledby="corr-title" data-tour="corr-panel">
       <h3 id="corr-title" className="readouts-head">
         Beyond Hartree-Fock: helium's correlation energy
       </h3>
